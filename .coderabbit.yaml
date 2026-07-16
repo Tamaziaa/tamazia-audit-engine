@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit reviews EVERY pull request on this repo, automatically, 24/7, at the highest strictness.
+# This file teaches it what "wrong" means HERE. This engine generates legal documents sent to real
+# firms; a wrong fact is a false accusation with our name on it. The bug classes below all shipped
+# to clients from the predecessor repo. CONSTITUTION.md and caution.md are the law of this repo:
+# a diff that violates either is a defect regardless of whether the code "works".
+language: en-GB
+early_access: true
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true   # findings BLOCK the merge until resolved — the strict rule
+  high_level_summary: true
+  review_status: true
+  poem: false
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: true
+    base_branches: ["main"]
+
+  path_instructions:
+    - path: "**/*.js"
+      instructions: |
+        Read CONSTITUTION.md and caution.md first; every rule there is reviewable here. The stakes:
+        this code produces legal claims quoted to law firms. Review for these classes FIRST:
+
+        1. TWO DOORS. One client-visible fact (identity, jurisdiction, sector, regulator, fine,
+           law title, host, element-checklist verdict) may have exactly ONE producer, declared in
+           tools/one-door/facts.json. Any second derivation of such a fact, however small, is a
+           defect. The stale door is the one the client sees.
+        2. CATALOGUE-ONLY LAW FACTS. A fine amount, regulator name, law name, or statutory citation
+           as a literal in source code is a defect even when currently correct. It must come from
+           the catalogue artifact, which carries provenance and versioning.
+        3. NO ARTIFACT, NO BREACH. Any code path that can emit a finding must attach a machine-
+           verifiable evidence artifact (verbatim quote string-matched to the corpus, captured
+           network event, register row, failing DOM node). Flag any finding constructed without one.
+        4. FAIL CLOSED. Every gate must fail closed. Every catch must rethrow, record to the stage
+           manifest/_warn, or carry a written `// FAIL-OPEN: <why the default IS the answer>`
+           justification. A swallowed error ships a clean bill of health for a check that never ran.
+        5. HOSTS ARE PARSED, NEVER SUBSTRINGS. `url.includes(domain)` matches
+           'evil.com/?ref=reed.co.uk'. Only parsed-host comparison via the single url-safe module.
+        6. ANCHOR EVERY REGEX ALTERNATION. `/^UAE|DIFC|ADGM/` anchors only the first branch.
+           Over-escaped patterns (`dpo[@\\s]`) compile, match nothing forever, and report
+           compliance. Any new/changed catalogue regex needs a positive-match fixture.
+        7. STRING-LITERAL REQUIRES ONLY. Dynamic requires are invisible to the reachability gate —
+           that is how correct legal logic sat dead in production for months.
+        8. ABSENCE vs OBSERVATION. "It is missing" needs proof we looked (checked_urls or a proving
+           page). "It happened" (tracker fired pre-consent) is proved by the captured observation.
+           Conflating them either fabricates accusations or structurally blocks real breaches.
+        9. MODULE-SCOPE STATE. No mutable module-level state that survives across mints (the _WARN
+           singleton corrupted warning counts for every audit after the first). State is scoped per
+           invocation.
+        10. BUDGETS ARE CAPS, NEVER FLOORS. Any Math.max on a timeout, any retry loop without a
+           hard deadline, any external call (LLM, browser, register API) without a bounded
+           Promise.race is a defect.
+        11. UNIFORM TAGS. Sector, sub-sector, jurisdiction, and nexus identifiers come ONLY from
+           facts/vocabulary.js. A string literal that spells one of these vocabularies inline
+           ("law-firms", "UK", "established_in") outside vocabulary.js or a fixture is a defect.
+        12. LLM SELECTS, NEVER AUTHORS. Any LLM call whose output can CREATE a client-visible fact
+           (rather than select from retrieved candidates, veto, or abstain) is a defect. Outputs
+           must be schema-enforced and verbatim-quote-anchored; quotes re-verified by string match.
+
+    - path: "eval/**"
+      instructions: |
+        These gates guard a legal document. A gate that encodes one spelling of a defect produces a
+        CONFIDENT ZERO, which is worse than no gate because it stops anyone looking.
+        - Prefer AST inspection over regex for code-structure checks.
+        - A test that only reads source text cannot see a ReferenceError; ask whether the test
+          EXECUTES the code path (two mint-killing bugs shipped past 77 green source-text evals).
+        - Every new gate MUST land with a known-bad fixture in eval/calibration-known-bad/ and be
+          wired into its run.js. A zero you did not earn is a lie.
+        - Golden payloads change only via an explicit --accept in the same PR, with the diff stated
+          in the PR description.
+
+    - path: "catalogue/**"
+      instructions: |
+        The law registry. Every row/record must carry: statutory citation (act + section + official
+        URL), penalty band (typical low/high + statutory max + currency), regulator, jurisdiction +
+        sub-jurisdiction tags, sector/sub-sector tags from facts/vocabulary.js, applies_when AND
+        excluded_when (thresholds like turnover exemptions are load-bearing: Modern Slavery was
+        wrongly applied to SMEs in 5 of 9 forensic audits), required_nexus, and provenance
+        (source, last_synced). A law without provenance must not merge. Polarity check: a
+        prohibition rule breaches when the prohibited content IS present; five predecessor rules
+        breached firms for NOT advertising what the law prohibits. Check the regex direction
+        against the obligation text quoted in the record.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Operational knobs are re-asserted in the workflow AFTER any .env/secret load; a secret
+        silently overriding MINT_CONCURRENCY/engine version cost days. The engine version is a
+        property of the code, never the environment. No workflow may reference a secret that makes
+        a job fail red when absent; guard with if-expressions and log a loud skip.
+
+    - path: "payload/**"
+      instructions: |
+        The payload schema IS the render contract (@tamazia/audit-contract). Any field
+        added/removed/renamed here changes what a law firm sees: the same PR must update the
+        schema version, the validator, the transform tests, and the golden payloads. The renderer
+        re-derives NOTHING; if a reviewer can imagine the website computing this field itself,
+        flag it.
+
+  tools:
+    semgrep: { enabled: true }
+    eslint: { enabled: true }
+    actionlint: { enabled: true }
+    gitleaks: { enabled: true }
+    yamllint: { enabled: true }
+    markdownlint: { enabled: false }
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: local
+  issues:
+    scope: local
