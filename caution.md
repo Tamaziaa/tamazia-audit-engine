@@ -442,6 +442,8 @@ Every pointer below is a real failure recorded in the old estate (tamazia-cowork
 
 **C-200** Findings were phrased as adjudicated legal conclusions -> findings ship as evidence-quoted factual observations plus risk indicators ("detected X; this may implicate Act §Y, penalty band Z") with a standing not-legal-advice line; conclusory phrasing fails the render truth-pack. If you would not assert it in a tribunal, do not render it.
 
+**C-201** (2026-07-16, P0) The very first CI run failed on a tree divergence local never saw: dependency-cruiser enumerated scaffold directories that git does not track when empty, so CI checked out a different tree than the one verified locally -> every gate must run against the tree git actually ships (empty intended directories carry .gitkeep; local verification is done from a fresh `git clone` of HEAD, not the working directory, before declaring a phase green).
+
 ---
 
 ## How this file is used
