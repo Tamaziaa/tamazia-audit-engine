@@ -1,0 +1,78 @@
+# The local tool fleet: every static gate runs on every push and PR, from commit 1.
+# No secrets required anywhere in this workflow.
+#
+# Gates:
+#   eslint             - no-undef + no-use-before-define (the two mint-killer rules)
+#   madge              - circular dependency detection
+#   jscpd              - copy-paste detection (min-tokens tuned quiet)
+#   dependency-cruiser - orphans (built-but-never-called) + circular
+#   swallow-gate       - silent-swallow AST gate (graceful WARNING if not yet authored)
+#   calibration        - known-bad corpus: every analyser must fail on seeded bad input
+#                        (graceful-absence is a P0-ONLY concession; from P1 absence must fail)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fleet:
+    name: Local tool fleet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint (no-undef, no-use-before-define)
+        run: npm run lint
+
+      - name: madge (circular dependencies)
+        run: npm run circular
+
+      - name: jscpd (copy-paste detection)
+        run: npm run dup
+
+      - name: dependency-cruiser (orphans + circular)
+        run: npm run depcruise
+
+      - name: Silent-swallow AST gate
+        run: |
+          if [ -f tools/swallow-gate/check.js ]; then
+            node tools/swallow-gate/check.js
+          else
+            echo "::warning title=swallow-gate absent::tools/swallow-gate/check.js does not exist yet - gate SKIPPED. This is only acceptable during P0 Foundation."
+          fi
+
+      - name: Known-bad calibration corpus
+        run: |
+          if [ -f eval/calibration-known-bad/run.js ]; then
+            node eval/calibration-known-bad/run.js
+          else
+            echo "::warning title=calibration harness absent::eval/calibration-known-bad/run.js does not exist yet - calibration SKIPPED."
+            echo "############################################################"
+            echo "# WARNING: known-bad calibration DID NOT RUN.              #"
+            echo "# Graceful absence is a P0-ONLY concession. From P1 this   #"
+            echo "# step must exist and its absence must fail the build.     #"
+            echo "############################################################"
+          fi
+
+      - name: Unit tests (node --test)
+        run: npm test

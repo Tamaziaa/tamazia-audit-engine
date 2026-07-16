@@ -1,0 +1,61 @@
+# Semgrep OSS scan (p/default + p/security-audit + p/secrets), SARIF uploaded to code scanning.
+# No secrets required: registry rulesets are public and SARIF upload uses the built-in GITHUB_TOKEN.
+# SEMGREP_APP_TOKEN is OPTIONAL: when the secret is configured, an extra `semgrep ci` step reports
+# to Semgrep Cloud; when it is absent, that step skips gracefully with a log line and the job stays green.
+name: Semgrep
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep OSS scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: semgrep/semgrep
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Semgrep OSS scan (SARIF)
+        run: >-
+          semgrep scan
+          --config p/default
+          --config p/security-audit
+          --config p/secrets
+          --sarif
+          --output semgrep.sarif
+          --metrics=off
+          --exclude node_modules
+          --exclude docs
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-oss
+
+      - name: Semgrep Cloud report (optional, token-gated)
+        if: env.SEMGREP_APP_TOKEN != ''
+        run: semgrep ci
+
+      - name: Semgrep Cloud skipped (no token)
+        if: env.SEMGREP_APP_TOKEN == ''
+        run: echo "SEMGREP_APP_TOKEN not configured - skipping Semgrep Cloud report (OSS SARIF scan above still ran)."

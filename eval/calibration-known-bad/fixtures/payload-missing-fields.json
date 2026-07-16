@@ -1,0 +1,22 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): contract-incomplete payload class. This payload is missing most REQUIRED contract fields (no score, grade, exposure, counts, scoring, seo, geo, competitors, ...), its dims array has 3 entries instead of the exact 10, and frameworks is empty where content is required. payload/contract validatePayload() MUST return a non-empty missing list for it, or the contract gate has not earned its zero.",
+  "meta": {
+    "company": "Calibration Known-Bad Ltd",
+    "domain": "calibration-known-bad.example",
+    "sector": "legal"
+  },
+  "dims": [
+    { "name": "Privacy", "score": 40 },
+    { "name": "Cookies", "score": 55 },
+    { "name": "Accessibility", "score": 61 }
+  ],
+  "frameworks": [],
+  "geo": {
+    "engines": [
+      { "engine": "ChatGPT", "cite": false }
+    ],
+    "rootCause": {
+      "chain": ["thin entity data", "no schema"]
+    }
+  }
+}

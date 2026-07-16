@@ -1,0 +1,21 @@
+{
+  "minTokens": 70,
+  "minLines": 8,
+  "threshold": 5,
+  "gitignore": true,
+  "reporters": ["console"],
+  "format": ["javascript"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/docs/**",
+    "**/reports/**",
+    "**/coverage/**",
+    "**/.git/**",
+    "**/.jscpd-report/**",
+    "**/.stryker-tmp/**",
+    "**/fixtures/**",
+    "**/eval/golden/**",
+    "**/eval/reference-set/**",
+    "**/eval/calibration-known-bad/corpus/**"
+  ]
+}

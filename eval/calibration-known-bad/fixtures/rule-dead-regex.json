@@ -1,0 +1,13 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): over-escaped dead regex class. In this JSON source the pattern reads dpo[@\\\\s] which compiles to the character class {@, backslash, s} - it can NEVER match whitespace after 'dpo' as intended, so the rule is dead and its absence-style breach can never be evidenced. The catalogue regex-health linter MUST flag this rule in --calibrate mode, or it has not earned its zero.",
+  "id": "CAL_DEAD_REGEX_01",
+  "law": "UK GDPR Article 37 (DPO contact details)",
+  "framework_short": "UK_GDPR",
+  "jurisdiction": "UK",
+  "style": "presence",
+  "regex_pattern": "dpo[@\\\\s]",
+  "trigger_pattern": "data protection officer",
+  "breach_message": "No DPO contact details published",
+  "citation_url": "https://www.legislation.gov.uk/eur/2016/679/article/37",
+  "severity": "standard"
+}

@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tamazia.co.uk/schemas/audit-payload/v1.0.0/payload.schema.json",
+  "title": "Tamazia audit payload contract",
+  "version": "1.0.0",
+  "description": "v1 skeleton of the audit payload contract, ported from the field inventory in tamazia-website functions/audit/_contract.js (REQUIRED, NONEMPTY, exact-count invariants). This schema is the source of truth for the @tamazia/audit-contract package: the engine composes a payload that satisfies it, the renderer consumes it and re-derives nothing. Leaf types are deliberately permissive in v1 (present-and-non-null is the contract); P4 tightens leaf types as payloadToD() moves into this repo. catalogueSize is DELIBERATELY NULLABLE and not required: the engine does not yet emit a catalogue count and the render must never invent one - it prints screenedLabel instead.",
+  "type": "object",
+  "required": [
+    "meta",
+    "score",
+    "grade",
+    "scoreBand",
+    "exposure",
+    "exposureFull",
+    "exposureNote",
+    "exposureWaterfall",
+    "counts",
+    "confirmed",
+    "frameworksAssessed",
+    "frameworksBinding",
+    "screenedLabel",
+    "rulesChecked",
+    "scoring",
+    "exec",
+    "jurisdiction",
+    "heat",
+    "heatRows",
+    "heatCols",
+    "projected",
+    "glossary",
+    "seo",
+    "geo",
+    "competitors",
+    "pricingNotes",
+    "upsellProof",
+    "frameworks",
+    "dims",
+    "fixes",
+    "trajectory",
+    "pricing"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["company", "domain", "sector", "country", "date"],
+      "properties": {
+        "company": { "$ref": "#/$defs/nonNull" },
+        "domain": { "$ref": "#/$defs/nonNull" },
+        "sector": { "$ref": "#/$defs/nonNull" },
+        "country": { "$ref": "#/$defs/nonNull" },
+        "date": { "$ref": "#/$defs/nonNull" }
+      }
+    },
+    "score": { "$ref": "#/$defs/nonNull" },
+    "grade": { "$ref": "#/$defs/nonNull" },
+    "scoreBand": { "$ref": "#/$defs/nonNull" },
+    "exposure": { "$ref": "#/$defs/nonNull" },
+    "exposureFull": { "$ref": "#/$defs/nonNull" },
+    "exposureNote": { "$ref": "#/$defs/nonNull" },
+    "exposureWaterfall": { "$ref": "#/$defs/nonNull" },
+    "counts": {
+      "type": "object",
+      "required": ["critical", "high", "standard", "total"],
+      "properties": {
+        "critical": { "$ref": "#/$defs/nonNull" },
+        "high": { "$ref": "#/$defs/nonNull" },
+        "standard": { "$ref": "#/$defs/nonNull" },
+        "total": { "$ref": "#/$defs/nonNull" }
+      }
+    },
+    "confirmed": { "$ref": "#/$defs/nonNull" },
+    "catalogueSize": {
+      "$comment": "THE THREE NUMBERS: catalogueSize (the FULL register) is DELIBERATELY NULLABLE - never invented by the render; screenedLabel is printed instead. The two numbers that can always be proven (frameworksBinding: what binds this firm; rulesChecked: what was checked) stay required."
+    },
+    "frameworksAssessed": { "$ref": "#/$defs/nonNull" },
+    "frameworksBinding": { "$ref": "#/$defs/nonNull" },
+    "screenedLabel": { "$ref": "#/$defs/nonNull" },
+    "rulesChecked": { "$ref": "#/$defs/nonNull" },
+    "scoring": {
+      "type": "object",
+      "required": ["formula", "why", "inputs", "bands"],
+      "properties": {
+        "formula": { "$ref": "#/$defs/nonNull" },
+        "why": { "$ref": "#/$defs/nonNull" },
+        "inputs": { "$ref": "#/$defs/nonNull" },
+        "bands": { "$ref": "#/$defs/nonEmptyArray" }
+      }
+    },
+    "exec": { "$ref": "#/$defs/nonNull" },
+    "jurisdiction": { "$ref": "#/$defs/nonNull" },
+    "heat": { "$ref": "#/$defs/nonNull" },
+    "heatRows": { "$ref": "#/$defs/nonNull" },
+    "heatCols": { "$ref": "#/$defs/nonNull" },
+    "projected": {
+      "type": "object",
+      "required": ["wk12", "wk24"],
+      "properties": {
+        "wk12": { "$ref": "#/$defs/nonNull" },
+        "wk24": { "$ref": "#/$defs/nonNull" }
+      }
+    },
+    "glossary": { "$ref": "#/$defs/nonNull" },
+    "seo": {
+      "type": "object",
+      "required": ["psi", "cwv", "onpage", "security", "a11y", "tech", "keywordSummary", "psiAudits", "keywords"],
+      "properties": {
+        "psi": { "$ref": "#/$defs/nonNull" },
+        "cwv": { "$ref": "#/$defs/nonNull" },
+        "onpage": { "$ref": "#/$defs/nonNull" },
+        "security": { "$ref": "#/$defs/nonNull" },
+        "a11y": { "$ref": "#/$defs/nonNull" },
+        "tech": { "$ref": "#/$defs/nonNull" },
+        "keywordSummary": { "$ref": "#/$defs/nonNull" },
+        "psiAudits": { "$ref": "#/$defs/nonNull" },
+        "keywords": { "$ref": "#/$defs/nonEmptyArray" }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "required": ["entityReadiness", "shareOfVoice", "radar", "schema", "citations", "sourceGap", "rootCause", "fix", "engines"],
+      "properties": {
+        "entityReadiness": { "$ref": "#/$defs/nonNull" },
+        "shareOfVoice": { "$ref": "#/$defs/nonNull" },
+        "radar": { "$ref": "#/$defs/nonNull" },
+        "schema": { "$ref": "#/$defs/nonNull" },
+        "citations": { "$ref": "#/$defs/nonNull" },
+        "sourceGap": { "$ref": "#/$defs/nonNull" },
+        "fix": { "$ref": "#/$defs/nonNull" },
+        "engines": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "$comment": "Exact-count invariant: the render draws exactly 8 AI engines."
+        },
+        "rootCause": {
+          "type": "object",
+          "required": ["chain"],
+          "properties": {
+            "chain": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "$comment": "Exact-count invariant: the root-cause chain has exactly 4 links."
+            }
+          }
+        }
+      }
+    },
+    "competitors": {
+      "type": "object",
+      "required": ["bestKeyword", "youDr", "cols", "rows", "drBars"],
+      "properties": {
+        "bestKeyword": { "$ref": "#/$defs/nonNull" },
+        "youDr": { "$ref": "#/$defs/nonNull" },
+        "cols": { "$ref": "#/$defs/nonNull" },
+        "rows": { "$ref": "#/$defs/nonEmptyArray" },
+        "drBars": { "$ref": "#/$defs/nonNull" }
+      }
+    },
+    "pricingNotes": { "$ref": "#/$defs/nonNull" },
+    "upsellProof": { "$ref": "#/$defs/nonNull" },
+    "frameworks": { "$ref": "#/$defs/nonEmptyArray" },
+    "dims": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "$comment": "Exact-count invariant: the render draws exactly 10 dimensions."
+    },
+    "fixes": { "$ref": "#/$defs/nonEmptyArray" },
+    "trajectory": { "$ref": "#/$defs/nonEmptyArray" },
+    "pricing": { "$ref": "#/$defs/nonEmptyArray" }
+  },
+  "$defs": {
+    "nonNull": {
+      "not": { "type": "null" },
+      "$comment": "v1 contract: present and non-null. Leaf types tighten in later minor versions."
+    },
+    "nonEmptyArray": {
+      "type": "array",
+      "minItems": 1,
+      "$comment": "The render iterates this and would show nothing if empty."
+    }
+  }
+}

@@ -1,0 +1,52 @@
+# Nightly full local sweep (SARIF fan-in, fingerprint dedupe, DSU clustering, numbered ledger).
+# No secrets required. The ledger is uploaded as a workflow artifact for the tool warden.
+name: Nightly sweep
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC nightly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Full local sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run sweep
+        run: |
+          if [ -f tools/sweep/run.js ]; then
+            node tools/sweep/run.js
+          else
+            echo "::warning title=sweep runner absent::tools/sweep/run.js does not exist yet - sweep SKIPPED. This is only acceptable during P0 Foundation; the tool warden blocks progress if the sweep stops running."
+          fi
+
+      - name: Upload ledger artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep-ledger-${{ github.run_number }}
+          path: |
+            reports/sweep/
+            tools/sweep/ledger*
+          if-no-files-found: warn
+          retention-days: 90

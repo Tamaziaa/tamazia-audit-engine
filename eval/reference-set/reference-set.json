@@ -1,0 +1,750 @@
+{
+  "name": "tamazia-audit-engine reference set",
+  "version": "1.0.0",
+  "generated": "2026-07-16",
+  "description": "Ground truth for the reference-set harness. Engine output must MATCH or ABSTAIN on every verified expectation and must NEVER CONTRADICT one. Fields are filled only where a hand-verified source states them; everything else is null with needs_verification: true. Do not fill a null field without citing a verification source in provenance.",
+  "sources": [
+    "Tamazia-Remix/AUDIT-ENGINE-FAILURE-CATALOGUE.md (nine forensic audits hand-verified against live sites, 2026-06-23)",
+    "docs/discovery/digest-plan-docs.md (vetted edit plan, corpus-truncation evidence)",
+    "docs/discovery/digest-live-estate.md (live Neon + live page curls, 2026-07-16)"
+  ],
+  "semantics": {
+    "jurisdiction_codes": "UK, EU, US, AE, IE. sub-jurisdiction noted in notes where known (e.g. US/Florida).",
+    "jurisdictions_bound": "Where the firm has legal nexus (register, establishment, authorisation). The engine asserting a bound jurisdiction NOT in this list is a contradiction. The engine omitting one that IS in the list is an abstention (allowed, logged).",
+    "jurisdictions_serves": "Marketing reach only. Serves never attaches law by itself.",
+    "expected_frameworks_min": "Frameworks that verifiably bind this firm. Missing = abstention (allowed, logged). These are names, matched loosely; catalogue ids are attached in P2.",
+    "known_breaches": "Hand-verified real problems on the live site. Engine finding them = pass; not finding them = abstention.",
+    "known_non_breaches": "Hand-verified false positives from the forensic audits. The engine asserting ANY of these as a breach or attaching the named framework is a CONTRADICTION and fails the harness.",
+    "roles": "forensic = one of the 9 hand-verified forensic audits. watch = 10-domain watch list (membership only, no verified verdicts yet). matrix = 8-firm legal/health x UK/IE/US/AE design matrix (cell intent noted, mostly unverified)."
+  },
+  "firms": [
+    {
+      "domain": "neuclinic.co.uk",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "healthcare",
+        "sub_sector": "aesthetics",
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "UK GDPR",
+          "MHRA Human Medicines Regulations 2012 reg 280 (POM advertising)",
+          "CAP Code section 12 (health and beauty)",
+          "ASA guidance on cosmetic interventions 2021",
+          "CQC registration and fundamental standards",
+          "GMC advertising guidance"
+        ],
+        "known_breaches": [
+          {
+            "id": "NEU-GDPR",
+            "framework": "UK GDPR",
+            "description": "GDPR breach verified real in the forensic audit.",
+            "match_any": ["GDPR"]
+          }
+        ],
+        "known_non_breaches": [
+          {
+            "id": "NEU-MSA",
+            "framework": "Modern Slavery Act 2015 s.54",
+            "description": "Modern Slavery statement duty does not apply: turnover below the 36m GBP threshold (failure class C1). Attaching MSA or reporting a missing statement is a contradiction.",
+            "match_any": ["Modern Slavery"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Original engine sector tag was 'General' (wrong, class A2); the whole aesthetics pack was missed (class D1, D2). Headline conflated critical count with breached-framework count (F2). legal_name and company_number not stated in the source; verify via Companies House before filling.",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #1 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "roxanaaesthetics.com",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "healthcare",
+        "sub_sector": "aesthetics",
+        "jurisdictions_bound": ["AE"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "UAE Federal PDPL (Decree-Law 45/2021)",
+          "DHA (Dubai Health Authority) regulation"
+        ],
+        "known_breaches": [
+          {
+            "id": "ROX-LINK",
+            "framework": "policy link health",
+            "description": "Broken /privacy-policy link on the live site (failure class G3).",
+            "match_any": ["privacy policy link", "broken link", "privacy-policy"]
+          }
+        ],
+        "known_non_breaches": [
+          {
+            "id": "ROX-DIFC",
+            "framework": "DIFC Data Protection Law",
+            "description": "DIFC does not apply; correctly screened out in the verified audit. Attaching DIFC is a contradiction.",
+            "match_any": ["DIFC"]
+          },
+          {
+            "id": "ROX-ADGM",
+            "framework": "ADGM Data Protection Regulations",
+            "description": "ADGM does not apply; correctly screened out in the verified audit. Attaching ADGM is a contradiction.",
+            "match_any": ["ADGM"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Verdict: clean audit, correct jurisdiction (mainland UAE: PDPL + DHA). Displayed DHA licence number must be credited as a positive signal (class G2), not ignored. Minor severity nits only.",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #2 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "immigrationlawyersusa.com",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "legal",
+        "sub_sector": "immigration law",
+        "jurisdictions_bound": ["US"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "IMM-UKLAW",
+            "framework": "any UK framework",
+            "description": "US (Miami, Florida) firm was catastrophically assessed entirely under UK law (failure class A1). Attaching ANY UK framework is a contradiction.",
+            "match_any": ["UK GDPR", "PECR", "Companies Act", "SRA", "Modern Slavery", "Consumer Rights Act 2015", "Data Protection Act 2018", "ICO"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Sub-jurisdiction: Florida. Correct US framework list not yet hand-verified; leave expected_frameworks_min null until verified against FTC/state bar advertising rules.",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #3 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "dermexpert.co.uk",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "healthcare",
+        "sub_sector": "dermatology (doctor-led)",
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "GMC Good Medical Practice 2024 (advertising and social media)"
+        ],
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "DERM-CA82",
+            "framework": "Companies Act 2006 s.82",
+            "description": "Sole trader: Companies Act trading-disclosure duty mis-applied, wrong limb (failure class C3). Asserting a s.82 breach is a contradiction.",
+            "match_any": ["Companies Act"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Sector/jurisdiction tags were correct. Other verified defects: 2025-08-16 archive data sold as 'live' (B4 - snapshot language must derive from the snapshot field); severity inflation on CMA/Equality items (E4); GMC missed (D2). Practitioner: Dr Tim Clayton, sole trader per the forensic audit.",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #4 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "lomond.co.uk",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "real-estate",
+        "sub_sector": null,
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": [
+          {
+            "id": "LOM-ANCHOR",
+            "framework": "policy link health",
+            "description": "Broken anchor on a policy link, verified on the live site (failure class G3).",
+            "match_any": ["broken anchor", "broken link"]
+          }
+        ],
+        "known_non_breaches": [
+          {
+            "id": "LOM-PRIVACY",
+            "framework": "UK GDPR / privacy policy",
+            "description": "Privacy policy IS present (footer-linked); 'missing privacy policy' was a crawler-coverage false positive (class B2/B3).",
+            "match_any": ["privacy policy missing", "no privacy policy", "privacy policy absent", "missing privacy"]
+          },
+          {
+            "id": "LOM-COOKIE",
+            "framework": "PECR / cookie policy",
+            "description": "Cookie policy IS present (footer-linked); 'missing cookie policy' was a false positive (class B2/B3).",
+            "match_any": ["cookie policy missing", "no cookie policy", "cookie policy absent", "missing cookie policy"]
+          },
+          {
+            "id": "LOM-MSA",
+            "framework": "Modern Slavery Act 2015 s.54",
+            "description": "Modern Slavery statement IS present in the footer; 'missing MSA statement' was a false positive (class B2/B3).",
+            "match_any": ["Modern Slavery"]
+          },
+          {
+            "id": "LOM-CONUM",
+            "framework": "Companies Act 2006 s.82",
+            "description": "Company number IS displayed in the footer; 'missing company number' was a false positive (class B3/C3).",
+            "match_any": ["company number missing", "no company number", "registration number missing", "Companies Act"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Scoping was correct. Exposure was reported as $5.7M USD for a UK firm - currency must follow the binding jurisdiction (class E3, GBP here).",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #5 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "stmartinsepsom.school",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "education",
+        "sub_sector": "state school (free school)",
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "ICO Children's Code (Age Appropriate Design Code)",
+          "Equality Act 2010 PSED",
+          "DfE 'what schools must publish online'"
+        ],
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "STM-OFS",
+            "framework": "OfS conditions of registration",
+            "description": "OfS is the higher-education regulator; it does not regulate a state school (failure class A3, school != university). Attaching OfS is a contradiction.",
+            "match_any": ["OfS", "Office for Students"]
+          },
+          {
+            "id": "STM-CONSUMER",
+            "framework": "consumer law",
+            "description": "Consumer law applied without a B2C commerce context (failure class C2). Attaching CMA/Consumer Rights findings is a contradiction.",
+            "match_any": ["Consumer Rights Act", "consumer protection", "CMA"]
+          },
+          {
+            "id": "STM-CA",
+            "framework": "Companies Act 2006 s.82",
+            "description": "Company-law trading disclosures mis-applied to a free state school.",
+            "match_any": ["Companies Act"]
+          },
+          {
+            "id": "STM-MSA",
+            "framework": "Modern Slavery Act 2015 s.54",
+            "description": "Modern Slavery statement duty does not apply (class C1).",
+            "match_any": ["Modern Slavery"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Headline used the 18m GBP GDPR statutory cap as exposure (class E1) - exposure must come from realistic enforcement bands, and ICO posture on public-sector/education is reprimand-first (class E4).",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #6 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "royalparkpartners.com",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "finance",
+        "sub_sector": "fintech corporate finance advisory (B2B)",
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "RPP-CONSUMER",
+            "framework": "consumer law",
+            "description": "B2B firm: consumer law applied without any B2C evidence (failure class C2). Contradiction.",
+            "match_any": ["Consumer Rights Act", "consumer protection", "CMA"]
+          },
+          {
+            "id": "RPP-MSA",
+            "framework": "Modern Slavery Act 2015 s.54",
+            "description": "Modern Slavery statement duty does not apply (class C1).",
+            "match_any": ["Modern Slavery"]
+          },
+          {
+            "id": "RPP-MAR",
+            "framework": "FCA MAR",
+            "description": "Wrong instrument within the regulator: MAR cited where financial-promotion rules were the relevant regime (class C5). Asserting a MAR breach is a contradiction.",
+            "match_any": ["MAR", "Market Abuse"]
+          },
+          {
+            "id": "RPP-COOKIEDUP",
+            "framework": "ICO Cookies Guidance (as a separate framework from PECR)",
+            "description": "PECR and 'ICO Cookies Guidance' double-counted as two frameworks for one statute (class C4). Both attaching is a contradiction.",
+            "match_any": ["ICO Cookies Guidance"]
+          },
+          {
+            "id": "RPP-COOKIE22",
+            "framework": "PECR cookie findings without rendering",
+            "description": "SPA was never JS-rendered: the 22 cookie findings were unverifiable (class B1). Any cookie finding asserted as breach (rather than needs-review) without rendered-DOM evidence is a contradiction.",
+            "match_any": ["cookie banner missing", "no cookie banner", "cookies set without consent"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "16m GBP headline was the GDPR cap applied to a PECR matter - PECR cap is 500k GBP (class E2). The audit claimed jurisdictions 'UK and US' while attaching zero US frameworks (class F4): the engine must not name US for this firm without evidence.",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #7 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "knightsbridge.ae",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "professional-services",
+        "sub_sector": null,
+        "jurisdictions_bound": ["AE"],
+        "jurisdictions_serves": ["UK", "EU"],
+        "expected_frameworks_min": [
+          "UAE Federal PDPL (Decree-Law 45/2021)",
+          "RERA/DLD Trakheesi permit and ORN/BRN display (Dubai real-estate marketing)",
+          "UK GDPR",
+          "EU GDPR"
+        ],
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "KNB-DIFC",
+            "framework": "DIFC Data Protection Law",
+            "description": "DIFC applied by keyword from service pages, not by establishment (class A4) - wrong. Attaching DIFC is a contradiction.",
+            "match_any": ["DIFC"]
+          },
+          {
+            "id": "KNB-ADGM",
+            "framework": "ADGM Data Protection Regulations",
+            "description": "ADGM applied by keyword, not by establishment (class A4) - wrong. Attaching ADGM is a contradiction.",
+            "match_any": ["ADGM"]
+          },
+          {
+            "id": "KNB-COOKIEBANNER",
+            "framework": "cookie banner absence",
+            "description": "Cookie banner IS present (Complianz) but was reported missing because the SPA was not rendered (class B1). Asserting a missing cookie banner is a contradiction.",
+            "match_any": ["cookie banner missing", "no cookie banner", "cookie banner absent", "consent banner missing"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Verified in the forensic audit: EU + UK GDPR attachments were CORRECT (extraterritorial reach); federal PDPL was missed (class D6); RERA/Trakheesi was missed (class D5, Dubai real-estate activity). jurisdictions_serves reflects the verified GDPR reach; treat UK/EU GDPR as binding via that nexus while establishment stays AE mainland.",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #8 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "dutchanddutch.com",
+      "role": "forensic",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "real-estate",
+        "sub_sector": "estate and letting agency",
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "UK GDPR",
+          "Estate Agents Act 1979",
+          "National Trading Standards material information (Parts A/B/C)",
+          "Tenant Fees Act 2019",
+          "HMRC AML supervision (estate agency)"
+        ],
+        "known_breaches": [
+          {
+            "id": "DND-GDPR",
+            "framework": "UK GDPR",
+            "description": "Thin privacy policy - GDPR finding verified real.",
+            "match_any": ["GDPR", "privacy policy"]
+          }
+        ],
+        "known_non_breaches": [
+          {
+            "id": "DND-CA",
+            "framework": "Companies Act 2006 s.82",
+            "description": "Company number IS disclosed; the Companies Act finding was a false positive (class B3/C3).",
+            "match_any": ["Companies Act", "company number missing"]
+          },
+          {
+            "id": "DND-MSA",
+            "framework": "Modern Slavery Act 2015 s.54",
+            "description": "Modern Slavery statement duty does not apply (class C1).",
+            "match_any": ["Modern Slavery"]
+          },
+          {
+            "id": "DND-FEES",
+            "framework": "fees display",
+            "description": "Fees information IS present in footer-linked documents; the fees false positive came from unread PDFs (class B2).",
+            "match_any": ["fees missing", "fee information missing", "fees not displayed", "no fee information"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Sector tag was correct but the entire property pack was missed (class D4) while an F grade was issued to a visibly compliant firm - TPO/ARLA/NAEA/CMP/AML badges must be credited (class G1).",
+      "provenance": "AUDIT-ENGINE-FAILURE-CATALOGUE.md audit #9 (hand-verified against live site)",
+      "verified_date": "2026-06-23"
+    },
+    {
+      "domain": "finsbury-associates.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "fichtelegal.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "abspartners.ae",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "masecoprivatewealth.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "connells.co.uk",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "ahdubai.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "lvproperty.co.uk",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "maguirejackson.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "brookswm.co.uk",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "gtag.ae",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Watch-list member; no hand-verified verdict exists in the discovery digests. Verify before filling any field.",
+      "provenance": "PRD reference-set watch list (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "russell-cooke.co.uk",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "legal",
+        "sub_sector": "law firm (solicitors)",
+        "jurisdictions_bound": ["UK"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "RC-SRA-ABSENT",
+            "framework": "SRA authorisation disclosure absence",
+            "description": "The SRA authorisation string IS on the live site (measured at char 11,080 of the corpus - the 4,000-char truncation bug hid it, PR #336 evidence). Asserting a missing SRA authorisation statement is a contradiction.",
+            "match_any": ["SRA authorisation missing", "SRA statement missing", "not display SRA", "no SRA number", "SRA number missing"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Matrix cell: UK x legal. Sector and jurisdiction verified from the live audit estate (live page, verified=true, law-firms/UK) and the corpus-truncation forensics. Framework list at v23.1 was 16 (engine output, not hand-verified) - leave expected_frameworks_min null until hand-verified.",
+      "provenance": "docs/discovery/digest-plan-docs.md (vetted edit plan #1, corpus evidence) + docs/discovery/digest-live-estate.md (live page 10683, verified=true)",
+      "verified_date": "2026-07-16"
+    },
+    {
+      "domain": "whitneymoore.ie",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): IE x legal. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "goulstonstorrs.com",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): US x legal. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "bsalaw.com",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): AE x legal. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "pallmallmedical.co.uk",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): UK x healthcare. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "beaconhospital.ie",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): IE x healthcare. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "carbonhealth.com",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): US x healthcare. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    },
+    {
+      "domain": "medcare.ae",
+      "role": "matrix",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": null,
+        "jurisdictions_bound": null,
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": null,
+        "known_breaches": null,
+        "known_non_breaches": null,
+        "needs_verification": true
+      },
+      "notes": "Matrix cell intent (unverified): AE x healthcare. No hand-verified verdict in the discovery digests.",
+      "provenance": "PRD reference-set matrix (membership only)",
+      "verified_date": null
+    }
+  ]
+}

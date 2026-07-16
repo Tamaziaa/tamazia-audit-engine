@@ -1,0 +1,2 @@
+# Pinned golden payloads land here in P3 (one <cell>.payload.json per reference cell).
+# Empty is the honest P0 state: run.js warns and exits 0 until P3 fills them.

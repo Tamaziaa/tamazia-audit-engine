@@ -1,0 +1,25 @@
+{
+  "name": "tamazia-audit-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tamazia compliance audit engine. Zero-false-claim doctrine: laws are data, facts have one door, the LLM selects and judges inside a closed catalogue world. Plain CommonJS, Node 24+.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "eslint . --no-error-on-unmatched-pattern",
+    "circular": "madge --circular --extensions js --exclude \"node_modules|docs|reports\" .",
+    "dup": "jscpd .",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs applicability breach catalogue eval evidence facts llm mint payload render-proof tools",
+    "sweep": "node tools/sweep/run.js",
+    "calibrate": "node eval/calibration-known-bad/run.js",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^17.0.1",
+    "eslint": "^9.39.2",
+    "jscpd": "^4.0.5",
+    "madge": "^8.0.0"
+  }
+}

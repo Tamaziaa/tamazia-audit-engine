@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Environment and local overrides (this repo is PUBLIC - secrets never land here)
+.env
+.env.*
+*.local.*
+
+# Tool output
+reports/
+*.sarif
+sarif/
+.jscpd-report/
+.stryker-tmp/
+coverage/
+
+# Scratch
+scratch/
+scratch.*
+
+# OS noise
+.DS_Store

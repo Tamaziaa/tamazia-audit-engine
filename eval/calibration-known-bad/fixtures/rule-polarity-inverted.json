@@ -1,0 +1,12 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): polarity-inverted rule class. This is a prohibit-style rule whose regex matches the COMPLIANT wording - it fires a breach exactly when the site declares it obtains consent before setting cookies, i.e. when the site is doing the right thing. The catalogue polarity linter MUST flag this rule in --calibrate mode, or it has not earned its zero.",
+  "id": "CAL_POLARITY_01",
+  "law": "PECR regulation 6 (cookie consent)",
+  "framework_short": "UK_PECR",
+  "jurisdiction": "UK",
+  "style": "prohibit",
+  "regex_pattern": "we (ask for|obtain) your consent before (setting|placing)( any)? cookies",
+  "breach_message": "Cookies are set without user consent",
+  "citation_url": "https://www.legislation.gov.uk/uksi/2003/2426/regulation/6",
+  "severity": "high"
+}
