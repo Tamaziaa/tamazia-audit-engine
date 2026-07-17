@@ -62,7 +62,7 @@ const CALIBRATIONS = [
   {
     name: 'catalogue-regex-health',
     description: 'over-escaped dead regex in a rule JSON (the dpo[@\\\\s] class)',
-    fixtures: ['rule-dead-regex.json'],
+    fixtures: ['rule-dead-regex.json', 'p2-regex-dead-pattern.json'],
     checkerCandidates: [
       'catalogue/linters/regex-health.js',
       'tools/catalogue-lint/regex-health.js',
@@ -72,10 +72,30 @@ const CALIBRATIONS = [
   {
     name: 'catalogue-polarity',
     description: 'polarity-inverted rule: prohibit-style regex that matches compliant wording',
-    fixtures: ['rule-polarity-inverted.json'],
+    fixtures: ['rule-polarity-inverted.json', 'p2-polarity-inverted.json'],
     checkerCandidates: [
       'catalogue/linters/polarity.js',
       'tools/catalogue-lint/polarity.js',
+      'tools/catalogue-lint.js',
+    ],
+  },
+  {
+    name: 'catalogue-citation-completeness',
+    description: 'a candidate Compliance Object Model record whose citation.url is not on an official statutory/regulatory host (Constitution Rule 14 / caution.md C-104)',
+    fixtures: ['p2-citation-missing-official-host.json'],
+    checkerCandidates: [
+      'catalogue/linters/citation-completeness.js',
+      'tools/catalogue-lint/citation-completeness.js',
+      'tools/catalogue-lint.js',
+    ],
+  },
+  {
+    name: 'catalogue-threshold-guard',
+    description: 'a size/turnover-threshold-bearing record with no modelled excluded_when (the Modern Slavery Act-on-an-SME class, caution.md C-071)',
+    fixtures: ['p2-threshold-missing-excluded.json'],
+    checkerCandidates: [
+      'catalogue/linters/threshold-guard.js',
+      'tools/catalogue-lint/threshold-guard.js',
       'tools/catalogue-lint.js',
     ],
   },
@@ -136,9 +156,16 @@ function findChecker(candidates) {
 //      ARRAY to <path>, prints human text to stdout, and exits 1 when zero violations were
 //      found. A non-zero exit is therefore NOT a runner error here: we still read the JSON
 //      file and let this runner judge the (possibly empty) findings list.
-function runExternalChecker(checkerPath) {
-  const jsonOut = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'calibrate-')), 'findings.json');
+// runCalibrateProcess(checkerPath, jsonOut) -> stdout from spawning the checker's --calibrate
+// contract, having already validated its exit status against the two runner-judged states.
+// The --calibrate contract has exactly two runner-judged statuses: 0 (checker found violations) and
+// 1 (checker found ZERO on its fixtures - the caller then FAILs that calibration from the empty
+// findings list). Exit 2 means the checker's OWN self-test failed: it is a broken tool and can
+// NEVER earn a PASS, no matter what findings it managed to write. A broken self-test masked by
+// parsed findings is the unearned-zero disease (Constitution Rule 4), so reject it unconditionally.
+function runCalibrateProcess(checkerPath, jsonOut) {
   let stdout = '';
+  let status = 0;
   try {
     stdout = execFileSync(process.execPath, [checkerPath, '--calibrate', '--json', jsonOut], {
       cwd: REPO_ROOT,
@@ -149,18 +176,44 @@ function runExternalChecker(checkerPath) {
     // gate-cli exits 1 on zero calibration findings and 2 on a failed self-test. Keep the
     // stdout we got; if the checker wrote no JSON file either, the throw below reports it.
     stdout = (e.stdout || '') + '';
+    status = (typeof e.status === 'number') ? e.status : 2;
   }
-  if (fs.existsSync(jsonOut)) {
-    const parsed = JSON.parse(fs.readFileSync(jsonOut, 'utf8'));
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && Array.isArray(parsed.findings)) return parsed.findings;
+  if (status === 2) {
+    throw new Error('checker self-test FAILED (exit 2): it cannot see the class it exists to catch, so its calibration result is void and cannot be masked by any parsed findings');
   }
-  const parsed = (() => {
-    try { return JSON.parse(stdout); }
-    catch (e) { return null; /* FAIL-OPEN: non-JSON stdout just means the checker uses the file dialect; handled below. */ }
-  })();
-  if (parsed && Array.isArray(parsed.findings)) return parsed.findings;
+  if (status !== 0 && status !== 1) {
+    throw new Error('checker exited with undocumented --calibrate status ' + status + ' (expected 0 = findings, 1 = zero-findings, 2 = broken self-test)');
+  }
+  return stdout;
+}
+
+// safeJsonParse(text) -> the parsed JSON value, or null when `text` is not valid JSON. Used for
+// the stdout dialect: a non-JSON stdout just means the checker uses the file dialect instead.
+function safeJsonParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null; // FAIL-OPEN: non-JSON stdout just means the checker uses the file dialect; handled by the caller.
+  }
+}
+
+// findingsFromParsed(parsed) -> a findings array if `parsed` looks like a --calibrate findings
+// payload (a bare array, or {findings:[...]}), else null.
+function findingsFromParsed(parsed) {
   if (Array.isArray(parsed)) return parsed;
+  if (parsed && Array.isArray(parsed.findings)) return parsed.findings;
+  return null;
+}
+
+function runExternalChecker(checkerPath) {
+  const jsonOut = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'calibrate-')), 'findings.json');
+  const stdout = runCalibrateProcess(checkerPath, jsonOut);
+  if (fs.existsSync(jsonOut)) {
+    const fromFile = findingsFromParsed(JSON.parse(fs.readFileSync(jsonOut, 'utf8')));
+    if (fromFile) return fromFile;
+  }
+  const fromStdout = findingsFromParsed(safeJsonParse(stdout));
+  if (fromStdout) return fromStdout;
   throw new Error('checker emitted neither {findings:[]} JSON on stdout nor a findings JSON file via --json');
 }
 
@@ -169,6 +222,119 @@ function runInternalPayloadContract(fixtureAbs) {
   const payload = JSON.parse(fs.readFileSync(fixtureAbs, 'utf8'));
   const missing = contract.validatePayload(payload);
   return missing.map((m) => ({ file: fixtureAbs, rule: 'payload-contract', message: `missing: ${m}` }));
+}
+
+// checkMissingFixtures(cal, fixtureAbs) -> {entries, failed, skipped: 0}. entries is non-empty
+// only when at least one of this calibration's fixture files does not exist on disk.
+function checkMissingFixtures(cal, fixtureAbs) {
+  const entries = [];
+  let failed = 0;
+  for (const f of fixtureAbs) {
+    if (!fs.existsSync(f)) {
+      entries.push({ name: cal.name, status: 'FAIL', detail: `fixture missing: ${f}` });
+      failed++;
+    }
+  }
+  return { entries, failed, skipped: 0 };
+}
+
+// runInternalCalibration(cal, fixtureAbs) -> {entries, failed, skipped: 0}. The "internal": true
+// calibration (payload-contract) runs payload/contract's validatePayload() directly rather than
+// spawning an external checker.
+function runInternalCalibration(cal, fixtureAbs) {
+  const entries = [];
+  let failed = 0;
+  try {
+    const findings = runInternalPayloadContract(fixtureAbs[0]);
+    if (findings.length > 0) {
+      entries.push({ name: cal.name, status: 'PASS', detail: `${findings.length} finding(s) on the fixture (e.g. ${findings[0].message})` });
+    } else {
+      entries.push({ name: cal.name, status: 'FAIL', detail: 'validatePayload() returned an EMPTY missing list on a deliberately incomplete payload - the contract gate is broken' });
+      failed++;
+    }
+  } catch (e) {
+    entries.push({ name: cal.name, status: 'FAIL', detail: `internal check errored: ${e.message}` });
+    failed++;
+  }
+  return { entries, failed, skipped: 0 };
+}
+
+// missingCheckerResult(cal, strict) -> the {entries,failed,skipped} result when no checker under
+// tools/ was found for this calibration: FAIL in --strict mode (a fixture without a live checker
+// is an unearned zero), SKIPPED otherwise (tools/ agent has not landed this gate yet).
+function missingCheckerResult(cal, strict) {
+  const detail = `no checker found (looked at: ${cal.checkerCandidates.join(', ')})`;
+  if (strict) {
+    return { entries: [{ name: cal.name, status: 'FAIL', detail: `${detail} - strict mode: a fixture without a live checker is an unearned zero` }], failed: 1, skipped: 0 };
+  }
+  return { entries: [{ name: cal.name, status: 'SKIPPED', detail: `${detail} - tools/ agent has not landed this gate yet; CI must flip to --strict when it does` }], failed: 0, skipped: 1 };
+}
+
+// judgeCheckerFindings(cal, checker) -> {entries, failed} from running the checker and confirming
+// EVERY fixture listed for this calibration was caught (CR-38: a multi-fixture calibration
+// previously passed as long as ONE fixture produced a finding, so a checker could keep catching an
+// old fixture while missing a new one).
+function judgeCheckerFindings(cal, checker) {
+  const findings = runExternalChecker(checker);
+  const missingFixtures = cal.fixtures.filter((fx) => !findings.some((fd) => String(fd.file || '').includes(fx)));
+  const fixtureHits = findings.filter((fd) => cal.fixtures.some((fx) => String(fd.file || '').includes(fx)));
+  if (missingFixtures.length === 0) {
+    return { entries: [{ name: cal.name, status: 'PASS', detail: `${fixtureHits.length} finding(s) across all ${cal.fixtures.length} fixture(s) via ${path.relative(REPO_ROOT, checker)}` }], failed: 0 };
+  }
+  return { entries: [{ name: cal.name, status: 'FAIL', detail: `${path.relative(REPO_ROOT, checker)} reported ZERO findings on: ${missingFixtures.join(', ')} - it has not earned its zero on every seeded fixture (${cal.description})` }], failed: 1 };
+}
+
+// runExternalCalibration(cal, strict) -> {entries, failed, skipped}. Locates the checker under
+// tools/ via findChecker(), reports SKIPPED (or FAIL in --strict mode) if none is found yet, and
+// otherwise runs its --calibrate contract via runExternalChecker() and checks every listed
+// fixture was caught. Behaviour is unchanged from the original inline version: failed/skipped are
+// still exactly 0 or 1 per call (missingCheckerResult and judgeCheckerFindings each push exactly
+// one entry and increment their own counter by at most 1).
+function runExternalCalibration(cal, strict) {
+  const checker = findChecker(cal.checkerCandidates);
+  if (!checker) return missingCheckerResult(cal, strict);
+  try {
+    const { entries, failed } = judgeCheckerFindings(cal, checker);
+    return { entries, failed, skipped: 0 };
+  } catch (e) {
+    return { entries: [{ name: cal.name, status: 'FAIL', detail: `checker errored or broke the --calibrate contract: ${e.message}` }], failed: 1, skipped: 0 };
+  }
+}
+
+// runOneCalibration(cal, strict) -> {entries: [...], failed: N, skipped: N} for one CALIBRATIONS
+// entry. Semantics are UNCHANGED from the original inline loop body (do not change the
+// CALIBRATIONS registry semantics or --strict behaviour): missing fixture files short-circuit
+// straight to a FAIL entry per file; otherwise an "internal" calibration runs payload/contract
+// directly and everything else runs its checker's --calibrate contract. The original loop tested
+// `results.some((r) => r.name === cal.name && r.status === 'FAIL')` against the GLOBAL results
+// list; since every entry pushed for earlier calibrations carries a DIFFERENT cal.name, that was
+// already equivalent to testing only the entries just pushed for THIS calibration, which is what
+// checkMissingFixtures's own (per-calibration) entries list does directly.
+function runOneCalibration(cal, strict) {
+  const fixtureAbs = cal.fixtures.map((f) => path.join(FIXTURES_DIR, f));
+  const missing = checkMissingFixtures(cal, fixtureAbs);
+  if (missing.entries.length > 0) return missing;
+  if (cal.internal) return runInternalCalibration(cal, fixtureAbs);
+  return runExternalCalibration(cal, strict);
+}
+
+// report({strict, results, failed, skipped, asJson}) -> prints the run's summary in --json or
+// human form, unchanged from the original inline block in main() (params bundled into one object;
+// not exported, so the call site below is the only caller to update).
+function report({ strict, results, failed, skipped, asJson }) {
+  if (asJson) {
+    console.log(JSON.stringify({ strict, results, failed, skipped }, null, 2));
+    return;
+  }
+  console.log('calibration-known-bad: the earn-your-zero gate');
+  for (const r of results) console.log(`  ${r.status.padEnd(7)} ${r.name}: ${r.detail}`);
+  if (failed > 0) {
+    console.log(`RESULT: FAIL - ${failed} gate(s) did not catch their seeded known-bad fixture. A gate that misses planted disease is reporting worthless greens.`);
+  } else if (skipped > 0) {
+    console.log(`RESULT: OK with ${skipped} SKIPPED - external checkers not landed yet. Flip CI to --strict once tools/ lands.`);
+  } else {
+    console.log('RESULT: OK - every gate caught its fixture.');
+  }
 }
 
 function main(argv) {
@@ -186,74 +352,13 @@ function main(argv) {
   let skipped = 0;
 
   for (const cal of CALIBRATIONS) {
-    const fixtureAbs = cal.fixtures.map((f) => path.join(FIXTURES_DIR, f));
-    for (const f of fixtureAbs) {
-      if (!fs.existsSync(f)) {
-        results.push({ name: cal.name, status: 'FAIL', detail: `fixture missing: ${f}` });
-        failed++;
-      }
-    }
-    if (results.some((r) => r.name === cal.name && r.status === 'FAIL')) continue;
-
-    if (cal.internal) {
-      try {
-        const findings = runInternalPayloadContract(fixtureAbs[0]);
-        if (findings.length > 0) {
-          results.push({ name: cal.name, status: 'PASS', detail: `${findings.length} finding(s) on the fixture (e.g. ${findings[0].message})` });
-        } else {
-          results.push({ name: cal.name, status: 'FAIL', detail: 'validatePayload() returned an EMPTY missing list on a deliberately incomplete payload - the contract gate is broken' });
-          failed++;
-        }
-      } catch (e) {
-        results.push({ name: cal.name, status: 'FAIL', detail: `internal check errored: ${e.message}` });
-        failed++;
-      }
-      continue;
-    }
-
-    const checker = findChecker(cal.checkerCandidates);
-    if (!checker) {
-      const detail = `no checker found (looked at: ${cal.checkerCandidates.join(', ')})`;
-      if (strict) {
-        results.push({ name: cal.name, status: 'FAIL', detail: `${detail} - strict mode: a fixture without a live checker is an unearned zero` });
-        failed++;
-      } else {
-        results.push({ name: cal.name, status: 'SKIPPED', detail: `${detail} - tools/ agent has not landed this gate yet; CI must flip to --strict when it does` });
-        skipped++;
-      }
-      continue;
-    }
-
-    try {
-      const findings = runExternalChecker(checker);
-      const fixtureHits = findings.filter((fd) =>
-        cal.fixtures.some((fx) => String(fd.file || '').includes(fx))
-      );
-      if (fixtureHits.length > 0) {
-        results.push({ name: cal.name, status: 'PASS', detail: `${fixtureHits.length} finding(s) on the fixture via ${path.relative(REPO_ROOT, checker)}` });
-      } else {
-        results.push({ name: cal.name, status: 'FAIL', detail: `${path.relative(REPO_ROOT, checker)} reported ZERO findings on ${cal.fixtures.join(', ')} - it has not earned its zero (${cal.description})` });
-        failed++;
-      }
-    } catch (e) {
-      results.push({ name: cal.name, status: 'FAIL', detail: `checker errored or broke the --calibrate contract: ${e.message}` });
-      failed++;
-    }
+    const r = runOneCalibration(cal, strict);
+    results.push(...r.entries);
+    failed += r.failed;
+    skipped += r.skipped;
   }
 
-  if (asJson) {
-    console.log(JSON.stringify({ strict, results, failed, skipped }, null, 2));
-  } else {
-    console.log('calibration-known-bad: the earn-your-zero gate');
-    for (const r of results) console.log(`  ${r.status.padEnd(7)} ${r.name}: ${r.detail}`);
-    if (failed > 0) {
-      console.log(`RESULT: FAIL - ${failed} gate(s) did not catch their seeded known-bad fixture. A gate that misses planted disease is reporting worthless greens.`);
-    } else if (skipped > 0) {
-      console.log(`RESULT: OK with ${skipped} SKIPPED - external checkers not landed yet. Flip CI to --strict once tools/ lands.`);
-    } else {
-      console.log('RESULT: OK - every gate caught its fixture.');
-    }
-  }
+  report({ strict, results, failed, skipped, asJson });
   return failed > 0 ? 1 : 0;
 }
 
@@ -261,4 +366,4 @@ if (require.main === module) {
   process.exit(main(process.argv));
 }
 
-module.exports = { CALIBRATIONS };
+module.exports = { CALIBRATIONS, runExternalChecker };

@@ -1,0 +1,56 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): the Compliance Object Model schema class (catalogue/schema.js). This pack's one record is deliberately malformed in several independent ways at once: a lowercase id (fails the upper-snake ID format), a missing name, an unknown status value, an unknown activity_tags entry not present in facts/vocabulary.js ACTIVITY_TAGS, a malformed citation.url, and penalty.typical_low exceeding penalty.typical_high. catalogue/schema.js's validatePack() MUST return a non-empty violations array for this pack, or the schema gate has not earned its zero.",
+  "cell": "p2-calibration-schema",
+  "jurisdiction": "UK",
+  "generated": "2026-07-17",
+  "records": [
+    {
+      "jurisdiction": "UK",
+      "sub_jurisdiction": null,
+      "status": "approved-by-nobody",
+      "client_useful": true,
+      "id": "cal_p2_schema_violation_lowercase",
+      "citation": {
+        "act": "Some Act 2026",
+        "section": "Section 1",
+        "url": "not-a-valid-url"
+      },
+      "sector": ["universal"],
+      "sub_sector": [],
+      "activity_tags": ["not_a_real_activity_tag"],
+      "required_nexus": ["processes_residents_of"],
+      "applies_when": ["calibration fixture applies_when entry"],
+      "excluded_when": [],
+      "website_obligations": [
+        {
+          "duty": "calibration fixture duty text",
+          "elements": ["calibration fixture element"],
+          "evidence_type": "not_a_real_evidence_type"
+        }
+      ],
+      "penalty": {
+        "typical_low": 5000000,
+        "typical_high": 100,
+        "statutory_max": 17500000,
+        "currency": "EUR",
+        "basis": "calibration fixture penalty basis",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Calibration Fixture Regulator",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (deliberately seeded schema violations)"],
+        "seed_status": "seed",
+        "verified_date": "not-a-date"
+      }
+    }
+  ]
+}

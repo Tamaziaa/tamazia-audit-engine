@@ -97,6 +97,13 @@ function asArray(v) {
   return Array.isArray(v) ? v : [v];
 }
 
+// say(list, check, detail): the one shared shape every per-expectation-kind verifier below pushes
+// onto its contradictions/abstentions/matches list. Pulled to module scope (it captures nothing
+// from any enclosing closure) so each verifier below does not redeclare it.
+function say(list, check, detail) {
+  list.push({ check, detail });
+}
+
 function extractBound(payload) {
   const j = (payload && (payload.jurisdiction || payload.markets)) || {};
   let bound = asArray(firstNonNull(j.bound, payload && payload.jurisdictions_bound));
@@ -131,27 +138,46 @@ function findingText(f, frameworkName) {
   return parts.join(' \n ');
 }
 
+// frameworkDisplayName(fw) -> the best-effort display name for one payload.frameworks[] entry.
+function frameworkDisplayName(fw) {
+  return firstNonNull(fw && fw.name, fw && fw.framework, fw && fw.title, fw && fw.law, '');
+}
+
+// collectFrameworkFindings(fw, name) -> [{text, framework}] for one framework entry's own
+// findings/items list, asserted findings only.
+function collectFrameworkFindings(fw, name) {
+  const out = [];
+  const findings = asArray(fw && (fw.findings || fw.items));
+  for (const f of findings) {
+    if (!findingIsAsserted(f)) continue;
+    out.push({ text: findingText(f, name), framework: String(name) });
+  }
+  return out;
+}
+
+// collectFlatFindings(payload) -> [{text, framework}] for the payload's own flat findings[] list
+// (if it carries one), asserted findings only.
+function collectFlatFindings(payload) {
+  const out = [];
+  for (const f of asArray(payload && payload.findings)) {
+    if (!findingIsAsserted(f)) continue;
+    const framework = firstNonNull(f && f.framework, '');
+    out.push({ text: findingText(f, framework), framework: String(framework) });
+  }
+  return out;
+}
+
 // Returns { frameworkNames: string[], assertedFindings: [{text, framework}] }
 function extractFindings(payload) {
   const frameworkNames = [];
   const assertedFindings = [];
-  const fws = asArray(payload && payload.frameworks);
-  for (const fw of fws) {
-    const name = firstNonNull(fw && fw.name, fw && fw.framework, fw && fw.title, fw && fw.law, '');
+  for (const fw of asArray(payload && payload.frameworks)) {
+    const name = frameworkDisplayName(fw);
     if (name) frameworkNames.push(String(name));
-    const findings = asArray(fw && (fw.findings || fw.items));
-    for (const f of findings) {
-      if (findingIsAsserted(f)) {
-        assertedFindings.push({ text: findingText(f, name), framework: String(name) });
-      }
-    }
+    assertedFindings.push(...collectFrameworkFindings(fw, name));
   }
   // Flat findings list, if the payload carries one.
-  for (const f of asArray(payload && payload.findings)) {
-    if (findingIsAsserted(f)) {
-      assertedFindings.push({ text: findingText(f, firstNonNull(f && f.framework, '')), framework: String(firstNonNull(f && f.framework, '')) });
-    }
-  }
+  assertedFindings.push(...collectFlatFindings(payload));
   return { frameworkNames, assertedFindings };
 }
 
@@ -167,20 +193,19 @@ function findFirm(refSet, domain) {
   return (refSet.firms || []).find((f) => norm(f.domain).replace(/ /g, '') === nd) || null;
 }
 
-/**
- * verifyPayload(payload, firm) -> { domain, contradictions[], abstentions[], matches[] }
- * Pure function; no I/O. Any entry in contradictions means the engine CONTRADICTED
- * a hand-verified expectation and the harness must fail.
- */
-function verifyPayload(payload, firm) {
-  const exp = (firm && firm.expected) || {};
+// Every per-expectation-kind verifier below has the exact same shape: (payload/exp/whatever it
+// needs) -> { contradictions[], abstentions[], matches[] }. verifyPayload (the aggregator, at the
+// foot of this section) just concatenates them. This is the decomposition of the former single
+// 121-line/43-branch verifyPayload (Constitution Rule 4/tools/health-gate/check.js caps): each
+// expectation kind below is independently readable, and none of the underlying match/abstain/
+// contradict LOGIC changed - only where the code lives.
+
+// 1. legal name, 2. company number (compared with whitespace stripped, case-insensitive)
+function verifyIdentity(payload, exp) {
   const contradictions = [];
   const abstentions = [];
   const matches = [];
 
-  const say = (list, check, detail) => list.push({ check, detail });
-
-  // 1. legal name
   const identity = extractIdentity(payload);
   if (exp.legal_name != null) {
     if (identity.legal_name == null) {
@@ -192,7 +217,6 @@ function verifyPayload(payload, firm) {
     }
   }
 
-  // 2. company number (compared with whitespace stripped, case-insensitive)
   if (exp.company_number != null) {
     const got = identity.company_number;
     const strip = (v) => String(v).replace(/\s+/g, '').toUpperCase();
@@ -205,7 +229,15 @@ function verifyPayload(payload, firm) {
     }
   }
 
-  // 3. sector / sub_sector (loose token match; a different asserted sector contradicts)
+  return { contradictions, abstentions, matches };
+}
+
+// 3. sector / sub_sector (loose token match; a different asserted sector contradicts)
+function verifySector(payload, exp) {
+  const contradictions = [];
+  const abstentions = [];
+  const matches = [];
+
   const sec = extractSector(payload);
   if (exp.sector != null) {
     const asserted = firstNonNull(sec.sector, sec.sub_sector);
@@ -225,64 +257,132 @@ function verifyPayload(payload, firm) {
     }
   }
 
-  // 4. jurisdictions_bound: asserting a jurisdiction outside the verified list is a contradiction.
-  //    (jurisdictions_serves is marketing reach and also acceptable for a claimed nexus.)
-  if (Array.isArray(exp.jurisdictions_bound)) {
-    const allowed = new Set(
-      exp.jurisdictions_bound.concat(Array.isArray(exp.jurisdictions_serves) ? exp.jurisdictions_serves : [])
-        .map(toJurisdictionCode)
-    );
-    const got = extractBound(payload);
-    if (got.length === 0) {
-      say(abstentions, 'jurisdictions_bound', `expected [${exp.jurisdictions_bound.join(', ')}], engine abstained`);
+  return { contradictions, abstentions, matches };
+}
+
+// 4. jurisdictions_bound: asserting a BINDING jurisdiction outside the verified bound list is a
+//    contradiction. jurisdictions_serves is marketing reach (Constitution Rule 13: serving a market
+//    is not being bound by its law) and MUST NOT widen the allowed-binding set - an engine that
+//    binds a jurisdiction the reference set records only as served is emitting a false nexus.
+function verifyJurisdictions(payload, exp) {
+  const contradictions = [];
+  const abstentions = [];
+  const matches = [];
+
+  if (!Array.isArray(exp.jurisdictions_bound)) return { contradictions, abstentions, matches };
+
+  const allowed = new Set(exp.jurisdictions_bound.map(toJurisdictionCode));
+  const got = extractBound(payload);
+  if (got.length === 0) {
+    say(abstentions, 'jurisdictions_bound', `expected [${exp.jurisdictions_bound.join(', ')}], engine abstained`);
+    return { contradictions, abstentions, matches };
+  }
+
+  for (const code of got) {
+    if (allowed.has(code)) say(matches, 'jurisdictions_bound', code);
+    else say(contradictions, 'jurisdictions_bound', `engine asserted binding jurisdiction "${code}" which is not in the verified list [${[...allowed].join(', ')}]`);
+  }
+  for (const code of exp.jurisdictions_bound.map(toJurisdictionCode)) {
+    if (!got.includes(code)) say(abstentions, 'jurisdictions_bound', `verified bound jurisdiction "${code}" not asserted by the engine`);
+  }
+
+  return { contradictions, abstentions, matches };
+}
+
+// 5. expected_frameworks_min: missing = abstention (allowed, logged)
+function verifyFrameworks(exp, frameworkNames, corpus) {
+  const contradictions = [];
+  const abstentions = [];
+  const matches = [];
+
+  if (!Array.isArray(exp.expected_frameworks_min)) return { contradictions, abstentions, matches };
+
+  for (const fw of exp.expected_frameworks_min) {
+    const hit = frameworkNames.some((n) => looseMatch(n, fw)) || norm(corpus).includes(norm(fw));
+    if (hit) say(matches, 'expected_framework', fw);
+    else say(abstentions, 'expected_framework', `verified binding framework not attached: "${fw}"`);
+  }
+
+  return { contradictions, abstentions, matches };
+}
+
+// 6. known_breaches: found = match, not found = abstention
+function verifyKnownBreaches(exp, assertedFindings) {
+  const contradictions = [];
+  const abstentions = [];
+  const matches = [];
+
+  if (!Array.isArray(exp.known_breaches)) return { contradictions, abstentions, matches };
+
+  for (const kb of exp.known_breaches) {
+    const terms = asArray(kb.match_any);
+    const hit = assertedFindings.some((f) => terms.some((t) => norm(f.text).includes(norm(t))));
+    const label = kb.id || kb.framework;
+    if (hit) say(matches, 'known_breach', label);
+    else say(abstentions, 'known_breach', `verified real problem not found: ${label} (${kb.description || ''})`);
+  }
+
+  return { contradictions, abstentions, matches };
+}
+
+// 7. known_non_breaches: ANY asserted finding matching one is a contradiction.
+function verifyKnownNonBreaches(exp, assertedFindings) {
+  const contradictions = [];
+  const abstentions = [];
+  const matches = [];
+
+  if (!Array.isArray(exp.known_non_breaches)) return { contradictions, abstentions, matches };
+
+  for (const knb of exp.known_non_breaches) {
+    const terms = asArray(knb.match_any);
+    const hits = assertedFindings.filter((f) => terms.some((t) => norm(f.text).includes(norm(t))));
+    const label = knb.id || knb.framework;
+    if (hits.length > 0) {
+      say(contradictions, 'known_non_breach', `${label}: engine asserted a hand-verified non-breach (${hits.length} finding(s), first in framework "${hits[0].framework}"). ${knb.description || ''}`);
     } else {
-      for (const code of got) {
-        if (allowed.has(code)) {
-          say(matches, 'jurisdictions_bound', code);
-        } else {
-          say(contradictions, 'jurisdictions_bound', `engine asserted binding jurisdiction "${code}" which is not in the verified list [${[...allowed].join(', ')}]`);
-        }
-      }
-      for (const code of exp.jurisdictions_bound.map(toJurisdictionCode)) {
-        if (!got.includes(code)) say(abstentions, 'jurisdictions_bound', `verified bound jurisdiction "${code}" not asserted by the engine`);
-      }
+      say(matches, 'known_non_breach', `${label} correctly not asserted`);
     }
   }
 
+  return { contradictions, abstentions, matches };
+}
+
+// verifyBreaches: the small aggregator over 6+7 (both read the same assertedFindings list, so
+// they are one "kind" of expectation - known-vs-asserted breach matching - split in two only
+// because "found" and "must never be found" are different polarities worth reading separately).
+function verifyBreaches(exp, assertedFindings) {
+  const kb = verifyKnownBreaches(exp, assertedFindings);
+  const knb = verifyKnownNonBreaches(exp, assertedFindings);
+  return {
+    contradictions: kb.contradictions.concat(knb.contradictions),
+    abstentions: kb.abstentions.concat(knb.abstentions),
+    matches: kb.matches.concat(knb.matches),
+  };
+}
+
+/**
+ * verifyPayload(payload, firm) -> { domain, contradictions[], abstentions[], matches[] }
+ * Pure function; no I/O. Any entry in contradictions means the engine CONTRADICTED
+ * a hand-verified expectation and the harness must fail. A small aggregator over the
+ * per-expectation-kind verifiers above - it invents no matching/abstaining/contradicting logic
+ * of its own.
+ */
+function verifyPayload(payload, firm) {
+  const exp = (firm && firm.expected) || {};
   const { frameworkNames, assertedFindings } = extractFindings(payload);
   const corpus = frameworkNames.join(' \n ');
 
-  // 5. expected_frameworks_min: missing = abstention (allowed, logged)
-  if (Array.isArray(exp.expected_frameworks_min)) {
-    for (const fw of exp.expected_frameworks_min) {
-      const hit = frameworkNames.some((n) => looseMatch(n, fw)) || norm(corpus).includes(norm(fw));
-      if (hit) say(matches, 'expected_framework', fw);
-      else say(abstentions, 'expected_framework', `verified binding framework not attached: "${fw}"`);
-    }
-  }
+  const parts = [
+    verifyIdentity(payload, exp),
+    verifySector(payload, exp),
+    verifyJurisdictions(payload, exp),
+    verifyFrameworks(exp, frameworkNames, corpus),
+    verifyBreaches(exp, assertedFindings),
+  ];
 
-  // 6. known_breaches: found = match, not found = abstention
-  if (Array.isArray(exp.known_breaches)) {
-    for (const kb of exp.known_breaches) {
-      const terms = asArray(kb.match_any);
-      const hit = assertedFindings.some((f) => terms.some((t) => norm(f.text).includes(norm(t))));
-      if (hit) say(matches, 'known_breach', kb.id || kb.framework);
-      else say(abstentions, 'known_breach', `verified real problem not found: ${kb.id || kb.framework} (${kb.description || ''})`);
-    }
-  }
-
-  // 7. known_non_breaches: ANY asserted finding matching one is a contradiction.
-  if (Array.isArray(exp.known_non_breaches)) {
-    for (const knb of exp.known_non_breaches) {
-      const terms = asArray(knb.match_any);
-      const hits = assertedFindings.filter((f) => terms.some((t) => norm(f.text).includes(norm(t))));
-      if (hits.length > 0) {
-        say(contradictions, 'known_non_breach', `${knb.id || knb.framework}: engine asserted a hand-verified non-breach (${hits.length} finding(s), first in framework "${hits[0].framework}"). ${knb.description || ''}`);
-      } else {
-        say(matches, 'known_non_breach', `${knb.id || knb.framework} correctly not asserted`);
-      }
-    }
-  }
+  const contradictions = parts.flatMap((p) => p.contradictions);
+  const abstentions = parts.flatMap((p) => p.abstentions);
+  const matches = parts.flatMap((p) => p.matches);
 
   return {
     domain: firm ? firm.domain : extractDomain(payload),
@@ -296,7 +396,11 @@ function verifyPayload(payload, firm) {
 
 // ---------- CLI ----------
 
-function main(argv) {
+// parseCliArgs(argv) -> {opts} on success, or {exitCode} when parsing itself must abort (an
+// unrecognised flag, or no payload path given at all). Mirrors the original inline loop exactly:
+// an unknown argument prints its own message and aborts immediately, before the payload-path
+// check below ever runs.
+function parseCliArgs(argv) {
   const args = argv.slice(2);
   const opts = { json: false, set: DEFAULT_SET, domain: null, payloadPath: null };
   for (let i = 0; i < args.length; i++) {
@@ -305,53 +409,83 @@ function main(argv) {
     else if (a === '--set') opts.set = args[++i];
     else if (a === '--domain') opts.domain = args[++i];
     else if (!opts.payloadPath) opts.payloadPath = a;
-    else { console.error(`Unknown argument: ${a}`); return 2; }
+    else { console.error(`Unknown argument: ${a}`); return { exitCode: 2 }; }
   }
   if (!opts.payloadPath) {
     console.error('Usage: node eval/reference-set/verify.js <payload.json> [--set <reference-set.json>] [--domain <domain>] [--json]');
-    return 2;
+    return { exitCode: 2 };
   }
+  return { opts };
+}
 
+// loadPayloadAndRefSet(opts) -> {payload, refSet} on success, or {exitCode} on any read/parse
+// failure of either file.
+function loadPayloadAndRefSet(opts) {
   let payload;
-  let refSet;
   try {
     payload = JSON.parse(fs.readFileSync(opts.payloadPath, 'utf8'));
   } catch (e) {
     console.error(`Cannot read payload ${opts.payloadPath}: ${e.message}`);
-    return 2;
+    return { exitCode: 2 };
   }
+  let refSet;
   try {
     refSet = loadReferenceSet(opts.set);
   } catch (e) {
     console.error(`Cannot read reference set ${opts.set}: ${e.message}`);
-    return 2;
+    return { exitCode: 2 };
   }
+  return { payload, refSet };
+}
 
+// resolveFirm(opts, payload, refSet) -> {firm} on success, or {exitCode} when the payload carries
+// no domain, or the domain is not in the reference set at all.
+function resolveFirm(opts, payload, refSet) {
   const domain = opts.domain || extractDomain(payload);
   if (!domain) {
     console.error('Payload carries no meta.domain and no --domain was given.');
-    return 2;
+    return { exitCode: 2 };
   }
   const firm = findFirm(refSet, domain);
   if (!firm) {
     console.error(`Domain "${domain}" is not in the reference set (${refSet.firms.length} firms). Nothing to verify.`);
-    return 2;
+    return { exitCode: 2 };
   }
+  return { firm };
+}
+
+// printReport(report, json) -> the CLI's human/--json output, unchanged from the original inline
+// block in main().
+function printReport(report, json) {
+  if (json) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  console.log(`reference-set verify: ${report.domain} (${report.role})`);
+  console.log(`  matches:        ${report.matches.length}`);
+  for (const m of report.matches) console.log(`    MATCH   [${m.check}] ${m.detail}`);
+  console.log(`  abstentions:    ${report.abstentions.length} (allowed)`);
+  for (const a of report.abstentions) console.log(`    ABSTAIN [${a.check}] ${a.detail}`);
+  console.log(`  contradictions: ${report.contradictions.length}`);
+  for (const c of report.contradictions) console.log(`    FAIL    [${c.check}] ${c.detail}`);
+  console.log(report.ok ? 'RESULT: OK (no contradictions)' : 'RESULT: CONTRADICTION - the engine contradicted hand-verified ground truth');
+}
+
+function main(argv) {
+  const parsed = parseCliArgs(argv);
+  if (parsed.exitCode) return parsed.exitCode;
+  const { opts } = parsed;
+
+  const loaded = loadPayloadAndRefSet(opts);
+  if (loaded.exitCode) return loaded.exitCode;
+  const { payload, refSet } = loaded;
+
+  const resolved = resolveFirm(opts, payload, refSet);
+  if (resolved.exitCode) return resolved.exitCode;
+  const { firm } = resolved;
 
   const report = verifyPayload(payload, firm);
-
-  if (opts.json) {
-    console.log(JSON.stringify(report, null, 2));
-  } else {
-    console.log(`reference-set verify: ${report.domain} (${report.role})`);
-    console.log(`  matches:        ${report.matches.length}`);
-    for (const m of report.matches) console.log(`    MATCH   [${m.check}] ${m.detail}`);
-    console.log(`  abstentions:    ${report.abstentions.length} (allowed)`);
-    for (const a of report.abstentions) console.log(`    ABSTAIN [${a.check}] ${a.detail}`);
-    console.log(`  contradictions: ${report.contradictions.length}`);
-    for (const c of report.contradictions) console.log(`    FAIL    [${c.check}] ${c.detail}`);
-    console.log(report.ok ? 'RESULT: OK (no contradictions)' : 'RESULT: CONTRADICTION - the engine contradicted hand-verified ground truth');
-  }
+  printReport(report, opts.json);
   return report.ok ? 0 : 1;
 }
 

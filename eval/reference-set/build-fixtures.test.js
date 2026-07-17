@@ -20,6 +20,11 @@ const {
   stripControlChars,
   logSafe,
   MAX_FIXTURE_BYTES,
+  isFetchableDomain,
+  isBlockedHost,
+  isBlockedAddress,
+  parseSafeFetchTarget,
+  makeSafeLookup,
 } = require('./build-fixtures.js');
 
 test('stripHtml removes script/style/head noise and keeps visible prose (C-012)', () => {
@@ -131,6 +136,72 @@ test('trimToBudget brings an oversized fixture under 150KB without inventing fie
   // An already-small fixture passes through untouched (no spurious trimmed flag).
   const small = { domain: 'a', corpus: { pages: [], footerText: '' }, registers: {} };
   assert.equal(trimToBudget(small, MAX_FIXTURE_BYTES).trimmed, undefined);
+  // Budgets are caps, never floors: a fixture whose UNTRIMMED field (a giant footerText that no step
+  // reduces) stays over budget must fail closed, never return oversized-but-"trimmed" (CR).
+  const untrimmable = {
+    domain: 'acme.co.uk',
+    corpus: { pages: [], footerText: 'f'.repeat(MAX_FIXTURE_BYTES * 2) },
+    registers: {},
+  };
+  assert.throws(() => trimToBudget(untrimmable, MAX_FIXTURE_BYTES), /exceeds byte budget after trimming/);
+});
+
+test('URL-safety single door refuses localhost, loopback, private and malformed fetch targets (CR#21)', () => {
+  // Blocked hosts: loopback, RFC1918, CGNAT, link-local, IPv6 ULA/link-local, dot-less names.
+  for (const h of ['localhost', 'app.localhost', '127.0.0.1', '127.9.9.9', '10.0.0.5', '172.16.0.1',
+    '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fc00::1', 'fe80::1', 'internalbox']) {
+    assert.equal(isBlockedHost(h), true, `${h} should be blocked`);
+  }
+  // A malformed octet is refused, not silently allowed.
+  assert.equal(isBlockedHost('999.1.1.1'), true);
+  // Public hosts pass the host gate.
+  for (const h of ['example.com', 'dermexpert.co.uk', '8.8.8.8', 'sub.example.org']) {
+    assert.equal(isBlockedHost(h), false, `${h} should be allowed`);
+  }
+  // parseSafeFetchTarget refuses non-http(s), malformed URLs and blocked hosts, and parses good ones.
+  assert.equal(parseSafeFetchTarget('http://127.0.0.1/x'), null);
+  assert.equal(parseSafeFetchTarget('file:///etc/passwd'), null);
+  assert.equal(parseSafeFetchTarget('ftp://example.com/'), null);
+  assert.equal(parseSafeFetchTarget('not a url'), null);
+  assert.ok(parseSafeFetchTarget('https://example.com/'));
+  assert.equal(parseSafeFetchTarget('https://example.com/path').hostname, 'example.com');
+  // isFetchableDomain routes the reference-set domain through the SAME host door (single door).
+  assert.equal(isFetchableDomain('dermexpert.co.uk'), true);
+  assert.equal(isFetchableDomain('127.0.0.1'), false);
+  assert.equal(isFetchableDomain('localhost'), false);
+});
+
+test('makeSafeLookup refuses a hostname that resolves to a private/loopback address (DNS-rebinding SSRF)', () => {
+  // A hostname alone can pass every hostname-shape check and STILL resolve to an internal address.
+  // makeSafeLookup pins the connection to the RESOLVED address and re-checks it against the same
+  // blocklist, so the rebind is caught after resolution, before any socket opens.
+  const rebindLookup = (host, opts, cb) => cb(null, [{ address: '169.254.169.254', family: 4 }]);
+  const safeLookup = makeSafeLookup(rebindLookup);
+  let errored = null;
+  let allowed = false;
+  safeLookup('cloud-metadata.attacker.example', { all: true }, (err) => { if (err) errored = err; else allowed = true; });
+  assert.ok(errored, 'a private resolved address must be refused');
+  assert.match(errored.message, /169\.254\.169\.254/);
+  assert.match(errored.message, /SSRF|rebind|blocked/i);
+  assert.equal(allowed, false);
+
+  // isBlockedAddress is the shared resolved-IP door: private/loopback literals blocked, public allowed.
+  assert.equal(isBlockedAddress('169.254.169.254'), true);
+  assert.equal(isBlockedAddress('10.1.2.3'), true);
+  assert.equal(isBlockedAddress('fc00::1'), true);
+  assert.equal(isBlockedAddress('93.184.216.34'), false);
+
+  // A public resolved address passes: the callback receives the pinned address, no error.
+  const publicLookup = (host, opts, cb) => cb(null, [{ address: '93.184.216.34', family: 4 }]);
+  let pinned = null;
+  makeSafeLookup(publicLookup)('example.com', {}, (err, address, family) => { if (!err) pinned = { address, family }; });
+  assert.deepEqual(pinned, { address: '93.184.216.34', family: 4 });
+
+  // A resolver error propagates (fail closed), never silently allows.
+  const failing = (host, opts, cb) => cb(new Error('ENOTFOUND'));
+  let propagated = null;
+  makeSafeLookup(failing)('nope.example', { all: true }, (err) => { propagated = err; });
+  assert.match(propagated.message, /ENOTFOUND/);
 });
 
 test('looksLikeSpaShell flags a 200 HTML shell with near-zero visible text (C-032)', () => {
@@ -183,4 +254,12 @@ test('logSafe strips newlines/carriage-returns so a remote title cannot forge ex
   assert.equal(safe.includes('\n'), false);
   assert.equal(safe.includes('\r'), false);
   assert.ok(safe.length <= 300, 'logSafe must cap length at 300 chars, got ' + safe.length);
+});
+
+test('isBlockedAddress: IPv4-mapped IPv6 spellings of private/loopback addresses are blocked (CR round-5)', () => {
+  assert.equal(isBlockedAddress('::ffff:10.0.0.1'), true);
+  assert.equal(isBlockedAddress('::ffff:127.0.0.1'), true);
+  assert.equal(isBlockedAddress('0:0:0:0:0:ffff:192.168.1.1'), true);
+  assert.equal(isBlockedAddress('[::ffff:169.254.169.254]'), true);
+  assert.equal(isBlockedAddress('::ffff:93.184.216.34'), false); // mapped PUBLIC address stays allowed
 });

@@ -39,10 +39,24 @@
     },
     {
       "jurisdiction": "US",
+      "sector": "law-firms",
+      "sub_sectors": "*",
+      "served": true,
+      "note": "P2: catalogue cells us-legal/us-healthcare compiled and QA-verified 2026-07-17"
+    },
+    {
+      "jurisdiction": "US",
+      "sector": "healthcare",
+      "sub_sectors": "*",
+      "served": true,
+      "note": "P2: catalogue cells us-legal/us-healthcare compiled and QA-verified 2026-07-17"
+    },
+    {
+      "jurisdiction": "US",
       "sector": "*",
       "sub_sectors": "*",
       "served": false,
-      "activates": "P5 US wave (CA, NY, TX, FL, IL) with nexus-gated state privacy law"
+      "activates": "P5 US wave (CA, NY, TX, FL, IL) with nexus-gated state privacy law; law-firms and healthcare already served from P2 (see above)"
     },
     {
       "jurisdiction": "AE",

@@ -104,3 +104,52 @@ Everything else proceeds under the fleet rules with CI as the arbiter.
 4. Run `eval/golden`, `eval/calibration-known-bad`, `eval/reference-set` locally; a red eval outranks any feature work.
 5. Before writing code, confirm the unit has a pre-committed acceptance spec (Fleet Rule 2). If not, write the spec first and have it approved.
 6. Verify done against ground truth at the end: git diff on main, CI on the merge commit, the live minted payload, the rendered page (CONSTITUTION Rule 17).
+
+## 9. The GATE LOOP (standing, every deploy/phase/PR)
+
+CI status on the merge commit is the only arbiter of done (Fleet Rule 1), but a red gate is not
+self-explanatory and a fix applied by the same hand that broke it is not independently reviewed
+(Fleet Rule 4: generator, critic and adversarial verifier are always distinct). The GATE LOOP is the
+standing procedure that turns "CI is red" into a fixed, re-verified, merged state without ever
+letting the agent that introduced a defect also certify it gone.
+
+**The loop, every time, after every deploy, every phase exit, and every PR:**
+
+1. **Collect.** A low-token collector agent gathers findings: the sweep ledger (`tools/sweep/`),
+   CI job output, `eval/calibration-known-bad`, `eval/golden`, `eval/reference-set`, and any CodeRabbit/CodeScene
+   review comments. It does not analyse or fix anything - it only harvests and returns a structured
+   findings list, kept deliberately cheap (least-privilege, Fleet Rule 7) since collection runs after
+   every single change.
+2. **Analyse + plan.** Fable (the orchestrator-of-record for this loop) reads the collected findings
+   against `CONSTITUTION.md` and `caution.md`, and writes a fix plan: which finding maps to which
+   pointer/rule, the exact change each fix requires, and a machine-checkable benchmark per fix
+   (Fleet Rule 2 - a spec before work starts). Fable never writes the fix itself in this step.
+3. **Execute.** A lower-model agent executes the fix plan Fable wrote - it implements exactly the
+   committed plan, nothing more, and does not re-scope or re-analyse the findings itself (Fleet Rule
+   4: the generator is never the critic).
+4. **Recheck.** Fable rechecks the execution against the plan's benchmarks: does the diff actually
+   do what the plan said, and only that.
+5. **Tools rerun.** The full local tool fleet reruns from a clean state (lint, madge, jscpd,
+   dependency-cruiser, swallow-gate, the known-bad calibration corpus, the catalogue compiler) -
+   never trusted from memory, always re-executed (Fleet Rule 1: CI is the only arbiter).
+6. **Merge gate.** Push or merge happens ONLY on full green: every tool in step 5 passing AND Fable's
+   recheck in step 4 clean. Any red at any step returns to step 2 (a new plan), never a patch bolted
+   directly onto step 3's output.
+
+**Model escalation doctrine (least-capable-sufficient model per step, Fleet Rule 7 applied to model
+choice, not just tool access):**
+
+- A task a Haiku-class model can complete correctly stays on Haiku; it escalates to Sonnet only when
+  it demonstrably cannot (a failed attempt, an ambiguous spec Haiku cannot resolve on its own).
+- A task a Sonnet-class model can complete correctly stays on Sonnet; it escalates to Opus only when
+  Sonnet demonstrably cannot.
+- A task an Opus-class model can complete correctly stays on Opus; it escalates to Fable only when
+  Opus demonstrably cannot.
+- **Fable orchestrates and rechecks only** (steps 2 and 4 above) - Fable is never the default
+  executor of step 3. Routing a fix to Fable by default when a cheaper model would have done the job
+  is itself a fleet-rule violation (Fleet Rule 8: simplest architecture that works; multi-agent burns
+  roughly 15x tokens and must earn that cost).
+
+This section is standing operating procedure, not a one-off instruction: it applies to every future
+deploy, phase exit, and PR in this repository, and a fresh session resuming from §8 above should
+treat it as already in force.

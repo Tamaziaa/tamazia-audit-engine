@@ -4,7 +4,7 @@
     {
       "id": "jurisdiction",
       "label": "JURISDICTION NEXUS (which legal regimes bind the subject)",
-      "allowed_producers": ["facts/jurisdiction.js", "facts/vocabulary.js"],
+      "allowed_producers": ["facts/jurisdiction.js", "facts/vocabulary.js", "catalogue/schema.js"],
       "patterns": [
         "established_in\\s*[:=]",
         "\\bjurisdiction\\s*[:=]\\s*['\"`]",
@@ -14,7 +14,7 @@
         "\\bTIER_[ABC]\\b",
         "function\\s+\\w*[Jj]urisdiction|(detect|infer|resolve|attach|derive|guess)Jurisdictions?\\s*[(=]|boundJurisdictions?\\s*[(=]"
       ],
-      "note": "Tier A register/authorisation/registered-office, Tier B office-postcode/local-phone/ccTLD, Tier C prose never attaches. The NEXUS RESOLUTION (attach rule, tier ladder, EU derivation) has exactly one door: facts/jurisdiction.js. facts/vocabulary.js is the shared vocabulary keystone and is a co-door ONLY for the jurisdiction VOCABULARY primitives it owns (the canonical code list, famCanon family canonicaliser, isJurisdiction validator) that every facts module imports rather than re-declares; it produces no nexus itself."
+      "note": "Tier A register/authorisation/registered-office, Tier B office-postcode/local-phone/ccTLD, Tier C prose never attaches. The NEXUS RESOLUTION (attach rule, tier ladder, EU derivation) has exactly one door: facts/jurisdiction.js. facts/vocabulary.js is the shared vocabulary keystone and is a co-door ONLY for the jurisdiction VOCABULARY primitives it owns (the canonical code list, famCanon family canonicaliser, isJurisdiction validator) that every facts module imports rather than re-declares; it produces no nexus itself. catalogue/schema.js validates required_nexus enum membership against the vocabulary; it never derives or produces a nexus - production stays solely in facts/jurisdiction.js."
     },
     {
       "id": "host",

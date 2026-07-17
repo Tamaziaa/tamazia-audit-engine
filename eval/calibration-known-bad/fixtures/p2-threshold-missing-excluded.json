@@ -1,0 +1,57 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): the threshold-guard class (caution.md C-071 - Modern Slavery Act applied to sub-GBP36m SMEs in 5 of 9 forensic audits). applies_when names a turnover threshold ('annual turnover of GBP 36 million or more') but excluded_when is empty: there is no modelled 'below the threshold, excluded' entry, so this law would attach to every firm regardless of size. catalogue/linters/threshold-guard.js MUST flag this as threshold-excluded-when-missing in --calibrate mode, or it has not earned its zero.",
+  "cell": "p2-calibration-threshold",
+  "jurisdiction": "UK",
+  "generated": "2026-07-17",
+  "records": [
+    {
+      "jurisdiction": "UK",
+      "sub_jurisdiction": null,
+      "status": "needs_verification",
+      "client_useful": true,
+      "id": "CAL_P2_THRESHOLD_MISSING_EXCLUDED",
+      "name": "Modern Slavery Act 2015 transparency statement (calibration fixture: missing size exclusion)",
+      "citation": {
+        "act": "Modern Slavery Act 2015",
+        "section": "Section 54",
+        "url": "https://www.legislation.gov.uk/ukpga/2015/30/section/54"
+      },
+      "sector": ["universal"],
+      "sub_sector": [],
+      "activity_tags": [],
+      "required_nexus": ["serves_customers_in"],
+      "applies_when": ["commercial organisation with annual turnover of GBP 36 million or more operating in the UK"],
+      "excluded_when": [],
+      "website_obligations": [
+        {
+          "duty": "Publish an annual modern slavery and human trafficking transparency statement",
+          "elements": ["statement approved by the board", "published on the website homepage or a link from it"],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "GBP",
+        "basis": "no financial penalty; injunction only",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "Home Office / Independent Anti-Slavery Commissioner",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (deliberately seeded missing size exclusion)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-17"
+      }
+    }
+  ]
+}

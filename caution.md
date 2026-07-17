@@ -444,6 +444,18 @@ Every pointer below is a real failure recorded in the old estate (tamazia-cowork
 
 **C-201** (2026-07-16, P0) The very first CI run failed on a tree divergence local never saw: dependency-cruiser enumerated scaffold directories that git does not track when empty, so CI checked out a different tree than the one verified locally -> every gate must run against the tree git actually ships (empty intended directories carry .gitkeep; local verification is done from a fresh `git clone` of HEAD, not the working directory, before declaring a phase green).
 
+**C-202** (2026-07-17, P2) An unquoted ": " inside a ci.yml step name broke the workflow YAML; GitHub does not fail an unparsable workflow - its checks simply VANISH from the check list, and "all present checks green" was read as a full pass while the entire local fleet never ran -> (1) tools/sweep/collect-workflows.js parses every workflow file as a P0 lane; (2) a green run is only green when the check-run LIST matches the expected manifest, never merely when the present checks pass; (3) the main ruleset requires the named contexts, so a vanished check blocks merge structurally.
+
+**C-203** (2026-07-17, P2) THRESHOLD_RX matched the bare word "employee" inside "endorsement by an employee", flagging a size threshold on a law about endorsement authorship (US_FTC_REVIEWS_ENDORSEMENTS) -> a vocabulary keyword is only a signal WITH its semantic context (count/number/threshold qualifier or leading numeral); every such tightening lands with calibration fixtures in BOTH directions (true positive still fires, known false positive stays quiet).
+
+**C-204** (2026-07-17, P2) Session/quota cuts killed agent fleets mid-write three times; one fleet's work was nearly redone from scratch before checking the tree -> salvage doctrine: after any cut, inventory the working tree + partial outputs FIRST, relaunch with salvage-tolerant prompts that read-and-complete rather than rewrite; never restart work that survived. Quota-heavy phases route workers to sonnet/opus, never fable.
+
+**C-205** (2026-07-17, P2) QA sidecar hash-stamps were worded as release "approvals" although the hash only proves the pack is unchanged since legal review; an agent attestation is not an authority -> sidecars are INTEGRITY ATTESTATIONS; release = CI green + founder merge, and no agent-authored artefact may claim approval semantics (CI is the only arbiter of done, an agent's opinion is never a merge signal).
+
+**C-206** (2026-07-17, P2) A CodeScene multi-entry web form silently dropped batched entries (UI race) and a prior agent's staged entries were lost because the final submit never happened -> UI configuration work must re-read the persisted state after EVERY submit and verify each entry individually; staged-but-unsubmitted state counts as not done.
+
+**C-207** (2026-07-17, P2) New tooling landed inside an open PR reset its review cycle twice (each new gate/tool the reviewers had never seen drew a fresh round of findings on the same PR, so it never converged) -> tooling/enabler code ships through its OWN gate-loop PR; an open feature PR only ever SHRINKS (fixes to what is already there), never grows new tooling surface. A feature PR that keeps adding gates re-opens its own review indefinitely.
+
 ---
 
 ## How this file is used

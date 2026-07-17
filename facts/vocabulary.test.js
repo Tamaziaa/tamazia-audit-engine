@@ -94,6 +94,33 @@ test('every canonical sector key is unique and matches CANONICAL_SECTORS', () =>
   assert.deepEqual([...vocab.CANONICAL_SECTORS].sort(), keys.slice().sort());
 });
 
+// CR-36: CANONICAL_SUB_SECTORS / isCanonicalSubSector (catalogue/schema.js's sub_sector enum door).
+test('CANONICAL_SUB_SECTORS is a non-empty, deduplicated, lowercase-hyphen-slug array whose members all pass isCanonicalSubSector', () => {
+  assert.ok(Array.isArray(vocab.CANONICAL_SUB_SECTORS));
+  assert.ok(vocab.CANONICAL_SUB_SECTORS.length > 0);
+  assert.equal(new Set(vocab.CANONICAL_SUB_SECTORS).size, vocab.CANONICAL_SUB_SECTORS.length, 'duplicate CANONICAL_SUB_SECTORS entry');
+  const SLUG_RX = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+  for (const s of vocab.CANONICAL_SUB_SECTORS) {
+    assert.ok(SLUG_RX.test(s), s + ' is not a lowercase-hyphen slug');
+    assert.equal(vocab.isCanonicalSubSector(s), true, s + ' must satisfy its own membership test');
+  }
+});
+
+test('CANONICAL_SUB_SECTORS includes every SECTORS[x].sub detection-tree key (the union, never a narrower replacement)', () => {
+  eachSubNode((_parentId, subId) => {
+    assert.ok(vocab.isCanonicalSubSector(subId), subId + ' (a real detection-tree sub key) must remain a canonical sub-sector');
+  });
+});
+
+test('isCanonicalSubSector: rejects an unknown value, is exact (no alias fold, no structural fallback), and never throws on odd input', () => {
+  assert.equal(vocab.isCanonicalSubSector('not-a-real-sub-sector'), false);
+  assert.equal(vocab.isCanonicalSubSector('Solicitors'), false, 'case must match exactly, no fold');
+  assert.equal(vocab.isCanonicalSubSector(null), false);
+  assert.equal(vocab.isCanonicalSubSector(undefined), false);
+  assert.equal(vocab.isCanonicalSubSector(42), false);
+  assert.equal(vocab.isCanonicalSubSector('solicitors'), true);
+});
+
 test('no duplicate fully-qualified sub-sector ids across the tree', () => {
   const ids = [];
   eachSubNode((parentId, subId) => ids.push(parentId + '/' + subId));

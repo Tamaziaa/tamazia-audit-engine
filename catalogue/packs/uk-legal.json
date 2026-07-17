@@ -1,0 +1,997 @@
+{
+ "cell": "uk-legal",
+ "jurisdiction": "UK",
+ "generated": "2026-07-16",
+ "records": [
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors",
+    "conveyancing",
+    "probate",
+    "immigration",
+    "employment",
+    "criminal-defence"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "id": "UK_SRA_TRANSPARENCY",
+   "name": "SRA Transparency Rules 2018 (price and service publication, complaints, regulatory information and digital badge)",
+   "citation": {
+    "act": "SRA Transparency Rules 2018 (made under s.31 and s.156 Legal Services Act 2007; part of the SRA Standards and Regulations)",
+    "section": "Rule 1 (cost and service information), Rule 2 (complaints information), Rule 3 (VAT/disbursements), Rule 4 (regulatory information and SRA digital badge)",
+    "url": "https://www.sra.org.uk/solicitors/standards-regulations/transparency-rules/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "firm is authorised and regulated by the SRA (recognised body, recognised sole practice, or licensed body/ABS)",
+    "firm offers any of the in-scope services to the public or to businesses (see Rule 1 list)"
+   ],
+   "excluded_when": [
+    "not an SRA-regulated firm (barristers, licensed conveyancers, CILEx firms are covered by their own regulators)",
+    "publicly funded work is out of scope for the PRICE obligation only (the complaints, regulatory and badge duties still apply)",
+    "personal injury work is NOT an in-scope service and does not trigger the price-publication duty (E26)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish cost information for each in-scope service the firm offers, on the website in a prominent place",
+     "elements": [
+      "individuals: residential conveyancing (freehold/leasehold sale, purchase, mortgage/remortgage)",
+      "individuals: uncontested probate where all assets are in the UK",
+      "individuals: immigration (excluding asylum), including First-tier Tribunal appeals",
+      "individuals: motoring offences that are summary only, single Magistrates' Court hearing",
+      "individuals: employment tribunal claims for unfair or wrongful dismissal (claimant/employee side)",
+      "businesses: employment tribunal defence of unfair or wrongful dismissal (employer side)",
+      "businesses: debt recovery up to the value of GBP 100,000",
+      "businesses: licensing applications for business premises",
+      "for each: total or average cost or a realistic range, the basis of charges, likely disbursements and their cost, whether VAT is included, key stages and typical timescales, and the experience/qualifications of those doing the work"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Publish the firm's complaints handling procedure including how and when a complaint can be made to the Legal Ombudsman and to the SRA (Rule 2)",
+     "elements": [
+      "complaints procedure findable on the website",
+      "Legal Ombudsman route and contact named",
+      "SRA route named for conduct concerns"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Display regulatory information: the statement that the firm is authorised and regulated by the Solicitors Regulation Authority and the firm's SRA number (Rule 4)",
+     "elements": [
+      "'authorised and regulated by the Solicitors Regulation Authority' wording present",
+      "SRA firm number shown"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Display the clickable SRA digital badge (SRA-issued verification badge) in a prominent place (Rule 4)",
+     "elements": [
+      "SRA digital badge embedded and linking to the SRA verification page"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 750,
+    "typical_high": 25000,
+    "statutory_max": 25000,
+    "currency": "GBP",
+    "basis": "SRA fixed penalties for transparency breaches begin at GBP 750 and escalate to GBP 1,500 on continued non-compliance; the SRA's internal financial-penalty cap for traditional firms and individuals is GBP 25,000 (from 20 July 2022). Licensed bodies/ABS and referral to the Solicitors Disciplinary Tribunal carry far higher or unlimited fines; a headline figure such as GBP 2.6m is an SDT/court outcome, not an SRA-imposed transparency fine (E27).",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Solicitors Regulation Authority (SRA)",
+    "register_url": "https://www.sra.org.uk/consumers/register/"
+   },
+   "enforcement": [
+    {
+     "case": "SRA fixed penalties for Transparency Rules non-compliance (multiple firms)",
+     "date": "2024-12",
+     "amount": "GBP 750 (rising to GBP 1,500)",
+     "url": "https://www.sra.org.uk/sra/news/press/2024-press-releases/more-fixed-penalties/",
+     "summary": "The SRA issued fixed penalties to firms that failed to publish price information or diversity data, part of an ongoing programme of website transparency sweeps."
+    }
+   ],
+   "intel": {
+    "why_matters": "The SRA runs recurring automated and manual website sweeps against the exact in-scope service list; a firm that offers conveyancing, probate or immigration but has no compliant price page is an easy fixed-penalty target.",
+    "regulator_asks_first": "For each in-scope service you advertise, is there a price page with costs, basis, disbursements, VAT treatment and timescales, plus a complaints procedure naming the Legal Ombudsman, your SRA number and the digital badge?",
+    "relevance_hook": "A missing or thin price page loses both the SRA sweep and the client who compares three firms before enquiring; the same page fixes both."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.sra.org.uk/solicitors/standards-regulations/transparency-rules/",
+     "https://www.sra.org.uk/solicitors/guidance/financial-penalties/",
+     "https://www.sra.org.uk/sra/news/press/2024-press-releases/more-fixed-penalties/",
+     "seed compliance_laws.json UK-SRA-TRANS",
+     "seed compliance_enforcement.json id 41"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "id": "UK_SRA_CODE_PUBLICITY",
+   "name": "SRA Code of Conduct - client information, publicity and unsolicited approaches (Section 8)",
+   "citation": {
+    "act": "SRA Code of Conduct for Solicitors, RELs, RFLs and RSLs; SRA Code of Conduct for Firms (SRA Standards and Regulations)",
+    "section": "para 8.8 (publicity accurate and not misleading), 8.9 (no unsolicited approaches to the public), 8.10 (clients understand whether/how services are regulated), 8.11 (comply with the Transparency Rules)",
+    "url": "https://www.sra.org.uk/solicitors/standards-regulations/code-conduct-solicitors/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "firm or solicitor authorised by the SRA publishes marketing, practice-area or results content on a website"
+   ],
+   "excluded_when": [
+    "not an SRA-regulated person or firm"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Ensure all website publicity is accurate and not misleading, including statements about charges and about interest (para 8.8)",
+     "elements": [
+      "no unsubstantiated success-rate, 'win', 'guaranteed outcome' or 'best/leading' claims",
+      "fee and interest statements accurate",
+      "no misleading 'no win no fee' framing that hides deductions or exclusions"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Do not present the website as making unsolicited approaches to members of the public beyond current or former clients (para 8.9)",
+     "elements": [
+      "marketing does not solicit prohibited direct approaches in a way that breaches 8.9"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Make clear on the site whether and how the services offered are regulated and which activities are carried out as an authorised person (para 8.10)",
+     "elements": [
+      "regulated status explained",
+      "distinction drawn where some services are not reserved/regulated legal activities"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2000,
+    "typical_high": 25000,
+    "statutory_max": 25000,
+    "currency": "GBP",
+    "basis": "SRA internal financial penalty up to GBP 25,000 for traditional firms and individuals (unlimited where the failure relates to economic crime, from 4 March 2024); serious cases are referred to the Solicitors Disciplinary Tribunal, which can impose unlimited fines, suspension or strike-off. Licensed bodies/ABS face higher SRA caps.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Solicitors Regulation Authority (SRA)",
+    "register_url": "https://www.sra.org.uk/consumers/register/"
+   },
+   "enforcement": [
+    {
+     "case": "SRA warning notice on misleading no-win-no-fee and outcome marketing",
+     "date": "2025-01",
+     "amount": "Warning notices / conduct action",
+     "url": "https://www.sra.org.uk/solicitors/guidance/",
+     "summary": "The SRA warned firms about misleading no-win-no-fee marketing and unsubstantiated claims, reinforcing that website publicity must be accurate under the Code."
+    }
+   ],
+   "intel": {
+    "why_matters": "Practice-area and results pages are exactly where firms over-claim; the SRA treats a misleading website as a Code breach in its own right, independent of any client complaint.",
+    "regulator_asks_first": "Can every superlative, success-rate or 'guaranteed' claim on the site be substantiated, and is the regulated status of each service made clear?",
+    "relevance_hook": "The words that convert (best, leading, guaranteed, 100% success) are the words the SRA sanctions; disciplined copy protects both trust and registration."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.sra.org.uk/solicitors/standards-regulations/code-conduct-solicitors/",
+     "seed compliance_laws.json UK-SRA-CODE",
+     "seed compliance_enforcement.json id 40"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors",
+    "barristers",
+    "conveyancing"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_LEGAL_OMBUDSMAN_SIGNPOST",
+   "name": "Legal Ombudsman signposting in complaints handling (SRA Code paras 8.3-8.4 and LeO Scheme Rules)",
+   "citation": {
+    "act": "SRA Code of Conduct for Solicitors, RELs, RFLs and RSLs paras 8.3-8.4; Legal Ombudsman Scheme Rules",
+    "section": "SRA Code 8.3 (tell clients at engagement of their right to complain to the Legal Ombudsman and when), 8.4 (written signpost after 8 weeks unresolved with the time frame and contact details); LeO Scheme Rules time limits",
+    "url": "https://www.legalombudsman.org.uk/information-centre/learning-resources/signposting-consumers-to-the-legal-ombudsman/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a regulated legal services provider handles a client complaint about its service"
+   ],
+   "excluded_when": [
+    "complainant is outside the Legal Ombudsman's jurisdiction (e.g. certain large businesses)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish complaints information that signposts the Legal Ombudsman with the correct time limits and contact details",
+     "elements": [
+      "Legal Ombudsman named as the escalation route with postal address, phone and website",
+      "the client may refer within six months of the firm's final written response",
+      "the overall LeO time limit stated (referral within one year of the act/omission, or one year from when the client should reasonably have known)",
+      "statement that the firm's final response must explain the LeO route and the six-month deadline for the deadline to bite"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": 25000,
+    "statutory_max": 25000,
+    "currency": "GBP",
+    "basis": "Failure to signpost is a conduct breach handled by the relevant regulator (SRA up to GBP 25,000 for traditional firms/individuals, or SDT referral). A defective final response that omits the six-month warning also means the LeO time limit never starts, so stale complaints remain live against the firm.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Legal Ombudsman (and the firm's front-line regulator: SRA/BSB/CLC)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "If the final response letter omits the Legal Ombudsman signpost and the six-month deadline, the deadline never runs, so a client can escalate months or years later; the website complaints page is the cheapest place to get this right for every matter.",
+    "regulator_asks_first": "Does the complaints page name the Legal Ombudsman with contact details and both time limits, and do final responses carry the six-month warning?",
+    "relevance_hook": "A one-paragraph complaints block, correctly worded, closes off open-ended Ombudsman exposure and satisfies the regulator sweep at the same time."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legalombudsman.org.uk/information-centre/learning-resources/signposting-consumers-to-the-legal-ombudsman/",
+     "https://www.sra.org.uk/solicitors/standards-regulations/code-conduct-solicitors/",
+     "https://www.sra.org.uk/solicitors/guidance/publishing-complaints-procedure/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors",
+    "barristers",
+    "conveyancing",
+    "notaries"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_LSA_2007_RESERVED",
+   "name": "Legal Services Act 2007 - authorisation to carry on reserved legal activities",
+   "citation": {
+    "act": "Legal Services Act 2007",
+    "section": "s.12-15 (reserved legal activities and authorisation), s.14 (offence to carry on a reserved activity when not entitled), s.16-17 (offence to pretend to be entitled)",
+    "url": "https://www.legislation.gov.uk/ukpga/2007/29/contents"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the provider offers a reserved legal activity: rights of audience, conduct of litigation, reserved instrument activities (conveyancing), probate activities, notarial activities, or the administration of oaths"
+   ],
+   "excluded_when": [
+    "only unreserved legal work is offered (e.g. general legal advice, will-writing, employment advice), for which no authorisation is required"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Where the site advertises a reserved legal activity, the provider must in fact be authorised and should make its regulated status and regulator visible",
+     "elements": [
+      "named regulator (SRA/BSB/CLC/CILEx/Faculty Office) shown",
+      "no advertising of reserved activities the provider is not authorised to carry on",
+      "no false claim or implication of being a solicitor/barrister/authorised person"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Carrying on a reserved legal activity while not entitled, or pretending to be entitled, is a criminal offence under s.14 and s.16-17: on indictment an unlimited fine and/or up to two years' imprisonment. No civil tariff.",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Legal Services Board; front-line regulators SRA/BSB/CLC/CILEx Regulation/Faculty Office",
+    "register_url": "https://www.sra.org.uk/consumers/register/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A website that advertises litigation, court advocacy, conveyancing or probate implicitly asserts authorisation; if the entity is not authorised for that reserved activity the advertising itself is evidence of a criminal offence.",
+    "regulator_asks_first": "For every reserved activity the site advertises, is the entity actually authorised and is its regulator named?",
+    "relevance_hook": "Unreserved firms (will-writers, McKenzie friends, consultancies) get this wrong constantly; the fix is precise wording that stays inside what they are entitled to offer."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2007/29/contents",
+     "seed compliance_laws.json UK-LSA-07"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "barristers",
+    "chambers"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "id": "UK_BSB_HANDBOOK_PUBLICITY",
+   "name": "BSB Handbook - barrister and chambers publicity and Public Access disclosure",
+   "citation": {
+    "act": "Bar Standards Board Handbook (Code of Conduct)",
+    "section": "rC19-rC21 (not misleading the public; accurate practice information; no false/misleading claims of specialism); Public Access rules and Public Access guidance",
+    "url": "https://www.barstandardsboard.org.uk/the-bsb-handbook.html"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "self-employed barrister, chambers or BSB entity publishes a website or profile, or offers Public Access (direct access) work"
+   ],
+   "excluded_when": [
+    "not a BSB-regulated person or entity"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Ensure practice and profile information is not misleading and does not make unsubstantiated superiority or specialism claims (rC19-rC21)",
+     "elements": [
+      "no misleading seniority, ranking or success claims on tenant profiles",
+      "accurate description of areas of practice and status",
+      "BSB-regulated status identifiable"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Where Public Access / direct access work is offered, disclose the Public Access basis and the client's position clearly",
+     "elements": [
+      "Public Access availability and scope stated",
+      "explanation that a solicitor is not required for Public Access instructions where applicable",
+      "complaints route to the Legal Ombudsman shown"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "BSB brings disciplinary proceedings; serious cases are referred to the Bar Tribunals and Adjudication Service (BTAS), which can impose fines, suspension or disbarment. No fixed statutory tariff is published for these website breaches; do not state a specific cap.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Bar Standards Board (BSB)",
+    "register_url": "https://www.barstandardsboard.org.uk/for-the-public/finding-and-using-a-barrister/the-barristers-register.html"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Chambers websites carry tenant profiles written by the barristers themselves, and superiority or ranking claims that cannot be substantiated are a direct rC19-rC21 breach.",
+    "regulator_asks_first": "Are the practice descriptions and any specialism/ranking claims accurate and substantiated, and is Public Access scope disclosed where offered?",
+    "relevance_hook": "The profile copy that wins instructions is the same copy the BSB scrutinises; disciplined, accurate profiles protect both."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.barstandardsboard.org.uk/the-bsb-handbook.html",
+     "seed compliance_laws.json UK-BSB"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "barristers",
+    "chambers"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "id": "UK_BSB_TRANSPARENCY",
+   "name": "Bar Transparency Rules - price, service and redress information for barristers and chambers",
+   "citation": {
+    "act": "Bar Standards Board Handbook - Transparency Rules (in force 1 July 2019, following the CMA legal services market study)",
+    "section": "BSB Transparency Rules (mandatory price, service and redress information); BSB Transparency Standards Guidance",
+    "url": "https://www.barstandardsboard.org.uk/for-barristers/compliance-with-your-obligations/transparency-rules.html"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "self-employed barristers, chambers and BSB entities that have a website",
+    "especially those offering Public Access and the specified services within the price-transparency scope"
+   ],
+   "excluded_when": [
+    "no website (but the information must then be available in an alternative format such as a factsheet on request)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish price, service and redress information on the website",
+     "elements": [
+      "most commonly used pricing models (e.g. fixed fee or hourly rate)",
+      "areas of practice and description of the most commonly provided legal services",
+      "factors that might influence timescales",
+      "the prescribed regulatory text confirming BSB regulation",
+      "complaints procedure and the right to complain to the Legal Ombudsman, plus decision data where required"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Non-compliance is enforced by the BSB through supervision and, for serious cases, disciplinary referral to BTAS. No fixed statutory fine tariff is published for these website breaches; do not assert a specific cap.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Bar Standards Board (BSB)",
+    "register_url": "https://www.barstandardsboard.org.uk/for-the-public/finding-and-using-a-barrister/the-barristers-register.html"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Chambers frequently treat the Bar Transparency Rules as satisfied by a single generic page; the BSB ran compliance programmes precisely because so many sites lacked pricing models, timescale factors and the mandatory regulatory text.",
+    "regulator_asks_first": "Does the site show pricing models, service descriptions, timescale factors, the BSB regulatory statement and the complaints/Legal Ombudsman route?",
+    "relevance_hook": "A compliant transparency page also answers the exact questions a lay Public Access client asks before instructing, so it converts as well as it complies."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.barstandardsboard.org.uk/for-barristers/compliance-with-your-obligations/transparency-rules.html",
+     "https://www.barstandardsboard.org.uk/static/259bb9ac-1e32-4a0d-84d9f948ff2d88f1/b7987890-43e5-46d5-a8546268dc7a8d74/Transparency-Standards-Guidance-2-Section-1.pdf"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "conveyancing",
+    "licensed-conveyancers",
+    "probate"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "id": "UK_CLC_TRANSPARENCY",
+   "name": "CLC website transparency - price, service and complaints information for licensed conveyancers",
+   "citation": {
+    "act": "Council for Licensed Conveyancers (CLC) Handbook - Transparency (Cost and Service) Framework and CLC Code of Conduct",
+    "section": "CLC transparency requirements (cost information, service information, CLC digital badge, complaints and Legal Ombudsman route)",
+    "url": "https://www.clc-uk.org/handbook/the-handbook/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "practice regulated by the Council for Licensed Conveyancers offers conveyancing or probate services"
+   ],
+   "excluded_when": [
+    "not CLC-regulated (SRA firms follow the SRA Transparency Rules instead)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Display cost information in a prominent place on the website",
+     "elements": [
+      "prices or price ranges for conveyancing/probate",
+      "basis of charges and likely disbursements",
+      "VAT treatment"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Display service information and the CLC regulatory badge",
+     "elements": [
+      "description of the service and key stages/timescales",
+      "CLC secure/verification badge shown prominently",
+      "statement that the practice is regulated by the CLC"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Display the complaints process including access to the Legal Ombudsman and redress information",
+     "elements": [
+      "complaints procedure published",
+      "Legal Ombudsman route and contact named"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Enforced by the CLC through its disciplinary and enforcement powers; sanctions include conditions, fines and licence revocation. No single fixed statutory website tariff is published; do not assert a specific figure.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Council for Licensed Conveyancers (CLC)",
+    "register_url": "https://www.clc-uk.org/consumers/find-a-licensed-conveyancer/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "CLC firms compete head-to-head with SRA firms on the same conveyancing keywords, and the CLC mandates the same cost/service/redress transparency; a firm that shows neither price nor badge loses the comparison and the CLC check.",
+    "regulator_asks_first": "Is cost information prominent, is the CLC badge shown, and is the complaints/Legal Ombudsman route published?",
+    "relevance_hook": "Conveyancing buyers price-shop; the compliant cost page is also the highest-converting page on a conveyancer's site."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.clc-uk.org/handbook/the-handbook/",
+     "https://www.clc-uk.org/consumers/reporting-problems/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors",
+    "conveyancing",
+    "probate",
+    "licensed-conveyancers"
+   ],
+   "activity_tags": [
+    "payments"
+   ],
+   "id": "UK_MLR_2017_LEGAL",
+   "name": "Money Laundering, Terrorist Financing and Transfer of Funds (Information on the Payer) Regulations 2017 - AML supervision (legal sector)",
+   "citation": {
+    "act": "The Money Laundering, Terrorist Financing and Transfer of Funds (Information on the Payer) Regulations 2017 (SI 2017/692)",
+    "section": "reg 8-9 (relevant persons and supervision), reg 18-21 (risk assessment, policies and controls), reg 27-38 (customer due diligence); Part 7 Proceeds of Crime Act 2002 for the underlying offences",
+    "url": "https://www.legislation.gov.uk/uksi/2017/692/contents"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "firm carries on in-scope legal activity (e.g. conveyancing, trust or company formation, managing client money, certain tax/transactional work) and is therefore a 'relevant person' supervised for AML"
+   ],
+   "excluded_when": [
+    "firm carries on only work outside the MLR 2017 regulated sectors (much litigation and general advice is out of scope)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Where the firm holds itself out as AML-supervised, name the correct supervisor (for most solicitors this is the SRA, not HMRC) so the claim is accurate; do not overstate the supervision",
+     "elements": [
+      "AML supervisor correctly identified where stated (SRA for solicitors; CLC for licensed conveyancers)",
+      "no claim of AML supervision the firm does not in fact hold"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Breach of the MLR 2017 can lead to civil penalties from the supervisor and, for the underlying money-laundering offences under POCA 2002, an unlimited fine and up to 14 years' imprisonment. The website nexus is narrow: the site is mainly evidence of an accurate (or overstated) supervision claim, not the primary breach.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Solicitors Regulation Authority (AML supervisor for most solicitors); HM Treasury/OPBAS oversight; HMRC for some sectors",
+    "register_url": "https://www.sra.org.uk/consumers/register/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Most solicitors are supervised for AML by the SRA, yet firms sometimes state 'HMRC supervised' on the website, which is inaccurate and flags weak AML control.",
+    "regulator_asks_first": "If the site mentions AML supervision, does it name the correct supervisor for this firm type?",
+    "relevance_hook": "This is a small wording fix that removes an easy credibility and accuracy flag, though the substantive MLR duties are operational rather than web-facing."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2017/692/contents",
+     "seed compliance_laws.json NEON-UK-HMRC-AML"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors",
+    "barristers",
+    "conveyancing",
+    "professional-services"
+   ],
+   "activity_tags": [
+    "b2c",
+    "b2b_only"
+   ],
+   "id": "UK_PROVISION_OF_SERVICES_2009",
+   "name": "Provision of Services Regulations 2009 - professional service-provider information duties",
+   "citation": {
+    "act": "The Provision of Services Regulations 2009 (SI 2009/2999)",
+    "section": "reg 8 (information a provider must make available), reg 9 (further information on request), reg 11 (professional liability insurance information where the provider is required to hold it)",
+    "url": "https://www.legislation.gov.uk/uksi/2009/2999/contents/made"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "a service provider (including a legal or professional-services firm) supplies services to recipients in the UK"
+   ],
+   "excluded_when": [
+    "activities outside the scope of the Regulations (e.g. certain financial services, healthcare and other carve-outs listed in the Regulations)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Make available to recipients the core provider information (typically via the website)",
+     "elements": [
+      "name of the provider and legal status/form",
+      "geographic (postal) address and contact details including an email or other means for complaints and enquiries",
+      "VAT number where the provider is VAT registered",
+      "where a regulated profession: the professional body/register, the professional title and the state that granted it, plus a reference to the applicable professional rules and how to access them",
+      "the main features of the service and the price where pre-determined",
+      "general terms and conditions if the provider uses them"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Where the provider is required to hold professional liability (PI) insurance, make available details of that insurance",
+     "elements": [
+      "professional indemnity insurance details or coverage territory available on request or on the site where required"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Enforced by trading standards / weights and measures authorities and via the courts; the Regulations work through enforcement orders and consumer redress rather than a fixed statutory fine tariff. Do not assert a specific penalty figure.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Local authority trading standards (Provision of Services Regulations enforcement)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "These are the baseline 'who we are and how we are regulated' disclosures that every professional-services website should carry, and legal firms are explicitly in scope; the Bar Council and Law Society both publish checklists against these Regulations.",
+    "regulator_asks_first": "Does the site show the provider's name, legal status, address, VAT number, professional body and rules, and PI insurance details where required?",
+    "relevance_hook": "One well-built legal/regulatory footer block satisfies most of these duties at once and signals a serious, credible firm."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2009/2999/contents/made",
+     "https://www.legislation.gov.uk/ukdsi/2009/9780111486276/contents",
+     "https://www.barcouncilethics.co.uk/wp-content/uploads/2017/10/annex_5_-_the_provision_of_services_regulations.pdf",
+     "seed compliance_laws.json EU-SERVICES-DIR"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors",
+    "conveyancing",
+    "professional-services"
+   ],
+   "activity_tags": [
+    "b2c",
+    "b2b_only"
+   ],
+   "id": "UK_COMPANIES_ACT_S82_LEGAL",
+   "name": "Companies Act 2006 s.82 and Company, LLP and Business (Names and Trading Disclosures) Regulations - website trading disclosures",
+   "citation": {
+    "act": "Companies Act 2006 s.82; The Company, Limited Liability Partnership and Business (Names and Trading Disclosures) Regulations 2015 (SI 2015/17)",
+    "section": "CA 2006 s.82; SI 2015/17 regs on disclosure of registered particulars on websites and business communications",
+    "url": "https://www.legislation.gov.uk/ukpga/2006/46/section/82"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the legal practice is an incorporated entity (limited company) or an LLP with a website or business communications"
+   ],
+   "excluded_when": [
+    "traditional partnership or sole practitioner not incorporated (different, lighter disclosure applies)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Display the registered particulars on the website and business communications",
+     "elements": [
+      "registered company or LLP name (as on the register)",
+      "company/LLP registration number",
+      "place of registration (e.g. Registered in England and Wales)",
+      "registered office address"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 500,
+    "typical_high": 1000,
+    "statutory_max": 1000,
+    "currency": "GBP",
+    "basis": "Failure to make required trading disclosures is a criminal offence; a fine up to level 3 on the standard scale (GBP 1,000) for the company/LLP and every officer in default, with a daily default fine for continued contravention.",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Companies House / local authority trading standards",
+    "register_url": "https://find-and-update.company-information.service.gov.uk/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Law firms are overwhelmingly LLPs or limited companies, yet many display only a trading name; the registered name, number, place of registration and registered office are a legal requirement and are trivially checkable against Companies House.",
+    "regulator_asks_first": "Does the footer show the registered name, company/LLP number, place of registration and registered office?",
+    "relevance_hook": "A single compliant disclosure block in the footer fixes this site-wide in a day and reinforces the firm's legitimacy."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2006/46/section/82",
+     "https://www.legislation.gov.uk/ukdsi/2015/9780111125892/contents",
+     "seed compliance_laws.json UK-COMP-82"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors"
+   ],
+   "activity_tags": [],
+   "id": "UK_SRA_DIVERSITY_DATA",
+   "name": "SRA workforce diversity data collection and publication",
+   "citation": {
+    "act": "SRA Standards and Regulations - collection and publication of diversity data (arising from the Legal Services Act 2007 s.149 regulatory objective on diversity)",
+    "section": "SRA requirement to collect workforce diversity data every two years and publish it (with the SRA reporting aggregate outcomes)",
+    "url": "https://www.sra.org.uk/solicitors/resources/diversity-toolkit/collect-report-diversity-data/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "firm is authorised and regulated by the SRA"
+   ],
+   "excluded_when": [
+    "not an SRA-regulated firm"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Collect workforce diversity data and publish it (e.g. on the website) as the SRA requires",
+     "elements": [
+      "diversity data collected from the workforce",
+      "aggregated diversity information published/made available in line with SRA guidance"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 750,
+    "typical_high": 25000,
+    "statutory_max": 25000,
+    "currency": "GBP",
+    "basis": "The SRA has issued fixed penalties (from GBP 750) to firms that failed to report diversity data; wider conduct action can follow, subject to the SRA's GBP 25,000 cap for traditional firms/individuals.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Solicitors Regulation Authority (SRA)",
+    "register_url": "https://www.sra.org.uk/consumers/register/"
+   },
+   "enforcement": [
+    {
+     "case": "SRA first fixed penalty for failure to submit diversity data",
+     "date": "2023-12",
+     "amount": "GBP 750",
+     "url": "https://www.sra.org.uk/sra/news/press/2024-press-releases/more-fixed-penalties/",
+     "summary": "The SRA issued its first fixed penalty for a firm failing to submit its diversity data, alongside transparency-rules fixed penalties."
+    }
+   ],
+   "intel": {
+    "why_matters": "Diversity-data publication is a distinct, easily-missed SRA obligation that has already produced fixed penalties, separate from the pricing transparency sweeps.",
+    "regulator_asks_first": "Has the firm collected and published its workforce diversity data as the SRA requires?",
+    "relevance_hook": "A short diversity statement page closes a live fixed-penalty exposure that most firms overlook."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.sra.org.uk/solicitors/resources/diversity-toolkit/collect-report-diversity-data/",
+     "https://www.sra.org.uk/sra/news/press/2024-press-releases/more-fixed-penalties/",
+     "seed compliance_laws.json UK-SRA-CODE (rule SRA_TR_DIVERSITY)"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "legal-executives",
+    "cilex",
+    "conveyancing",
+    "probate"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "id": "UK_CILEX_TRANSPARENCY",
+   "name": "CILEx Regulation transparency - price and service information for CILEx-regulated practices",
+   "citation": {
+    "act": "CILEx Regulation (CRL) Code of Conduct and transparency requirements",
+    "section": "CILEx Regulation transparency requirements on price, service and complaints information for authorised entities and individuals",
+    "url": "https://cilexregulation.org.uk/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "practice or practitioner authorised by CILEx Regulation offers legal services to the public"
+   ],
+   "excluded_when": [
+    "not CILEx-regulated (SRA/CLC firms follow their own regulators' rules)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish price, service and complaints information in line with CILEx Regulation transparency requirements",
+     "elements": [
+      "price/cost information for the services offered",
+      "description of services and timescales",
+      "complaints procedure and Legal Ombudsman route",
+      "CILEx Regulation regulated status shown"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Enforced by CILEx Regulation through supervision and disciplinary action. No fixed statutory website tariff is published; do not assert a specific figure.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "CILEx Regulation (CRL)",
+    "register_url": "https://cilexregulation.org.uk/find-a-professional/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "CILEx-regulated practices are held to transparency requirements comparable to the SRA and CLC, but firms often assume the rules do not reach them.",
+    "regulator_asks_first": "Does the site publish price and service information, the complaints/Legal Ombudsman route, and the CILEx Regulation status?",
+    "relevance_hook": "A compliant transparency page matches the SRA/CLC competitors these firms sit next to in search results."
+   },
+   "provenance": {
+    "sources": [
+     "https://cilexregulation.org.uk/",
+     "https://www.legalfutures.co.uk/latest-news/cilex-regulation-pushes-ahead-with-transparency-for-all-legal-services"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
+   }
+  }
+ ]
+}
