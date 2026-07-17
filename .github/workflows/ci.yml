@@ -74,5 +74,8 @@ jobs:
             echo "############################################################"
           fi
 
+      - name: Catalogue compile (deterministic CI stamp)
+        run: npm run catalogue -- --stamp 2026-01-01T00:00:00Z
+
       - name: Unit tests (node --test)
         run: npm test

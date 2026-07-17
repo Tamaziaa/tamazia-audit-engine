@@ -1,0 +1,61 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): the earn-your-zero regex-health class (caution.md C-050), Compliance Object Model shape with a detection.pattern field (the future post-migration shape this linter is written ahead of). In this JSON source the pattern reads dpo[@\\\\s] which, once JSON-decoded, compiles to the character class {@, backslash, s} - it can never match a literal whitespace after 'dpo' as the rule author intended, only a literal '@', backslash or 's'. The seeded positive_example ('...contact our dpo team...') has a SPACE after 'dpo', so the pattern does NOT match its own positive_example even though it compiles cleanly: a dead-on-arrival pattern with a proof case attached, the exact over-escaped C-050 class. catalogue/linters/regex-health.js MUST flag this as regex-dead-pattern in --calibrate mode, or it has not earned its zero.",
+  "cell": "p2-calibration-regex",
+  "jurisdiction": "UK",
+  "generated": "2026-07-17",
+  "records": [
+    {
+      "jurisdiction": "UK",
+      "sub_jurisdiction": null,
+      "status": "needs_verification",
+      "client_useful": true,
+      "id": "CAL_P2_REGEX_DEAD_PATTERN",
+      "name": "UK GDPR Article 37 DPO contact details (calibration fixture: dead over-escaped regex)",
+      "citation": {
+        "act": "UK GDPR (assimilated Regulation (EU) 2016/679)",
+        "section": "UK GDPR Art 37",
+        "url": "https://www.legislation.gov.uk/eur/2016/679/article/37"
+      },
+      "sector": ["universal"],
+      "sub_sector": [],
+      "activity_tags": [],
+      "required_nexus": ["processes_residents_of"],
+      "applies_when": ["required to designate a Data Protection Officer"],
+      "excluded_when": ["not required to designate a DPO"],
+      "website_obligations": [
+        {
+          "duty": "Publish the Data Protection Officer's contact details",
+          "elements": ["DPO name or role", "DPO contact route"],
+          "evidence_type": "presence"
+        }
+      ],
+      "detection": {
+        "pattern": "dpo[@\\\\s]",
+        "positive_example": "for privacy queries please contact our dpo team directly"
+      },
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": 17500000,
+        "currency": "GBP",
+        "basis": "UK GDPR Art 83(5)",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Information Commissioner's Office (ICO)",
+        "register_url": "https://ico.org.uk/ESDWebPages/Search"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (deliberately seeded dead over-escaped regex)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-17"
+      }
+    }
+  ]
+}

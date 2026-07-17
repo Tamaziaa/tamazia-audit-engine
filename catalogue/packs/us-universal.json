@@ -1,0 +1,1471 @@
+{
+ "cell": "us-universal",
+ "jurisdiction": "US",
+ "generated": "2026-07-16",
+ "records": [
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_FTC_ACT_S5_UDAP",
+   "name": "FTC Act Section 5 — Unfair or Deceptive Acts or Practices (website deception)",
+   "citation": {
+    "act": "Federal Trade Commission Act",
+    "section": "Section 5, 15 U.S.C. §45(a); enforcement/penalty authority §5(l), §5(m); .com Disclosures guidance (2013)",
+    "url": "https://www.ftc.gov/legal-library/browse/statutes/federal-trade-commission-act"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "markets any product or service to US consumers through the website",
+    "makes objective claims (performance, price, savings, results, 'free', comparisons) a reasonable consumer would rely on"
+   ],
+   "excluded_when": [
+    "purely non-commercial content with no offer",
+    "puffery a reasonable consumer would not read as a factual claim"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not make deceptive or misleading representations; every objective claim must be truthful and substantiated before it is published",
+     "elements": [
+      "no false or unsupported performance, health, earnings or savings claims",
+      "reasonable basis (competent and reliable evidence) held for objective claims at time of publication",
+      "no deceptive omission of facts material to a purchase decision"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Material terms and disclosures are clear and conspicuous, not buried in fine print, hyperlinks, or hover text (.com Disclosures)",
+     "elements": [
+      "disclosures near the triggering claim and unavoidable before purchase",
+      "total price and material conditions ('free' offers, auto-charges, restrictions) disclosed up front"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "No dark patterns that trick or trap the consumer (obstructed cancellation, pre-checked add-ons, false urgency, hidden fees)",
+     "elements": [
+      "no fake countdown timers or false scarcity",
+      "no pre-selected paid extras presented as consent",
+      "symmetry between how a consumer signs up and how they cancel"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 50000,
+    "typical_high": 5000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "no per se fine for a first §5(a) violation; civil penalties up to $53,088 per violation (2025 adjustment) attach to conduct that violates an FTC rule or a prior order, plus redress/disgorgement; typical band reflects negotiated monetary judgments",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC); state attorneys general concurrently under state UDAP",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "FTC v. Fashion Nova, LLC",
+     "date": "2022-01",
+     "amount": "$4.2m",
+     "url": "https://www.ftc.gov/news-events/news/press-releases/2022/01/fashion-nova-will-pay-42-million-part-settlement-ftc-allegations-it-blocked-negative-reviews",
+     "summary": "First FTC action over suppression of negative reviews; presenting a curated 4-5 star wall as all reviews was a deceptive §5 practice."
+    }
+   ],
+   "intel": {
+    "why_matters": "Section 5 is the backstop the FTC reaches for when no specific rule fits; almost every misleading headline, fake 'was/now' price, unsupported 'clinically proven' or 'guaranteed results' line on a US site is a §5 exposure.",
+    "regulator_asks_first": "What is the net impression to a reasonable consumer, and what evidence did you hold before you published the claim?",
+    "relevance_hook": "The deception standard is impression-based, so a technically-true-but-misleading page still breaches; this is the single most common finding on a US commercial site."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ftc.gov/legal-library/browse/statutes/federal-trade-commission-act",
+     "https://www.federalregister.gov/documents/2025/01/17/2025-01361/adjustments-to-civil-penalty-amounts",
+     "https://www.ftc.gov/news-events/news/press-releases/2022/01/fashion-nova-will-pay-42-million-part-settlement-ftc-allegations-it-blocked-negative-reviews"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_FTC_REVIEWS_ENDORSEMENTS",
+   "name": "FTC Endorsement Guides 2023 + Consumer Reviews and Testimonials Rule (16 CFR Part 465)",
+   "citation": {
+    "act": "FTC Act §5; Guides Concerning the Use of Endorsements and Testimonials (16 CFR Part 255, revised 2023); Trade Regulation Rule on the Use of Consumer Reviews and Testimonials (16 CFR Part 465, 2024)",
+    "section": "16 CFR Part 255 (effective 26 Jun 2023, 88 FR 48092); 16 CFR Part 465 (effective 21 Oct 2024)",
+    "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "runs_ads",
+    "ugc",
+    "uses_ai"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "displays reviews, testimonials, ratings, star counts or endorsements",
+    "uses influencers, affiliates, brand ambassadors or gifted/paid creators",
+    "publishes any endorsement by an employee, officer or related party"
+   ],
+   "excluded_when": [
+    "no reviews, testimonials or endorsements anywhere on the site or linked social",
+    "reviews are genuine, unfiltered, and carry no material connection"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Clearly and conspicuously disclose every material connection between an endorser and the brand, near the claim",
+     "elements": [
+      "paid, gifted, employee, affiliate or equity relationships disclosed",
+      "disclosure proximate to the endorsement, not only in a bio, hashtag stack, or 'see more'",
+      "affiliate recommendation pages carry a plain-language disclosure"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Do not publish, buy, sell or incentivise fake, AI-generated, or misrepresented reviews (Part 465 binding prohibitions)",
+     "elements": [
+      "no fabricated reviews or reviews from people with no real experience",
+      "no review suppression or presenting a filtered subset as representative",
+      "no compensation conditioned on a positive or particular-sentiment review",
+      "insider (officer/manager/employee) reviews disclose the connection"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Do not misrepresent testimonial results; disclose when depicted results are not typical",
+     "elements": [
+      "'results not typical' or generally-expected-results disclosure where atypical outcomes are shown"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 50000,
+    "typical_high": 2000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "Part 465 is a Trade Regulation Rule, so knowing violations carry civil penalties up to $53,088 per violation (2025 adjustment) plus consumer redress; the Guides themselves are interpretive but breaches are actionable as §5 deception",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC)",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "FTC v. Fashion Nova, LLC (review suppression)",
+     "date": "2022-01",
+     "amount": "$4.2m",
+     "url": "https://www.ftc.gov/news-events/news/press-releases/2022/01/fashion-nova-will-pay-42-million-part-settlement-ftc-allegations-it-blocked-negative-reviews",
+     "summary": "Blocking sub-four-star reviews and displaying only high ratings misrepresented the body of reviews; foundational case now codified into Part 465."
+    }
+   ],
+   "intel": {
+    "why_matters": "Since 21 Oct 2024 fake and suppressed reviews are not just deception, they carry per-violation civil penalties under a binding rule; undisclosed influencer and affiliate relationships remain the most-cited endorsement failure.",
+    "regulator_asks_first": "Are all reviews genuine and unfiltered, and is every paid or gifted relationship disclosed where the consumer sees the claim?",
+    "relevance_hook": "Star widgets, testimonial carousels and affiliate 'we recommend' pages are exactly what an auditor screens; a missing #ad or a curated review wall is now a penalty-grade finding."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255",
+     "https://www.federalregister.gov/documents/2023/07/26/2023-14795/guides-concerning-the-use-of-endorsements-and-testimonials-in-advertising",
+     "https://www.ftc.gov/legal-library/browse/federal-register-notices/16-cfr-part-465-trade-regulation-rule-use-consumer-reviews-testimonials-final-rule"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_CAN_SPAM",
+   "name": "CAN-SPAM Act — commercial email requirements",
+   "citation": {
+    "act": "Controlling the Assault of Non-Solicited Pornography And Marketing Act of 2003",
+    "section": "15 U.S.C. §§7701-7713; FTC CAN-SPAM Rule, 16 CFR Part 316",
+    "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-316"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "b2b_only",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "sends commercial email (primary purpose is advertising or promoting a product or service)",
+    "captures email addresses through the site for marketing"
+   ],
+   "excluded_when": [
+    "transactional or relationship messages only (order confirmations, receipts, account notices)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Every commercial email must carry accurate routing and a valid physical postal address",
+     "elements": [
+      "truthful 'From', 'To' and header/routing information",
+      "non-deceptive subject line",
+      "valid physical postal address (street address, PO box, or registered agent) in the footer"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Provide a clear opt-out and honour it (opt-out model, not opt-in)",
+     "elements": [
+      "conspicuous unsubscribe mechanism in every commercial email",
+      "opt-out honoured within 10 business days and kept working for at least 30 days",
+      "no fee or extra information demanded to unsubscribe"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 10000,
+    "typical_high": 2000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "civil penalties up to $53,088 per non-compliant email (2025 adjustment); aggregate judgments reach the millions where volume is high",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC); also enforceable by state AGs and ISPs",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "CAN-SPAM is a per-email liability; a newsletter footer missing a postal address or a broken unsubscribe multiplies fast across a send list.",
+    "regulator_asks_first": "Does every marketing email carry a real postal address and a one-click unsubscribe you honour within ten business days?",
+    "relevance_hook": "Auditors test the signup-to-confirmation flow; a missing physical address in the email footer is a black-and-white presence failure the client can fix same day."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-316",
+     "https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business",
+     "https://www.federalregister.gov/documents/2025/01/17/2025-01361/adjustments-to-civil-penalty-amounts"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_TCPA_WEB_CONSENT",
+   "name": "Telephone Consumer Protection Act — web consent capture for calls and texts",
+   "citation": {
+    "act": "Telephone Consumer Protection Act",
+    "section": "47 U.S.C. §227; FCC rules 47 CFR §64.1200; revocation-of-consent rule effective 11 Apr 2025",
+    "url": "https://www.ecfr.gov/current/title-47/part-64/section-64.1200"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "payments"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "collects a phone number through a web form for marketing calls or SMS",
+    "sends autodialed or prerecorded marketing calls or texts to US numbers"
+   ],
+   "excluded_when": [
+    "no marketing calls or texts (purely transactional or manually dialled non-marketing contact)",
+    "number captured solely for a one-off transactional message the consumer requested"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Obtain prior express written consent for autodialed/prerecorded marketing calls and texts at the point of capture",
+     "elements": [
+      "unchecked, affirmative consent tied to the specific seller",
+      "clear disclosure that consent is not a condition of purchase",
+      "consent language and the phone field visible together at submit"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Provide and honour a simple revocation ('STOP' in any reasonable manner), honoured within 10 business days",
+     "elements": [
+      "STOP/UNSUBSCRIBE opt-out accepted by any reasonable method",
+      "at most one confirmation message, carrying no marketing content"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 500,
+    "typical_high": 1500,
+    "statutory_max": 1500,
+    "currency": "USD",
+    "basis": "private right of action: $500 per negligent violation, up to $1,500 per willful violation, per call or text; class exposure runs to seven and eight figures",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Communications Commission (FCC); private right of action and state AGs",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "TCPA is plaintiff-lawyer territory: each text is its own statutory-damages unit, so a lead form that captures a phone number without proper consent is a class-action magnet.",
+    "regulator_asks_first": "Where is the express-written-consent language, is it unchecked, and does it say consent is not required to buy?",
+    "relevance_hook": "The FCC one-to-one consent rule was vacated (11th Cir, Jan 2025) so bundled consent is again permissible, but the core express-written-consent and STOP duties are unchanged and easy to verify on any phone-capture form."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ecfr.gov/current/title-47/part-64/section-64.1200",
+     "https://www.fcc.gov/document/tcpa-rules-revoking-consent-unwanted-robocallsrobotexts",
+     "https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/eleventh-circuit-vacates-tcpa-11-consent-rule"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_ADA_TITLE_III_WEB",
+   "name": "ADA Title III — website accessibility for places of public accommodation",
+   "citation": {
+    "act": "Americans with Disabilities Act, Title III",
+    "section": "42 U.S.C. §12181 et seq.; 28 CFR Part 36; DOJ web accessibility guidance (2022, references WCAG)",
+    "url": "https://www.ada.gov/resources/web-guidance/"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "ecommerce"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "operates a website connected to a business the courts treat as a place of public accommodation (retail, hospitality, services, healthcare, food, professional offices)",
+    "the site is the gateway to goods or services offered to the US public"
+   ],
+   "excluded_when": [
+    "purely internal or B2B-only tools with no public accommodation nexus",
+    "in the Third, Fifth, Sixth, Ninth and Eleventh Circuits, a standalone web-only business with no physical place may fall outside Title III (a genuine circuit split, not settled law)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Provide a website accessible to people with disabilities; courts and DOJ measure conformance against WCAG (2.0/2.1 Level AA)",
+     "elements": [
+      "text alternatives for images and non-text content",
+      "programmatic labels on forms and controls",
+      "keyboard operability with no keyboard traps",
+      "sufficient colour contrast",
+      "captions for video, and accessible error messaging"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Offer an accessible alternative contact route where full conformance is not yet achieved",
+     "elements": [
+      "accessibility statement with a monitored contact for access requests"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 10000,
+    "typical_high": 150000,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "no fixed statutory web penalty; most exposure is private-lawsuit settlement plus plaintiff attorneys' fees (commonly five figures); DOJ civil penalties apply in government-initiated Title III actions",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "US Department of Justice (DOJ); overwhelmingly enforced via private ADA lawsuits",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Website accessibility suits and demand letters number in the thousands each year; they target obvious WCAG failures (missing alt text, unlabeled forms, poor contrast) that a scan surfaces immediately.",
+    "regulator_asks_first": "Can a screen-reader and keyboard-only user complete the same core tasks (browse, add to cart, check out, contact you) as everyone else?",
+    "relevance_hook": "Honestly flagged: whether Title III reaches a web-only business is circuit-split, but for any business with a physical location the accessibility duty is live and the defects are cheap to detect and fix."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ada.gov/resources/web-guidance/",
+     "https://www.morganlewis.com/pubs/2022/04/doj-breaks-silence-on-ada-web-accessibility-with-new-guidance",
+     "https://www.americanbar.org/groups/gpsolo/resources/ereport/archive/title-iii-americans-disabilities-act-website-compliance/"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_COPPA",
+   "name": "Children's Online Privacy Protection Act (COPPA) — under-13 data collection",
+   "citation": {
+    "act": "Children's Online Privacy Protection Act",
+    "section": "15 U.S.C. §§6501-6506; FTC COPPA Rule 16 CFR Part 312 (amended final rule effective 23 Jun 2025, compliance by 22 Apr 2026)",
+    "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-312"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "child_directed",
+    "b2c",
+    "cookies_present",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in",
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "the site or service is directed to children under 13, or",
+    "the operator has actual knowledge it collects personal information from a child under 13"
+   ],
+   "excluded_when": [
+    "not child-directed and no actual knowledge of under-13 users",
+    "audience is general or the content is clearly directed to teens or adults (subject to the multi-factor child-directed test)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Post a clear COPPA privacy notice and obtain verifiable parental consent before collecting a child's personal information",
+     "elements": [
+      "child-specific privacy policy describing what is collected and how it is used",
+      "verifiable parental consent obtained before collection (now including facial-recognition-with-review, KBA, and other approved methods)",
+      "separate consent for disclosure to third parties unless integral to the service",
+      "direct notice to parents"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Minimise collection, honour parental rights, and limit tracking on child-directed pages",
+     "elements": [
+      "collect only what is reasonably necessary",
+      "parental access and deletion route provided",
+      "written data-retention policy posted; no indefinite retention",
+      "no behavioural-advertising cookies/SDKs firing on child-directed pages without consent"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 100000,
+    "typical_high": 275000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "civil penalties up to $53,088 per violation (per child); aggregate judgments have reached $275m (Epic Games); the statutory_max is the per-violation cap, the high figure is the largest actual penalty",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC); state AGs",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "US (FTC) v. Epic Games, Inc.",
+     "date": "2022-12",
+     "amount": "$275m",
+     "url": "https://www.ftc.gov/news-events/news/press-releases/2022/12/fortnite-video-game-maker-epic-games-pay-more-half-billion-dollars-over-ftc-allegations",
+     "summary": "Largest COPPA penalty ever: Fortnite collected under-13 data and enabled voice/text chat by default without parental notice or consent."
+    }
+   ],
+   "intel": {
+    "why_matters": "COPPA is a bright-line gate: if a site is child-directed or knowingly collects under-13 data, the parental-consent and notice duties are absolute, and the penalties are per-child.",
+    "regulator_asks_first": "Is this service child-directed, and if so where is the verifiable parental consent before any data is collected?",
+    "relevance_hook": "The 2025 Rule amendments (effective Jun 2025, full compliance Apr 2026) add a data-retention-policy duty and new consent methods, so even previously compliant child-directed sites need a refresh."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-312",
+     "https://www.federalregister.gov/documents/2025/04/22/2025-05904/childrens-online-privacy-protection-rule",
+     "https://www.ftc.gov/news-events/news/press-releases/2022/12/fortnite-video-game-maker-epic-games-pay-more-half-billion-dollars-over-ftc-allegations"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_ROSCA_NEGATIVE_OPTION",
+   "name": "Restore Online Shoppers' Confidence Act (ROSCA) — online subscriptions and auto-renewal",
+   "citation": {
+    "act": "Restore Online Shoppers' Confidence Act; FTC Negative Option Rule (pre-2024 prenotification version, 16 CFR Part 425)",
+    "section": "15 U.S.C. §§8401-8405 (esp. §8403); Negative Option Rule 16 CFR Part 425",
+    "url": "https://www.ftc.gov/legal-library/browse/rules/negative-option-rule"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "ecommerce",
+    "payments",
+    "b2c"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "sells any subscription, membership, free-trial-to-paid, or auto-renewing plan online",
+    "charges on a negative-option basis (silence or inaction is treated as acceptance)"
+   ],
+   "excluded_when": [
+    "no recurring charge or auto-renewal; one-time purchases only"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Clearly disclose all material terms before obtaining billing information",
+     "elements": [
+      "price, billing frequency, renewal, and any trial-to-paid conversion disclosed near the payment step",
+      "disclosure clear and conspicuous, not buried in terms of service"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Obtain express informed consent to the negative-option feature before charging",
+     "elements": [
+      "affirmative consent specific to the recurring charge, separate from the general purchase"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Provide a simple mechanism to cancel and stop future charges",
+     "elements": [
+      "a cancellation path that exists and is not obstructed",
+      "no forced phone-only cancellation where signup was online"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 100000,
+    "typical_high": 5000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "ROSCA violations are treated as violations of an FTC rule, so civil penalties up to $53,088 per violation (2025 adjustment) plus redress apply; state Automatic Renewal Laws add parallel penalties",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC); state AGs under state Automatic Renewal Laws",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Subscriptions are a top FTC and state-AG enforcement priority; the exposure sits in unclear renewal disclosure, pre-checked auto-renewal, and cancellation friction.",
+    "regulator_asks_first": "Before you took the card, did you clearly disclose the recurring charge, get separate consent to it, and is cancellation as easy as signup?",
+    "relevance_hook": "VERIFIED status: the FTC 2024 'Click-to-Cancel' four-step Negative Option Rule was vacated in full by the Eighth Circuit on 8 Jul 2025 (Custom Communications v. FTC), so the pre-2024 Negative Option Rule, ROSCA, and state ARLs govern; do not audit against click-to-cancel steps. The FTC submitted a new ANPRM in Jan 2026, so watch for a replacement rule."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ftc.gov/legal-library/browse/rules/negative-option-rule",
+     "https://ecf.ca8.uscourts.gov/opndir/25/07/243137P.pdf",
+     "https://www.crowell.com/en/insights/client-alerts/clicking-all-the-right-boxes-ftc-moves-to-revive-click-to-cancel-rule-following-eighth-circuit-vacatur"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_FTC_GREEN_GUIDES",
+   "name": "FTC Green Guides — environmental marketing claims (16 CFR Part 260)",
+   "citation": {
+    "act": "FTC Act §5; Guides for the Use of Environmental Marketing Claims",
+    "section": "16 CFR Part 260 (Green Guides); §5, 15 U.S.C. §45",
+    "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-260"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "runs_ads",
+    "ecommerce",
+    "b2c"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "makes environmental or sustainability claims (eco-friendly, green, recyclable, compostable, carbon-neutral, non-toxic, sustainable)"
+   ],
+   "excluded_when": [
+    "no environmental marketing claims on the site"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Every environmental claim is truthful, substantiated, specific, and qualified so it is not deceptive",
+     "elements": [
+      "no unqualified general benefit claims ('eco-friendly', 'green') without close, prominent qualification",
+      "'recyclable' only where recycling facilities are available to a substantial majority of consumers/communities",
+      "carbon-neutral/offset claims disclose the project, standard, and timing",
+      "certification and seal claims name the certifying body and the specific basis"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 50000,
+    "typical_high": 2000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "the Guides are interpretive; deceptive green claims are enforced as §5 violations, and where tied to a rule or order carry civil penalties up to $53,088 per violation plus corrective advertising",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC); state AGs",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Greenwashing is a stated FTC priority and the Green Guides are the yardstick; vague 'sustainable' or 'carbon-neutral' badges without qualification are the classic finding.",
+    "regulator_asks_first": "What specific, substantiated environmental benefit are you claiming, and can a consumer see the qualification and evidence next to the claim?",
+    "relevance_hook": "The Green Guides are under FTC review, but the deception standard they codify is live now; any 'eco' badge or recyclability claim on a US product page is auditable against them today."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-260",
+     "https://www.ftc.gov/news-events/topics/truth-advertising/green-guides"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_FTC_MADE_IN_USA",
+   "name": "FTC Made in USA Labeling Rule — origin claims (16 CFR Part 323)",
+   "citation": {
+    "act": "FTC Made in USA Labeling Rule; FTC Act §5",
+    "section": "16 CFR Part 323 (effective 13 Aug 2021); §5, 15 U.S.C. §45",
+    "url": "https://www.ftc.gov/legal-library/browse/rules/made-usa-labeling-rule"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "ecommerce",
+    "runs_ads",
+    "b2c"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "makes unqualified 'Made in USA', 'Made in America', or 'Assembled in USA' claims on product pages or marketing"
+   ],
+   "excluded_when": [
+    "no US-origin claims made"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not make an unqualified US-origin claim unless the product is 'all or virtually all' made in the United States",
+     "elements": [
+      "final assembly or processing in the US",
+      "all significant processing in the US",
+      "all or virtually all ingredients or components made and sourced in the US",
+      "qualified claims ('Made in USA from imported parts') accurate where used"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 50000,
+    "typical_high": 2000000,
+    "statutory_max": 53088,
+    "currency": "USD",
+    "basis": "the Labeling Rule is a Trade Regulation Rule; violations carry civil penalties up to $53,088 per violation (2025 adjustment) plus redress",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Federal Trade Commission (FTC)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Since 2021 the FTC has a dedicated rule with per-violation civil penalties for false US-origin claims; 'Made in USA' badges are a specific, checkable claim with real teeth.",
+    "regulator_asks_first": "Is this product 'all or virtually all' made in the US, and if not, is the origin claim properly qualified?",
+    "relevance_hook": "A single 'Made in USA' banner on an imported or mixed-origin product is a discrete, penalty-grade finding that resonates strongly with US SMBs."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ftc.gov/legal-library/browse/rules/made-usa-labeling-rule",
+     "https://www.federalregister.gov/documents/2021/07/14/2021-14610/made-in-usa-labeling-rule"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "CA",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_CCPA_CPRA",
+   "name": "California Consumer Privacy Act, as amended by the CPRA",
+   "advisory": true,
+   "citation": {
+    "act": "California Consumer Privacy Act, as amended by the CPRA",
+    "section": "Cal. Civ. Code §1798.100 et seq.; CPPA regulations (cyber audit / risk assessment / ADMT rules effective 1 Jan 2026)",
+    "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=3.&part=4.&lawCode=CIV&title=1.81.5"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of CA residents AND meets the state applicability threshold",
+    "advisory: attach only where an observable nexus to state residents exists; do not assert as a breach without confirming the business meets the threshold"
+   ],
+   "excluded_when": [
+    "does not apply below all CCPA thresholds: (a) annual gross revenue over $26,625,000 (2026 inflation-adjusted from $25m); (b) buys/sells/shares personal data of 100,000+ CA consumers or households; or (c) derives 50%+ of revenue from selling/sharing personal data",
+    "many state acts exempt data/entities already covered by GLBA, HIPAA, FCRA, or non-profits (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a CCPA privacy policy and the required opt-out links",
+     "elements": [
+      "categories of personal information collected, sold, or shared and purposes",
+      "'Do Not Sell or Share My Personal Information' link",
+      "'Limit the Use of My Sensitive Personal Information' link where sensitive PI is used",
+      "consumer rights (know, delete, correct, opt-out) and how to exercise them"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Honour the Global Privacy Control browser signal as a valid opt-out of sale/sharing",
+     "elements": [
+      "GPC signal treated as an opt-out request without further action",
+      "opt-out applied to cookie-based ad/analytics 'sales'"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "$2,500 per unintentional violation and $7,500 per intentional violation or violation involving a minor; enforced by the CA AG and the California Privacy Protection Agency",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "CA Attorney General and California Privacy Protection Agency",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "California v. Sephora USA, Inc. (AG settlement)",
+     "date": "2022-08",
+     "amount": "$1.2m",
+     "url": "https://oag.ca.gov/news/press-releases/attorney-general-bonta-announces-settlement-sephora-part-ongoing-enforcement",
+     "summary": "First public CCPA enforcement: failure to disclose data 'sales', provide a Do-Not-Sell link, and honour Global Privacy Control signals."
+    }
+   ],
+   "intel": {
+    "why_matters": "A CA-resident nexus plus threshold means the site needs CA-specific privacy disclosures and opt-out plumbing; the visible tells (privacy link, opt-out link, GPC honouring) are auditable.",
+    "regulator_asks_first": "Does your privacy notice cover our residents' rights, and do you honour opt-out and universal opt-out signals?",
+    "relevance_hook": "Advisory tier: flag as an obligation to confirm, not a hard breach, unless the business plainly meets the threshold; the fix (policy + opt-out link + GPC) is the same baseline across states."
+   },
+   "provenance": {
+    "sources": [
+     "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=3.&part=4.&lawCode=CIV&title=1.81.5",
+     "https://cppa.ca.gov/regulations/cpi_adjustment.html",
+     "https://oag.ca.gov/news/press-releases/attorney-general-bonta-announces-settlement-sephora-part-ongoing-enforcement"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "VA",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_VCDPA",
+   "name": "Virginia Consumer Data Protection Act",
+   "advisory": true,
+   "citation": {
+    "act": "Virginia Consumer Data Protection Act",
+    "section": "Va. Code §59.1-575 et seq.",
+    "url": "https://law.lis.virginia.gov/vacodefull/title59.1/chapter53/"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of VA residents AND meets the state applicability threshold",
+    "advisory: attach only where an observable nexus to state residents exists; do not assert as a breach without confirming the business meets the threshold"
+   ],
+   "excluded_when": [
+    "does not apply below thresholds: controls/processes personal data of 100,000+ VA consumers, OR 25,000+ VA consumers while deriving over 50% of gross revenue from the sale of personal data",
+    "many state acts exempt data/entities already covered by GLBA, HIPAA, FCRA, or non-profits (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a compliant privacy notice describing categories, purposes, sharing, and consumer rights",
+     "elements": [
+      "categories of personal data collected and purposes",
+      "how to exercise access, correction, deletion, and portability rights",
+      "third-party sharing/sale/targeted-advertising disclosures"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Offer the opt-outs the state requires and honour universal opt-out signals where mandated",
+     "elements": [
+      "opt-out of sale and of targeted advertising",
+      "recognise the Global Privacy Control / universal opt-out signal where the state requires it",
+      "opt-in consent for sensitive data where required"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "civil penalties typically up to $7,500 per violation, enforced by the state AG (California adds the CPPA); most states provide a cure period",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "VA Attorney General",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A VA-resident nexus plus threshold means the site needs VA-specific privacy disclosures and opt-out plumbing; the visible tells (privacy link, opt-out link, GPC honouring) are auditable.",
+    "regulator_asks_first": "Does your privacy notice cover our residents' rights, and do you honour opt-out and universal opt-out signals?",
+    "relevance_hook": "Advisory tier: flag as an obligation to confirm, not a hard breach, unless the business plainly meets the threshold; the fix (policy + opt-out link + GPC) is the same baseline across states."
+   },
+   "provenance": {
+    "sources": [
+     "https://law.lis.virginia.gov/vacodefull/title59.1/chapter53/",
+     "https://www.oag.state.va.us/consumer-protection/index.php/data-privacy"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "CO",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_CPA",
+   "name": "Colorado Privacy Act",
+   "advisory": true,
+   "citation": {
+    "act": "Colorado Privacy Act",
+    "section": "Colo. Rev. Stat. §6-1-1301 et seq.; Colorado AG rules (universal opt-out mechanism required)",
+    "url": "https://coag.gov/resources/colorado-privacy-act/"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of CO residents AND meets the state applicability threshold",
+    "advisory: attach only where an observable nexus to state residents exists; do not assert as a breach without confirming the business meets the threshold"
+   ],
+   "excluded_when": [
+    "does not apply below thresholds: controls/processes personal data of 100,000+ CO consumers, OR 25,000+ CO consumers while deriving revenue or receiving a discount from selling personal data",
+    "many state acts exempt data/entities already covered by GLBA, HIPAA, FCRA, or non-profits (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a compliant privacy notice describing categories, purposes, sharing, and consumer rights",
+     "elements": [
+      "categories of personal data collected and purposes",
+      "how to exercise access, correction, deletion, and portability rights",
+      "third-party sharing/sale/targeted-advertising disclosures"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Offer the opt-outs the state requires and honour universal opt-out signals where mandated",
+     "elements": [
+      "opt-out of sale and of targeted advertising",
+      "recognise the Global Privacy Control / universal opt-out signal where the state requires it",
+      "opt-in consent for sensitive data where required"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "civil penalties typically up to $7,500 per violation, enforced by the state AG (California adds the CPPA); most states provide a cure period",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "CO Attorney General",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A CO-resident nexus plus threshold means the site needs CO-specific privacy disclosures and opt-out plumbing; the visible tells (privacy link, opt-out link, GPC honouring) are auditable.",
+    "regulator_asks_first": "Does your privacy notice cover our residents' rights, and do you honour opt-out and universal opt-out signals?",
+    "relevance_hook": "Advisory tier: flag as an obligation to confirm, not a hard breach, unless the business plainly meets the threshold; the fix (policy + opt-out link + GPC) is the same baseline across states."
+   },
+   "provenance": {
+    "sources": [
+     "https://coag.gov/resources/colorado-privacy-act/",
+     "https://leg.colorado.gov/bills/sb21-190"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "CT",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_CTDPA",
+   "name": "Connecticut Data Privacy Act",
+   "advisory": true,
+   "citation": {
+    "act": "Connecticut Data Privacy Act",
+    "section": "Conn. Gen. Stat. §42-515 et seq. (Public Act 22-15)",
+    "url": "https://portal.ct.gov/ag/sections/privacy/the-connecticut-data-privacy-act"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of CT residents AND meets the state applicability threshold",
+    "advisory: attach only where an observable nexus to state residents exists; do not assert as a breach without confirming the business meets the threshold"
+   ],
+   "excluded_when": [
+    "does not apply below thresholds: controls/processes personal data of 100,000+ CT consumers (excluding payment-only data), OR 25,000+ CT consumers while deriving over 25% of gross revenue from selling personal data",
+    "many state acts exempt data/entities already covered by GLBA, HIPAA, FCRA, or non-profits (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a compliant privacy notice describing categories, purposes, sharing, and consumer rights",
+     "elements": [
+      "categories of personal data collected and purposes",
+      "how to exercise access, correction, deletion, and portability rights",
+      "third-party sharing/sale/targeted-advertising disclosures"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Offer the opt-outs the state requires and honour universal opt-out signals where mandated",
+     "elements": [
+      "opt-out of sale and of targeted advertising",
+      "recognise the Global Privacy Control / universal opt-out signal where the state requires it",
+      "opt-in consent for sensitive data where required"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "civil penalties typically up to $7,500 per violation, enforced by the state AG (California adds the CPPA); most states provide a cure period",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "CT Attorney General",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A CT-resident nexus plus threshold means the site needs CT-specific privacy disclosures and opt-out plumbing; the visible tells (privacy link, opt-out link, GPC honouring) are auditable.",
+    "regulator_asks_first": "Does your privacy notice cover our residents' rights, and do you honour opt-out and universal opt-out signals?",
+    "relevance_hook": "Advisory tier: flag as an obligation to confirm, not a hard breach, unless the business plainly meets the threshold; the fix (policy + opt-out link + GPC) is the same baseline across states."
+   },
+   "provenance": {
+    "sources": [
+     "https://portal.ct.gov/ag/sections/privacy/the-connecticut-data-privacy-act",
+     "https://www.cga.ct.gov/2022/act/pa/pdf/2022PA-00015-R00SB-00006-PA.pdf"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "UT",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_UCPA",
+   "name": "Utah Consumer Privacy Act",
+   "advisory": true,
+   "citation": {
+    "act": "Utah Consumer Privacy Act",
+    "section": "Utah Code §13-61-101 et seq.",
+    "url": "https://le.utah.gov/xcode/Title13/Chapter61/13-61.html"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of UT residents AND meets the state applicability threshold",
+    "advisory: attach only where an observable nexus to state residents exists; do not assert as a breach without confirming the business meets the threshold"
+   ],
+   "excluded_when": [
+    "does not apply unless annual revenue is $25,000,000+ AND (controls/processes data of 100,000+ UT consumers, OR 25,000+ UT consumers while deriving over 50% of revenue from selling personal data); Utah is the most business-favourable and has no universal-opt-out mandate",
+    "many state acts exempt data/entities already covered by GLBA, HIPAA, FCRA, or non-profits (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a compliant privacy notice describing categories, purposes, sharing, and consumer rights",
+     "elements": [
+      "categories of personal data collected and purposes",
+      "how to exercise access, correction, deletion, and portability rights",
+      "third-party sharing/sale/targeted-advertising disclosures"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Offer the opt-outs the state requires and honour universal opt-out signals where mandated",
+     "elements": [
+      "opt-out of sale and of targeted advertising",
+      "recognise the Global Privacy Control / universal opt-out signal where the state requires it",
+      "opt-in consent for sensitive data where required"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "civil penalties typically up to $7,500 per violation, enforced by the state AG (California adds the CPPA); most states provide a cure period",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "UT Attorney General",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A UT-resident nexus plus threshold means the site needs UT-specific privacy disclosures and opt-out plumbing; the visible tells (privacy link, opt-out link, GPC honouring) are auditable.",
+    "regulator_asks_first": "Does your privacy notice cover our residents' rights, and do you honour opt-out and universal opt-out signals?",
+    "relevance_hook": "Advisory tier: flag as an obligation to confirm, not a hard breach, unless the business plainly meets the threshold; the fix (policy + opt-out link + GPC) is the same baseline across states."
+   },
+   "provenance": {
+    "sources": [
+     "https://le.utah.gov/xcode/Title13/Chapter61/13-61.html",
+     "https://propertyrights.utah.gov/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "TX",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_TDPSA",
+   "name": "Texas Data Privacy and Security Act",
+   "advisory": true,
+   "citation": {
+    "act": "Texas Data Privacy and Security Act",
+    "section": "Tex. Bus. & Com. Code Ch. 541",
+    "url": "https://statutes.capitol.texas.gov/Docs/BC/htm/BC.541.htm"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of TX residents AND meets the state applicability threshold",
+    "advisory: attach only where an observable nexus to state residents exists; do not assert as a breach without confirming the business meets the threshold"
+   ],
+   "excluded_when": [
+    "no headcount threshold: applies to any business that processes/sells personal data and is NOT a small business (as defined by the US SBA), unless it only sells data with prior consent; small-business exemption is the key gate",
+    "many state acts exempt data/entities already covered by GLBA, HIPAA, FCRA, or non-profits (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a compliant privacy notice describing categories, purposes, sharing, and consumer rights",
+     "elements": [
+      "categories of personal data collected and purposes",
+      "how to exercise access, correction, deletion, and portability rights",
+      "third-party sharing/sale/targeted-advertising disclosures"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Offer the opt-outs the state requires and honour universal opt-out signals where mandated",
+     "elements": [
+      "opt-out of sale and of targeted advertising",
+      "recognise the Global Privacy Control / universal opt-out signal where the state requires it",
+      "opt-in consent for sensitive data where required"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "civil penalties typically up to $7,500 per violation, enforced by the state AG (California adds the CPPA); most states provide a cure period",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "TX Attorney General",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A TX-resident nexus plus threshold means the site needs TX-specific privacy disclosures and opt-out plumbing; the visible tells (privacy link, opt-out link, GPC honouring) are auditable.",
+    "regulator_asks_first": "Does your privacy notice cover our residents' rights, and do you honour opt-out and universal opt-out signals?",
+    "relevance_hook": "Advisory tier: flag as an obligation to confirm, not a hard breach, unless the business plainly meets the threshold; the fix (policy + opt-out link + GPC) is the same baseline across states."
+   },
+   "provenance": {
+    "sources": [
+     "https://statutes.capitol.texas.gov/Docs/BC/htm/BC.541.htm",
+     "https://www.texasattorneygeneral.gov/consumer-protection/privacy"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "multi",
+   "status": "needs_verification",
+   "client_useful": true,
+   "id": "US_STATE_PRIVACY_WAVE_2025_26",
+   "name": "US comprehensive state privacy laws — 2024-2026 wave (advisory overlay)",
+   "advisory": true,
+   "qa_note": "aggregate multi-state overview cannot carry one official citation; excluded from artifact until split into per-state records with official citations (P5 law wave)",
+   "citation": {
+    "act": "State comprehensive consumer privacy acts effective 2024-2026 (OR, MT, DE, IA, NE, NH, NJ, TN, MN, MD, IN, and later RI/KY/IN)",
+    "section": "e.g. Oregon OCPA (1 Jul 2024); Montana MCDPA (1 Oct 2024); Delaware DPDPA, Iowa ICDPA, Nebraska NDPA, New Hampshire NHDPL (1 Jan 2025); New Jersey NJDPA (15 Jan 2025); Tennessee TIPA (1 Jul 2025); Minnesota MCDPA (31 Jul 2025); Maryland MODPA (1 Oct 2025); Indiana INCDPA (1 Jan 2026)",
+    "url": "https://iapp.org/resources/article/us-state-privacy-laws-overview"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "cookies_present",
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of residents of any state in the 2024-2026 wave AND meets that state's threshold",
+    "advisory: treat as a portfolio of near-identical baselines; attach per-state only on observable resident nexus and confirmed threshold"
+   ],
+   "excluded_when": [
+    "below each state's applicability threshold (most mirror the 100,000-consumer / 25,000-plus-data-sales model; Nebraska and Texas use an SBA small-business gate; thresholds vary)",
+    "GLBA/HIPAA/FCRA-covered data and non-profits are commonly exempt (varies by state)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Maintain one baseline privacy programme that satisfies the common denominator of these acts",
+     "elements": [
+      "comprehensive privacy notice with categories, purposes, sharing, and rights",
+      "opt-out of sale and targeted advertising, plus opt-in for sensitive data",
+      "recognise universal opt-out / Global Privacy Control where the state requires it (OR, MT, DE, NJ, MN, MD and others)",
+      "data protection assessments for high-risk processing (internal, but referenced in the notice)"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2500,
+    "typical_high": 7500,
+    "statutory_max": 7500,
+    "currency": "USD",
+    "basis": "per-violation civil penalties typically up to $7,500, enforced by each state AG; Maryland notably bans the sale of sensitive data outright",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Respective state Attorneys General",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "By 2026 roughly twenty states have comprehensive privacy laws with a shared shape; a single well-built privacy baseline covers most, so the finding is usually 'you meet a threshold somewhere and lack the baseline', not a state-by-state audit.",
+    "regulator_asks_first": "Do you have a privacy notice and opt-out mechanism that meets the multistate baseline, and do you honour universal opt-out signals?",
+    "relevance_hook": "Advisory tier: this record exists so the engine can note multistate exposure without asserting twenty separate breaches; the remediation is one baseline, not twenty."
+   },
+   "provenance": {
+    "sources": [
+     "https://iapp.org/resources/article/us-state-privacy-laws-overview",
+     "https://www.multistate.us/insider/2026/2/4/all-of-the-comprehensive-privacy-laws-that-take-effect-in-2026"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "IL",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_BIPA_IL",
+   "name": "Illinois Biometric Information Privacy Act (BIPA)",
+   "advisory": true,
+   "citation": {
+    "act": "Illinois Biometric Information Privacy Act",
+    "section": "740 ILCS 14/1 et seq. (esp. §15 notice/consent, §20 damages; SB 2979 single-violation amendment effective 2 Aug 2024)",
+    "url": "https://www.ilga.gov/legislation/ilcs/ilcs3.asp?ActID=3004&ChapterID=57"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "biometrics",
+    "b2c",
+    "uses_ai"
+   ],
+   "required_nexus": [
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "collects biometric identifiers or information from Illinois residents (face/voice/fingerprint geometry, retina, hand scans)",
+    "uses website or app features such as facial recognition, face filters, voiceprints, or fingerprint/face login"
+   ],
+   "excluded_when": [
+    "no biometric data collected from Illinois residents",
+    "financial institutions covered by GLBA and certain health data are excluded"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a public written biometric data retention and destruction policy",
+     "elements": [
+      "retention schedule and destruction guidelines publicly available"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Obtain informed written consent before collecting biometric data",
+     "elements": [
+      "written notice of the specific purpose and length of collection/storage/use before capture",
+      "written release obtained (electronic signature permitted since the 2024 amendment)",
+      "no sale or profit from biometric data; disclosure only with consent"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 1000,
+    "typical_high": 5000,
+    "statutory_max": 5000,
+    "currency": "USD",
+    "basis": "private right of action with liquidated damages of $1,000 (negligent) or $5,000 (reckless/intentional) per violation plus fees; since SB 2979 (Aug 2024) repeated same-method collection is a single violation, but class exposure remains substantial",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "No state agency: enforced through a private right of action in Illinois courts",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "BIPA is the most litigated US biometric statute, with a private right of action and liquidated damages per violation; any face filter, voiceprint, or biometric login on a site reaching Illinois residents is exposure.",
+    "regulator_asks_first": "Do you have a public biometric retention policy and written informed consent obtained before any biometric capture?",
+    "relevance_hook": "Advisory tier (Illinois only), but high-value: the two visible tells (a public retention policy and a pre-capture consent step) are easy to check and the damages model is what makes BIPA feared."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ilga.gov/legislation/ilcs/ilcs3.asp?ActID=3004&ChapterID=57",
+     "https://www.seyfarth.com/news-insights/bipa-legislative-update-governor-pritzker-signs-amendment-limiting-damages-to-a-single-recovery-1.html"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "US",
+   "sub_jurisdiction": "multi",
+   "status": "candidate",
+   "client_useful": true,
+   "id": "US_STATE_UDAP_MINI_FTC",
+   "name": "State UDAP / 'mini-FTC' acts — unfair and deceptive practices (advisory overlay)",
+   "advisory": true,
+   "citation": {
+    "act": "State unfair and deceptive acts and practices (UDAP) statutes; every state has one (e.g., California UCL/FAL, Cal. Bus. & Prof. Code §§17200 & 17500; Florida FDUTPA; Massachusetts Ch. 93A; New York GBL §349)",
+    "section": "Representative anchor: Cal. Bus. & Prof. Code §17200 (unfair competition) and §17500 (false advertising)",
+    "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=7.&chapter=5.&lawCode=BPC"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "markets or sells to consumers in any US state (every state has a UDAP statute paralleling FTC §5)",
+    "makes a deceptive or unfair representation reachable by that state's residents"
+   ],
+   "excluded_when": [
+    "purely non-commercial content; some states' UDAP acts exclude regulated activities (e.g., insurance, securities) covered elsewhere"
+   ],
+   "website_obligations": [
+    {
+     "duty": "The same truthful, substantiated, non-deceptive standard as FTC §5 applies at state level, often with a private right of action and, in some states, statutory or treble damages",
+     "elements": [
+      "no deceptive pricing, false 'sale' anchors, or misleading claims",
+      "material terms disclosed clearly",
+      "no unfair practices (undue pressure, exploitation, hidden material terms)"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2000,
+    "typical_high": 10000,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "per-violation penalties vary widely by state (commonly $2,000-$10,000 per violation); many acts add a private right of action, attorneys' fees, and in some states treble or statutory damages",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State Attorneys General; frequently a private right of action for consumers",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Even where the FTC does not act, a deceptive US page is exposed under all fifty states' UDAP laws, several of which let consumers sue directly and recover multiplied damages.",
+    "regulator_asks_first": "Is the claim truthful and substantiated to the same standard a state AG or a consumer plaintiff would apply?",
+    "relevance_hook": "Advisory single record: it tells the client that FTC §5 findings also carry state-law and private-litigation exposure, without generating fifty near-identical rows."
+   },
+   "provenance": {
+    "sources": [
+     "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=7.&chapter=5.&lawCode=BPC",
+     "https://oag.ca.gov/consumers"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  }
+ ]
+}

@@ -1,0 +1,2013 @@
+{
+ "cell": "uk-tech-media-industrial",
+ "jurisdiction": "UK",
+ "generated": "2026-07-16",
+ "records": [
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GDPR_SAAS",
+   "name": "UK GDPR and Data Protection Act 2018 (SaaS controller/processor transparency)",
+   "citation": {
+    "act": "UK GDPR (assimilated Regulation (EU) 2016/679); Data Protection Act 2018",
+    "section": "UK GDPR Arts 12-14 (transparency), 26 (joint controllers), 28 (processors); DPA 2018 Parts 2, 6",
+    "url": "https://www.legislation.gov.uk/eur/2016/679/contents"
+   },
+   "sector": [
+    "saas-tech"
+   ],
+   "sub_sector": [
+    "saas",
+    "cloud-services",
+    "software-development",
+    "it-services"
+   ],
+   "activity_tags": [
+    "cookies_present"
+   ],
+   "required_nexus": [
+    "established_in",
+    "processes_residents_of"
+   ],
+   "applies_when": [
+    "processes personal data of UK residents (as controller or processor)",
+    "offers a software or cloud service used from the UK"
+   ],
+   "excluded_when": [
+    "purely personal or household processing",
+    "no personal data processed at all (rare for any SaaS with accounts or analytics)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a privacy notice that states the firm's actual role (controller for its own site and marketing; processor for customer data where applicable) with the Art 13/14 disclosures",
+     "elements": [
+      "controller identity and UK/EU representative or contact details",
+      "lawful basis stated per processing purpose",
+      "data subject rights route (access, erasure, portability, objection) with a working contact",
+      "retention periods or criteria",
+      "international transfer mechanism named where data leaves the UK",
+      "controller vs processor role distinguished where the firm hosts customer data"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Where the firm markets itself as a processor to business customers, make processor terms discoverable (DPA/sub-processor transparency is the buying signal regulators and customers check)",
+     "elements": [
+      "data processing agreement or DPA terms available or referenced",
+      "sub-processor list or notification mechanism referenced where sub-processors are used"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Pay the ICO data protection fee and appear on the register of fee payers (unless exempt)",
+     "elements": [
+      "organisation findable on the ICO register of fee payers"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": 10000,
+    "typical_high": 3070000,
+    "statutory_max": 17500000,
+    "currency": "GBP",
+    "basis": "higher of GBP 17.5m or 4% of global annual turnover (Art 83(5) tier); lower tier GBP 8.7m/2%; typical band anchored on real ICO penalties",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Information Commissioner's Office (ICO)",
+    "register_url": "https://ico.org.uk/ESDWebPages/Search"
+   },
+   "enforcement": [
+    {
+     "case": "ICO v Advanced Computer Software Group Ltd (NHS SaaS supplier; first UK GDPR processor fine)",
+     "date": "2025-03",
+     "amount": "GBP 3,070,000",
+     "url": "https://ico.org.uk/action-weve-taken/enforcement/2025/03/advanced-computer-software-group-limited/",
+     "summary": "Software/SaaS processor fined GBP 3.07m after a 2022 ransomware attack; MFA gaps and patching failures; ICO held the processor directly accountable."
+    }
+   ],
+   "intel": {
+    "why_matters": "SaaS firms are processors as well as controllers; the ICO now fines processors directly, and enterprise buyers check the privacy notice and DPA before signing.",
+    "regulator_asks_first": "Is there a privacy notice naming the controller, lawful bases and rights route, and is the company on the ICO fee-payer register?",
+    "relevance_hook": "The first thing a procurement team and the ICO both open is your privacy page; a thin or role-confused notice loses deals before it draws fines."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/eur/2016/679/contents",
+     "https://ico.org.uk/action-weve-taken/enforcement/2025/03/advanced-computer-software-group-limited/",
+     "seed compliance_laws.json UK-GDPR-01"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_NIS_RDSP",
+   "name": "Network and Information Systems Regulations 2018 (relevant digital service providers)",
+   "citation": {
+    "act": "The Network and Information Systems Regulations 2018 (SI 2018/506)",
+    "section": "regs 1(3)(e) and Sch 1 (definitions), reg 12 (security duties), reg 12(6)/(7) (incident notification), reg 14A/14 (registration with the ICO)",
+    "url": "https://www.legislation.gov.uk/uksi/2018/506/contents"
+   },
+   "sector": [
+    "saas-tech"
+   ],
+   "sub_sector": [
+    "cloud-services",
+    "online-marketplace",
+    "search-engine",
+    "saas"
+   ],
+   "activity_tags": [],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "provides an online marketplace, online search engine, or cloud computing service (scalable and elastic pool of shareable computing resources; SaaS is covered to the extent it is scalable and elastic) in the UK",
+    "has 50 or more staff, or annual turnover/balance sheet above EUR 10m"
+   ],
+   "excluded_when": [
+    "fewer than 50 staff AND annual turnover and balance sheet at or below EUR 10m (small/micro exemption)",
+    "the service is not one of the three RDSP types (ordinary websites, agencies and non-elastic hosted software are out of scope)",
+    "note: the EU NIS2 Directive does NOT apply in the UK; the UK Cyber Security and Resilience Bill was not in force at verification date"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Be registered with the ICO as a relevant digital service provider where the thresholds are met",
+     "elements": [
+      "RDSP registration with the ICO confirmed (registration duty under the NIS Regulations, distinct from the data protection fee)"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Do not claim NIS/'critical infrastructure' regulatory status that is not held; security claims on the site must match reality",
+     "elements": [
+      "no false claims of NIS registration or government security accreditation"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 17000000,
+    "currency": "GBP",
+    "basis": "up to GBP 17m per the NIS penalty bands for the most serious contraventions; no public monetary penalty against an RDSP had been issued at verification date",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Information Commissioner's Office (competent authority for RDSPs)",
+    "register_url": "https://ico.org.uk/for-organisations/the-guide-to-nis/nis-registration/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Growing cloud/SaaS firms cross the 50-staff/EUR 10m line without noticing and are then unregistered with their competent authority.",
+    "regulator_asks_first": "Are you an RDSP within the definitions, and did you register with the ICO?",
+    "relevance_hook": "A one-time registration check that most scale-ups have never heard of; being able to show it is cheap credibility with enterprise security reviews."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2018/506/contents",
+     "https://ico.org.uk/for-organisations/the-guide-to-nis/nis-registration/",
+     "https://ico.org.uk/for-organisations/the-guide-to-nis/digital-service-providers/"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_DMCC_SUBS_UCP",
+   "name": "DMCC Act 2024: unfair commercial practices and the subscription regime (digital services and memberships)",
+   "citation": {
+    "act": "Digital Markets, Competition and Consumers Act 2024",
+    "section": "Part 4 Ch 1 ss.224-230 and Sch 20 (in force 6 April 2025: misleading actions/omissions, drip pricing, fake reviews, banned practices); Part 4 Ch 2 ss.253-273 (subscription contracts: NOT yet in force, implementation expected Spring 2027)",
+    "url": "https://www.legislation.gov.uk/ukpga/2024/13"
+   },
+   "sector": [
+    "saas-tech",
+    "fitness",
+    "media",
+    "marketing"
+   ],
+   "sub_sector": [
+    "saas",
+    "gyms",
+    "streaming",
+    "apps"
+   ],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "payments"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "sells subscriptions or one-off purchases to UK consumers online",
+    "displays prices, reviews, or promotional claims to UK consumers"
+   ],
+   "excluded_when": [
+    "b2b_only (consumer protection provisions do not apply to pure B2B sales)",
+    "subscription-contract chapter duties (reminders, easy exit, cooling-off) are NOT enforceable until commencement, expected Spring 2027; do not assert them as current breaches"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Show the total price including all mandatory fees at the invitation to purchase (drip pricing prohibition, in force)",
+     "elements": [
+      "headline price includes unavoidable fees and charges",
+      "no mandatory charges revealed only at checkout",
+      "where full price cannot be calculated in advance, how it will be calculated is stated"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "No fake or misleadingly presented reviews (in force; the breach is the prohibited content being present)",
+     "elements": [
+      "no reviews published without reasonable steps to verify they are genuine",
+      "incentivised reviews disclosed",
+      "review totals not curated to hide negatives"
+     ],
+     "evidence_type": "absence"
+    },
+    {
+     "duty": "Subscription sign-up flows should be honest about renewal now, and will owe statutory pre-contract information, renewal reminders and straightforward exit once Part 4 Ch 2 commences (expected Spring 2027)",
+     "elements": [
+      "auto-renewal, price after trial and billing frequency stated before sign-up (misleading omission risk under the in-force regime)",
+      "cancellation route no harder than sign-up (forthcoming statutory duty; already a fairness signal)"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 300000,
+    "currency": "GBP",
+    "basis": "CMA direct enforcement: up to the higher of 10% of global turnover or GBP 300,000 per infringement (GBP 300k is the fixed floor figure for individuals/where turnover-based cap is lower)",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Competition and Markets Authority (CMA)",
+    "register_url": "https://www.gov.uk/cma-cases"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Since April 2025 the CMA can fine directly, without going to court, for drip pricing and fake reviews; subscription-trap rules with the same teeth follow in 2027.",
+    "regulator_asks_first": "Does the advertised price match the checkout price, and does the sign-up flow disclose auto-renewal before payment?",
+    "relevance_hook": "The CMA's first direct-fine targets will be easy wins: hidden fees and hard-to-cancel subscriptions are both visible from the pricing page."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2024/13",
+     "https://www.tlt.com/insights-and-events/insight/dmcca-subscription-contracts-rules---whats-the-latest",
+     "https://www.hsfkramer.com/notes/crt/2026-04/time-to-start-preparing-for-the-new-uk-subscription-contracts-regime",
+     "seed compliance_laws.json UK-DMCC-24"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CAP_AI_CLAIMS",
+   "name": "CAP Code misleading advertising: AI and technology capability claims",
+   "citation": {
+    "act": "UK Code of Non-broadcast Advertising and Direct & Promotional Marketing (CAP Code, 12th edition)",
+    "section": "rules 3.1 (misleading advertising), 3.7 (substantiation), 3.9 (qualification); ASA guidance on AI in ads",
+    "url": "https://www.asa.org.uk/codes-and-rulings/advertising-codes/non-broadcast-code.html"
+   },
+   "sector": [
+    "saas-tech",
+    "marketing"
+   ],
+   "sub_sector": [
+    "saas",
+    "ai-products",
+    "digital-agencies"
+   ],
+   "activity_tags": [
+    "uses_ai",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the website or its ads claim AI capability, AI-driven results, or specific performance outcomes",
+    "marketing is directed at UK consumers or businesses (CAP Code covers own-website marketing claims)"
+   ],
+   "excluded_when": [
+    "no capability or performance claims made (purely descriptive content)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Hold substantiation for every objective AI or performance claim before publishing it (the breach is the unsubstantiated claim being present)",
+     "elements": [
+      "'AI-powered'/'AI-driven' claims reflect a real, material use of AI in the product",
+      "quantified claims (accuracy, savings, speed, ROI) documented and qualified",
+      "AI-generated imagery does not exaggerate what the product does; an 'AI-generated' label does not cure a misleading impression",
+      "comparative and 'best/first/only' claims verifiable"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "ASA sanctions are non-monetary (upheld rulings published, ad withdrawal, search ads flagged); legal backstop is the DMCC unfair commercial practices regime enforced by CMA/Trading Standards",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Advertising Standards Authority (ASA) / Committee of Advertising Practice (CAP)",
+    "register_url": "https://www.asa.org.uk/codes-and-rulings/rulings.html"
+   },
+   "enforcement": [
+    {
+     "case": "ASA v UAB CommerceCore ('WiggyDog' AI robot dog ad)",
+     "date": "2026-03",
+     "amount": "22 complaints upheld; ad banned",
+     "url": "https://www.lewissilkin.com/insights/2026/03/30/asa-upholds-complaints-about-ad-for-ai-tool-102mocz",
+     "summary": "ASA upheld complaints that AI-styled product claims and lifelike AI imagery exaggerated performance the advertiser could not substantiate."
+    }
+   ],
+   "intel": {
+    "why_matters": "Every second SaaS site now claims AI; the ASA has said explicitly that AI branding does not lower the substantiation bar, and rulings are published with the firm's name.",
+    "regulator_asks_first": "Can you evidence each objective claim on the homepage, and does any AI imagery overstate real output?",
+    "relevance_hook": "A named, permanent ASA ruling for an inflated AI claim is a sales-cycle killer for a software firm; the fix is wording, not engineering."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.asa.org.uk/codes-and-rulings/advertising-codes/non-broadcast-code.html",
+     "https://www.asa.org.uk/news/disclosure-of-ai-in-advertising-striking-the-balance-between-creativity-and-responsibility.html",
+     "https://www.lewissilkin.com/insights/2026/03/30/asa-upholds-complaints-about-ad-for-ai-tool-102mocz"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_PECR_EMARKETING",
+   "name": "PECR 2003: electronic direct marketing consent (agencies and their campaigns)",
+   "citation": {
+    "act": "Privacy and Electronic Communications (EC Directive) Regulations 2003 (SI 2003/2426), as amended (penalties raised by the Data (Use and Access) Act 2025)",
+    "section": "reg 22 (email/SMS marketing consent and soft opt-in), reg 23 (sender identity not concealed; valid opt-out address), reg 6 (cookies/consent on own site)",
+    "url": "https://www.legislation.gov.uk/uksi/2003/2426/contents"
+   },
+   "sector": [
+    "marketing",
+    "saas-tech"
+   ],
+   "sub_sector": [
+    "digital-agencies",
+    "lead-generation",
+    "email-marketing"
+   ],
+   "activity_tags": [
+    "runs_ads",
+    "cookies_present",
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "sends or instigates email/SMS marketing to UK individuals (both the instigator and the sender are liable; agencies are liable for campaigns they run)",
+    "sets non-essential cookies or trackers on its own site"
+   ],
+   "excluded_when": [
+    "corporate-subscriber-only email marketing (reg 22 covers individual subscribers; corporate addresses still need UK GDPR lawful basis)",
+    "soft opt-in satisfied: details collected during a sale/negotiation, similar products, opt-out offered at collection and in every message"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Consent-gate non-essential cookies and trackers before they fire (breach is behavioural: trackers firing pre-consent)",
+     "elements": [
+      "no non-essential cookies set before consent",
+      "reject as easy as accept",
+      "cookie policy identifies purposes and parties"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Marketing sign-up forms collect valid consent or qualify for soft opt-in",
+     "elements": [
+      "no pre-ticked marketing boxes",
+      "consent wording names the sender (bought-list marketing to 'partners' consent fails)",
+      "every marketing message offers a working opt-out"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 20000,
+    "typical_high": 300000,
+    "statutory_max": 17500000,
+    "currency": "GBP",
+    "basis": "since the Data (Use and Access) Act 2025, up to the UK GDPR level (higher of GBP 17.5m or 4% of global turnover); typical band anchored on real ICO PECR penalties",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Information Commissioner's Office (ICO)",
+    "register_url": "https://ico.org.uk/action-weve-taken/enforcement/"
+   },
+   "enforcement": [
+    {
+     "case": "ICO v AFK Letters Co Ltd",
+     "date": "2025-04",
+     "amount": "GBP 90,000",
+     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/04/compensation-company-fined-90-000-for-unlawful-marketing-calls/",
+     "summary": "Fined for over 95,000 unsolicited marketing calls to TPS-registered numbers."
+    },
+    {
+     "case": "ICO v KRA Consultancy Ltd",
+     "date": "2025-06",
+     "amount": "GBP 300,000",
+     "url": "https://www.freevacy.com/news/ico/ico-fines-debt-services-company-ps300000-for-pecr-violations/7488",
+     "summary": "Fined for 5.57m unsolicited marketing texts in breach of PECR regs 22 and 23."
+    }
+   ],
+   "intel": {
+    "why_matters": "Agencies are liable as instigators for campaigns they run for clients, and the DUAA has just raised the PECR ceiling from GBP 500k to GBP 17.5m.",
+    "regulator_asks_first": "Where did the consent for this list come from, and do trackers fire before the visitor consents?",
+    "relevance_hook": "For a marketing agency the audit is double-edged: your own cookie bar and your client campaign practices are both now fineable at data-protection scale."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2003/2426/contents",
+     "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/04/compensation-company-fined-90-000-for-unlawful-marketing-calls/",
+     "https://www.freevacy.com/news/ico/ico-fines-debt-services-company-ps300000-for-pecr-violations/7488",
+     "seed compliance_laws.json UK-PECR-01"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_INFLUENCER_AD_DISCLOSURE",
+   "name": "Influencer and native advertising disclosure (CAP Code recognition of marketing; DMCC hidden-advertising practices)",
+   "citation": {
+    "act": "CAP Code (12th edition); Digital Markets, Competition and Consumers Act 2024",
+    "section": "CAP Code rules 2.1-2.4 (marketing must be obviously identifiable; #ad); DMCC Sch 20 (banned practice: editorial content used to promote a product without making the payment clear)",
+    "url": "https://www.asa.org.uk/advice-online/recognising-ads-social-media.html"
+   },
+   "sector": [
+    "marketing",
+    "media",
+    "fitness"
+   ],
+   "sub_sector": [
+    "influencer-marketing",
+    "digital-agencies",
+    "content-studios"
+   ],
+   "activity_tags": [
+    "runs_ads",
+    "ugc"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the firm runs, brokers, or publishes paid or gifted influencer/native content aimed at UK audiences",
+    "the firm's own site or channels carry paid-for editorial-style content"
+   ],
+   "excluded_when": [
+    "genuinely organic, unpaid, non-reciprocal content with no brand control"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Paid or controlled content is labelled as advertising upfront (the breach is undisclosed advertising being present)",
+     "elements": [
+      "#ad, 'Advert' or platform paid-partnership label before engagement, not buried",
+      "vague labels ('collab', 'spon', 'thanks brand') not used as the only disclosure",
+      "agency case studies and embedded campaign posts shown on the site carry the labels they ran with",
+      "affiliate links identified as such"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 300000,
+    "currency": "GBP",
+    "basis": "ASA sanctions non-monetary (named non-compliant influencer list, counter-ads); DMCC banned-practice backstop: CMA direct fines up to 10% global turnover or GBP 300,000",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Advertising Standards Authority (ASA), with CMA backstop",
+    "register_url": "https://www.asa.org.uk/codes-and-rulings/non-compliant-social-media-influencers.html"
+   },
+   "enforcement": [
+    {
+     "case": "ASA names repeat non-compliant influencers and runs counter-ads against them (Francesca Allen, Jess Gale, Eve Gale, Belle Hassan, Jodie Marsh, Anna Vakili)",
+     "date": "2022-01",
+     "amount": "public naming; targeted counter-advertising",
+     "url": "https://www.asa.org.uk/news/asa-escalates-sanctions-against-influencers-who-repeatedly-break-the-rules.html",
+     "summary": "ASA escalation for persistent failure to label ads, including buying ads to warn those influencers' own followers."
+    }
+   ],
+   "intel": {
+    "why_matters": "Agencies and brands are responsible for their influencers' labelling; the ASA publicly names offenders and the CMA can now fine hidden advertising directly.",
+    "regulator_asks_first": "Pick any promoted post from the campaign gallery: was it labelled as an ad before the user engaged?",
+    "relevance_hook": "The non-compliant-influencer list is public and permanent; no agency wants its campaign, or its founder's own account, on it."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.asa.org.uk/advice-online/recognising-ads-social-media.html",
+     "https://www.asa.org.uk/codes-and-rulings/non-compliant-social-media-influencers.html",
+     "https://www.asa.org.uk/news/asa-escalates-sanctions-against-influencers-who-repeatedly-break-the-rules.html"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_OSA_UGC",
+   "name": "Online Safety Act 2023: duties on user-to-user services",
+   "citation": {
+    "act": "Online Safety Act 2023",
+    "section": "Part 3 (illegal content risk assessments and safety duties, ss.7-27; children's access assessments); Part 7 (Ofcom information powers); Sch 13 (penalties)",
+    "url": "https://www.legislation.gov.uk/ukpga/2023/50"
+   },
+   "sector": [
+    "media",
+    "saas-tech"
+   ],
+   "sub_sector": [
+    "ugc-platforms",
+    "forums",
+    "communities",
+    "video-sharing"
+   ],
+   "activity_tags": [
+    "ugc",
+    "child_directed"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the service lets UK users post content that other users can encounter (forums, communities, comments between users, marketplaces with user listings, video sharing), or is a search service",
+    "the service has links with the UK (significant UK users or UK-targeted)"
+   ],
+   "excluded_when": [
+    "email, SMS/MMS-only, or one-to-one live aural services",
+    "limited-functionality services where users can interact only with provider content (e.g. comments/reviews on the provider's own articles are exempt below the interaction threshold)",
+    "internal business tools with closed user bases",
+    "recognised news publisher content carve-outs"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Terms of service state how users are protected from illegal content and how content moderation and complaints work (the visible face of the risk-assessment duties)",
+     "elements": [
+      "terms address illegal content handling and takedown",
+      "a working user reporting/complaints route exists",
+      "where children can access the service, age-appropriate protections or access controls are described",
+      "risk assessments completed and producible to Ofcom on request (Ofcom's first fine was for failing to hand one over)"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 18000000,
+    "currency": "GBP",
+    "basis": "greater of GBP 18m or 10% of qualifying worldwide revenue; plus daily penalties; ISP blocking available as an ultimate sanction",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Ofcom",
+    "register_url": "https://www.ofcom.org.uk/online-safety/"
+   },
+   "enforcement": [
+    {
+     "case": "Ofcom v 4chan (first OSA penalty)",
+     "date": "2025-10",
+     "amount": "GBP 20,000 plus GBP 100/day (up to 60 days)",
+     "url": "https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/ofcom-issues-update-on-online-safety-act-investigations",
+     "summary": "Penalty for failing to respond to statutory information requests for the illegal content risk assessment and qualifying worldwide revenue."
+    }
+   ],
+   "intel": {
+    "why_matters": "Any UK-facing site with user-to-user content owes risk assessments and safety terms now; Ofcom's first target was fined simply for not producing its risk assessment.",
+    "regulator_asks_first": "Show me your illegal content risk assessment, and where your terms tell users how they are protected and how to complain.",
+    "relevance_hook": "If your site has a forum, community or user reviews visible to other users, the OSA reaches you; the paper duties are cheap to meet and expensive to ignore."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2023/50",
+     "https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/ofcom-issues-update-on-online-safety-act-investigations",
+     "seed compliance_laws.json NEON-UK-OSA-2023"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_ODPS_NOTIFICATION",
+   "name": "On-demand programme services: advance notification to Ofcom",
+   "citation": {
+    "act": "Communications Act 2003, Part 4A (inserted by the Audiovisual Media Services Regulations 2009/2010)",
+    "section": "s.368BA (advance notification to Ofcom of providing, significantly changing, or ceasing an ODPS); ss.368E-368H (editorial content, sponsorship and advertising standards, co-regulated with the ASA)",
+    "url": "https://www.legislation.gov.uk/ukpga/2003/21/part/4A"
+   },
+   "sector": [
+    "media"
+   ],
+   "sub_sector": [
+    "vod",
+    "streaming",
+    "broadcast-catchup"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the firm provides a TV-like on-demand catalogue under its editorial responsibility to UK audiences (principal purpose is providing programmes comparable to linear TV)",
+    "the firm is under UK jurisdiction"
+   ],
+   "excluded_when": [
+    "audiovisual content merely ancillary to another service (product demo videos, marketing clips on a company site are not an ODPS)",
+    "services notified to ATVOD before 2016 need not re-notify but must notify changes/cessation"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Be a notified ODPS provider before operating the service (register-checkable against Ofcom's published list of notified ODPS)",
+     "elements": [
+      "service appears on Ofcom's ODPS list",
+      "significant changes and cessation notified"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "On-service content standards visibly met",
+     "elements": [
+      "sponsorship and product placement identified",
+      "advertising on the service meets the co-regulated ODPS ad rules",
+      "measures protecting under-18s from restricted material where carried"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 250000,
+    "currency": "GBP",
+    "basis": "greater of GBP 250,000 or 5% of applicable qualifying revenue per contravention (Communications Act Part 4A penalty provisions); suspension/restriction available",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Ofcom",
+    "register_url": "https://www.ofcom.org.uk/tv-radio-and-on-demand/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Running a TV-like on-demand catalogue without notifying Ofcom is itself a contravention, before any content issue arises.",
+    "regulator_asks_first": "Is the service on the notified ODPS list, and who holds editorial responsibility?",
+    "relevance_hook": "A two-minute register lookup separates compliant VOD operators from those running an unnotified regulated service."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2003/21/part/4A",
+     "https://www.ofcom.org.uk/siteassets/resources/documents/tv-radio-and-on-demand/broadcast-codes/2025/guidance-for-providers-of-on-demand-programme-services.pdf?v=409892"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_PRESS_REGULATOR_MEMBERSHIP",
+   "name": "Press regulator membership claims (IPSO / IMPRESS)",
+   "citation": {
+    "act": "IPSO Editors' Code of Practice; IMPRESS Standards Code (voluntary self-regulation); false membership claims fall under DMCC Act 2024 Sch 20 banned practices",
+    "section": "membership terms require accurate use of the regulator's mark and a published complaints route",
+    "url": "https://www.ipso.co.uk/"
+   },
+   "sector": [
+    "media"
+   ],
+   "sub_sector": [
+    "news-publishers",
+    "magazines",
+    "local-news"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the publisher displays an IPSO or IMPRESS mark or claims regulated status",
+    "the publisher is a member and owes its regulator a visible complaints route"
+   ],
+   "excluded_when": [
+    "membership of a press regulator is voluntary; non-membership is NOT a breach and must never be asserted as one",
+    "broadcast content (Ofcom's remit, not press self-regulation)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Only claim regulator membership that is actually held (the breach is a false membership claim being present)",
+     "elements": [
+      "displayed IPSO/IMPRESS mark matches the regulator's current membership records"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Members publish the complaints route their scheme requires",
+     "elements": [
+      "complaints policy referencing the regulator and the Editors' Code/Standards Code is findable"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "voluntary codes: corrections and adjudications, not statutory fines (IPSO holds a contractual power to fine for systemic failures, historically unused); false membership claims risk CMA/Trading Standards action under DMCC banned practices",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "IPSO / IMPRESS (voluntary)",
+    "register_url": "https://www.ipso.co.uk/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Readers, advertisers and libel insurers check regulator membership; a stale or false mark is a credibility and consumer-law problem.",
+    "regulator_asks_first": "Does the membership mark on the footer match the regulator's member list, and is the complaints route published?",
+    "relevance_hook": "A register cross-check we can run in seconds, and an honest fix (join, or remove the mark) either way."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ipso.co.uk/",
+     "seed compliance_laws.json NEON-UK-IPSO"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CCR_FITNESS_DISTANCE",
+   "name": "Consumer Contracts Regulations 2013: online gym and fitness membership sales",
+   "citation": {
+    "act": "Consumer Contracts (Information, Cancellation and Additional Charges) Regulations 2013 (SI 2013/3134)",
+    "section": "regs 9-14 and Sch 2 (pre-contract information), regs 27-38 (14-day cancellation, model form), reg 40 (additional payments need active consent)",
+    "url": "https://www.legislation.gov.uk/uksi/2013/3134/contents"
+   },
+   "sector": [
+    "fitness"
+   ],
+   "sub_sector": [
+    "gyms",
+    "studios",
+    "online-coaching",
+    "fitness-apps"
+   ],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "payments"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "memberships, class packs, coaching plans or apps are sold to UK consumers online or by phone (distance contracts)"
+   ],
+   "excluded_when": [
+    "b2b_only (corporate wellness contracts)",
+    "purely in-person sign-ups at the front desk (on-premises rules differ)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Give the Sch 2 pre-contract information before the consumer commits",
+     "elements": [
+      "total price including joining fees and recurring amounts",
+      "minimum contract duration and renewal terms",
+      "the 14-day cancellation right and how to exercise it, with the model cancellation form or equivalent",
+      "trader identity, address and contact details",
+      "digital content (apps/on-demand classes): express consent and waiver acknowledgement captured if access starts inside the 14 days"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "No pre-ticked boxes adding paid extras",
+     "elements": [
+      "add-ons (insurance, supplements, premium tiers) require active opt-in"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal offence (unlimited fine on some breaches) via Trading Standards; missing cancellation information extends the cancellation period by up to 12 months and the contract may be unenforceable",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Trading Standards (CTSI) / CMA",
+    "register_url": "https://www.gov.uk/find-local-trading-standards-office"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "If the cancellation right is not disclosed, the member's right runs for up to 12 months and 14 days, and payments taken can be reclaimable.",
+    "regulator_asks_first": "Walk the online joining flow: where is the total price, the minimum term, and the 14-day cancellation notice?",
+    "relevance_hook": "Gym joining flows are one of the most complained-about journeys in consumer law; the fixes are copy changes in the checkout."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2013/3134/contents",
+     "seed compliance_laws.json UK-CCR-13"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CRA_UNFAIR_TERMS_FITNESS",
+   "name": "Consumer Rights Act 2015 Part 2: unfair terms in gym and membership contracts",
+   "citation": {
+    "act": "Consumer Rights Act 2015",
+    "section": "ss.61-71 and Sch 2 (unfair terms; transparency); predecessor case law under UTCCRs 1999 remains the leading gym authority",
+    "url": "https://www.legislation.gov.uk/ukpga/2015/15/contents"
+   },
+   "sector": [
+    "fitness"
+   ],
+   "sub_sector": [
+    "gyms",
+    "studios",
+    "martial-arts",
+    "leisure-clubs"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "standard-form membership terms are offered to UK consumers (published on the site or in the joining flow)"
+   ],
+   "excluded_when": [
+    "b2b_only"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Published membership terms must be fair and transparent (the breach is an unfair term being present in the published terms)",
+     "elements": [
+      "no long minimum terms with full-balance early-exit charges (the Ashbourne class: minimum terms designed to entrap, exit fees near 100% of remaining payments)",
+      "cancellation on life-change events (injury, relocation, redundancy) not blocked outright",
+      "no threats to register ordinary disputed sums as credit defaults",
+      "unilateral price-rise or benefit-reduction clauses constrained and prominent",
+      "terms legible and available before purchase, not only post-sign-up"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 300000,
+    "currency": "GBP",
+    "basis": "unfair terms are unenforceable; CMA can now also fine unfair-terms-adjacent unfair practices directly under DMCC (up to 10% turnover or GBP 300k); historically enforced by court order",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Competition and Markets Authority (CMA) / Trading Standards",
+    "register_url": "https://www.gov.uk/cma-cases"
+   },
+   "enforcement": [
+    {
+     "case": "OFT v Ashbourne Management Services Ltd [2011] EWHC 1237 (Ch)",
+     "date": "2011-05",
+     "amount": "High Court order; terms declared unfair and unenforceable",
+     "url": "https://www.gov.uk/cma-cases/ashbourne-management-services-unfair-gym-membership-contracts",
+     "summary": "Gym contract minimum-term and early-exit terms used across ~700 gyms held unfair; credit-default reporting of disputed sums held an unfair practice."
+    }
+   ],
+   "intel": {
+    "why_matters": "The leading unfair-terms case in England was fought over gym membership terms; the same clauses still circulate in template contracts.",
+    "regulator_asks_first": "What happens contractually when a member wants to leave early: is the exit fee close to the whole remaining balance?",
+    "relevance_hook": "Your published T&Cs are the audit surface: an Ashbourne-style clause is visible, citable, and quietly making your contracts unenforceable."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2015/15/contents",
+     "https://www.gov.uk/cma-cases/ashbourne-management-services-unfair-gym-membership-contracts",
+     "seed compliance_laws.json UK-CRA-15"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CAP_HEALTH_FITNESS_CLAIMS",
+   "name": "CAP Code sections 12-13 and GB nutrition/health claims register: fitness, weight loss and supplement claims",
+   "citation": {
+    "act": "CAP Code (12th edition); assimilated Regulation (EC) 1924/2006 on nutrition and health claims; Nutrition and Health Claims (England) Regulations 2007",
+    "section": "CAP 12 (medicines and health), CAP 13 (weight control and slimming); only claims on the GB nutrition and health claims register may be made for foods/supplements",
+    "url": "https://www.asa.org.uk/codes-and-rulings/advertising-codes/non-broadcast-code.html"
+   },
+   "sector": [
+    "fitness"
+   ],
+   "sub_sector": [
+    "gyms",
+    "personal-training",
+    "supplements",
+    "weight-loss-programmes"
+   ],
+   "activity_tags": [
+    "health_claims",
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site makes weight-loss, body-transformation, health or supplement claims to UK consumers"
+   ],
+   "excluded_when": [
+    "no health, weight or nutrition claims made"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Health and weight-loss claims stay within the permitted framework (the breach is a prohibited or unauthorised claim being present)",
+     "elements": [
+      "no claims of a specific rate or amount of weight loss",
+      "before/after imagery substantiated and not exaggerated",
+      "testimonials do not make claims the marketer could not make directly",
+      "supplement claims limited to authorised GB register wording; no disease prevention/treatment/cure claims for foods or supplements",
+      "medical-sounding services (injury rehab, 'clinically proven' programmes) hold evidence"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "ASA sanctions non-monetary; unauthorised nutrition/health claims are criminal via food law enforced by Trading Standards; DMCC misleading-practice backstop",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Advertising Standards Authority (ASA); Trading Standards for food law",
+    "register_url": "https://www.gov.uk/government/publications/great-britain-nutrition-and-health-claims-nhc-register"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Weight-loss and supplement copy is one of the ASA's most-upheld complaint categories, and unauthorised supplement claims are criminal food law, not just an ad problem.",
+    "regulator_asks_first": "Does any page promise an amount or rate of weight loss, and does each supplement claim match the GB register wording?",
+    "relevance_hook": "Transformation marketing sells memberships and draws complaints in equal measure; the compliant version usually converts just as well."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.asa.org.uk/codes-and-rulings/advertising-codes/non-broadcast-code.html",
+     "https://www.gov.uk/government/publications/great-britain-nutrition-and-health-claims-nhc-register",
+     "seed compliance_laws.json UK-ASA-15"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_FCA_MOTOR_FINANCE_PROMOTIONS",
+   "name": "FSMA s.21 and FCA CONC 3: motor finance promotions and credit-broking status (finance on the forecourt)",
+   "citation": {
+    "act": "Financial Services and Markets Act 2000; FCA Consumer Credit sourcebook (CONC)",
+    "section": "FSMA ss.19, 21 (authorisation and financial promotion restriction); CONC 3.5 (representative example and representative APR when trigger information shown); CONC 3.3 (clear, fair, not misleading); CONC 4.5 and 2025 commission-disclosure requirements",
+    "url": "https://www.handbook.fca.org.uk/handbook/CONC/3/"
+   },
+   "sector": [
+    "automotive"
+   ],
+   "sub_sector": [
+    "car-dealers",
+    "vehicle-leasing",
+    "motorbike-dealers",
+    "van-sales"
+   ],
+   "activity_tags": [
+    "financial_promotion",
+    "b2c",
+    "payments"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site promotes finance (PCP, HP, leasing) or shows monthly prices, rates or charges for vehicles",
+    "the dealer arranges finance (credit broking is a regulated activity requiring FCA authorisation)"
+   ],
+   "excluded_when": [
+    "cash-only sales with no finance promotion anywhere on the site",
+    "pure B2B fleet leasing to incorporated bodies can fall outside consumer credit"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Any finance promotion showing trigger information carries a representative example with the representative APR",
+     "elements": [
+      "representative example: rate, deposit, term, total amount payable, monthly amount",
+      "representative APR no less prominent than the trigger figures",
+      "'from GBP x/month' pages carry the example on the same page, not behind a click"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "FCA status disclosed truthfully and verifiable on the Financial Services Register",
+     "elements": [
+      "authorised/appointed-representative status stated with FRN",
+      "FRN resolves to the firm on the FS Register",
+      "'we are a credit broker, not a lender' status statement where applicable",
+      "commission arrangements disclosed per the post-redress rules"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "unauthorised credit broking / unapproved financial promotion is a criminal offence (FSMA ss.23, 25); FCA fines are unlimited; the sector is mid-way through an industry-wide commission redress scheme",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Financial Conduct Authority (FCA)",
+    "register_url": "https://register.fca.org.uk/"
+   },
+   "enforcement": [
+    {
+     "case": "FCA motor finance consumer redress scheme (PS26/3)",
+     "date": "2026-03",
+     "amount": "industry-wide redress for 2007-2024 discretionary/undisclosed commission (multi-billion scale across the sector)",
+     "url": "https://www.fca.org.uk/publications/policy-statements/ps26-3-motor-finance-consumer-redress-scheme",
+     "summary": "FCA-imposed scheme compensating motor finance customers over undisclosed or excessive broker commission; parts suspended by the Upper Tribunal in July 2026 pending challenge."
+    },
+    {
+     "case": "FCA CP25/27 consultation preceding the scheme",
+     "date": "2025-10",
+     "amount": "n/a (consultation defining lender/broker obligations)",
+     "url": "https://www.fca.org.uk/publications/consultation-papers/cp25-27-motor-finance-consumer-redress-scheme",
+     "summary": "Sets out the unfairness findings on commission disclosure that now shape what dealer sites must say about commission."
+    }
+   ],
+   "intel": {
+    "why_matters": "Motor finance commission has become the sector's PPI; the visible half of compliance is the dealer website: representative APRs, broker status and commission wording.",
+    "regulator_asks_first": "Does every monthly-price display carry a compliant representative example, and does the stated FRN match the FS Register?",
+    "relevance_hook": "Two register lookups and one page-check catch the classic forecourt failures: missing rep APR, missing 'credit broker not lender', dead FRN."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.handbook.fca.org.uk/handbook/CONC/3/",
+     "https://www.fca.org.uk/publications/policy-statements/ps26-3-motor-finance-consumer-redress-scheme",
+     "https://www.fca.org.uk/publications/consultation-papers/cp25-27-motor-finance-consumer-redress-scheme",
+     "seed compliance_laws.json UK-CONC3-AUTO"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GREEN_CLAIMS",
+   "name": "Environmental claims: CMA Green Claims Code under the DMCC unfair practices regime (universal-conditional)",
+   "citation": {
+    "act": "Digital Markets, Competition and Consumers Act 2024, Part 4 Ch 1 (misleading actions and omissions); CMA Green Claims Code (guidance, 2021)",
+    "section": "DMCC ss.224-226 applied to environmental claims; Green Claims Code six principles (truthful, clear, no material omissions, fair comparisons, full life cycle, substantiated)",
+    "url": "https://www.legislation.gov.uk/ukpga/2024/13"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site makes environmental claims: 'eco', 'sustainable', 'green', 'carbon neutral', 'net zero', recycled content, EV range/'zero emissions', 'green tariff', 'sustainable construction'"
+   ],
+   "excluded_when": [
+    "no environmental claims made anywhere on the site"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Every environmental claim is substantiated, specific and not misleading (the breach is the unsubstantiated green claim being present)",
+     "elements": [
+      "vague absolutes ('eco-friendly', '100% sustainable') qualified or evidenced near the claim",
+      "carbon neutral / net zero claims state the basis (offsets vs reductions) and boundary",
+      "recycled/organic content percentages stated where claimed",
+      "automotive: EV range on WLTP basis; no unqualified 'zero emissions' for vehicles",
+      "energy: 'green tariff' claims match the actual sourcing/backing of the tariff",
+      "construction/manufacturing: sustainability certifications named and current",
+      "comparisons use like-for-like baselines"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 300000,
+    "currency": "GBP",
+    "basis": "CMA direct enforcement under DMCC: up to 10% of global turnover or GBP 300,000; ASA rulings as the fast lane",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Competition and Markets Authority (CMA), with ASA co-enforcement",
+    "register_url": "https://www.gov.uk/cma-cases"
+   },
+   "enforcement": [
+    {
+     "case": "CMA v ASOS, Boohoo and George at Asda (fashion green claims)",
+     "date": "2024-03",
+     "amount": "formal undertakings; compliance reporting to the CMA",
+     "url": "https://www.gov.uk/government/news/green-claims-cma-secures-landmark-changes-from-asos-boohoo-and-asda",
+     "summary": "CMA secured undertakings restricting vague green ranges and requiring specific, evidenced material claims across sites selling GBP 4.4bn/yr of fashion."
+    }
+   ],
+   "intel": {
+    "why_matters": "Green claims moved from ASA slap-on-wrist territory to CMA direct-fining territory in April 2025; the code's six principles are now the de facto legal test.",
+    "regulator_asks_first": "Take the greenest sentence on your homepage: what is the evidence, and is the qualification next to the claim?",
+    "relevance_hook": "Nearly every sector in this pack (EVs, energy tariffs, construction, manufacturing, even SaaS 'green hosting') makes at least one claim the code would test."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2024/13",
+     "https://www.gov.uk/government/news/green-claims-cma-secures-landmark-changes-from-asos-boohoo-and-asda",
+     "seed compliance_laws.json UK-CMA-GREEN and UK-CMA-EV (EV claims folded into this record)"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_TRUSTMARK_ACCREDITATION_CLAIMS",
+   "name": "Accreditation, trust mark and approval claims: DMCC banned practices (universal-conditional register check)",
+   "citation": {
+    "act": "Digital Markets, Competition and Consumers Act 2024",
+    "section": "s.226 and Sch 20 paras 1-4 (banned practices: displaying a trust mark without authorisation; claiming to be a signatory to a code; claiming approval/endorsement by a public or private body that is not held or whose conditions are not met)",
+    "url": "https://www.legislation.gov.uk/ukpga/2024/13/schedule/20"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site displays accreditation logos, scheme marks or 'approved/registered/certified' claims, e.g. Gas Safe, NICEIC/NAPIT, MCS, TrustMark, FMB, CHAS, Motor Ombudsman, DVSA 'MOT approved', Cyber Essentials, ISO marks, ATOL"
+   ],
+   "excluded_when": [
+    "no accreditation or membership claims displayed"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Every displayed accreditation is genuinely held, current, and used within the scheme's terms (the breach is a false or lapsed mark being present)",
+     "elements": [
+      "each logo/claim resolves to a live entry on the issuing body's public register (Gas Safe Register, MCS installer search, NICEIC/NAPIT find-a-contractor, TrustMark, Motor Ombudsman garage finder, Cyber Essentials certificate search, ATOL check)",
+      "membership numbers shown where the scheme requires them",
+      "no 'award-winning'/'approved by' claims naming bodies that gave no such approval",
+      "lapsed or resigned memberships removed from the site"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": 300000,
+    "currency": "GBP",
+    "basis": "banned practices are automatically unfair; CMA direct fines up to 10% global turnover or GBP 300,000; scheme-specific criminal offences can stack (e.g. false Gas Safe or ATOL claims prosecuted by HSE/CAA)",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "CMA / Trading Standards (plus the issuing scheme's own regulator)",
+    "register_url": "https://www.gov.uk/cma-cases"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Logo walls are sales assets and legal claims at once; the CAA has prosecuted a travel firm for displaying the ATOL logo without a licence, and HSE prosecutes false Gas Safe pretence.",
+    "regulator_asks_first": "Pick each badge in the footer: does it appear on the issuing register today?",
+    "relevance_hook": "This is the highest-yield register check in the audit: every badge is machine-verifiable, and a stale badge is an instant, evidenced finding."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2024/13/schedule/20",
+     "https://travelweekly.co.uk/articles/42283/agent-fined-after-breaching-atol-rules",
+     "seed compliance_laws.json NEON-UK-DVSA, NEON-UK-CE-PLUS, NEON-UK-NCSC-CYBER-ESSENTIALS (subsumed here as register-verified claims)"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_OFGEM_SUPPLY_LICENCE",
+   "name": "Ofgem supply licence: Standards of Conduct and tariff information (licensed energy suppliers)",
+   "citation": {
+    "act": "Gas Act 1986 / Electricity Act 1989 supply licences; Standard Licence Conditions",
+    "section": "SLC 0 / 0A (Standards of Conduct: fair, honest, transparent treatment of domestic and micro-business consumers), tariff information and communication conditions",
+    "url": "https://www.ofgem.gov.uk/sites/default/files/docs/2019/02/licence_guide_standards_of_conduct_0.pdf"
+   },
+   "sector": [
+    "energy"
+   ],
+   "sub_sector": [
+    "energy-suppliers",
+    "energy-brokers"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the firm holds (or requires) a gas or electricity supply licence and markets tariffs to UK consumers or micro-businesses",
+    "energy brokers/third-party intermediaries marketing to micro-businesses (Ofgem powers under the Business Protection from Misleading Marketing Regulations)"
+   ],
+   "excluded_when": [
+    "installers, consultants and comparison content with no supply licence and no tariff sales (accreditation and green-claims records cover them instead)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Tariff presentation is complete and honest",
+     "elements": [
+      "unit rates, standing charges and exit fees stated for advertised tariffs",
+      "green tariff claims match the actual backing (cross-checked with the green-claims record)",
+      "licensed-entity legal name discoverable and matching Ofgem's licensee records",
+      "complaints and redress route (Energy Ombudsman) published"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 214580,
+    "typical_high": 2111798,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "up to 10% of licensee turnover per contravention plus consumer redress orders; typical band anchored on recent Ofgem penalties",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Ofgem",
+    "register_url": "https://www.ofgem.gov.uk/energy-policy-and-regulation/compliance-and-enforcement/investigations-orders-and-penalties"
+   },
+   "enforcement": [
+    {
+     "case": "Ofgem v United Gas & Power Ltd",
+     "date": "2023-03",
+     "amount": "GBP 2,111,798",
+     "url": "https://www.ofgem.gov.uk/press-release/ofgem-penalises-united-gas-power-ugp-following-deliberate-and-significant-overcharging-customers",
+     "summary": "Penalty for breaching SLC 0A Standards of Conduct and billing conditions, including deliberate overcharging of micro-business customers."
+    }
+   ],
+   "intel": {
+    "why_matters": "Ofgem's Standards of Conduct make 'treat customers fairly' an enforceable licence condition, and its enforcement recovered over GBP 92m in one year.",
+    "regulator_asks_first": "Do the advertised tariff figures match the licence-mandated disclosures, and is the licensee identity clear?",
+    "relevance_hook": "For licensed suppliers the website is licence territory: an incomplete tariff page is a licence-condition issue, not a style issue."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.ofgem.gov.uk/sites/default/files/docs/2019/02/licence_guide_standards_of_conduct_0.pdf",
+     "https://www.ofgem.gov.uk/press-release/ofgem-penalises-united-gas-power-ugp-following-deliberate-and-significant-overcharging-customers",
+     "https://www.ofgem.gov.uk/press-release/ofgem-gains-new-powers-protect-businesses-misleading-marketing",
+     "seed compliance_laws.json UK-OFGEM"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_ATOL_LICENSING",
+   "name": "ATOL: licensing and protection claims when selling flights and flight-inclusive holidays",
+   "citation": {
+    "act": "Civil Aviation Act 1982; The Civil Aviation (Air Travel Organisers' Licensing) Regulations 2012 (SI 2012/1017)",
+    "section": "regs 9-12 (requirement to hold an ATOL to make flight accommodation available), reg 17 (ATOL Certificate), Sch (offences incl. falsely claiming ATOL protection)",
+    "url": "https://www.legislation.gov.uk/uksi/2012/1017/contents"
+   },
+   "sector": [
+    "transport"
+   ],
+   "sub_sector": [
+    "travel-agents",
+    "tour-operators",
+    "online-travel"
+   ],
+   "activity_tags": [
+    "sells_travel_packages",
+    "b2c",
+    "payments",
+    "ecommerce"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site sells or advertises flights or flight-inclusive packages/Flight-Plus to UK consumers"
+   ],
+   "excluded_when": [
+    "airline selling its own seats only (airlines are exempt from ATOL for their own flights)",
+    "no flight element (accommodation-only sellers; the package travel record still applies to packages)",
+    "pure agent of a disclosed ATOL holder, correctly identified as such"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Hold an ATOL and display it accurately; never imply ATOL protection that does not exist (the breach for false claims is the logo/claim being present)",
+     "elements": [
+      "ATOL number displayed and resolving to a live licence on the CAA's Check-an-ATOL lookup",
+      "ATOL logo used within CAA branding terms",
+      "who-is-the-principal disclosure where acting as agent for another ATOL holder",
+      "ATOL Certificate issued at booking (behavioural, flow-level)",
+      "clear statement of what is and is not ATOL-protected on mixed baskets"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal offence; unlimited fine on conviction (magistrates/Crown Court); CAA prosecutes both unlicensed selling and false claims of ATOL protection",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Civil Aviation Authority (CAA)",
+    "register_url": "https://www.caa.co.uk/atol-protection/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Selling flight-inclusive travel without an ATOL, or showing the logo without a licence, is a criminal offence the CAA prosecutes (it has convicted a firm for exactly the false-logo case).",
+    "regulator_asks_first": "Does the ATOL number on the footer come up on Check-an-ATOL, and does the licence cover what the site sells?",
+    "relevance_hook": "One register lookup validates the single most trust-bearing badge in UK travel retail."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2012/1017/contents",
+     "https://www.caa.co.uk/atol-protection/",
+     "https://travelweekly.co.uk/articles/42283/agent-fined-after-breaching-atol-rules",
+     "https://www.caa.co.uk/media/etyjyn35/caa-prosecutions-2024-2025.pdf",
+     "seed compliance_laws.json UK-ATOL"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_PACKAGE_TRAVEL_2018",
+   "name": "Package Travel and Linked Travel Arrangements Regulations 2018: pre-contract information and refund duties",
+   "citation": {
+    "act": "The Package Travel and Linked Travel Arrangements Regulations 2018 (SI 2018/634)",
+    "section": "regs 5-6 and Schs 1-3 (pre-contract information), reg 14 (14-day refund on cancellation), regs 19-25 (insolvency protection)",
+    "url": "https://www.legislation.gov.uk/uksi/2018/634/contents"
+   },
+   "sector": [
+    "transport"
+   ],
+   "sub_sector": [
+    "tour-operators",
+    "travel-agents",
+    "online-travel"
+   ],
+   "activity_tags": [
+    "sells_travel_packages",
+    "b2c",
+    "payments",
+    "ecommerce"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site sells packages (two or more travel services combined) or facilitates linked travel arrangements to UK consumers"
+   ],
+   "excluded_when": [
+    "single-service sales (accommodation only, flight only: other regimes apply)",
+    "business travel under a general agreement",
+    "packages covering less than 24 hours without overnight stay"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Give the prescribed pre-contract information before booking",
+     "elements": [
+      "total price including taxes and unavoidable fees",
+      "itinerary, transport and accommodation details, meal plan",
+      "passport/visa/health requirements",
+      "cancellation rights and fees",
+      "insolvency protection stated (ATOL for flight packages; bonding/insurance/trust otherwise) with the protector named",
+      "the standard information form (Sch 1-3) provided"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Refund promises must match the statutory 14-day duty; terms cannot restrict it",
+     "elements": [
+      "published cancellation/refund terms do not contradict reg 14"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal offences (unlimited fines) for insolvency-protection failures; civil enforcement orders (CMA/Trading Standards) for information and refund breaches",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Trading Standards / CMA (CAA for ATOL element)",
+    "register_url": "https://www.gov.uk/cma-cases"
+   },
+   "enforcement": [
+    {
+     "case": "CMA v Truly Holdings Ltd (Teletext Holidays / Alpharooms)",
+     "date": "2021-09",
+     "amount": "court action over GBP 7m+ unpaid refunds; High Court later declared PTR breaches",
+     "url": "https://www.gov.uk/government/news/teletext-faces-court-action-unless-it-pays-over-7m-in-refunds",
+     "summary": "CMA enforced the 14-day package refund duty through the High Court, which found the Teletext companies broke the 2018 Regulations."
+    }
+   ],
+   "intel": {
+    "why_matters": "The pandemic showed the CMA will litigate the 14-day refund duty; the pre-contract information list is long, specific, and mostly lives on the website.",
+    "regulator_asks_first": "Before the payment page, is the total price, the insolvency protector and the standard information form all present?",
+    "relevance_hook": "Package sellers carry the heaviest disclosure list in this pack; each missing Sch 2 item is a discrete, quotable gap."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2018/634/contents",
+     "https://www.gov.uk/government/news/teletext-faces-court-action-unless-it-pays-over-7m-in-refunds",
+     "https://www.gov.uk/government/news/court-finds-that-teletext-holidays-broke-consumer-law",
+     "seed compliance_laws.json UK-PTR-18"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_UKCA_CE_MARKING_CLAIMS",
+   "name": "UKCA/CE conformity marking: accurate conformity claims when selling manufactured goods",
+   "citation": {
+    "act": "Product-specific GB conformity regimes under the Product Safety and Metrology etc. (Amendment etc.) (EU Exit) Regulations 2019, as amended (CE recognition continued indefinitely for most goods by the Product Safety and Metrology (Amendment) Regulations 2024)",
+    "section": "duty to affix and truthfully claim UKCA or recognised CE marking for in-scope products; special regimes remain for medical devices, construction products, marine, rail, transportable pressure equipment and UAS",
+    "url": "https://www.gov.uk/guidance/using-the-ukca-marking"
+   },
+   "sector": [
+    "manufacturing"
+   ],
+   "sub_sector": [
+    "electronics",
+    "machinery",
+    "toys",
+    "ppe",
+    "consumer-products"
+   ],
+   "activity_tags": [
+    "ecommerce",
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the firm manufactures or imports products in a regulated category and its site sells them or claims conformity ('UKCA certified', 'CE marked', 'fully compliant')"
+   ],
+   "excluded_when": [
+    "services-only businesses with no regulated products",
+    "note: CE marking remains valid indefinitely for most goods on the GB market; 'missing UKCA' alone is NOT a breach where CE recognition continues"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Conformity claims on product pages are accurate (the breach is a false conformity claim being present)",
+     "elements": [
+      "'UKCA/CE certified' claims match actual conformity assessment held",
+      "no self-invented certification language ('UK safety approved') implying official approval",
+      "manufacturer/importer identity and contact on listings for traceability",
+      "safety warnings and instructions referenced where the product regime requires them at point of sale"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "product-regime criminal offences (fines, forfeiture, recall powers) enforced by OPSS and local Trading Standards; misleading conformity claims also DMCC unfair practices",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Office for Product Safety and Standards (OPSS) / Trading Standards",
+    "register_url": "https://www.gov.uk/guidance/using-the-ukca-marking"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Conformity wording on product pages is a legal claim; since the 2024 regulations, the honest position (CE recognised indefinitely for most goods) is also simpler than most sites assume.",
+    "regulator_asks_first": "For a flagship product: what conformity assessment sits behind the marking claim on this page?",
+    "relevance_hook": "Manufacturers routinely over-claim ('fully UKCA certified') or under-claim; both are fixable copy issues once the real conformity position is known."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.gov.uk/guidance/using-the-ukca-marking",
+     "https://www.ukas.com/resources/latest-news/updated-guidance-on-ukca-and-ce-mark-recognition-now-available/",
+     "seed compliance_laws.json NEON-UK-UKCA"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CPR305_DOP",
+   "name": "Construction Products Regulation: declarations of performance, including website supply",
+   "citation": {
+    "act": "Assimilated Regulation (EU) No 305/2011 (Construction Products Regulation); Commission Delegated Regulation (EU) No 157/2014 (DoP on a website)",
+    "section": "CPR arts 4, 6, 7 (DoP required for products covered by a designated/harmonised standard; copy supplied with the product or via website); 157/2014 conditions (unaltered content, 10-year availability, unique product-type code linkage)",
+    "url": "https://www.legislation.gov.uk/eur/2011/305"
+   },
+   "sector": [
+    "manufacturing",
+    "construction"
+   ],
+   "sub_sector": [
+    "construction-products",
+    "building-materials"
+   ],
+   "activity_tags": [
+    "ecommerce"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the firm manufactures or imports construction products covered by a designated standard and claims performance (CE/UKCA-marked construction products)"
+   ],
+   "excluded_when": [
+    "contractors and merchants who do not place products on the market as manufacturer/importer",
+    "products outside designated standards (no DoP duty arises)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Where a declared performance is claimed, the DoP is actually available, and website supply meets the 157/2014 conditions",
+     "elements": [
+      "DoP findable for each product claiming declared performance",
+      "DoP content matches the marking and performance claims on the product page",
+      "DoP not altered after publication; available for 10 years; linked by unique product-type code",
+      "performance claims on marketing pages do not exceed the DoP"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal offences under the GB construction products enforcement regime (fines); post-Grenfell reform expands OPSS powers; misleading performance claims also DMCC",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Office for Product Safety and Standards (OPSS) / Trading Standards",
+    "register_url": "https://www.gov.uk/government/organisations/office-for-product-safety-and-standards"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Post-Grenfell, performance claims for construction products are under the harshest scrutiny in UK product law; the DoP is the document every claim must trace to.",
+    "regulator_asks_first": "Show the DoP behind this product page's fire/structural performance claim.",
+    "relevance_hook": "A product page claiming performance with no reachable DoP is a concrete, document-level gap we can evidence in one click."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/eur/2011/305",
+     "https://www.legislation.gov.uk/eur/2014/157",
+     "seed: not present as a distinct row"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_ENERGY_LABELLING_ONLINE",
+   "name": "Energy labelling of products sold online: label and product information sheet at point of sale",
+   "citation": {
+    "act": "Assimilated Regulation (EU) 2017/1369 (energy labelling framework); The Energy Information Regulations 2011 (SI 2011/1524)",
+    "section": "dealer duties: display the energy label and product information sheet in distance selling; online display next to the price (label or nested arrow with class and class range)",
+    "url": "https://www.legislation.gov.uk/eur/2017/1369/contents"
+   },
+   "sector": [
+    "manufacturing"
+   ],
+   "sub_sector": [
+    "appliances",
+    "lighting",
+    "hvac",
+    "electronics-retail"
+   ],
+   "activity_tags": [
+    "ecommerce",
+    "b2c"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "the site sells or advertises price for energy-labelled product categories (appliances, displays, lighting, heaters) to GB customers"
+   ],
+   "excluded_when": [
+    "products outside labelled categories",
+    "pure brochureware with no price and no distance selling"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Show the energy label and product information sheet with the online offer",
+     "elements": [
+      "energy label (or compliant arrow showing class and class range) visible near the price",
+      "product information sheet accessible for each labelled model",
+      "visual ads showing price include the energy class"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "civil sanctions and criminal offences under the Energy Information Regulations 2011, enforced by OPSS/local weights and measures authorities",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Office for Product Safety and Standards (OPSS) / Trading Standards",
+    "register_url": "https://www.gov.uk/guidance/the-energy-labelling-of-products"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Energy labels are mandatory at the online point of sale, not just on the shop floor; listings without the class near the price are systematically non-compliant.",
+    "regulator_asks_first": "Open a priced appliance listing: is the energy class and label visible next to the price?",
+    "relevance_hook": "A crawl can check every priced listing for the label pattern; coverage failures are countable and fixable in the template."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/eur/2017/1369/contents",
+     "https://www.gov.uk/guidance/the-energy-labelling-of-products",
+     "https://www.businesscompanion.info/en/quick-guides/miscellaneous/energy-rating-information"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GAS_SAFE_REGISTRATION",
+   "name": "Gas Safety (Installation and Use) Regulations 1998: registration required to undertake or advertise gas work",
+   "citation": {
+    "act": "The Gas Safety (Installation and Use) Regulations 1998 (SI 1998/2451)",
+    "section": "reg 3(1) (no gas fitting work unless approved/registered: the Gas Safe Register), reg 3(3) (offence to falsely pretend to be registered), reg 3(7) (employers must ensure registration)",
+    "url": "https://www.legislation.gov.uk/uksi/1998/2451/regulation/3"
+   },
+   "sector": [
+    "construction",
+    "energy"
+   ],
+   "sub_sector": [
+    "heating-engineers",
+    "plumbers",
+    "boiler-installers",
+    "builders"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the site advertises gas work: boiler installation/servicing, gas cookers, gas pipework, landlord gas safety certificates"
+   ],
+   "excluded_when": [
+    "no gas work offered (electrical-only, plumbing-only firms)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Be Gas Safe registered while advertising gas work, and display only genuine registration (false pretence is the reg 3(3) criminal offence: the breach is the false claim being present)",
+     "elements": [
+      "business findable on the Gas Safe Register with a registration number",
+      "Gas Safe badge/number on the site matches the register entry",
+      "advertised gas work categories within the registered competencies"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2000,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal (HSWA s.33 route): unlimited fines, community orders and imprisonment; recent sentences include suspended and immediate custody",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Health and Safety Executive (HSE); Gas Safe Register (scheme operator)",
+    "register_url": "https://www.gassaferegister.co.uk/"
+   },
+   "enforcement": [
+    {
+     "case": "HSE v Neil Burton",
+     "date": "2025-10",
+     "amount": "6-month prison sentence suspended 12 months; 150 hours unpaid work",
+     "url": "https://press.hse.gov.uk/2025/10/10/man-sentenced-after-carrying-out-illegal-gas-work/",
+     "summary": "Unregistered fitter did boiler services; pleaded guilty to regs 3(1) and 3(3) including falsely pretending to be Gas Safe registered."
+    },
+    {
+     "case": "HSE v Lee Lancaster",
+     "date": "2026-01",
+     "amount": "12-month community order; 200 hours unpaid work; GBP 2,000 costs",
+     "url": "https://press.hse.gov.uk/2026/01/30/man-sentenced-after-illegal-gas-work-put-family-at-risk/",
+     "summary": "Unregistered installation of a combi boiler left three gas leaks at a family home."
+    },
+    {
+     "case": "HSE v Israel Jackson",
+     "date": "2026-02",
+     "amount": "12 months immediate custody",
+     "url": "https://press.hse.gov.uk/2026/02/05/man-jailed-after-dangerous-and-illegal-gas-work-put-pensioner-at-risk/",
+     "summary": "Jailed after dangerous, unregistered boiler installation at a pensioner's home."
+    }
+   ],
+   "intel": {
+    "why_matters": "Advertising gas work while unregistered, or waving the Gas Safe badge without registration, is a criminal offence HSE prosecutes monthly, with custody on the table.",
+    "regulator_asks_first": "Your site offers boiler installs: what is your Gas Safe registration number, and does it check out on the register?",
+    "relevance_hook": "The register check is instant and binary, and for trades firms it is the single most consequential badge on the site."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/1998/2451/regulation/3",
+     "https://press.hse.gov.uk/2025/10/10/man-sentenced-after-carrying-out-illegal-gas-work/",
+     "https://press.hse.gov.uk/2026/01/30/man-sentenced-after-illegal-gas-work-put-family-at-risk/",
+     "https://press.hse.gov.uk/2026/02/05/man-jailed-after-dangerous-and-illegal-gas-work-put-pensioner-at-risk/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_BSA_BUILDING_CONTROL_REGISTRATION",
+   "name": "Building Safety Act 2022: registered building inspectors and building control approvers",
+   "citation": {
+    "act": "Building Safety Act 2022 (Part 3, amending the Building Act 1984)",
+    "section": "registration of building inspectors and building control approvers (Building Act 1984 ss.58A-58Z as inserted); offences include unregistered building control work and impersonating a registered building inspector",
+    "url": "https://www.legislation.gov.uk/ukpga/2022/30/part/3/crossheading/building-control-approvers-and-building-inspectors/enacted"
+   },
+   "sector": [
+    "construction"
+   ],
+   "sub_sector": [
+    "building-control",
+    "approved-inspectors",
+    "fire-consultants"
+   ],
+   "activity_tags": [],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the firm offers building control approval services or markets individuals as building inspectors (mandatory registration since 6 April 2024)"
+   ],
+   "excluded_when": [
+    "general contractors, architects and surveyors who do not perform building control functions",
+    "claims of RIBA/RICS membership etc. are covered by the accreditation-claims record, not this one"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Only claim registered building control status that is held (impersonating a registered building inspector is an offence: the breach is the false claim being present)",
+     "elements": [
+      "'Registered Building Control Approver'/'Registered Building Inspector' claims resolve to the BSR's public registers",
+      "individual inspectors marketed with the class/scope they are registered for"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal offences (fines; BSR can also strike off and prosecute under professional conduct rules); regime live since April 2024 with no published website-claim prosecutions yet",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Building Safety Regulator (BSR)",
+    "register_url": "https://www.gov.uk/guidance/register-your-business-as-a-building-control-approver"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "The approved-inspector world was re-licensed in 2024; marketing that still says 'Approved Inspector' without current BSR registration is claiming a regulated status that no longer exists in that form.",
+    "regulator_asks_first": "Which BSR register entry covers the building control services this site sells?",
+    "relevance_hook": "Stale pre-2024 terminology is everywhere in this niche; a register cross-check plus a wording fix is an easy, genuinely protective engagement."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2022/30/part/3/crossheading/building-control-approvers-and-building-inspectors/enacted",
+     "https://www.gov.uk/guidance/register-your-business-as-a-building-control-approver",
+     "https://buildingsafety.campaign.gov.uk/building-safety-regulator-making-buildings-safer/building-safety-regulator-news/regulating-the-building-control-profession/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_WASTE_CARRIER_REGISTRATION",
+   "name": "Waste carrier registration: advertising waste removal and skip services",
+   "citation": {
+    "act": "Control of Pollution (Amendment) Act 1989; The Waste (England and Wales) Regulations 2011 (SI 2011/988)",
+    "section": "COPA 1989 s.1 (offence to transport controlled waste without registration); 2011 Regs regs 26-30 (registration tiers)",
+    "url": "https://www.legislation.gov.uk/ukpga/1989/14"
+   },
+   "sector": [
+    "construction"
+   ],
+   "sub_sector": [
+    "skip-hire",
+    "waste-removal",
+    "demolition",
+    "house-clearance",
+    "builders"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "the site advertises waste removal, skip hire, muck-away, house/site clearance, or the firm carries its own construction waste"
+   ],
+   "excluded_when": [
+    "no waste carried (design-only, trades that leave waste disposal to the client, though builders carrying own waste need lower-tier registration)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Hold and be able to evidence carrier registration while advertising waste services",
+     "elements": [
+      "firm findable on the Environment Agency public register of waste carriers, brokers and dealers (CBDU number)",
+      "displayed registration number matches the register",
+      "upper-tier registration where carrying others' construction/demolition waste"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": 300,
+    "typical_high": 5000,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "criminal: unlimited fine on conviction (typical magistrates' outcomes are low thousands); vehicle seizure powers; councils and the EA prosecute operators advertising online without registration",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Environment Agency (England)",
+    "register_url": "https://environment.data.gov.uk/public-register/view/search-waste-carriers-brokers"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Councils actively trawl Facebook and web ads for unregistered waste carriers; fly-tipping traced to a job makes the carrier and sometimes the customer liable.",
+    "regulator_asks_first": "What is your waste carrier registration number, and is it on the EA public register?",
+    "relevance_hook": "For skip and clearance firms, the CBDU number on the site is both a legal necessity and the top trust signal customers are told to check."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/1989/14",
+     "https://environment.data.gov.uk/public-register/view/search-waste-carriers-brokers",
+     "https://www.buckinghamshire.gov.uk/news/registered-waste-carrier-fined-for-illegal-fly-tipping-in-bucks/",
+     "seed compliance_laws.json NEON-UK-ENV-AGENCY (narrowed to the carrier-registration website duty)"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  }
+ ]
+}

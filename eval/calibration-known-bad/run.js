@@ -62,7 +62,7 @@ const CALIBRATIONS = [
   {
     name: 'catalogue-regex-health',
     description: 'over-escaped dead regex in a rule JSON (the dpo[@\\\\s] class)',
-    fixtures: ['rule-dead-regex.json'],
+    fixtures: ['rule-dead-regex.json', 'p2-regex-dead-pattern.json'],
     checkerCandidates: [
       'catalogue/linters/regex-health.js',
       'tools/catalogue-lint/regex-health.js',
@@ -72,10 +72,30 @@ const CALIBRATIONS = [
   {
     name: 'catalogue-polarity',
     description: 'polarity-inverted rule: prohibit-style regex that matches compliant wording',
-    fixtures: ['rule-polarity-inverted.json'],
+    fixtures: ['rule-polarity-inverted.json', 'p2-polarity-inverted.json'],
     checkerCandidates: [
       'catalogue/linters/polarity.js',
       'tools/catalogue-lint/polarity.js',
+      'tools/catalogue-lint.js',
+    ],
+  },
+  {
+    name: 'catalogue-citation-completeness',
+    description: 'a candidate Compliance Object Model record whose citation.url is not on an official statutory/regulatory host (Constitution Rule 14 / caution.md C-104)',
+    fixtures: ['p2-citation-missing-official-host.json'],
+    checkerCandidates: [
+      'catalogue/linters/citation-completeness.js',
+      'tools/catalogue-lint/citation-completeness.js',
+      'tools/catalogue-lint.js',
+    ],
+  },
+  {
+    name: 'catalogue-threshold-guard',
+    description: 'a size/turnover-threshold-bearing record with no modelled excluded_when (the Modern Slavery Act-on-an-SME class, caution.md C-071)',
+    fixtures: ['p2-threshold-missing-excluded.json'],
+    checkerCandidates: [
+      'catalogue/linters/threshold-guard.js',
+      'tools/catalogue-lint/threshold-guard.js',
       'tools/catalogue-lint.js',
     ],
   },

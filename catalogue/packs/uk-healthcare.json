@@ -1,0 +1,1315 @@
+{
+ "cell": "uk-healthcare",
+ "jurisdiction": "UK",
+ "generated": "2026-07-16",
+ "records": [
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CQC_REGISTRATION",
+   "name": "Health and Social Care Act 2008 and Regulated Activities Regulations 2014 (CQC registration and fundamental standards)",
+   "citation": {
+    "act": "Health and Social Care Act 2008; The Health and Social Care Act 2008 (Regulated Activities) Regulations 2014 (SI 2014/2936)",
+    "section": "HSCA 2008 s.10 (requirement to register); SI 2014/2936 Part 3 regs 4-20A (fundamental standards), reg 20 (duty of candour)",
+    "url": "https://www.legislation.gov.uk/uksi/2014/2936/contents"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "gp-clinic",
+    "dental",
+    "care-home",
+    "mental-health",
+    "aesthetics",
+    "fertility",
+    "telemedicine",
+    "hospital"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "carries on a regulated activity in England (personal care, treatment of disease/disorder/injury, surgical procedures, diagnostic and screening, family planning, maternity, etc.)",
+    "operates a care home, clinic, dental practice, GP surgery, hospital or similar in England"
+   ],
+   "excluded_when": [
+    "activity is not a CQC-regulated activity (Schedule 1 exemptions, e.g. some purely cosmetic non-surgical services)",
+    "provider operates only in Scotland, Wales or NI (different regulators: Care Inspectorate, HIW/CIW, RQIA)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Be registered with the CQC for each regulated activity carried on and be findable on the CQC public register",
+     "elements": [
+      "provider appears on the CQC register",
+      "registered regulated activities match the services advertised",
+      "registration certificate available on request"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Operate within the fundamental standards, including the statutory duty of candour (reg 20) for care and treatment",
+     "elements": [
+      "safe care and treatment (reg 12)",
+      "duty of candour policy reflected in patient-facing complaints/openness information",
+      "complaints route published (reg 16)"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Carrying on a regulated activity without registration is a criminal offence (HSCA 2008 s.10, s.34) with an unlimited fine on conviction; fundamental-standards breaches causing avoidable harm (reg 12/13) carry unlimited fines; CQC may also cancel or suspend registration",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Care Quality Commission (CQC)",
+    "register_url": "https://www.cqc.org.uk/search/all"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Registration is the licence to operate in English healthcare; carrying on a regulated activity while unregistered is a criminal offence and instantly voids any trust the website tries to build.",
+    "regulator_asks_first": "Is the provider registered with the CQC for the exact regulated activities its website advertises, and does the named registered manager match?",
+    "relevance_hook": "Patients and the CQC both check the register before believing a clinic; an unregistered or mismatched activity is the fastest route from marketing copy to prosecution."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2014/2936/contents",
+     "https://www.legislation.gov.uk/ukpga/2008/14/contents",
+     "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act",
+     "seed compliance_laws.json UK-CQC-20"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CQC_20A_RATING",
+   "name": "Regulated Activities Regulations 2014 reg 20A (requirement to display CQC performance ratings)",
+   "citation": {
+    "act": "The Health and Social Care Act 2008 (Regulated Activities) Regulations 2014 (SI 2014/2936)",
+    "section": "reg 20A (requirement as to display of performance assessments)",
+    "url": "https://www.legislation.gov.uk/uksi/2014/2936/regulation/20A"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "gp-clinic",
+    "dental",
+    "care-home",
+    "mental-health",
+    "fertility",
+    "hospital"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "provider has received a CQC rating (Outstanding, Good, Requires improvement or Inadequate)",
+    "provider maintains a website"
+   ],
+   "excluded_when": [
+    "provider has not yet been rated by the CQC (display 'not yet rated' where required)",
+    "activity is not one the CQC rates"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Display the most recent CQC rating on every website maintained by or on behalf of the provider, with a link to the CQC profile where the full assessment can be read",
+     "elements": [
+      "current overall rating shown on the site",
+      "link to the provider's page on cqc.org.uk",
+      "rating updated within 21 days of CQC publication",
+      "'not yet rated' shown where no rating exists"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Display at least one rating sign at each premises from which regulated activities are provided",
+     "elements": [
+      "rating displayed conspicuously at the premises"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 100,
+    "typical_high": 100,
+    "statutory_max": 2500,
+    "currency": "GBP",
+    "basis": "Breach of reg 20A is a criminal offence; CQC typically issues a fixed penalty notice of GBP 100 for failure to display, and may prosecute directly without a prior warning notice, with a court fine up to level 4 on the standard scale (GBP 2,500) per offence, plus reputational enforcement",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Care Quality Commission (CQC)",
+    "register_url": "https://www.cqc.org.uk/search/all"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "The CQC rating is the single trust signal patients look for, and reg 20A makes showing it on the website a legal duty CQC can prosecute directly without warning.",
+    "regulator_asks_first": "Is the current CQC rating shown on the website with a working link to the CQC profile, and is it the latest rating?",
+    "relevance_hook": "A missing or stale rating badge is both a prosecutable breach and a conversion killer; it is the cheapest fix with the highest trust return on a healthcare site."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2014/2936/regulation/20A",
+     "https://www.cqc.org.uk/guidance-regulation/providers/regulations-service-providers-and-managers/health-social-care-act/regulation-20a",
+     "https://www.cqc.org.uk/cqc-ratings-and-promotional-graphics/how-providers-must-display-ratings"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_MHRA_POM_AD_BAN",
+   "name": "Human Medicines Regulations 2012 reg 284 (prohibition on advertising prescription only medicines to the public)",
+   "citation": {
+    "act": "The Human Medicines Regulations 2012 (SI 2012/1916)",
+    "section": "reg 284 (advertisements likely to lead to the use of a prescription only medicine prohibited); reg 280 (prohibition of misleading advertising); Part 14 generally",
+    "url": "https://www.legislation.gov.uk/uksi/2012/1916/regulation/284"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "aesthetics",
+    "gp-clinic",
+    "pharmacy",
+    "telemedicine",
+    "dental",
+    "mental-health"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "public-facing marketing names, pictures or alludes to a prescription only medicine (POM)",
+    "advertises botulinum toxin (Botox, Dysport, Bocouture, Azzalure, Xeomin), weight-loss injections (semaglutide/Wegovy, tirzepatide) or any other POM to the general public"
+   ],
+   "excluded_when": [
+    "advertisement is directed solely at persons qualified to prescribe or supply (healthcare professionals) via a gated channel",
+    "content refers only to a general consultation service without naming or depicting the POM"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not advertise any prescription only medicine to the public; remove product names, images, hashtags and indirect references (e.g. 'wrinkle-relaxing injections', 'fat jab') from public pages, ads and social",
+     "elements": [
+      "no POM brand or generic name in public copy, images, alt text or hashtags",
+      "no indirect POM references that imply a named POM",
+      "consultation service may be offered without naming the POM"
+     ],
+     "evidence_type": "absence"
+    },
+    {
+     "duty": "For permitted general-sale/pharmacy medicine ads, include the mandatory particulars (name, indication, how to use safely, 'always read the label / ask your pharmacist')",
+     "elements": [
+      "mandatory particulars present where an OTC medicine is advertised"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 20000,
+    "typical_high": 500000,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Advertising a POM to the public is a criminal offence under HMR 2012; on indictment up to two years' imprisonment and/or an unlimited fine, plus MHRA takedown and ASA enforcement; typical band reflects investigation/settlement exposure not the statutory ceiling",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Medicines and Healthcare products Regulatory Agency (MHRA); Advertising Standards Authority (ASA/CAP) as backstop",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "CAP/MHRA Enforcement Notice: advertising botulinum toxin injections on social media",
+     "date": "2020-01",
+     "amount": "Takedown / referral to MHRA and professional regulators",
+     "url": "https://www.asa.org.uk/resource/enforcement-notice-botox-social-media.html",
+     "summary": "CAP, with the MHRA, warned the beauty and aesthetics sector that botulinum toxin is a POM that cannot be advertised to the public, including paid ads, organic posts, influencer content, indirect references and hashtags; monitoring technology used to flag and remove non-compliant ads."
+    }
+   ],
+   "intel": {
+    "why_matters": "Every aesthetics and online-prescribing site that names Botox or a weight-loss jab in public copy is committing a criminal advertising offence, and the ASA now finds these automatically.",
+    "regulator_asks_first": "Does any public page, image, alt text or hashtag name or depict a prescription only medicine rather than only offering a consultation?",
+    "relevance_hook": "This is the highest-frequency healthcare breach we find: the POM name sits in a headline, an image caption or a hashtag, and an automated scan flags it before any human complains."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2012/1916/regulation/284",
+     "https://www.asa.org.uk/resource/enforcement-notice-botox-social-media.html",
+     "https://www.gov.uk/guidance/advertise-your-medicines",
+     "seed compliance_laws.json UK-MHRA-HMR / UK-MHRA-POM-BOTOX (section range corrected from 286-297 to reg 284)"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_BOTOX_FILLER_U18",
+   "name": "Botulinum Toxin and Cosmetic Fillers (Children) Act 2021 (offence of administering to under-18s)",
+   "citation": {
+    "act": "Botulinum Toxin and Cosmetic Fillers (Children) Act 2021 (c. 19)",
+    "section": "s.1 (offence of administering botulinum toxin or a filler for a cosmetic purpose to a person under 18 in England); s.2 (offence of making arrangements or booking)",
+    "url": "https://www.legislation.gov.uk/ukpga/2021/19/contents"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "aesthetics"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "child_directed",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "offers botulinum toxin or dermal/cosmetic filler injections for a cosmetic purpose in England",
+    "website could allow a person under 18 to book, or markets these treatments without an age restriction"
+   ],
+   "excluded_when": [
+    "treatment administered for a medical purpose under the direction of a registered medical practitioner (statutory exemption)",
+    "provider operates only outside England (Act applies to administration in England)",
+    "NEGATION GUARD: a statement that the clinic does NOT treat under-18s, or an age-verification gate, is COMPLIANT and must not be scored as a breach"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not offer, market, arrange or allow booking of botulinum toxin or cosmetic filler injections for anyone under 18; state the 18+ restriction and gate bookings by age",
+     "elements": [
+      "explicit statement that treatments are 18+ only",
+      "booking flow captures/verifies age or blocks under-18s",
+      "no imagery or influencer content targeting under-18s"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Criminal offence; on summary conviction an unlimited fine in England; the person administering, and anyone booking or arranging the treatment for a minor, are both liable",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Local authority Trading Standards; police",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Since October 2021 it is a crime to inject a minor with Botox or filler for cosmetic reasons, and taking the booking is itself an offence, so an ungated booking page is direct criminal exposure.",
+    "regulator_asks_first": "Does the site prevent an under-18 from booking botulinum toxin or filler, and does it state the 18+ rule?",
+    "relevance_hook": "An open booking form with no age gate turns a marketing page into a chargeable offence the moment a 17-year-old books; the fix is a visible 18+ policy and an age check."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2021/19/contents",
+     "https://www.gov.uk/government/publications/botulinum-toxin-and-cosmetic-fillers-for-under-18s/botulinum-toxin-and-cosmetic-fillers-for-under-18s"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GMC_GMP_2024",
+   "name": "GMC Good Medical Practice 2024 (honest, non-misleading advertising by doctors)",
+   "citation": {
+    "act": "Medical Act 1983 (regulator's statutory basis); GMC Good Medical Practice 2024 (professional standards)",
+    "section": "Medical Act 1983 Part V (fitness to practise); Good Medical Practice 2024, esp. paras on honesty in communications and financial/commercial dealings",
+    "url": "https://www.gmc-uk.org/professional-standards/professional-standards-for-doctors/good-medical-practice"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "gp-clinic",
+    "aesthetics",
+    "telemedicine",
+    "mental-health",
+    "hospital"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a service is doctor-led or names GMC-registered doctors",
+    "website makes claims about a named doctor's qualifications, competence or results"
+   ],
+   "excluded_when": [
+    "no doctor named and no doctor-led claims made"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Ensure information about doctors and services is honest, accurate and not misleading, and display each doctor's GMC registration so it can be checked",
+     "elements": [
+      "GMC reference number shown for named doctors",
+      "qualifications and specialties stated accurately and verifiable on the GMC register",
+      "no exaggerated or unsubstantiated outcome or superiority claims",
+      "no exploitative product endorsement"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Non-statutory professional standard enforced by the GMC via fitness-to-practise proceedings under the Medical Act 1983; sanctions include warnings, conditions, suspension or erasure rather than fines",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "General Medical Council (GMC)",
+    "register_url": "https://www.gmc-uk.org/registration-and-licensing/the-medical-register"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "A doctor's registration and honesty of advertising are the trust anchors of a private clinic; overstated credentials or results are a fitness-to-practise risk, not just a marketing choice.",
+    "regulator_asks_first": "Is each named doctor's GMC number shown and do the stated qualifications match the GMC register?",
+    "relevance_hook": "Buyers verify a doctor on the GMC register in seconds; a missing GMC number or an inflated title reads as a red flag to patients and the regulator alike."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.gmc-uk.org/professional-standards/professional-standards-for-doctors/good-medical-practice",
+     "https://www.legislation.gov.uk/ukpga/1983/54/contents",
+     "seed compliance_laws.json UK-GMC-GMP"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GDC_ADVERTISING",
+   "name": "GDC Standards for the Dental Team and ethical advertising guidance (dental practices)",
+   "citation": {
+    "act": "Dentists Act 1984 (regulator's statutory basis); GDC Standards for the Dental Team; GDC guidance on ethical advertising",
+    "section": "Dentists Act 1984 Part III/IV; GDC Standards Principle 1 (put patients' interests first) and ethical advertising guidance",
+    "url": "https://www.gdc-uk.org/standards-guidance/standards-and-guidance/standards-for-the-dental-team"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "dental"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "operates a dental practice or dental service in the UK",
+    "advertises dental treatments, prices or team credentials"
+   ],
+   "excluded_when": [
+    "not a dental service"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Make dental advertising clear, accurate and not misleading, and display the GDC registration numbers of the registered team",
+     "elements": [
+      "GDC registration number(s) displayed for registered dentists and DCPs",
+      "practice owner and complaints procedure identifiable",
+      "no misleading or unverifiable comparative claims",
+      "price/finance information clear and not misleading"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Enforced by the GDC via fitness-to-practise proceedings under the Dentists Act 1984 (sanctions up to erasure); misuse of protected dental titles is a separate criminal offence",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "General Dental Council (GDC)",
+    "register_url": "https://www.gdc-uk.org/search-registers"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Dental marketing is one of the most aggressive in healthcare, and the GDC treats misleading claims and hidden registration details as fitness-to-practise matters.",
+    "regulator_asks_first": "Are the GDC registration numbers shown and are treatment and price claims accurate and not misleading?",
+    "relevance_hook": "A dental site that hides its GDC numbers or over-promises 'perfect smiles' invites both patient distrust and a GDC complaint; showing registration is a quick credibility win."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.gdc-uk.org/standards-guidance/standards-and-guidance/standards-for-the-dental-team",
+     "https://www.legislation.gov.uk/ukpga/1984/24/contents",
+     "seed compliance_laws.json UK-GDC-STD"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GDC_SPECIALIST_TITLE",
+   "name": "Dentists Act 1984 (restriction on use of protected dental specialist titles)",
+   "citation": {
+    "act": "Dentists Act 1984",
+    "section": "s.38 (restriction on use of titles implying registration/specialist status); GDC specialist lists",
+    "url": "https://www.legislation.gov.uk/ukpga/1984/24/section/38"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "dental"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "website uses a protected specialist title (e.g. orthodontist, oral surgeon, endodontist, periodontist)",
+    "implies a clinician is a registered dental specialist"
+   ],
+   "excluded_when": [
+    "NEGATION GUARD: describing a 'special interest' in a field, clearly distinguished from a protected specialist title, is not a breach",
+    "the named clinician is actually on the relevant GDC specialist list"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Only describe a clinician with a protected dental specialist title if that clinician is entered on the corresponding GDC specialist list",
+     "elements": [
+      "any specialist title matches a name on the GDC specialist list",
+      "'special interest' wording used where the clinician is not a listed specialist"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Using a protected dental title without entitlement is a criminal offence under the Dentists Act 1984 punishable by a fine (unlimited on conviction in England), alongside GDC action",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "General Dental Council (GDC)",
+    "register_url": "https://www.gdc-uk.org/search-registers"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Calling a dentist a 'specialist orthodontist' when they are not on the GDC specialist list is a criminal misrepresentation, not marketing licence.",
+    "regulator_asks_first": "Does every specialist title on the site match a name on the GDC specialist list?",
+    "relevance_hook": "Specialist titles convert patients, which is exactly why misusing them is policed; the safe wording is 'dentist with a special interest' unless the clinician is actually listed."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/1984/24/section/38",
+     "seed compliance_laws.json UK-GDC-SPEC"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GPHC_ONLINE_PHARMACY",
+   "name": "GPhC registration and MHRA distance-selling requirements for online pharmacies",
+   "citation": {
+    "act": "Pharmacy Order 2010 (GPhC statutory basis); The Human Medicines Regulations 2012 (SI 2012/1916) distance-selling provisions; MHRA distance-selling logo scheme",
+    "section": "HMR 2012 Part 12 (sale/supply and registered pharmacies); GPhC standards for registered pharmacies; MHRA distance-selling logo register",
+    "url": "https://www.pharmacyregulation.org/pharmacies/registration-and-renewal/providing-services-online"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "pharmacy",
+    "telemedicine"
+   ],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "payments",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "sells or supplies medicines to the public online (distance selling / internet pharmacy)",
+    "operates as a GPhC-registered pharmacy offering services online"
+   ],
+   "excluded_when": [
+    "no medicines sold or supplied online",
+    "provider is not a registered pharmacy and makes no pharmacy claim"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Display GPhC registration details and, where selling medicines at a distance, register with and display the MHRA distance-selling logo linking to the MHRA medicine-seller register",
+     "elements": [
+      "GPhC registration number and registered pharmacy identity shown",
+      "superintendent/responsible pharmacist identifiable",
+      "MHRA distance-selling logo displayed on pages offering medicines, linking to the MHRA register",
+      "the pharmacy appears on the MHRA medicine-seller register"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Meet GPhC online safeguards for prescribing (no inappropriate online supply of high-risk or POM medicines without proper checks)",
+     "elements": [
+      "prescribing safeguards described",
+      "identity and clinical checks referenced for POM supply"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 20000,
+    "typical_high": 500000,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "GPhC can impose conditions, suspend or remove registration; unlawful online supply of medicines is a criminal offence under HMR 2012 with unlimited fines; the GPhC internet-pharmacy logo scheme itself is voluntary",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "General Pharmaceutical Council (GPhC); MHRA",
+    "register_url": "https://www.pharmacyregulation.org/registers"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Online pharmacies are a top enforcement target; a missing MHRA distance-selling logo or absent register listing signals an illegitimate seller to both regulators and patients.",
+    "regulator_asks_first": "Is the pharmacy on the MHRA medicine-seller register, is the distance-selling logo shown and linked, and are GPhC registration details displayed?",
+    "relevance_hook": "The distance-selling logo and register link are the credibility marks buyers and regulators look for; their absence is the first thing that separates a legitimate online pharmacy from a rogue one."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.pharmacyregulation.org/pharmacies/registration-and-renewal/providing-services-online",
+     "https://www.gov.uk/guidance/register-for-the-distance-selling-logo",
+     "https://medicine-seller-register.mhra.gov.uk/",
+     "seed compliance_laws.json NEON-UK-GPHC (gap-filled with statutory and register detail)"
+    ],
+    "seed_status": "corrected",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_ASA_CAP12_HEALTH",
+   "name": "CAP Code Section 12 (medicines, medical devices, health and beauty products and therapies)",
+   "citation": {
+    "act": "UK Code of Non-broadcast Advertising and Direct & Promotional Marketing (CAP Code)",
+    "section": "Section 12 (medicines, medical devices, health-related products and beauty products)",
+    "url": "https://www.asa.org.uk/type/non_broadcast/code_section/12.html"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "gp-clinic",
+    "aesthetics",
+    "physiotherapy",
+    "mental-health",
+    "pharmacy",
+    "optometry"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "makes health, beauty or treatment claims in marketing communications to UK consumers"
+   ],
+   "excluded_when": [
+    "no health, medical or beauty claims made"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Ensure health and beauty claims are accurate, substantiated and not misleading, with only suitably qualified people offering treatment or advice",
+     "elements": [
+      "objective claims backed by evidence held before publishing",
+      "no discouraging essential medical treatment",
+      "testimonials genuine and not used to make unproven efficacy claims",
+      "weight-loss and serious-condition claims meet the stricter Section 12 rules"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Non-statutory self-regulatory code; sanctions are published upheld rulings, ad removal, paid-search denial and, for persistent breaches, referral to Trading Standards or the MHRA who hold statutory powers",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Advertising Standards Authority (ASA) / Committee of Advertising Practice (CAP)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Health and beauty claims are the most-complained-about advertising category, and an upheld ASA ruling is a public record that follows the clinic's name in search.",
+    "regulator_asks_first": "Can every health or beauty claim on the site be substantiated with evidence held before it was published?",
+    "relevance_hook": "Unsubstantiated 'cures', dramatic before/afters and unqualified advice are exactly what the ASA publishes rulings on; tightening claims protects both rankings and reputation."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.asa.org.uk/type/non_broadcast/code_section/12.html",
+     "seed compliance_laws.json UK-ASA-12"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CAP_1212_COSMETIC",
+   "name": "CAP Code rule 12.12 and cosmetic interventions guidance (marketing of cosmetic procedures)",
+   "citation": {
+    "act": "UK Code of Non-broadcast Advertising and Direct & Promotional Marketing (CAP Code)",
+    "section": "rule 12.12 and CAP guidance on advertising cosmetic interventions (in force October 2021)",
+    "url": "https://www.asa.org.uk/type/non_broadcast/code_section/12.html"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "aesthetics"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "child_directed",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "markets surgical or non-surgical cosmetic interventions to UK consumers"
+   ],
+   "excluded_when": [
+    "not a cosmetic-intervention service"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Advertise cosmetic interventions responsibly: do not trivialise, do not pressure, do not target under-18s, and do not imply a normal appearance is inadequate",
+     "elements": [
+      "no trivialisation of surgical or invasive procedures",
+      "before/after images do not create unrealistic expectations",
+      "no promotions or imagery targeting under-18s",
+      "no use of under-18-appealing influencers",
+      "no body-image pressure suggesting normal features need fixing"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Non-statutory CAP Code rule; sanctions are published rulings, ad bans and referral onward; overlaps with MHRA (if a POM is named) and the Botulinum Toxin and Cosmetic Fillers (Children) Act 2021 where minors are involved",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Advertising Standards Authority (ASA) / Committee of Advertising Practice (CAP)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Cosmetic-intervention marketing is held to a stricter standard precisely because it targets appearance anxiety; the 2021 rules ban the exact tactics most aesthetics sites use.",
+    "regulator_asks_first": "Do the ads avoid trivialising procedures, pressuring viewers and appealing to under-18s?",
+    "relevance_hook": "Discount-driven, body-shaming or youth-facing cosmetic ads are the pattern the ASA rules against; compliant, realistic messaging both satisfies the code and reads as more professional."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.asa.org.uk/type/non_broadcast/code_section/12.html",
+     "seed compliance_laws.json UK-CAP-1212"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_HFEA_ADVERTISING",
+   "name": "Human Fertilisation and Embryology Act 1990 and HFEA Code of Practice (fertility success-rate and add-on advertising)",
+   "citation": {
+    "act": "Human Fertilisation and Embryology Act 1990 (as amended); HFEA Code of Practice (issued under s.25) and licence conditions",
+    "section": "HFE Act 1990 s.25 (Code of Practice); Code of Practice guidance on information for patients, success rates and treatment add-ons",
+    "url": "https://www.legislation.gov.uk/ukpga/1990/37/contents"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "fertility"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "health_claims",
+    "payments"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "an HFEA-licensed clinic advertises IVF or other licensed treatment success rates, prices or treatment add-ons"
+   ],
+   "excluded_when": [
+    "provider is not carrying on HFEA-licensed activity",
+    "NEGATION GUARD: linking to the HFEA verified success-rate data and traffic-light add-on ratings is COMPLIANT, not a breach"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Present success rates and treatment add-ons clearly and without misleading patients, using HFEA-verified data and the HFEA add-on rating where add-ons are offered",
+     "elements": [
+      "success rates presented on a comparable, non-misleading basis (per cycle, age-banded)",
+      "treatment add-ons state the evidence of effectiveness, risks and cost",
+      "link to the HFEA add-on traffic-light ratings where add-ons are promoted",
+      "clinic's HFEA licence status shown"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Breach of Code guidance is a breach of licence conditions; the HFEA can vary, suspend or revoke a clinic's licence; misleading claims can also engage ASA and CMA/consumer-law action",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Human Fertilisation and Embryology Authority (HFEA)",
+    "register_url": "https://www.hfea.gov.uk/choose-a-clinic/clinic-search/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Fertility patients are emotionally vulnerable and add-ons are a known mis-selling risk; the HFEA now expects verified success rates and honest add-on ratings on clinic sites.",
+    "regulator_asks_first": "Are success rates shown on a comparable, non-misleading basis and do add-ons carry the HFEA evidence rating, cost and risks?",
+    "relevance_hook": "Inflated success rates and unrated add-ons are the exact issues the HFEA and CMA have targeted; presenting verified data with the add-on rating is both compliant and more persuasive to informed patients."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/1990/37/contents",
+     "https://www.hfea.gov.uk/treatments/treatment-add-ons/",
+     "https://www.hfea.gov.uk/about-us/news-and-press-releases/2023-news-and-press-releases/uk-fertility-regulator-launches-improved-ratings-for-fertility-treatment-add-ons/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_CARE_HOME_FEES",
+   "name": "Consumer law on care home fees and terms (CMA consumer-protection guidance for care homes)",
+   "citation": {
+    "act": "Consumer Rights Act 2015; Consumer Protection from Unfair Trading Regulations 2008 / Digital Markets, Competition and Consumers Act 2024 Part 4; CMA care homes consumer-law advice",
+    "section": "CRA 2015 Part 2 (unfair terms) and Part 1 (information); DMCC Act 2024 Part 4 (unfair commercial practices); CMA 'Care homes: consumer law advice for providers'",
+    "url": "https://www.gov.uk/government/publications/care-homes-consumer-law-advice-for-providers"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "care-home"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "markets residential or nursing care home places to self-funding residents or their families"
+   ],
+   "excluded_when": [
+    "not a care home / no self-funder contracting"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Give clear, upfront and fair information about fees and contract terms before a resident commits, and avoid unfair terms",
+     "elements": [
+      "weekly/monthly fees and what they include stated up front",
+      "additional/one-off charges disclosed clearly",
+      "policy on fee increases and on charges after a resident moves out or dies stated fairly",
+      "no hidden or unfair large upfront fees or open-ended post-death charging",
+      "complaints and cancellation rights explained"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Consumer-law enforcement by the CMA and Trading Standards; under the DMCC Act 2024 the CMA can impose direct penalties up to 10% of global turnover for unfair commercial practices; unfair contract terms are unenforceable under the CRA 2015",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Competition and Markets Authority (CMA); local authority Trading Standards",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Care home fee transparency has been a CMA priority since its 2018 market study; hidden fees, unfair upfront charges and charging after death are the practices it acts on.",
+    "regulator_asks_first": "Are fees, what they include and the policy on increases and post-departure charges shown clearly and fairly before a family commits?",
+    "relevance_hook": "Families compare care homes on cost and fairness; publishing clear, fair fee information both meets consumer law and wins trust at the most anxious decision a family makes."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.gov.uk/government/publications/care-homes-consumer-law-advice-for-providers",
+     "https://www.legislation.gov.uk/ukpga/2015/15/contents",
+     "https://www.legislation.gov.uk/ukpga/2024/13/contents"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_NHS_BRANDING",
+   "name": "NHS identity and consumer law (private providers must not imply NHS affiliation)",
+   "citation": {
+    "act": "NHS identity guidelines (DHSC/NHS England); Consumer Protection from Unfair Trading Regulations 2008 / Digital Markets, Competition and Consumers Act 2024 Part 4 (misleading practices); trade mark protection of the NHS name and logo",
+    "section": "DMCC Act 2024 Part 4 (misleading actions); NHS identity guidelines on use of the NHS logo and name",
+    "url": "https://www.england.nhs.uk/nhsidentity/"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "gp-clinic",
+    "dental",
+    "pharmacy",
+    "optometry",
+    "telemedicine",
+    "hospital"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "a private provider references the NHS, uses NHS branding, or could imply NHS provision or endorsement"
+   ],
+   "excluded_when": [
+    "NEGATION GUARD: an accurate statement of a genuine NHS contract or clearly labelled NHS/private split is COMPLIANT",
+    "provider holds authorised rights to use the NHS identity"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not use the NHS logo, name or look-and-feel in a way that falsely implies NHS provision or endorsement; distinguish private services clearly",
+     "elements": [
+      "NHS logo used only where authorised",
+      "no implication of NHS endorsement or that private care is NHS-funded",
+      "private and any genuine NHS services clearly distinguished"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Misleadingly implying NHS status is an unfair commercial practice (CMA/Trading Standards enforcement, DMCC Act 2024 penalties up to 10% of global turnover) and can infringe the protected NHS trade mark",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "NHS England (identity); Competition and Markets Authority / Trading Standards (consumer law)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "'NHS' is a trust shortcut, so private providers borrowing NHS branding to look official is both a trade-mark and a consumer-protection problem.",
+    "regulator_asks_first": "Does the site imply NHS provision or endorsement it is not entitled to claim?",
+    "relevance_hook": "Blue NHS-style badges or 'NHS' wording on a purely private site mislead patients about who they are dealing with; clean separation protects the provider and the patient."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.england.nhs.uk/nhsidentity/",
+     "https://www.legislation.gov.uk/ukpga/2024/13/contents"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_VMD_POMV_AD",
+   "name": "Veterinary Medicines Regulations 2013 (restriction on advertising POM-V veterinary medicines to the public)",
+   "citation": {
+    "act": "The Veterinary Medicines Regulations 2013 (SI 2013/2033)",
+    "section": "Schedule 1 (advertising of veterinary medicinal products); restriction on advertising POM-V to persons other than vets/pharmacists",
+    "url": "https://www.legislation.gov.uk/uksi/2013/2033/contents"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "veterinary"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "ecommerce",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "a veterinary practice or retailer advertises or sells veterinary medicines online",
+    "content names or promotes a POM-V product to the public"
+   ],
+   "excluded_when": [
+    "advertising directed only at vets/pharmacists via a professional channel",
+    "product is an authorised over-the-counter (e.g. AVM-GSL/NFA-VPS) category advertised per its authorisation"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not advertise POM-V veterinary medicines to the public; restrict such promotion to professionals and follow the authorised information for products that may be advertised",
+     "elements": [
+      "no public-facing promotion of POM-V products",
+      "OTC veterinary products advertised in line with their authorisation",
+      "seller of veterinary medicines is registered where required"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Breach is a criminal offence under the Veterinary Medicines Regulations 2013 enforced by the VMD, with unlimited fines and up to two years' imprisonment on conviction",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Veterinary Medicines Directorate (VMD)",
+    "register_url": "https://www.vmd.defra.gov.uk/ProductInformationDatabase/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Vet practices increasingly sell medicines online, and POM-V products carry the same public-advertising ban as human POMs.",
+    "regulator_asks_first": "Does any public page promote a POM-V veterinary medicine rather than restricting it to professionals?",
+    "relevance_hook": "An online vet shop that lists POM-V products in public view is breaching the same kind of rule as a clinic naming Botox; the fix is gating or removing POM-V promotion."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2013/2033/contents",
+     "seed compliance_laws.json UK-VMD"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_RCVS_ADVERTISING",
+   "name": "RCVS Code of Professional Conduct (honest advertising and title use by veterinary practices)",
+   "citation": {
+    "act": "Veterinary Surgeons Act 1966 (regulator's statutory basis); RCVS Code of Professional Conduct for Veterinary Surgeons",
+    "section": "Veterinary Surgeons Act 1966 (protected titles, register); RCVS Code, guidance on advertising and communication",
+    "url": "https://www.rcvs.org.uk/setting-standards/advice-and-guidance/code-of-professional-conduct-for-veterinary-surgeons/"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "veterinary"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "operates a veterinary practice in the UK",
+    "advertises veterinary services or clinician credentials"
+   ],
+   "excluded_when": [
+    "not a veterinary service"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Keep veterinary advertising honest and not misleading, avoid unsubstantiated superiority claims, and use protected titles only where entitled",
+     "elements": [
+      "no misleading or inaccurate service claims",
+      "no unsubstantiated 'best'/superiority claims",
+      "'veterinary surgeon' and RCVS registration used accurately",
+      "RCVS-registered status identifiable"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Enforced by the RCVS via disciplinary proceedings under the Veterinary Surgeons Act 1966 (up to removal from the register); misuse of the protected 'veterinary surgeon' title is a criminal offence",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Royal College of Veterinary Surgeons (RCVS)",
+    "register_url": "https://findavet.rcvs.org.uk/find-a-vet-surgeon/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Veterinary marketing is trusted like medical marketing, and the RCVS holds practices to honesty and accurate title-use standards.",
+    "regulator_asks_first": "Are service and superiority claims accurate and substantiated, and is the protected 'veterinary surgeon' title used correctly?",
+    "relevance_hook": "'The best vet in the county' with no basis is exactly the kind of claim the RCVS treats as misleading; accurate, evidenced messaging protects both registration and client trust."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.rcvs.org.uk/setting-standards/advice-and-guidance/code-of-professional-conduct-for-veterinary-surgeons/",
+     "https://www.legislation.gov.uk/ukpga/1966/36/contents",
+     "seed compliance_laws.json UK-RCVS"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GOC_OPTICIANS",
+   "name": "Opticians Act 1989 (protected optical titles, GOC registration and sale of optical appliances)",
+   "citation": {
+    "act": "Opticians Act 1989",
+    "section": "s.28 (restrictions on use of titles), s.24-27 (registration and restrictions on testing sight and selling optical appliances)",
+    "url": "https://www.legislation.gov.uk/ukpga/1989/44/contents"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "optometry"
+   ],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "provides sight testing, dispenses spectacles/contact lenses, or uses protected optical titles (optometrist, ophthalmic optician, dispensing optician)",
+    "sells optical appliances online where a registrant's involvement is required"
+   ],
+   "excluded_when": [
+    "the named practitioner is on the GOC register",
+    "sale of ready-readers/plano appliances outside the restricted categories"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Use protected optical titles only for GOC-registered practitioners and make GOC registration identifiable",
+     "elements": [
+      "protected titles used only by GOC-registered individuals",
+      "GOC registration identifiable for the practice/practitioners",
+      "online supply of prescription optical appliances follows the registrant/verification requirements"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Using a protected optical title without registration, or breaching the restrictions on sight testing/appliance sale, is a criminal offence under the Opticians Act 1989 (fine on conviction), alongside GOC action",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "General Optical Council (GOC)",
+    "register_url": "https://optical.org/en/registration/registrant-search/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "'Optometrist' and related titles are legally protected, and online sale of prescription eyewear is restricted; misuse is a criminal offence, not a branding choice.",
+    "regulator_asks_first": "Are protected optical titles used only by GOC-registered practitioners, and is registration identifiable?",
+    "relevance_hook": "An optical site that labels staff 'optometrists' who are not GOC-registered, or sells prescription eyewear without the required checks, is breaching the Opticians Act; showing GOC registration is the fix."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/1989/44/contents"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-16"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_HCPC_PROTECTED_TITLE",
+   "name": "Health and Social Work Professions Order 2001 (HCPC protected titles, e.g. physiotherapist)",
+   "citation": {
+    "act": "The Health Professions Order 2001 (SI 2002/254), as amended (HCPC statutory basis)",
+    "section": "art 39 (offences relating to protected titles); HCPC register of protected titles including 'physiotherapist'",
+    "url": "https://www.legislation.gov.uk/uksi/2002/254/contents"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "sub_sector": [
+    "physiotherapy",
+    "mental-health"
+   ],
+   "activity_tags": [
+    "b2c",
+    "health_claims"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "uses an HCPC-protected title (physiotherapist, and other regulated AHP/psychology titles)",
+    "advertises clinicians under a protected title"
+   ],
+   "excluded_when": [
+    "NEGATION GUARD: unprotected descriptors (e.g. 'sports therapist', 'massage therapist') used honestly where the person is not HCPC-registered are not a breach",
+    "the named clinician is on the HCPC register"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Use HCPC-protected titles only for currently HCPC-registered practitioners and make registration identifiable",
+     "elements": [
+      "protected titles (e.g. physiotherapist) used only by HCPC-registered individuals",
+      "HCPC registration number identifiable for named clinicians",
+      "unprotected descriptors used where the practitioner is not registered"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Using an HCPC-protected title without registration, or falsely implying registration, is a criminal offence under art 39 of the 2001 Order (fine on conviction)",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Health and Care Professions Council (HCPC)",
+    "register_url": "https://www.hcpc-uk.org/check-the-register/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "'Physiotherapist' is a legally protected title; clinics that apply it to unregistered staff commit a criminal offence and mislead patients about qualifications.",
+    "regulator_asks_first": "Is every use of 'physiotherapist' or another protected title backed by a current HCPC registration?",
+    "relevance_hook": "Patients equate the title with regulation; showing HCPC numbers proves it, while calling an unregistered practitioner a 'physiotherapist' is both illegal and a trust risk."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2002/254/contents"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-16"
+   }
+  }
+ ]
+}

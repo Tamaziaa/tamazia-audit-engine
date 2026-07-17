@@ -14,6 +14,9 @@ sarif/
 .stryker-tmp/
 coverage/
 
+# catalogue compiler output (regenerated deterministically by catalogue/compile.js; never committed)
+catalogue/dist/
+
 # Scratch
 scratch/
 scratch.*

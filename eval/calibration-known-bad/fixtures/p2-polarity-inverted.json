@@ -1,0 +1,57 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): the rule-polarity class (caution.md C-046/C-047/C-048), Compliance Object Model shape. website_obligations[0].duty carries clear prohibition language ('is an offence to advertise') but is typed evidence_type='presence' - inverted, so the linter's naive presence-style check would fire a breach when the prohibited content is ABSENT and stay silent when it is PRESENT, exactly the DG-02 defect (an ASA must_appear rule firing on absence). catalogue/linters/polarity.js MUST flag this as polarity-prohibition-mismatch in --calibrate mode, or it has not earned its zero.",
+  "cell": "p2-calibration-polarity",
+  "jurisdiction": "UK",
+  "generated": "2026-07-17",
+  "records": [
+    {
+      "jurisdiction": "UK",
+      "sub_jurisdiction": null,
+      "status": "needs_verification",
+      "client_useful": true,
+      "id": "CAL_P2_POLARITY_INVERTED",
+      "name": "Prescription-only medicine advertising restriction (calibration fixture: inverted polarity)",
+      "citation": {
+        "act": "Human Medicines Regulations 2012",
+        "section": "Regulation 279",
+        "url": "https://www.legislation.gov.uk/uksi/2012/1916/regulation/279"
+      },
+      "sector": ["healthcare"],
+      "sub_sector": ["pharmacy"],
+      "activity_tags": ["b2c"],
+      "required_nexus": ["serves_customers_in"],
+      "applies_when": ["advertises prescription-only medicines"],
+      "excluded_when": ["no advertising of prescription-only medicines to the public"],
+      "website_obligations": [
+        {
+          "duty": "It is an offence to advertise prescription-only medicines directly to members of the public",
+          "elements": ["no prescription-only medicine names or claims in public-facing advertising"],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "GBP",
+        "basis": "criminal offence, MHRA enforcement action",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "Medicines and Healthcare products Regulatory Agency (MHRA)",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (deliberately seeded inverted polarity)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-17"
+      }
+    }
+  ]
+}

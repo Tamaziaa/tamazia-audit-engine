@@ -1,0 +1,57 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): the citation-completeness class (Constitution Rule 14 / caution.md C-104). This is a status=candidate Compliance Object Model record whose citation.url points to a private commentary blog rather than an official statutory/regulatory source. catalogue/linters/citation-completeness.js MUST flag this record's citation.url as citation-host-unofficial in --calibrate mode, or it has not earned its zero.",
+  "cell": "p2-calibration-citation",
+  "jurisdiction": "UK",
+  "generated": "2026-07-17",
+  "records": [
+    {
+      "jurisdiction": "UK",
+      "sub_jurisdiction": null,
+      "status": "candidate",
+      "client_useful": true,
+      "id": "CAL_P2_CITATION_UNOFFICIAL_HOST",
+      "name": "UK GDPR privacy notice duty (calibration fixture: unofficial citation host)",
+      "citation": {
+        "act": "UK GDPR (assimilated Regulation (EU) 2016/679)",
+        "section": "UK GDPR Arts 13, 14",
+        "url": "https://www.complianceinsightsblog.com/2026/uk-gdpr-privacy-notice-explainer"
+      },
+      "sector": ["universal"],
+      "sub_sector": [],
+      "activity_tags": ["b2c"],
+      "required_nexus": ["processes_residents_of"],
+      "applies_when": ["processes personal data of UK residents"],
+      "excluded_when": ["genuinely no personal data collected at all"],
+      "website_obligations": [
+        {
+          "duty": "Publish an accessible privacy notice",
+          "elements": ["identity and contact details of the controller"],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": 100000,
+        "typical_high": 1000000,
+        "statutory_max": 17500000,
+        "currency": "GBP",
+        "basis": "Higher maximum of GBP 17.5m or 4% of turnover",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Information Commissioner's Office (ICO)",
+        "register_url": "https://ico.org.uk/ESDWebPages/Search"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (deliberately seeded bad citation host)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-17"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1346 @@
+{
+ "cell": "us-legal",
+ "jurisdiction": "US",
+ "generated": "2026-07-16",
+ "records": [
+  {
+   "id": "US_ABA_RULE_7_1",
+   "name": "ABA Model Rule 7.1 - Communications Concerning a Lawyer's Services (false or misleading)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory model; adopted with variation by each state bar / state supreme court)",
+    "section": "Rule 7.1",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney",
+    "solo-practice"
+   ],
+   "activity_tags": [
+    "b2c",
+    "b2b_only",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "operator is a US-licensed lawyer or law firm marketing legal services",
+    "website makes any communication about the lawyer or the services (this is the baseline rule every state has adopted in some form)"
+   ],
+   "excluded_when": [
+    "operator is not a lawyer or law firm (no legal services offered)",
+    "communication contains no statement of fact or implication about the lawyer or services"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Remove false or misleading statements about the lawyer or the services",
+     "elements": [
+      "no material misrepresentation of fact or law",
+      "no omission of a fact needed to make the statement considered as a whole not materially misleading",
+      "no unjustified expectation of results (e.g. outcome guarantees, 'we always win', '100% success')",
+      "no unsubstantiated comparison implying the lawyer's services are better than another's ('best', '#1', 'top') unless factually substantiated and capable of substantiation"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Where case results, verdicts, settlements or client testimonials are advertised, include a disclaimer that prior results do not guarantee a similar outcome (required by comment to Rule 7.1 and by most state bars)",
+     "elements": [
+      "'prior results do not guarantee a similar outcome' or equivalent, visible near the results/testimonial content",
+      "results stated with enough context that they are not misleading"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar disciplinary sanction: private or public reprimand, suspension, or disbarment; no fixed monetary civil fine attaches to most advertising breaches, though costs of the disciplinary proceeding are commonly assessed",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts (ABA publishes the model only; it is not itself a regulator)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Rule 7.1 is the one advertising rule adopted in every US jurisdiction and is the hook for almost all website discipline. Superlatives, guarantees and undocumented results on the homepage are the most common and easiest breaches to spot.",
+    "regulator_asks_first": "A bar grievance typically opens with a demand that the firm substantiate or remove the claim, not an immediate suspension; unsubstantiated superlatives are corrected first.",
+    "relevance_hook": "Tamazia rewrites superlative and guarantee-style copy into a substantiated, Rule 7.1-safe form and adds the prior-results disclaimer where results or testimonials appear."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/",
+     "seed:US-ABA-7"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_RULE_7_2",
+   "name": "ABA Model Rule 7.2 - Advertising (permitted, with identification and no improper payment for recommendations)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state)",
+    "section": "Rule 7.2",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_2_advertising/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "law firm advertises services through any public medium including its website",
+    "site names or links a referral service, directory, or lead generator, or claims a specialty"
+   ],
+   "excluded_when": [
+    "operator is not a lawyer or law firm"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Include the name and office address of at least one lawyer or firm responsible for the advertising content",
+     "elements": [
+      "identifiable responsible lawyer or firm name",
+      "a contactable office address on the site"
+     ],
+     "evidence_type": "absence"
+    },
+    {
+     "duty": "Do not give anything of value for a recommendation of the lawyer's services except payment for permitted advertising, a qualified lawyer referral service, or a reciprocal referral arrangement that is disclosed and non-exclusive",
+     "elements": [
+      "no undisclosed paid endorsements presented as neutral",
+      "lead-generation and referral arrangements structured within the rule"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Only state or imply certification as a specialist in compliance with Rule 7.2(c) (see specialization record)",
+     "elements": [
+      "certified-specialist claims name the certifying organisation"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar disciplinary sanction: private or public reprimand, suspension, or disbarment; no fixed monetary civil fine attaches to most advertising breaches, though costs of the disciplinary proceeding are commonly assessed",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "7.2 makes advertising permissible but conditions it: the site must name a responsible lawyer and cannot dress up paid recommendations as independent praise. Lead-gen and 'as seen on' badges are the common failure points.",
+    "regulator_asks_first": "Bars first ask who is responsible for the ad and whether a badge or endorsement was paid for.",
+    "relevance_hook": "Tamazia confirms a named responsible lawyer and office address are present and audits referral, badge and lead-gen disclosures against Rule 7.2."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_2_advertising/",
+     "seed:US-ABA-7"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_RULE_7_3",
+   "name": "ABA Model Rule 7.3 - Solicitation of Clients",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state)",
+    "section": "Rule 7.3",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_3_solicitation_of_clients/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "ugc"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "site drives targeted outreach to specific prospective clients known to need legal services (contact-triggered follow-up, chat, intake funnels)",
+    "firm uses live person-to-person contact prompted by a website lead"
+   ],
+   "excluded_when": [
+    "communication is a general advertisement to the public rather than a solicitation directed to a specific person",
+    "recipient is another lawyer, a person with a family/close personal/prior professional relationship, or one who routinely uses the type of legal services"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not use live person-to-person solicitation for pecuniary gain outside the permitted categories, and never solicit where the target has said no or where the contact involves coercion, duress or harassment",
+     "elements": [
+      "no automated live-contact solicitation of accident/injury victims outside permitted relationships",
+      "respect for opt-outs and do-not-contact"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Where a state retains the pre-2018 targeted-communication labelling rule, mark targeted written or recorded solicitations as advertising (see NY 'Attorney Advertising' and state records)",
+     "elements": [
+      "required advertising label on targeted solicitations in states that mandate it"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar disciplinary sanction: private or public reprimand, suspension, or disbarment; no fixed monetary civil fine attaches to most advertising breaches, though costs of the disciplinary proceeding are commonly assessed",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Solicitation rules are where personal-injury and mass-tort intake funnels get firms into trouble. The line between a lawful advertisement and an unlawful targeted solicitation is state-specific and easy to cross with automated chat/lead follow-up.",
+    "regulator_asks_first": "Bars ask how the prospect's contact details were obtained and whether the outreach was targeted at a person known to need the specific service.",
+    "relevance_hook": "Tamazia reviews intake and chat funnels so automated follow-up stays inside Rule 7.3 and any state labelling duty."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_3_solicitation_of_clients/",
+     "seed:US-ABA-7"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_SPECIALIZATION",
+   "name": "Specialist and certified-specialist claims (former ABA Model Rule 7.4; content now in Rule 7.2(c) and Rule 7.1)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state). ABA deleted standalone Rule 7.4 in August 2018 and moved its substance into Rule 7.2(c) and Rule 7.1 comments; many states retain a numbered Rule 7.4",
+    "section": "Rule 7.2(c) (specialisation); former Rule 7.4",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_2_advertising/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "site describes fields of practice or states or implies the lawyer is a 'specialist', 'certified', 'expert' or 'board certified' in a field"
+   ],
+   "excluded_when": [
+    "site states only the areas of law practised without claiming certification or specialist status"
+   ],
+   "website_obligations": [
+    {
+     "duty": "State or imply certification as a specialist only where the lawyer is certified by an accredited or state-approved organisation, and name that certifying organisation",
+     "elements": [
+      "the certifying body is named on the page making the claim",
+      "the body is approved/accredited (e.g. an ABA-accredited or state-board organisation)",
+      "no bare 'specialist'/'expert' claim that a reasonable client would read as formal certification when none exists"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar disciplinary sanction: private or public reprimand, suspension, or disbarment; no fixed monetary civil fine attaches to most advertising breaches, though costs of the disciplinary proceeding are commonly assessed",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts; state boards of legal specialization",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "An uncertified 'specialist' or 'expert' badge is a direct false-or-misleading breach and is trivial to detect. States that certify specialists (CA, FL, TX and others) also require the certifying body to be named.",
+    "regulator_asks_first": "Bars ask which body certified the specialty and whether it is approved; an unnamed or non-existent certifier is the failure.",
+    "relevance_hook": "Tamazia checks every 'specialist', 'certified' or 'expert' claim for a named, approved certifying body and flags bare claims for rewrite."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_2_advertising/",
+     "https://www.calbar.ca.gov/legal-professionals/rules/rules-professional-conduct/current-rules-professional-conduct/chapter-7-information-about-legal-services"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_FIRM_NAMES",
+   "name": "Firm names, trade names and letterheads (former ABA Model Rule 7.5; content now in Rule 7.1)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state). ABA deleted standalone Rule 7.5 in August 2018 and folded firm-name guidance into Rule 7.1 comment [5]; many states retain a numbered Rule 7.5",
+    "section": "Rule 7.1 (comment [5]); former Rule 7.5",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "site uses a firm name, trade name or professional designation in headers, logos or the footer",
+    "multi-office firm lists jurisdictions where individual lawyers are or are not admitted"
+   ],
+   "excluded_when": [
+    "no trade name or firm designation is used beyond an individual lawyer's own name"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Use a firm or trade name that is not false or misleading and does not imply a connection with a government agency or a public/charitable legal services organisation",
+     "elements": [
+      "trade name is not misleading as to who practises or the firm's nature",
+      "no implication of a government or public-body affiliation"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "For a multi-jurisdiction firm, indicate jurisdictional limits so the site does not imply lawyers are admitted where they are not",
+     "elements": [
+      "office/lawyer admission limitations shown where the name or content implies broader admission"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar disciplinary sanction: private or public reprimand, suspension, or disbarment; no fixed monetary civil fine attaches to most advertising breaches, though costs of the disciplinary proceeding are commonly assessed",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Trade names and multi-office 'national' branding can imply admissions or affiliations that do not exist. This is a quiet but real Rule 7.1 exposure for firms scaling across states.",
+    "regulator_asks_first": "Bars ask whether the name implies a government tie or an admission the firm lacks.",
+    "relevance_hook": "Tamazia checks trade-name and multi-office branding for misleading implications and missing admission limits."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_RULE_5_5_UPL",
+   "name": "ABA Model Rule 5.5 - Unauthorized practice of law and multijurisdictional practice (UPL signals for multi-state marketing)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state)",
+    "section": "Rule 5.5",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_5_5_unauthorized_practice_of_law_multijurisdictional_practice_of_law/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney",
+    "multi-state"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "site markets to states where the firm's lawyers are not admitted (nationwide SEO, city landing pages for non-admitted states)",
+    "site implies the firm can handle matters in jurisdictions where it holds no admission"
+   ],
+   "excluded_when": [
+    "site markets only in jurisdictions where the firm's lawyers are admitted",
+    "content is clearly limited to federal practice or an area not requiring state admission"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not hold out, expressly or by implication, the ability to practise in a jurisdiction where the firm is not authorised; label jurisdictional limits on state/city landing pages",
+     "elements": [
+      "no 'we serve [state]' pages implying local admission the firm lacks",
+      "admission or local-counsel arrangement disclosed where marketing targets a non-admission state"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar discipline for UPL; in several states UPL is also a separate statutory offence (misdemeanour or felony) prosecutable by the state, with fines and injunctions in addition to bar sanctions",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts; state attorneys general (statutory UPL)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Aggressive multi-state SEO (a landing page per city/state) is the classic UPL trap: it implies local admission the firm does not have. Both the bar and, in some states, the AG can act.",
+    "regulator_asks_first": "Regulators ask whether the firm is admitted in, or has local counsel for, each jurisdiction it markets to.",
+    "relevance_hook": "Tamazia maps marketing footprint against actual admissions so geo landing pages carry the right jurisdictional limits."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_5_5_unauthorized_practice_of_law_multijurisdictional_practice_of_law/",
+     "pdf:Research Report (multi-state PI/immigration targets)"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_RULE_1_18_INTAKE",
+   "name": "Attorney-client and confidentiality disclaimers on website contact and intake forms (ABA Model Rule 1.18 + Formal Opinion 10-457)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state); ABA Standing Committee on Ethics and Professional Responsibility Formal Opinion 10-457 (Lawyer Websites)",
+    "section": "Rule 1.18 (Duties to Prospective Client); Formal Opinion 10-457",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_1_18_duties_of_prospective_client/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments",
+    "ugc"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "website invites submission of case details via a contact form, chat, or 'free case evaluation' intake",
+    "form collects facts about a potential matter before any engagement"
+   ],
+   "excluded_when": [
+    "site collects only a name and contact request with no invitation to share matter details",
+    "an engagement agreement already governs the relationship"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Place a clear, understandable warning at the point of submission that reading the site or sending information does not create an attorney-client relationship and that submitted information may not be treated as confidential until an engagement is agreed",
+     "elements": [
+      "'submitting this form / this website does not create an attorney-client relationship' near the submit control",
+      "a caution that the firm may already represent an adverse party, or that confidentiality is not guaranteed until conflicts are cleared",
+      "warning is clear and reasonably understandable, not buried in a footer only"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Not a fine-based rule: the exposure is disqualification from an adverse matter and disciplinary risk if prospective-client information is mishandled under Rule 1.18",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "An intake form that invites case facts without a disclaimer can create Rule 1.18 duties to a person the firm never took on, and can disqualify the firm from representing the other side. Formal Opinion 10-457 makes the warning the fix.",
+    "regulator_asks_first": "The issue usually surfaces as a disqualification motion, not a bar complaint: the question is whether the site invited confidences without a warning.",
+    "relevance_hook": "Tamazia adds a clear point-of-submission disclaimer to contact and 'free evaluation' forms so intake does not create unwanted Rule 1.18 duties."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_1_18_duties_of_prospective_client/",
+     "pdf:Research Report (contact-form disclaimer lead)"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_ABA_FEE_ADVERTISING",
+   "name": "Honest fee and contingency-fee advertising (ABA Model Rule 7.1 with Rule 1.5)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state)",
+    "section": "Rule 7.1 (misleading communications) read with Rule 1.5 (fees)",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_1_5_fees/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney",
+    "personal-injury"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads",
+    "payments"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "site advertises fees, 'free consultation', or a contingency such as 'no fee unless we win' / 'no win no fee'"
+   ],
+   "excluded_when": [
+    "site states no fee information at all"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Make fee and contingency claims non-misleading: where 'no fee unless you win' is used, disclose that the client may still be liable for case costs and expenses if the state so requires",
+     "elements": [
+      "'no win no fee' / contingency claims qualified so a client is not misled about liability for costs/expenses",
+      "advertised fees are actually available for the described service (no bait figures)",
+      "'free consultation' claims honoured without hidden charge"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State bar disciplinary sanction: private or public reprimand, suspension, or disbarment; no fixed monetary civil fine attaches to most advertising breaches, though costs of the disciplinary proceeding are commonly assessed",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bar associations / state supreme courts",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "'No fee unless you win' is lawful in most states but misleading if it hides the client's liability for costs. Fee copy is a Rule 7.1 breach when the advertised deal is not the real deal.",
+    "regulator_asks_first": "Bars ask whether the advertised fee arrangement matches the retainer the client actually signs.",
+    "relevance_hook": "Tamazia audits fee and contingency copy so 'no win no fee' and 'free consultation' claims carry the disclosures their state requires."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_1_5_fees/",
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "CA_RPC_CH7",
+   "name": "California Rules of Professional Conduct, Chapter 7 (Rules 7.1-7.5) - Information About Legal Services",
+   "citation": {
+    "act": "California Rules of Professional Conduct (adopted by the Supreme Court of California, effective 1 November 2018)",
+    "section": "Rules 7.1, 7.2, 7.3, 7.4, 7.5",
+    "url": "https://www.calbar.ca.gov/legal-professionals/rules/rules-professional-conduct/current-rules-professional-conduct/chapter-7-information-about-legal-services"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "CA",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "lawyer admitted in California, or a firm with a California office, advertises legal services on its website",
+    "site claims a specialty or certification, uses a trade name, or advertises results/testimonials"
+   ],
+   "excluded_when": [
+    "operator holds no California admission or office and does not offer services to Californians"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Ensure communications are not false or misleading under Rule 7.1 (California retains comment guidance that even a truthful testimonial can mislead by creating an unjustified expectation)",
+     "elements": [
+      "no untrue or misleading statement",
+      "no unjustified expectation of results from testimonials or past results"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Claim 'certified specialist' only if certified by the California Board of Legal Specialization or a Board-designated entity, and name it (Rule 7.4)",
+     "elements": [
+      "certified-specialist claims name the California Board of Legal Specialization or approved certifier"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Use firm and trade names that are not false or misleading (Rule 7.5)",
+     "elements": [
+      "trade name not misleading; no implied government affiliation"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State Bar of California discipline: reproval, suspension, or disbarment by order of the Supreme Court of California",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "The State Bar of California",
+    "register_url": "https://www.calbar.ca.gov/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "California renumbered its rules to the ABA 7.1-7.5 scheme in 2018, so a US-standard audit maps cleanly, but California keeps its own certified-specialist body and its own advertising statute (B&P 6157-6159) on top.",
+    "regulator_asks_first": "The State Bar typically seeks correction/substantiation of the claim before formal discipline.",
+    "relevance_hook": "Tamazia audits California firm sites against both the RPC Chapter 7 rules and the B&P advertising statute in one pass."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.calbar.ca.gov/legal-professionals/rules/rules-professional-conduct/current-rules-professional-conduct/chapter-7-information-about-legal-services",
+     "https://www.calbar.ca.gov/Portals/0/documents/rules/New-Rules-of-Professional-Conduct-2018.pdf"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "CA_BPC_6157",
+   "name": "California Business and Professions Code sections 6157-6159 - Legal Advertising",
+   "citation": {
+    "act": "California Business and Professions Code, Division 3, Chapter 4, Article 9.5 (Legal Advertising)",
+    "section": "sections 6157, 6157.1, 6157.2, 6157.3, 6158, 6158.1, 6158.3, 6159",
+    "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=BPC&division=3.&title=&part=&chapter=4.&article=9.5."
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "CA",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "a lawyer advertises legal services to Californians through written, electronic or recorded media (websites and electronic media are 'advertisement' under the article)"
+   ],
+   "excluded_when": [
+    "communication is not an advertisement encouraging retention of the lawyer"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not include any false, misleading or deceptive statement; in electronic-media advertising the message as a whole must be factually substantiated (section 6158)",
+     "elements": [
+      "message as a whole not false, misleading or deceptive",
+      "electronic-media claims factually substantiated"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Do not use guarantees, warranties or predictions of outcome, or testimonials/endorsements without the disclosure the statute requires (section 6157.2)",
+     "elements": [
+      "no guarantee or prediction of result",
+      "required disclaimer accompanies dramatisations, spokespersons or testimonials"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Violation of section 6158, 6158.1 or 6158.3 is cause for discipline by the State Bar of California (section 6159); the Bar may investigate on complaint",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "The State Bar of California",
+    "register_url": "https://www.calbar.ca.gov/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "California is unusual in codifying attorney advertising in statute as well as the ethics rules. The electronic-media substantiation standard (section 6158) directly reaches website and video claims.",
+    "regulator_asks_first": "An investigation opens on a complaint; the Bar looks for substantiation of the advertised message as a whole.",
+    "relevance_hook": "Tamazia checks California firm advertising against the statutory substantiation and no-guarantee standards, not just the ethics rules."
+   },
+   "provenance": {
+    "sources": [
+     "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=BPC&division=3.&title=&part=&chapter=4.&article=9.5.",
+     "https://law.justia.com/codes/california/code-bpc/division-3/chapter-4/article-9-5/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "NY_RPC_7_1",
+   "name": "New York Rule 7.1 - Advertising, including the 'Attorney Advertising' label and copy-retention duties",
+   "citation": {
+    "act": "New York Rules of Professional Conduct (22 NYCRR Part 1200), adopted by the Appellate Divisions",
+    "section": "Rule 7.1 (22 NYCRR 1200.7.1), incl. 7.1(f) labelling and 7.1(k) retention",
+    "url": "https://www.nycourts.gov/LegacyPDFS/rules/jointappellate/NY-Rules-Prof-Conduct-1200.pdf"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "NY",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a lawyer admitted in New York, or a firm with a New York office, advertises services on its website",
+    "firm sends targeted written, electronic or recorded solicitations"
+   ],
+   "excluded_when": [
+    "communication is not an advertisement as defined (no primary purpose of retention)",
+    "operator holds no New York admission or office"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Label advertising 'Attorney Advertising' - on the home page for a website, and (for email) in the subject line, and on self-mailing brochures/postcards - as required by Rule 7.1(f)",
+     "elements": [
+      "'Attorney Advertising' on the website home page",
+      "'ATTORNEY ADVERTISING' in the subject line of advertising emails",
+      "label on self-mailing solicitation pieces"
+     ],
+     "evidence_type": "absence"
+    },
+    {
+     "duty": "Keep advertising truthful and non-misleading and retain a copy of each advertisement for the period the rule requires (Rule 7.1(k), generally at least one year for web content and three years for other ads)",
+     "elements": [
+      "no false, deceptive or misleading claims",
+      "no guarantee of results",
+      "copy retained per Rule 7.1(k)"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Discipline by the Appellate Division (admonition, censure, suspension, disbarment); no fixed monetary fine for advertising breaches",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "New York State Unified Court System - Appellate Division attorney grievance committees",
+    "register_url": "https://www.nycourts.gov/attorneys/grievance/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "New York's 'Attorney Advertising' label on the home page is a bright-line, easy-to-miss duty. A New York firm site with no label is a clean, defensible finding.",
+    "regulator_asks_first": "Grievance committees look first for the missing label and for guarantee-style claims.",
+    "relevance_hook": "Tamazia confirms the 'Attorney Advertising' label is present on the home page, in ad emails and on mailers, and flags guarantee copy."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.nycourts.gov/LegacyPDFS/rules/jointappellate/NY-Rules-Prof-Conduct-1200.pdf",
+     "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.1"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "NY_RPC_7_3_7_4",
+   "name": "New York Rules 7.3-7.5 - Solicitation, identification of practice/specialty, and firm names",
+   "citation": {
+    "act": "New York Rules of Professional Conduct (22 NYCRR Part 1200)",
+    "section": "Rules 7.3 (solicitation, 22 NYCRR 1200.7.3), 7.4 (identification of practice and specialty), 7.5 (professional notices, letterheads and names)",
+    "url": "https://www.nycourts.gov/LegacyPDFS/rules/jointappellate/NY-Rules-Prof-Conduct-1200.pdf"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "NY",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "firm sends targeted solicitations to specific recipients known to need legal services",
+    "site claims a specialty/certification or uses a firm/trade name or domain that operates as a professional notice"
+   ],
+   "excluded_when": [
+    "operator holds no New York admission or office"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Solicitations must be labelled and retained per Rule 7.3 and must not be made where prohibited (e.g. within the post-incident window New York imposes for certain personal-injury solicitations)",
+     "elements": [
+      "required 'Attorney Advertising' labelling on solicitations",
+      "respect for the personal-injury solicitation waiting period"
+     ],
+     "evidence_type": "absence"
+    },
+    {
+     "duty": "Do not state or imply certification as a specialist unless certified by an approved body, and give the required disclaimer (Rule 7.4)",
+     "elements": [
+      "certifier named",
+      "Rule 7.4 disclaimer that certification is not a requirement to practise and does not imply superior competence"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Firm names, domain names and professional notices must not be false or misleading (Rule 7.5)",
+     "elements": [
+      "trade/domain name not misleading; no implied public-agency status"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Discipline by the Appellate Division grievance committees",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "New York State Unified Court System - Appellate Division attorney grievance committees",
+    "register_url": "https://www.nycourts.gov/attorneys/grievance/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "New York keeps a numbered 7.4 with a mandatory specialist disclaimer that the ABA model no longer has, and it regulates domain names as professional notices. Both catch out-of-state marketers.",
+    "regulator_asks_first": "Committees ask whether a specialist claim carries the 7.4 disclaimer and whether solicitations were labelled.",
+    "relevance_hook": "Tamazia checks New York specialist claims for the 7.4 disclaimer and reviews solicitation labelling and firm/domain names."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.nycourts.gov/LegacyPDFS/rules/jointappellate/NY-Rules-Prof-Conduct-1200.pdf",
+     "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.3"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "TX_TDRPC_7_01",
+   "name": "Texas Disciplinary Rules of Professional Conduct, Part VII (Rules 7.01-7.03) - Information About Legal Services",
+   "citation": {
+    "act": "Texas Disciplinary Rules of Professional Conduct, Part VII (amendments approved by the Supreme Court of Texas effective 1 July 2021)",
+    "section": "Rules 7.01 (communications concerning a lawyer's services), 7.02 (advertisements), 7.03 (solicitation and payments)",
+    "url": "https://www.texasbar.com/Content/NavigationMenu/ForLawyers/MembershipInformation/AdvertisingReview2/TDRPC_VII.pdf"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "TX",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a lawyer licensed in Texas, or a firm with a Texas office, advertises legal services on its website",
+    "site claims a specialty/certification, advertises results, or drives solicitation"
+   ],
+   "excluded_when": [
+    "operator holds no Texas license or office"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Keep communications non-false and non-misleading (Rule 7.01) and confine specialist/certification claims to those permitted",
+     "elements": [
+      "no false or misleading claim",
+      "no unjustified expectation of results",
+      "specialist claims only if certified by the Texas Board of Legal Specialization or an approved body, with the certifier named"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Do not pay for or improperly solicit professional employment outside what Rule 7.03 permits",
+     "elements": [
+      "no prohibited in-person/telephone/electronic solicitation for pecuniary gain",
+      "no barred payment for recommendations"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Discipline by the State Bar of Texas / Supreme Court of Texas (reprimand, suspension, disbarment)",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State Bar of Texas - Advertising Review Department; Office of Chief Disciplinary Counsel",
+    "register_url": "https://www.texasbar.com/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Texas renumbered its advertising rules to a 7.01-7.07 scheme in 2021. The content rules mirror the ABA, but Texas layers a filing regime on top (see the filing record).",
+    "regulator_asks_first": "The Advertising Review Department reviews content and filings before formal discipline in most cases.",
+    "relevance_hook": "Tamazia audits Texas firm sites to the 2021 Part VII content rules and checks that specialist claims name the Texas Board of Legal Specialization."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.texasbar.com/Content/NavigationMenu/ForLawyers/MembershipInformation/AdvertisingReview2/TDRPC_VII.pdf",
+     "https://www.tlie.org/changes-to-texas-lawyers-advertising-and-solicitation-rules-the-highlights/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "TX_TDRPC_7_04",
+   "name": "Texas Rules 7.04-7.05 - mandatory filing / pre-approval of advertisements and solicitations with the Advertising Review Committee",
+   "citation": {
+    "act": "Texas Disciplinary Rules of Professional Conduct, Part VII (effective 1 July 2021)",
+    "section": "Rule 7.04 (filing requirements for advertisements and solicitation communications); Rule 7.05 (communications exempt from filing)",
+    "url": "https://www.texasbar.com/Content/NavigationMenu/ForLawyers/MembershipInformation/AdvertisingReview2/TDRPC_VII.pdf"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "TX",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a Texas lawyer disseminates an advertisement or solicitation communication that is not within a Rule 7.05 exemption"
+   ],
+   "excluded_when": [
+    "the communication is exempt from filing under Rule 7.05 (e.g. basic firm/lawyer identifying information, certain website content, and other listed categories)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "File a copy of each non-exempt advertisement or solicitation communication with the State Bar of Texas Advertising Review Committee, with the application form and the Board-set fee, no later than 10 days after first dissemination (Rule 7.04); optional binding pre-approval is available if submitted at least 30 days before first dissemination",
+     "elements": [
+      "copy of the ad/solicitation as disseminated",
+      "completed advertising and solicitation application",
+      "payment of the Board-authorised fee",
+      "filing within 10 days of dissemination, or 30-day pre-approval submission"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Failure to file is itself a disciplinary violation; sanctions range from reprimand to suspension. A per-item filing fee (set by the Board of Directors, typically around USD 100) applies but is a fee, not a penalty",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State Bar of Texas - Advertising Review Committee",
+    "register_url": "https://www.texasbar.com/Content/NavigationMenu/ForLawyers/AdvertisingReview/default.htm"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Texas is one of the few states with a mandatory pre-use/post-use filing regime. Non-exempt ads that were never filed are a discrete, provable violation independent of whether the content is misleading.",
+    "regulator_asks_first": "The Advertising Review Committee asks for the filing; an unfiled non-exempt ad is the finding.",
+    "relevance_hook": "Tamazia flags where a Texas firm's ads likely require filing and were not submitted, and where pre-approval would de-risk a campaign."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.texasbar.com/Content/NavigationMenu/ForLawyers/MembershipInformation/AdvertisingReview2/TDRPC_VII.pdf",
+     "https://www.legalethicstexas.com/resources/rules/texas-disciplinary-rules-of-professional-conduct/filing-requirements-for-advertisements-and-solicitation-communications/",
+     "pdf:Research Report (TX pre-approval regime lead)"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "FL_BAR_4_7_CONTENT",
+   "name": "Rules Regulating The Florida Bar, Subchapter 4-7 (Rules 4-7.11 to 4-7.18) - Information About Legal Services (content rules)",
+   "citation": {
+    "act": "Rules Regulating The Florida Bar, Chapter 4 (Rules of Professional Conduct), Subchapter 4-7",
+    "section": "Rules 4-7.11 to 4-7.18 (incl. 4-7.13 deceptive and inherently misleading advertisements; 4-7.14; 4-7.15 unduly manipulative or intrusive; 4-7.16 presumptively valid content; 4-7.18 direct contact/solicitation)",
+    "url": "https://www.floridabar.org/rules/rrtfb/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "FL",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a lawyer admitted in Florida, or a firm with a Florida office, advertises services on its website",
+    "site uses testimonials, past results, or characterisations of quality"
+   ],
+   "excluded_when": [
+    "operator holds no Florida admission or office"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Do not use deceptive or inherently misleading content (Rule 4-7.13): no misleading testimonials, no past results stated without adequate context, no comparisons or characterisations of skill/quality that cannot be objectively verified",
+     "elements": [
+      "testimonials comply with 4-7.13(b)(8) and are not misleading",
+      "past results presented with context per 4-7.13(b)(2)",
+      "no unverifiable 'best'/'expert' quality claims",
+      "required disclosures (e.g. non-lawyer spokesperson, dramatisation) present"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "Do not use statements that are unduly manipulative or intrusive (Rule 4-7.15)",
+     "elements": [
+      "no manipulative imagery/emotional pressure of the kind Florida prohibits"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Discipline by the Supreme Court of Florida on referral from The Florida Bar (admonishment, public reprimand, suspension, disbarment)",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "The Florida Bar - Ethics and Advertising Department",
+    "register_url": "https://www.floridabar.org/"
+   },
+   "enforcement": [
+    {
+     "case": "The Florida Bar v. Pape (and Chandler)",
+     "date": "2005-11",
+     "amount": "Public reprimand + mandatory advertising workshop",
+     "url": "https://www.floridabar.org/the-florida-bar-news/court-disciplines-lawyers-for-1-800-pit-bull-tv-ad/",
+     "summary": "Florida Supreme Court (918 So. 2d 240) held that a firm's pit-bull logo and 1-800-PIT-BULL number violated the advertising rules because the imagery conveyed nothing objectively relevant about the services and was not protected speech; both lawyers were publicly reprimanded."
+    }
+   ],
+   "intel": {
+    "why_matters": "Florida runs the strictest advertising regime in the country: detailed content rules plus a review process. Testimonials and past-results copy are the most common Florida findings.",
+    "regulator_asks_first": "The Bar's Ethics and Advertising Department evaluates the content and asks for correction before escalation.",
+    "relevance_hook": "Tamazia audits Florida firm sites against the detailed 4-7.13 content rules for testimonials, past results and quality claims."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.floridabar.org/rules/rrtfb/",
+     "https://www-media.floridabar.org/uploads/2025/12/Handbook-2025-Approved-by-SCA-12-10-25.pdf",
+     "https://www.floridabar.org/the-florida-bar-news/court-disciplines-lawyers-for-1-800-pit-bull-tv-ad/"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "FL_BAR_4_7_19",
+   "name": "Rules Regulating The Florida Bar, Rule 4-7.19 - Evaluation and mandatory filing of advertisements (with 4-7.20 exemptions)",
+   "citation": {
+    "act": "Rules Regulating The Florida Bar, Chapter 4, Subchapter 4-7",
+    "section": "Rule 4-7.19 (evaluation/filing); Rule 4-7.20 (exemptions from filing)",
+    "url": "https://www.floridabar.org/ethics/etad/advertising-filing-requirements/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "FL",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a Florida lawyer disseminates an advertisement that is not exempt under Rule 4-7.20"
+   ],
+   "excluded_when": [
+    "the advertisement is exempt under Rule 4-7.20 - notably a lawyer's or firm's own website is exempt from the filing requirement, though it remains subject to the content rules of Subchapter 4-7"
+   ],
+   "website_obligations": [
+    {
+     "duty": "For non-exempt advertisements, file a copy with The Florida Bar at least 20 days before first dissemination for evaluation; the Bar reviews against Rules 4-7.11 to 4-7.15 and 4-7.18(b)(2) and, absent a response within 15 days, the ad is deemed approved",
+     "elements": [
+      "non-exempt ad filed at least 20 days pre-dissemination",
+      "filing to the Ethics and Advertising Department in the manner the Bar specifies"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Note that website exemption from filing does not exempt the site from the content rules; the site content must still comply with Subchapter 4-7",
+     "elements": [
+      "website content compliant even though the site itself need not be filed"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Failure to file a non-exempt advertisement is a disciplinary violation; sanctions by the Supreme Court of Florida",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "The Florida Bar - Ethics and Advertising Department",
+    "register_url": "https://www.floridabar.org/ethics/etad/advertising-filing-requirements/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Florida's 20-day pre-filing rule is unusually strict, but the common misconception is that it covers websites - it does not. The value is in getting the boundary right: file the mailer, comply the website.",
+    "regulator_asks_first": "The Bar asks for the filing of any non-exempt ad and reviews content within 15 days.",
+    "relevance_hook": "Tamazia separates what a Florida firm must file (mailers, non-website ads) from what only needs content compliance (the website), so nothing is over- or under-filed."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.floridabar.org/ethics/etad/advertising-filing-requirements/",
+     "pdf:Research Report (FL ~20-day pre-use filing lead)"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "IL_RPC_7",
+   "name": "Illinois Rules of Professional Conduct of 2010, Rules 7.1-7.5 - Information About Legal Services",
+   "citation": {
+    "act": "Illinois Rules of Professional Conduct of 2010 (Illinois Supreme Court Rules, Article VIII)",
+    "section": "Rules 7.1, 7.2, 7.3, 7.4, 7.5",
+    "url": "https://www.illinoiscourts.gov/rules/supreme-court-rules?a=viii"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": "IL",
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "a lawyer admitted in Illinois, or a firm with an Illinois office, advertises services on its website",
+    "site claims a specialty/certification, uses a trade name, or advertises results/testimonials"
+   ],
+   "excluded_when": [
+    "operator holds no Illinois admission or office"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Keep communications non-false and non-misleading (Rule 7.1) and ensure advertising identifies a responsible lawyer (Rule 7.2)",
+     "elements": [
+      "no false or misleading claim; no unjustified expectation of results",
+      "name/office address of a responsible lawyer present"
+     ],
+     "evidence_type": "behavioural"
+    },
+    {
+     "duty": "State certification as a specialist only if certified by an approved organisation and give the Rule 7.4 disclaimer; keep firm/trade names non-misleading (Rule 7.5)",
+     "elements": [
+      "certifier named and Rule 7.4 disclaimer present",
+      "trade name not misleading"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Discipline by the Illinois Attorney Registration and Disciplinary Commission (ARDC) / Supreme Court of Illinois (reprimand, suspension, disbarment)",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Illinois Attorney Registration and Disciplinary Commission (ARDC)",
+    "register_url": "https://www.iardc.org/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Illinois retains a numbered 7.4 and 7.5 (unlike the current ABA model), so specialist disclaimers and firm-name rules apply by their own number. The ARDC actively pursues misleading online claims.",
+    "regulator_asks_first": "The ARDC typically seeks substantiation or correction of the online claim first.",
+    "relevance_hook": "Tamazia audits Illinois firm sites to Rules 7.1-7.5 including the retained specialist-disclaimer duty."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.illinoiscourts.gov/rules/supreme-court-rules?a=viii",
+     "https://www.isba.org/ethics/irpc/rule71"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-16"
+   },
+   "status": "candidate",
+   "client_useful": true
+  }
+ ]
+}

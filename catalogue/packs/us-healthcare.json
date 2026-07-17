@@ -1,0 +1,1285 @@
+{
+  "cell": "us-healthcare",
+  "jurisdiction": "US",
+  "generated": "2026-07-16",
+  "records": [
+    {
+      "id": "US_HIPAA_MKT",
+      "name": "HIPAA Privacy Rule - Marketing Authorization and Notice of Privacy Practices",
+      "citation": {
+        "act": "Health Insurance Portability and Accountability Act; 45 CFR Part 164",
+        "section": "45 CFR 164.508 (marketing authorization); 164.520 (Notice of Privacy Practices); 164.501 (marketing definition)",
+        "url": "https://www.ecfr.gov/current/title-45/section-164.508"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "runs_ads",
+        "health_claims"
+      ],
+      "required_nexus": [
+        "established_in",
+        "processes_residents_of"
+      ],
+      "applies_when": [
+        "Entity is a HIPAA covered entity (health plan, health care clearinghouse, or a health care provider that transmits health information electronically in connection with a covered transaction) or a business associate",
+        "Website uses protected health information (PHI) to market a product or service, or the provider must give patients a Notice of Privacy Practices"
+      ],
+      "excluded_when": [
+        "Entity is not a covered entity or business associate (for example a purely cash wellness business with no electronic covered transactions)",
+        "Communication falls within the treatment or care-coordination exceptions to the marketing definition in 45 CFR 164.501",
+        "De-identified data used per 164.514 (no PHI)"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Post a compliant Notice of Privacy Practices and link it from the site",
+          "elements": [
+            "Link to Notice of Privacy Practices reachable from the homepage and any patient-facing page",
+            "Description of uses and disclosures, individual rights, and the entity duties",
+            "Effective date and a contact for privacy complaints"
+          ],
+          "evidence_type": "presence"
+        },
+        {
+          "duty": "Obtain valid HIPAA authorization before any use or disclosure of PHI for marketing",
+          "elements": [
+            "No PHI-driven marketing (for example targeted email built from diagnosis or appointment data) without a signed 164.508 authorization",
+            "Authorization language discloses any remuneration where the marketing is paid for by a third party"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": 50000,
+        "typical_high": 1500000,
+        "statutory_max": 2134831,
+        "currency": "USD",
+        "basis": "Tiered civil monetary penalties per violation, with an annual cap per identical provision (inflation-adjusted, roughly 2.1m per violation category per calendar year); OCR resolution agreements common",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "U.S. Department of Health and Human Services, Office for Civil Rights (OCR)",
+        "register_url": "https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf"
+      },
+      "enforcement": [
+        {
+          "case": "Gums Dental Care (OCR civil monetary penalty)",
+          "date": "2024-10",
+          "amount": "USD 70,000",
+          "url": "https://www.hhs.gov/hipaa/for-professionals/compliance-enforcement/agreements/index.html",
+          "summary": "OCR imposed a 70,000 civil monetary penalty on a solo dental practice over a delayed patient records request, a signal that small practices are within enforcement reach."
+        }
+      ],
+      "intel": {
+        "why_matters": "A missing Notice of Privacy Practices or PHI used to build marketing lists is the most basic HIPAA failing OCR checks first, and it is visible on the public site.",
+        "regulator_asks_first": "Is a current Notice of Privacy Practices posted and linked, and can the entity show a signed authorization for any PHI used in marketing?",
+        "relevance_hook": "For a US covered entity the NPP link and marketing-authorization discipline are the first trust signals a regulator, and increasingly an AI answer engine, reads on the page."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ecfr.gov/current/title-45/section-164.508",
+          "https://www.ecfr.gov/current/title-45/section-164.520",
+          "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/marketing/index.html"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_HIPAA_TRACKING",
+      "name": "HIPAA Online Tracking Technologies Guidance (OCR Bulletin) and Post-Vacatur Status",
+      "citation": {
+        "act": "HIPAA Privacy and Security Rules; 45 CFR Part 164; OCR guidance 'Use of Online Tracking Technologies by HIPAA Covered Entities and Business Associates'",
+        "section": "45 CFR 164.502 (disclosures); 164.308/164.312 (safeguards); OCR bulletin Dec 2022, revised Mar 2024",
+        "url": "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/hipaa-online-tracking/index.html"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "cookies_present",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in",
+        "processes_residents_of"
+      ],
+      "applies_when": [
+        "Entity is a HIPAA covered entity or business associate",
+        "Third-party tracking technologies (for example Meta Pixel, Google Analytics, advertising SDKs) run on authenticated pages such as a patient portal, or on pages where a user identifier is combined with information that reveals the individual received or sought care"
+      ],
+      "excluded_when": [
+        "Entity is not a covered entity or business associate",
+        "Tracking runs only on unauthenticated public pages and does NOT combine an identifier with health-condition or provider-visit information (the 'Proscribed Combination' theory for IP-plus-unauthenticated-condition-page was vacated by the N.D. Texas court in AHA v. Becerra, 20 June 2024, and HHS did not appeal)",
+        "Valid HIPAA authorization or a Business Associate Agreement covers the disclosure"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Prevent impermissible disclosure of PHI to tracking vendors on authenticated and PHI-bearing pages",
+          "elements": [
+            "No third-party marketing or analytics trackers firing on patient-portal, appointment-booking, or symptom-check pages absent a BAA or authorization",
+            "Trackers on such pages inventoried and either removed or brought under a Business Associate Agreement",
+            "Server-side or de-identified analytics used where tracking is retained"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": 50000,
+        "typical_high": 1500000,
+        "statutory_max": 2134831,
+        "currency": "USD",
+        "basis": "HIPAA civil monetary penalties where an impermissible disclosure occurs; separate class-action and FTC exposure runs far higher (see enforcement)",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "U.S. Department of Health and Human Services, Office for Civil Rights (OCR)",
+        "register_url": "https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "A tracking pixel on an appointment or portal page is the single highest-cost web-compliance failure in US healthcare, with aggregate settlement exposure above 100m dollars, and it is detectable from network requests.",
+        "regulator_asks_first": "Which third-party trackers load on authenticated and appointment pages, and is each covered by a BAA or removed?",
+        "relevance_hook": "State it honestly: the court cut back part of the bulletin in June 2024, but the class actions and the FTC did not stop; the durable message is that PHI leaving through a pixel is still a live risk."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/hipaa-online-tracking/index.html",
+          "https://www.aha.org/news/headline/2024-08-29-hhs-will-not-appeal-aha-court-victory-online-tracking-case",
+          "https://www.hipaajournal.com/advocate-aurora-health-settles-pixel-lawsuit-for-12-25-million/",
+          "https://www.aha.org/news/news/2024-06-20-judge-rules-favor-aha-vacating-hhs-online-tracking-bulletin-unlawful-and-beyond-agency-authority"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_FTC_HBNR",
+      "name": "FTC Health Breach Notification Rule (2024 Final Rule)",
+      "citation": {
+        "act": "Federal Trade Commission Act; American Recovery and Reinvestment Act 2009 s.13407; 16 CFR Part 318",
+        "section": "16 CFR Part 318 (as amended, final rule published 30 May 2024, effective 29 July 2024)",
+        "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-318"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "cookies_present",
+        "runs_ads",
+        "payments"
+      ],
+      "required_nexus": [
+        "serves_customers_in",
+        "processes_residents_of"
+      ],
+      "applies_when": [
+        "Entity is a vendor of personal health records, a PHR-related entity, or a third-party service provider that is NOT covered by HIPAA",
+        "A health app or connected device draws identifiable health information from multiple sources (for example an app plus a device API or a synced account)",
+        "Unauthorized disclosure of identifiable health data occurs, including disclosure to advertising or analytics vendors via trackers or SDKs"
+      ],
+      "excluded_when": [
+        "Entity is a HIPAA covered entity or business associate acting in that capacity (HIPAA governs instead)",
+        "No identifiable health information is handled"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Do not disclose consumers' identifiable health data to advertising or analytics vendors without affirmative express consent",
+          "elements": [
+            "No pixels or SDKs transmitting health-question answers, health interests, or purchase data to Meta, Google, TikTok and similar without opt-in",
+            "Clear privacy disclosure of any sharing"
+          ],
+          "evidence_type": "behavioural"
+        },
+        {
+          "duty": "Maintain a breach-notification capability and disclosure",
+          "elements": [
+            "Ability to notify affected individuals, the FTC, and in some cases the media, of a breach of unsecured identifiable health data",
+            "Privacy policy reflects the notification commitment"
+          ],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": 1500000,
+        "typical_high": 7800000,
+        "statutory_max": 53088,
+        "currency": "USD",
+        "basis": "Civil penalty up to 53,088 dollars per violation per day (inflation-adjusted) for Rule violations; individual consumer-level counts drive very large totals",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "Federal Trade Commission (FTC)",
+        "register_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings"
+      },
+      "enforcement": [
+        {
+          "case": "GoodRx Holdings, Inc.",
+          "date": "2023-02",
+          "amount": "USD 1,500,000",
+          "url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2023090-goodrx-holdings-inc",
+          "summary": "FTC's first Health Breach Notification Rule action: 1.5m civil penalty for disclosing health data to Facebook, Google, Criteo, Branch and Twilio through tracking pixels and SDKs, and a ban on sharing health data for advertising."
+        }
+      ],
+      "intel": {
+        "why_matters": "Non-HIPAA health apps and direct-to-consumer wellness sites wrongly assume they are unregulated; the HBNR reaches exactly the tracker-and-SDK sharing that is visible in their network traffic.",
+        "regulator_asks_first": "Does the app or site share any identifiable health data with third-party advertisers or analytics vendors, and did the consumer affirmatively consent?",
+        "relevance_hook": "The GoodRx penalty was built on the same pixels most direct-to-consumer health sites still run, which makes this an immediate, demonstrable finding."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-318",
+          "https://www.federalregister.gov/documents/2024/05/30/2024-10855/health-breach-notification-rule",
+          "https://www.ftc.gov/news-events/news/press-releases/2024/04/ftc-finalizes-changes-health-breach-notification-rule"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_FTC5_HEALTH",
+      "name": "FTC Act Section 5 - Unfair or Deceptive Practices (Health Data and Privacy Claims)",
+      "citation": {
+        "act": "Federal Trade Commission Act",
+        "section": "15 U.S.C. 45",
+        "url": "https://www.ftc.gov/legal-library/browse/statutes/federal-trade-commission-act"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "cookies_present",
+        "runs_ads",
+        "health_claims"
+      ],
+      "required_nexus": [
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Entity markets a health or wellness product or service to US consumers",
+        "Site makes privacy or security representations (for example 'HIPAA compliant', 'your information is private', a privacy seal) or shares consumer data in a way that contradicts its stated practices"
+      ],
+      "excluded_when": [
+        "No commercial marketing to US consumers",
+        "Purely internal or B2B communication with no consumer-facing claim"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Ensure privacy and security representations are truthful and not contradicted by actual data flows",
+          "elements": [
+            "No unsupported 'HIPAA compliant' or privacy-seal claims",
+            "Data-sharing behaviour matches the privacy policy",
+            "Material connections and paid endorsements disclosed"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": 7100000,
+        "typical_high": 7800000,
+        "statutory_max": 53088,
+        "currency": "USD",
+        "basis": "Section 5 has no fixed maximum; relief includes consumer redress, disgorgement, injunctive bans, and civil penalties up to 53,088 dollars per violation where an order or rule is breached",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "Federal Trade Commission (FTC)",
+        "register_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings"
+      },
+      "enforcement": [
+        {
+          "case": "BetterHelp, Inc. (FTC final order)",
+          "date": "2023-07",
+          "amount": "USD 7,800,000",
+          "url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2023169-betterhelp-inc-matter",
+          "summary": "7.8m consumer refund and a ban on sharing health data for advertising, after disclosing email, IP and mental-health questionnaire data to Facebook, Snapchat, Criteo and Pinterest despite privacy promises."
+        },
+        {
+          "case": "Cerebral, Inc. (FTC order)",
+          "date": "2024-04",
+          "amount": "USD 7,100,000",
+          "url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2023092-cerebral-inc",
+          "summary": "Order over sharing sensitive consumer data with LinkedIn, TikTok and other platforms, illustrating the BetterHelp and GoodRx enforcement pattern for telehealth and mental-health brands."
+        }
+      ],
+      "intel": {
+        "why_matters": "The BetterHelp and Cerebral cases turned ordinary marketing pixels plus a privacy promise into multi-million-dollar orders; the deceptive gap is between the stated policy and the actual data flows.",
+        "regulator_asks_first": "Do the site privacy claims (including any 'HIPAA compliant' badge) match where consumer data actually goes?",
+        "relevance_hook": "An unbacked 'HIPAA compliant' seal or a privacy policy contradicted by live trackers is a clean, provable Section 5 exposure."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ftc.gov/legal-library/browse/cases-proceedings/2023169-betterhelp-inc-matter",
+          "https://www.ftc.gov/business-guidance/blog/2023/03/ftc-says-online-counseling-service-betterhelp-pushed-people-handing-over-health-information"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_ADA3",
+      "name": "Americans with Disabilities Act Title III - Website Accessibility",
+      "citation": {
+        "act": "Americans with Disabilities Act; 28 CFR Part 36",
+        "section": "42 U.S.C. 12181 et seq.; DOJ web accessibility guidance (2022) referencing WCAG 2.1 AA",
+        "url": "https://www.ada.gov/resources/web-guidance/"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c"
+      ],
+      "required_nexus": [
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Entity is a place of public accommodation, which includes the professional office of a health care provider (42 U.S.C. 12181(7)(F))",
+        "Website offers goods, services, appointment booking, or patient information to the US public"
+      ],
+      "excluded_when": [
+        "Purely private club or a US government entity (Title II, not Title III)",
+        "No US public-facing web presence"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Make the public-facing website accessible, in practice to WCAG 2.1 AA",
+          "elements": [
+            "Text alternatives for images, labelled form fields, sufficient colour contrast",
+            "Full keyboard operability and no keyboard traps",
+            "Captions for media; accessible booking and portal flows",
+            "Published accessibility statement describing conformance and a contact"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": 25000,
+        "typical_high": 150000,
+        "statutory_max": 150000,
+        "currency": "USD",
+        "basis": "Private suits seek injunctive relief plus attorney fees (settlements commonly tens of thousands); DOJ civil penalties up to 75,000 dollars for a first violation and 150,000 for subsequent violations",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "U.S. Department of Justice, Civil Rights Division (plus private litigants)",
+        "register_url": "https://www.ada.gov/"
+      },
+      "enforcement": [
+        {
+          "case": "accessiBe Inc. (FTC final order)",
+          "date": "2025-04",
+          "amount": "USD 1,000,000",
+          "url": "https://www.ftc.gov/legal-library/browse/cases-proceedings/2223156-accessibe-inc",
+          "summary": "1m order for claiming an AI accessibility widget could make any website WCAG-compliant and for formatting paid reviews as independent; confirms an accessibility overlay is not a defence to Title III."
+        },
+        {
+          "case": "Robles v. Domino's Pizza (9th Cir.; cert. denied)",
+          "date": "2019-10",
+          "amount": "n/a (injunctive precedent)",
+          "url": "https://www.ada.gov/resources/web-guidance/",
+          "summary": "Leading authority that ADA Title III applies to the websites of public accommodations, the engine behind thousands of annual web-accessibility suits."
+        }
+      ],
+      "intel": {
+        "why_matters": "Health-provider sites are frequent ADA web-suit targets, and an overlay widget does not cure it; a genuine WCAG 2.1 AA pass plus a statement is the defensible posture.",
+        "regulator_asks_first": "Does the site meet WCAG 2.1 AA in practice and publish an accessibility statement, or is it relying on an overlay?",
+        "relevance_hook": "Automated accessibility failures (missing alt text, unlabelled booking forms, contrast) are objective, demonstrable findings that map straight to litigation risk."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ada.gov/resources/web-guidance/",
+          "https://www.ftc.gov/legal-library/browse/cases-proceedings/2223156-accessibe-inc"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_HHS_504_WEB",
+      "name": "HHS Section 504 Rule - Web and Mobile Application Accessibility",
+      "citation": {
+        "act": "Section 504 of the Rehabilitation Act of 1973; 45 CFR Part 84",
+        "section": "45 CFR 84.84 (web and mobile accessibility, WCAG 2.1 AA); final rule published 9 May 2024",
+        "url": "https://www.federalregister.gov/documents/2024/05/09/2024-09237/nondiscrimination-on-the-basis-of-disability-in-programs-or-activities-receiving-federal-financial"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c"
+      ],
+      "required_nexus": [
+        "established_in"
+      ],
+      "applies_when": [
+        "Entity is a recipient of HHS federal financial assistance (for example a hospital, clinic, or provider receiving Medicaid, Medicare Part A, or HHS grants)",
+        "Entity operates a public-facing website or mobile application"
+      ],
+      "excluded_when": [
+        "Entity receives no HHS federal financial assistance",
+        "Content types within the rule's specific exceptions (for example certain archived or pre-existing conventional electronic documents)"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Bring web content and mobile apps into conformance with WCAG 2.1 Level AA by the applicable compliance date",
+          "elements": [
+            "WCAG 2.1 AA conformance across public web content and mobile apps",
+            "Remediation plan and accessibility statement",
+            "Attention to booking, portal, and forms flows"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "Enforced through OCR administrative action and the federal-funding condition; non-compliance can jeopardise HHS funding and trigger complaints. No fixed monetary maximum in the rule",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "U.S. Department of Health and Human Services, Office for Civil Rights (OCR)",
+        "register_url": "https://www.hhs.gov/civil-rights/for-individuals/disability/index.html"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "This is a hard, HHS-specific digital-accessibility mandate distinct from ADA Title III, tied to federal funding, and it reaches most hospitals and clinics.",
+        "regulator_asks_first": "Is the site on a documented path to WCAG 2.1 AA by the applicable Section 504 compliance date?",
+        "relevance_hook": "State the date honestly: the compliance deadline for recipients with 15 or more employees was extended from 11 May 2026 to 11 May 2027 (and to 10 May 2028 for smaller recipients), but the WCAG 2.1 AA obligation itself stands."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.federalregister.gov/documents/2024/05/09/2024-09237/nondiscrimination-on-the-basis-of-disability-in-programs-or-activities-receiving-federal-financial",
+          "https://www.hhs.gov/press-room/hhs-extends-mobile-and-web-accessibility-deadline.html"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_FDA_RX_202",
+      "name": "FDA 21 CFR Part 202 - Prescription Drug Advertising (including online and DTC)",
+      "citation": {
+        "act": "Federal Food, Drug, and Cosmetic Act; 21 CFR Part 202",
+        "section": "21 CFR 202.1; FD&C Act s.502(n) (21 U.S.C. 352(n))",
+        "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-C/part-202"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [
+        "pharmaceutical"
+      ],
+      "activity_tags": [
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Entity advertises or promotes a prescription drug to US audiences online, including product pages, social posts, and paid search"
+      ],
+      "excluded_when": [
+        "No prescription-drug promotion (for example a provider site that names no branded Rx product for promotional purposes)",
+        "Scientific exchange or approved labelling reproduced without promotional claims"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Present prescription-drug promotion with fair balance and required disclosures",
+          "elements": [
+            "Established (generic) name accompanies the brand name",
+            "Fair balance of risk and benefit information, not benefit-only",
+            "Only on-label, substantiated claims; no unapproved uses",
+            "Access to a brief summary or a clear link to Full Prescribing Information"
+          ],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "FDA (OPDP) issues untitled and warning letters requiring corrective action; misbranding can lead to injunction, seizure and criminal prosecution. No standard civil-penalty schedule for this provision",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "U.S. Food and Drug Administration, Office of Prescription Drug Promotion (OPDP)",
+        "register_url": "https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-pharmaceutical-companies"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "Benefit-heavy Rx promotion without fair balance or a Prescribing Information link is the classic OPDP warning-letter trigger and is visible on the product page.",
+        "regulator_asks_first": "Does the promotional page carry fair balance, the established name, and a route to Full Prescribing Information, with no off-label claims?",
+        "relevance_hook": "Fair balance and a Full Prescribing Information link are binary checks; their absence on an Rx product page is an immediate FDA-promotion flag."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-C/part-202",
+          "https://www.fda.gov/about-fda/center-drug-evaluation-and-research-cder/office-prescription-drug-promotion-opdp"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_FDA_DEVICE",
+      "name": "FDA Medical Device Promotion and Misbranding (FD&C Act)",
+      "citation": {
+        "act": "Federal Food, Drug, and Cosmetic Act; 21 CFR Parts 801 and 807",
+        "section": "FD&C Act s.502 (21 U.S.C. 352) misbranding; 21 CFR 801 (labelling); intended-use claims",
+        "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-H/part-801"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [
+        "medical-devices"
+      ],
+      "activity_tags": [
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Entity markets a medical device (including software as a medical device) to US audiences online and makes claims about its performance, safety, or intended use"
+      ],
+      "excluded_when": [
+        "Product is not a device, or claims are strictly general-wellness within FDA's low-risk general-wellness policy",
+        "No promotional intended-use claims that would establish device status or off-label use"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Keep device promotion consistent with the cleared or approved intended use and truthful",
+          "elements": [
+            "Claims limited to the device's cleared or approved intended use; no promotion of unapproved uses",
+            "Required labelling and directions accessible; no false or misleading performance claims",
+            "Consistency between marketing claims and FDA clearance or approval status"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "FDA warning letters, seizure, injunction and criminal prosecution for misbranding; FTC may act in parallel on deceptive claims. No standard civil-penalty schedule for the misbranding provision",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "U.S. Food and Drug Administration, Center for Devices and Radiological Health (CDRH)",
+        "register_url": "https://www.fda.gov/inspections-compliance-enforcement-and-criminal-investigations/compliance-actions-and-activities/warning-letters"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "Aesthetic, wellness and digital-health sites routinely make device claims that exceed the cleared intended use, which is a misbranding and FTC risk visible in the copy.",
+        "regulator_asks_first": "Do the device claims match the FDA-cleared or approved intended use, and are any performance claims substantiated?",
+        "relevance_hook": "Off-label or exaggerated device claims on a treatment or product page are a concrete, quotable finding."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-H/part-801",
+          "https://www.fda.gov/medical-devices/device-advice-comprehensive-regulatory-assistance/medical-device-advertising-and-promotion"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_FTC_SUBST_HEALTH",
+      "name": "FTC Health-Claims Substantiation Doctrine",
+      "citation": {
+        "act": "Federal Trade Commission Act; FTC Health Products Compliance Guidance (2022); FTC Policy Statement on Advertising Substantiation (1984)",
+        "section": "15 U.S.C. 45; competent and reliable scientific evidence standard",
+        "url": "https://www.ftc.gov/business-guidance/resources/health-products-compliance-guidance"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [
+        "wellness",
+        "supplements"
+      ],
+      "activity_tags": [
+        "health_claims",
+        "runs_ads",
+        "b2c"
+      ],
+      "required_nexus": [
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Entity makes objective health, disease, treatment, or fitness claims to US consumers (for example 'clinically proven', 'reduces pain', before-and-after results)"
+      ],
+      "excluded_when": [
+        "No objective health or performance claims (pure opinion or general branding)",
+        "Claims backed by, and consistent with, competent and reliable scientific evidence with proper disclosures"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Hold competent and reliable scientific evidence for every objective health claim before it is published",
+          "elements": [
+            "Substantiation (generally well-conducted human clinical evidence) on file for each claim",
+            "No 'clinically proven' or comparative superiority claim without the matching evidence",
+            "Testimonials reflect typical results or carry a clear typicality disclosure; material connections disclosed"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": 53088,
+        "currency": "USD",
+        "basis": "Injunctive relief, consumer redress, disgorgement, and corrective advertising; civil penalties up to 53,088 dollars per violation where an order or the Health Products rule framework is breached",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "Federal Trade Commission (FTC)",
+        "register_url": "https://www.ftc.gov/legal-library/browse/cases-proceedings"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "Unsubstantiated 'clinically proven', 'guaranteed', and atypical before-and-after claims are the most common health-marketing violation and are readable straight off the page.",
+        "regulator_asks_first": "Can the advertiser produce competent and reliable scientific evidence for each objective claim, and do testimonials carry typicality disclosures?",
+        "relevance_hook": "Phrases like 'clinically proven' or 'permanent results' with no citation, and undisclosed before-and-after galleries, are direct, quotable substantiation findings."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ftc.gov/business-guidance/resources/health-products-compliance-guidance",
+          "https://www.ftc.gov/legal-library/browse/federal-register-notices/policy-statement-regarding-advertising-substantiation"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_MEDBOARD_ADV_CA",
+      "name": "State Medical Board Advertising Rules - California",
+      "citation": {
+        "act": "California Business and Professions Code; Medical Board of California",
+        "section": "Cal. Bus. & Prof. Code 651 (false or misleading advertising); 2271 (misdemeanor for deceptive advertising)",
+        "url": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=651."
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": "CA",
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in",
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Physician or medical practice licensed in California, or advertising professional medical services to California residents",
+        "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
+      ],
+      "excluded_when": [
+        "Not a licensed medical practice and not advertising medical services in the state",
+        "Purely factual, accurate practice information with no comparative or outcome claims"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Keep all advertising truthful, non-misleading, and properly substantiated",
+          "elements": [
+            "No false, misleading or deceptive statements about services or outcomes",
+            "Accurate board-certification and specialty statements (no implying certification the physician does not hold)",
+            "No unsubstantiated superiority claims ('best', 'guaranteed', 'painless', 'permanent cure')",
+            "Patient testimonials and before-and-after images carry required disclosures"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Medical Board of California (and the Attorney General for injunctive relief)",
+        "register_url": "https://www.mbc.ca.gov/"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "State boards, alongside the FTC, act on misleading treatment claims and inaccurate board-certification statements; the risky language sits on the homepage.",
+        "regulator_asks_first": "Are the board-certification statements accurate and are outcome or superiority claims substantiated?",
+        "relevance_hook": "For a California-licensed practice, superlatives and unqualified 'board-certified' or 'guaranteed' claims are a licence-level exposure, not just a marketing quibble."
+      },
+      "provenance": {
+        "sources": [
+          "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=651.",
+          "https://www.mbc.ca.gov/"
+        ],
+        "seed_status": "corrected",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_MEDBOARD_ADV_NY",
+      "name": "State Medical Board Advertising Rules - New York",
+      "citation": {
+        "act": "New York Education Law; Rules of the Board of Regents",
+        "section": "N.Y. Educ. Law 6530(27); 8 NYCRR 29.1(b)(12) (advertising or soliciting not in the public interest, including false, deceptive or misleading advertising)",
+        "url": "https://www.op.nysed.gov/professions/physicians/laws-rules-regulations/article-131a"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": "NY",
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in",
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Physician or medical practice licensed in New York, or advertising professional medical services to New York residents",
+        "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
+      ],
+      "excluded_when": [
+        "Not a licensed medical practice and not advertising medical services in the state",
+        "Purely factual, accurate practice information with no comparative or outcome claims"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Keep all advertising truthful, non-misleading, and properly substantiated",
+          "elements": [
+            "No false, misleading or deceptive statements about services or outcomes",
+            "Accurate board-certification and specialty statements (no implying certification the physician does not hold)",
+            "No unsubstantiated superiority claims ('best', 'guaranteed', 'painless', 'permanent cure')",
+            "Patient testimonials and before-and-after images carry required disclosures"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "New York State Board for Professional Medical Conduct / Office of the Professions",
+        "register_url": "https://www.health.ny.gov/professionals/doctors/conduct/"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "State boards, alongside the FTC, act on misleading treatment claims and inaccurate board-certification statements; the risky language sits on the homepage.",
+        "regulator_asks_first": "Are the board-certification statements accurate and are outcome or superiority claims substantiated?",
+        "relevance_hook": "For a New York-licensed practice, superlatives and unqualified 'board-certified' or 'guaranteed' claims are a licence-level exposure, not just a marketing quibble."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.op.nysed.gov/professions/physicians/laws-rules-regulations/article-131a",
+          "https://www.health.ny.gov/professionals/doctors/conduct/"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_MEDBOARD_ADV_TX",
+      "name": "State Medical Board Advertising Rules - Texas",
+      "citation": {
+        "act": "Texas Occupations Code; Texas Administrative Code (Texas Medical Board rules)",
+        "section": "Tex. Occ. Code 164.052(a)(6) (false, misleading or deceptive advertising); 22 TAC Chapter 164 (Physician Advertising)",
+        "url": "https://www.tmb.texas.gov/page/laws-rules"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": "TX",
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in",
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Physician or medical practice licensed in Texas, or advertising professional medical services to Texas residents",
+        "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
+      ],
+      "excluded_when": [
+        "Not a licensed medical practice and not advertising medical services in the state",
+        "Purely factual, accurate practice information with no comparative or outcome claims"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Keep all advertising truthful, non-misleading, and properly substantiated",
+          "elements": [
+            "No false, misleading or deceptive statements about services or outcomes",
+            "Accurate board-certification and specialty statements (no implying certification the physician does not hold)",
+            "No unsubstantiated superiority claims ('best', 'guaranteed', 'painless', 'permanent cure')",
+            "Patient testimonials and before-and-after images carry required disclosures"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Texas Medical Board",
+        "register_url": "https://www.tmb.texas.gov/"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "State boards, alongside the FTC, act on misleading treatment claims and inaccurate board-certification statements; the risky language sits on the homepage.",
+        "regulator_asks_first": "Are the board-certification statements accurate and are outcome or superiority claims substantiated?",
+        "relevance_hook": "For a Texas-licensed practice, superlatives and unqualified 'board-certified' or 'guaranteed' claims are a licence-level exposure, not just a marketing quibble."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.tmb.texas.gov/page/laws-rules",
+          "https://www.tmb.texas.gov/"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_MEDBOARD_ADV_FL",
+      "name": "State Medical Board Advertising Rules - Florida",
+      "citation": {
+        "act": "Florida Statutes; Florida Administrative Code (Board of Medicine)",
+        "section": "Fla. Stat. 458.331 (disciplinary grounds) and 456.062 (advertising of free or discounted services); Rule 64B8-11 F.A.C. (advertising)",
+        "url": "https://www.flsenate.gov/Laws/Statutes/2024/458.331"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": "FL",
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in",
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Physician or medical practice licensed in Florida, or advertising professional medical services to Florida residents",
+        "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
+      ],
+      "excluded_when": [
+        "Not a licensed medical practice and not advertising medical services in the state",
+        "Purely factual, accurate practice information with no comparative or outcome claims"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Keep all advertising truthful, non-misleading, and properly substantiated",
+          "elements": [
+            "No false, misleading or deceptive statements about services or outcomes",
+            "Accurate board-certification and specialty statements (no implying certification the physician does not hold)",
+            "No unsubstantiated superiority claims ('best', 'guaranteed', 'painless', 'permanent cure')",
+            "Patient testimonials and before-and-after images carry required disclosures"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Florida Board of Medicine (Department of Health)",
+        "register_url": "https://flboardofmedicine.gov/"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "State boards, alongside the FTC, act on misleading treatment claims and inaccurate board-certification statements; the risky language sits on the homepage.",
+        "regulator_asks_first": "Are the board-certification statements accurate and are outcome or superiority claims substantiated?",
+        "relevance_hook": "For a Florida-licensed practice, superlatives and unqualified 'board-certified' or 'guaranteed' claims are a licence-level exposure, not just a marketing quibble."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.flsenate.gov/Laws/Statutes/2024/458.331",
+          "https://flboardofmedicine.gov/"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_MEDBOARD_ADV_IL",
+      "name": "State Medical Board Advertising Rules - Illinois",
+      "citation": {
+        "act": "Illinois Medical Practice Act of 1987",
+        "section": "225 ILCS 60/22 (disciplinary grounds, including false or misleading statements about skill or the efficacy or value of treatment)",
+        "url": "https://www.ilga.gov/legislation/ilcs/fulltext.asp?DocName=022500600K22"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": "IL",
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "health_claims",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in",
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Physician or medical practice licensed in Illinois, or advertising professional medical services to Illinois residents",
+        "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
+      ],
+      "excluded_when": [
+        "Not a licensed medical practice and not advertising medical services in the state",
+        "Purely factual, accurate practice information with no comparative or outcome claims"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Keep all advertising truthful, non-misleading, and properly substantiated",
+          "elements": [
+            "No false, misleading or deceptive statements about services or outcomes",
+            "Accurate board-certification and specialty statements (no implying certification the physician does not hold)",
+            "No unsubstantiated superiority claims ('best', 'guaranteed', 'painless', 'permanent cure')",
+            "Patient testimonials and before-and-after images carry required disclosures"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Illinois Department of Financial and Professional Regulation (Medical Disciplinary Board)",
+        "register_url": "https://idfpr.illinois.gov/"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "State boards, alongside the FTC, act on misleading treatment claims and inaccurate board-certification statements; the risky language sits on the homepage.",
+        "regulator_asks_first": "Are the board-certification statements accurate and are outcome or superiority claims substantiated?",
+        "relevance_hook": "For a Illinois-licensed practice, superlatives and unqualified 'board-certified' or 'guaranteed' claims are a licence-level exposure, not just a marketing quibble."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ilga.gov/legislation/ilcs/fulltext.asp?DocName=022500600K22",
+          "https://idfpr.illinois.gov/"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_TELEHEALTH_LICENSURE",
+      "name": "Telehealth State Licensure Requirement (Advisory)",
+      "citation": {
+        "act": "State medical practice acts (licensure where the patient is located); Federation of State Medical Boards guidance",
+        "section": "State-specific medical practice acts; the practice of medicine is generally deemed to occur where the patient is located",
+        "url": "https://telehealth.hhs.gov/licensure/licensing-across-state-lines"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [
+        "telehealth"
+      ],
+      "activity_tags": [
+        "b2c",
+        "health_claims"
+      ],
+      "required_nexus": [
+        "serves_customers_in",
+        "processes_residents_of"
+      ],
+      "applies_when": [
+        "Entity or clinician provides telehealth to patients located in US states",
+        "Website advertises nationwide or multi-state availability, or lists conditions treated for patients in specific states (for example CA, NY, TX, FL, IL)"
+      ],
+      "excluded_when": [
+        "Services limited to states where every treating clinician is licensed or validly registered",
+        "Care that falls within a recognised state exception (for example physician-to-physician consultation or follow-up continuity of care)"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Do not represent availability of care in states where clinicians are not licensed or registered",
+          "elements": [
+            "Claims of 'available in all 50 states' or state lists match actual clinician licensure or telehealth-registration coverage",
+            "State-availability logic in the booking flow gated to licensed states",
+            "No implication of a treatment relationship the clinician cannot lawfully form in that state"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "Practising without a licence in the patient's state is unlicensed practice: state-board cease-and-desist, fines and, in some states, criminal exposure; amounts vary by state",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "State medical boards (patient-location state)",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "Most state medical practice acts locate the practice of medicine where the patient sits, so a 'nationwide' telehealth claim can assert unlicensed practice in states the clinicians do not cover.",
+        "regulator_asks_first": "Do the states named or implied on the site match the states where the treating clinicians actually hold a licence or telehealth registration?",
+        "relevance_hook": "An 'available in all 50 states' banner that the licence footprint cannot support is a demonstrable state-availability overclaim, especially across CA, NY, TX, FL and IL."
+      },
+      "provenance": {
+        "sources": [
+          "https://telehealth.hhs.gov/licensure/licensing-across-state-lines",
+          "https://www.fsmb.org/advocacy/telemedicine/",
+          "https://www.fsmb.org/contact-a-state-medical-board/"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_CURES_INFOBLOCK",
+      "name": "21st Century Cures Act - Information Blocking and Patient Access",
+      "citation": {
+        "act": "21st Century Cures Act; ONC interoperability and information-blocking rule; 45 CFR Part 171",
+        "section": "45 CFR Part 171 (information blocking and exceptions); PHSA s.3022; disincentives rule 45 CFR Part 171 subpart / 42 CFR (2024)",
+        "url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-171"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c"
+      ],
+      "required_nexus": [
+        "established_in"
+      ],
+      "applies_when": [
+        "Entity is an 'actor' under the rule: a health care provider, a health IT developer of certified health IT, or a health information network or exchange",
+        "Entity operates a patient portal or otherwise controls patient access to electronic health information (EHI)"
+      ],
+      "excluded_when": [
+        "Entity is not an actor under 45 CFR 171.102",
+        "Practice fits one of the eight information-blocking exceptions (for example the Privacy, Security, or Infeasibility exceptions)"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Do not interfere with patients' timely, no-cost electronic access to their health information through the portal",
+          "elements": [
+            "Patient portal provides access to EHI without unnecessary delay",
+            "No fees or friction that would constitute information blocking for standard patient access",
+            "Portal access and rights signposted; delays justified only by a recognised exception"
+          ],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": 1000000,
+        "statutory_max": 1000000,
+        "currency": "USD",
+        "basis": "Health IT developers and HIEs/HINs face civil monetary penalties up to 1,000,000 dollars per violation; health care providers face 'appropriate disincentives' set by HHS rather than CMPs",
+        "max_is_rare": false
+      },
+      "regulator": {
+        "name": "HHS Assistant Secretary for Technology Policy / ONC and the HHS Office of Inspector General (OIG)",
+        "register_url": "https://www.healthit.gov/topic/information-blocking"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "Portals that delay or charge for patient access, or bury the access route, risk an information-blocking finding, and this is the patient-access signal AI and regulators expect a modern provider site to carry.",
+        "regulator_asks_first": "Can patients get timely, no-cost electronic access to their records through the portal, without practices that would count as information blocking?",
+        "relevance_hook": "A patient-portal access path that is missing, delayed, or fee-gated is a concrete Cures Act signal on the site."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-171",
+          "https://www.healthit.gov/topic/information-blocking",
+          "https://www.federalregister.gov/documents/2024/07/01/2024-13793/21st-century-cures-act-establishment-of-disincentives-for-health-care-providers-that-have-committed"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_WA_MHMDA",
+      "name": "Washington My Health My Data Act (Consumer Health Data)",
+      "citation": {
+        "act": "My Health My Data Act",
+        "section": "RCW 19.373 (Chapter 19.373 RCW)",
+        "url": "https://app.leg.wa.gov/RCW/default.aspx?cite=19.373"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": "WA",
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "cookies_present",
+        "runs_ads",
+        "health_claims"
+      ],
+      "required_nexus": [
+        "serves_customers_in",
+        "processes_residents_of"
+      ],
+      "applies_when": [
+        "Entity conducts business in Washington or targets Washington consumers and collects 'consumer health data' (broadly defined, including data that identifies a consumer's health status, conditions, or attempts to seek care)",
+        "Entity is NOT acting as a HIPAA covered entity for that data"
+      ],
+      "excluded_when": [
+        "Data is HIPAA protected health information or otherwise exempt under RCW 19.373",
+        "Entity does not collect consumer health data or does not reach Washington consumers"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Publish a separate consumer health data privacy policy and obtain consent before collection or sharing",
+          "elements": [
+            "Distinct 'Consumer Health Data Privacy Policy' linked on the homepage",
+            "Affirmative, separate consent before collecting consumer health data and again before sharing it",
+            "No selling of consumer health data without a valid written authorization",
+            "No geofencing around health-care facilities to trigger ads or collect data"
+          ],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "Enforced under the Washington Consumer Protection Act; violations are actionable by the Attorney General and via a private right of action, with CPA remedies",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Washington State Attorney General (plus private right of action)",
+        "register_url": "https://www.atg.wa.gov/"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "MHMDA reaches direct-to-consumer health and wellness sites that fall outside HIPAA, and it demands a distinct policy plus consent that most sites do not have; the private right of action raises the stakes.",
+        "regulator_asks_first": "Is there a separate consumer health data privacy policy, and is consent obtained before any consumer health data is collected or shared?",
+        "relevance_hook": "A missing standalone Consumer Health Data Privacy Policy and pre-consent trackers are visible, provable MHMDA gaps for any site reaching Washington users."
+      },
+      "provenance": {
+        "sources": [
+          "https://app.leg.wa.gov/RCW/default.aspx?cite=19.373",
+          "https://www.atg.wa.gov/protecting-washingtonians-personal-health-data-and-privacy"
+        ],
+        "seed_status": "gap_filled",
+        "verified_date": "2026-07-16"
+      },
+      "status": "candidate",
+      "client_useful": true
+    }
+  ]
+}
