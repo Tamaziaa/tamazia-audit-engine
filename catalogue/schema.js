@@ -322,16 +322,17 @@ function validatePenalty(record) {
   return v;
 }
 
-// regulator {name, register_url}
+// badRegisterUrl(u) -> true when a register_url is present (not null/undefined) yet not http(s).
+function badRegisterUrl(u) {
+  return u !== null && u !== undefined && !isHttpUrl(u);
+}
+
 function validateRegulator(record) {
+  if (!isPlainObject(record.regulator)) return ['regulator: required object {name, register_url}'];
   const v = [];
-  if (!isPlainObject(record.regulator)) {
-    v.push('regulator: required object {name, register_url}');
-  } else {
-    if (!isNonEmptyString(record.regulator.name)) v.push('regulator.name: required non-empty string');
-    if (record.regulator.register_url !== null && record.regulator.register_url !== undefined) {
-      if (!isHttpUrl(record.regulator.register_url)) v.push('regulator.register_url: ' + JSON.stringify(record.regulator.register_url) + ' must be null or a valid http(s) URL');
-    }
+  if (!isNonEmptyString(record.regulator.name)) v.push('regulator.name: required non-empty string');
+  if (badRegisterUrl(record.regulator.register_url)) {
+    v.push('regulator.register_url: ' + JSON.stringify(record.regulator.register_url) + ' must be null or a valid http(s) URL');
   }
   return v;
 }

@@ -46,6 +46,17 @@ const VALUE_FLAGS = {
 // (see listPackFiles/computePackSha in compile.js) that needs neither: it exists to produce the
 // sha256 a human embeds in a .QA.md approval header, which by definition happens BEFORE that
 // header exists.
+// consumeFlagValue(args, i, flag, ErrorClass) -> the token following a value flag. A value flag must
+// never consume the NEXT FLAG as its value: "--out --print-hashes" would otherwise treat
+// "--print-hashes" as the output path and complete the wrong operation.
+function consumeFlagValue(args, i, flag, ErrorClass) {
+  const value = args[i + 1];
+  if (value === undefined || value.startsWith('--')) {
+    throw new ErrorClass(flag + ' requires a value, got ' + (value === undefined ? 'end of arguments' : JSON.stringify(value)));
+  }
+  return value;
+}
+
 function parseArgs(argv, defaultOut, ErrorClass) {
   const args = argv.slice(2);
   const state = { stamp: null, stampFile: null, out: defaultOut, packsDir: null, printHashes: false, unknown: [] };
@@ -53,16 +64,9 @@ function parseArgs(argv, defaultOut, ErrorClass) {
     const flag = args[i];
     if (flag === '--print-hashes') { state.printHashes = true; continue; }
     const handler = VALUE_FLAGS[flag];
-    if (handler) {
-      const value = args[i + 1];
-      // A value flag must never consume the NEXT FLAG as its value: "--out --print-hashes" would
-      // otherwise treat "--print-hashes" as the output path and complete the wrong operation.
-      if (value === undefined || value.startsWith('--')) {
-        throw new ErrorClass(flag + ' requires a value, got ' + (value === undefined ? 'end of arguments' : JSON.stringify(value)));
-      }
-      handler(state, value, ErrorClass); i += 1; continue;
-    }
-    state.unknown.push(flag);
+    if (!handler) { state.unknown.push(flag); continue; }
+    handler(state, consumeFlagValue(args, i, flag, ErrorClass), ErrorClass);
+    i += 1;
   }
   return state;
 }
