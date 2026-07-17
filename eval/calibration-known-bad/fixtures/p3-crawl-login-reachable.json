@@ -1,0 +1,13 @@
+{
+  "note": "SEEDED KNOWN-BAD (P3, caution.md C-031). crawl-escalation force-set reachable=true whenever a page had length > 0, so a login/challenge page (which is long) flipped the site to reachable and re-enabled absence findings on junk. The crawler must classify a login-dominant homepage as NOT content: reachable stays false, nothing is asserted. Consumed by evidence/crawler/crawl.test.js.",
+  "domain": "walled.example",
+  "pages": {
+    "https://walled.example/": "<html><head><title>Sign in</title></head><body><h1>Please sign in</h1><form method=\"post\" action=\"/auth\"><label>Username<input type=\"text\" name=\"user\"></label><label>Password<input type=\"password\" name=\"pass\"></label><button>Log in</button></form><p>Please log in to continue to your account.</p></body></html>",
+    "https://walled.example/privacy": "<html><head><title>Sign in</title></head><body><h1>Please sign in</h1><form><input type=\"password\" name=\"pass\"></form>Log in to continue.</body></html>"
+  },
+  "expect": {
+    "unreachable": true,
+    "reason": "login_wall",
+    "contentPages": 0
+  }
+}
