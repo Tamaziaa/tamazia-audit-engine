@@ -33,15 +33,18 @@
 //     explicit baseline entry fails the linter" - the schema is the guard that keeps 'universal'
 //     a distinct, deliberate state rather than a typo that happens to canonicalise to null).
 //
-//  2. sub_sector[] is type-and-format checked (non-empty lowercase-hyphen slugs) but NOT
-//     enum-checked against facts/vocabulary.js SECTORS[x].sub. That tree carries only a handful
-//     of REGEX-DETECTION sub-nodes per sector (e.g. healthcare has 6), built to classify a
-//     crawled page; the catalogue's sub_sector authoring taxonomy is deliberately much richer
-//     (e.g. law-firms records use 'attorney', 'conveyancing', 'notaries', 'immigration' - none
-//     of which are vocabulary sub-tree keys). Enum-checking sub_sector against the detection
-//     tree would reject nearly every real record for a taxonomy mismatch that reflects two
-//     different jobs (detect vs author), not a data error. If a future phase unifies the two
-//     taxonomies, this is the file to update.
+//  2. sub_sector[] (CR-36, CodeRabbit PR #3: "sector, sub-sector, jurisdiction, and nexus
+//     identifiers come ONLY from facts/vocabulary.js") is enum-checked against
+//     facts/vocabulary.js CANONICAL_SUB_SECTORS - a flat, deliberately RICHER canonical set than
+//     the SECTORS tree's own `sub` detection nodes (e.g. healthcare's tree has 6 regex-detection
+//     sub-nodes, built to classify a crawled page). CANONICAL_SUB_SECTORS is the union of every
+//     SECTORS[x].sub key PLUS every sub_sector value actually authored across the catalogue packs
+//     at the time this gate landed (e.g. law-firms records' 'attorney', 'conveyancing', 'notaries',
+//     'immigration' - none of which are detection-tree keys, because authoring a
+//     licensed-profession/activity taxonomy for law attachment is a different job from detecting a
+//     sector from raw page text). Adding a genuinely new sub_sector value means adding it to
+//     CANONICAL_SUB_SECTORS first (one door, Constitution Rule 1), exactly like `sector`,
+//     `activity_tags` and `required_nexus` already require.
 //
 //  3. sub_jurisdiction accepts null, the sentinel 'multi' (a law that binds across more than one
 //     sub-jurisdiction inside the same top-level jurisdiction - seen in real US privacy-wave
@@ -177,13 +180,16 @@ function validateRecord(record) {
     }
   }
 
-  // sub_sector[] - type/format only (see file header, scope decision 2)
+  // sub_sector[] - format AND enum-checked against facts/vocabulary.js CANONICAL_SUB_SECTORS
+  // (see file header, scope decision 2, and CR-36)
   if (!isArray(record.sub_sector)) {
     fail('sub_sector: required array (may be empty)');
   } else {
     for (const s of record.sub_sector) {
       if (typeof s !== 'string' || !isNonEmptyString(s) || !SLUG_RX.test(s)) {
         fail('sub_sector: ' + JSON.stringify(s) + ' must be a non-empty lowercase-hyphen slug');
+      } else if (!vocabulary.isCanonicalSubSector(s)) {
+        fail('sub_sector: ' + JSON.stringify(s) + ' is not a facts/vocabulary.js CANONICAL_SUB_SECTORS member');
       }
     }
   }

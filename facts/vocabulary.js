@@ -491,6 +491,49 @@ const SECTOR_ALIASES = {
 const CANONICAL_SECTORS = Object.keys(SECTORS);
 const CANONICAL_SECTOR_SET = new Set(CANONICAL_SECTORS);
 
+// =================================================================================
+// 2c. CANONICAL SUB-SECTORS (CR-36, CodeRabbit PR #3 on catalogue/schema.js#L105: "sector,
+// sub-sector, jurisdiction and nexus identifiers come ONLY from facts/vocabulary.js"). A flat,
+// deliberately RICHER vocabulary than the SECTORS tree's own `sub` detection nodes above: those
+// nodes exist to CLASSIFY a crawled page from a handful of regex-detection sub-nodes per sector
+// (schema.js's own header, scope decision 2, explains why enum-checking a catalogue record's
+// sub_sector against THAT tree directly would reject almost every real record - a law-firms record
+// authors 'attorney'/'conveyancing'/'notaries'/'immigration', none of which are detection-tree
+// keys, because authoring a licensed-profession/activity taxonomy for LAW ATTACHMENT is a different
+// job from detecting a sector from raw page text).
+//
+// This is the CANONICAL union catalogue/schema.js validates a record's sub_sector[] against: every
+// SECTORS[x].sub key (so the detection tree's own vocabulary is always valid too) PLUS every
+// sub_sector value actually authored across the six QA'd catalogue packs at the time this gate
+// landed. Deliberately flat (not nested per top-level sector, matching schema.js's existing scope):
+// a record's sub_sector[] is not required to nest under its own sector[] mapping. Adding a NEW
+// sub_sector value to a future pack means adding it here first (one door, Constitution Rule 1) -
+// exactly the same discipline `sector`/`activity_tags`/`required_nexus` already enforce.
+const CANONICAL_SUB_SECTORS = [
+  'aesthetics', 'ai-products', 'appliances', 'approved-inspectors', 'apps', 'attorney', 'banking',
+  'barristers', 'boiler-installers', 'broadcast-catchup', 'builders', 'building-control',
+  'building-materials', 'car-dealers', 'care-home', 'chambers', 'cilex', 'cloud-services',
+  'communities', 'construction-products', 'consumer-products', 'content-studios', 'conveyancing',
+  'cosmetic-dentistry', 'cosmetic-surgery', 'criminal-defence', 'demolition', 'dental',
+  'digital-agencies', 'electronics', 'electronics-retail', 'email-marketing', 'employment',
+  'energy-brokers', 'energy-suppliers', 'fertility', 'fertility-ivf', 'fintech', 'fire-consultants',
+  'fitness-apps', 'forums', 'general', 'general-dental', 'general-practice', 'gp-clinic', 'gyms',
+  'heating-engineers', 'higher-education', 'hospital', 'hospital-care', 'hotel', 'house-clearance',
+  'hvac', 'ifa', 'immigration', 'influencer-marketing', 'injectables', 'insurance', 'it-services',
+  'laser-skin', 'law-firm', 'law-firms', 'lead-generation', 'legal-executives', 'leisure-clubs',
+  'lettings', 'licensed-conveyancers', 'lighting', 'local-news', 'machinery', 'magazines',
+  'martial-arts', 'medical-devices', 'mental-health', 'motorbike-dealers', 'multi-state',
+  'news-publishers', 'notaries', 'online-coaching', 'online-marketplace', 'online-travel',
+  'optometry', 'orthodontics', 'personal-injury', 'personal-training', 'pharmaceutical', 'pharmacy',
+  'physiotherapy', 'plumbers', 'ppe', 'probate', 'professional-services', 'property-management',
+  'restaurant', 'saas', 'sales', 'school', 'search-engine', 'skip-hire', 'software-development',
+  'solicitors', 'solo-practice', 'streaming', 'studios', 'supplements', 'telehealth', 'telemedicine',
+  'tour-operators', 'toys', 'travel', 'travel-agents', 'ugc-platforms', 'van-sales',
+  'vehicle-leasing', 'veterinary', 'video-sharing', 'vod', 'waste-removal', 'wealth-management',
+  'weight-loss-programmes', 'wellness',
+];
+const CANONICAL_SUB_SECTOR_SET = new Set(CANONICAL_SUB_SECTORS);
+
 // Sub-sector-exclusive bindings (registry/sector.js SUB_EXCLUSIVE): a marker that a downstream
 // catalogue rule keyed to one sub-sector must never leak to a sibling. Data only, no law names.
 const SUB_EXCLUSIVE = {
@@ -697,6 +740,14 @@ function isCanonicalSector(sector) {
   return CANONICAL_SECTOR_SET.has(String(sector == null ? '' : sector));
 }
 
+// isCanonicalSubSector(subSector) -> true only for a value in CANONICAL_SUB_SECTORS (CR-36). Exact
+// membership, no alias-fold and no structural fallback (unlike canonicalSector above) - sub_sector
+// values are already authored as flat lowercase-hyphen slugs and this validator exists to CLOSE the
+// set, not to be forgiving about near-misses.
+function isCanonicalSubSector(subSector) {
+  return CANONICAL_SUB_SECTOR_SET.has(String(subSector == null ? '' : subSector));
+}
+
 // Resolve ANY sector string to its ONE canonical top-level sector, or null. alias -> canonical
 // target; a known canonical -> itself; a variant that structurally contains a canonical key ->
 // that key; otherwise null. Never guesses a default sector (deny-by-default doctrine).
@@ -778,6 +829,7 @@ const EXPORTS = {
   SECTORS,
   SECTOR_ALIASES,
   CANONICAL_SECTORS,
+  CANONICAL_SUB_SECTORS,
   SUB_EXCLUSIVE,
   DOMAIN_SELF_IDENTITY,
   sectorSelfIdFromDomain,
@@ -798,6 +850,7 @@ const EXPORTS = {
   famCanon,
   canonicalSector,
   isCanonicalSector,
+  isCanonicalSubSector,
   isJurisdiction,
   isActivityTag,
   isConfidenceLevel,

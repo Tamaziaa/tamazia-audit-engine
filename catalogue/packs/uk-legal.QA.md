@@ -1,3 +1,6 @@
+<!-- qa-approval pack_sha256=45bdb40c148c5cde896c4768d007cb250a99202ba880121a06d700b464f26d4d verdict=approved reviewed=2026-07-17 -->
+Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+
 # uk-legal law pack QA
 
 QA date: 2026-07-17 | Records reviewed: 12 | Reviewer: independent QA pass over author deliverable
@@ -62,3 +65,7 @@ Strong. The pack is tightly scoped to what a UK legal-services website owner (SR
 - em/en dashes: 0 (author claim upheld).
 - 12 records, schema-consistent, all `currency: GBP`.
 - All statuses `candidate`; none required downgrade to `rejected_qa`.
+
+## P2 law-verification wave (2026-07-17)
+- **UK_PROVISION_OF_SERVICES_2009 (CR-16):** `citation.url` moved from the draft-SI page (`legislation.gov.uk/ukdsi/2009/9780111486276/contents`) to the **enacted** instrument, `legislation.gov.uk/uksi/2009/2999/contents/made` (SI 2009/2999, made 11 Nov 2009, in force 28 Dec 2009). The draft-SI URL is retained in `provenance.sources`; host stays on the official allowlist. Note: legislation.gov.uk data endpoints answer 202-while-generating, so verification used the human HTML / search route (caution.md C-129) — the enacted SI is confirmed present under `/uksi/2009/2999/`.
+- **All 12 records:** `provenance.last_synced: "2026-07-17"` added.

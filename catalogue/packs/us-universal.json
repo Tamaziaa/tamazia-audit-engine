@@ -37,11 +37,18 @@
    ],
    "website_obligations": [
     {
-     "duty": "Do not make deceptive or misleading representations; every objective claim must be truthful and substantiated before it is published",
+     "duty": "Do not publish false, misleading or deceptive representations about a product or service (the breach is a deceptive claim being present on the site)",
      "elements": [
       "no false or unsupported performance, health, earnings or savings claims",
+      "no deceptive omission of a fact material to a purchase decision"
+     ],
+     "evidence_type": "absence"
+    },
+    {
+     "duty": "Hold a reasonable basis (competent and reliable evidence) for every objective claim before it is published",
+     "elements": [
       "reasonable basis (competent and reliable evidence) held for objective claims at time of publication",
-      "no deceptive omission of facts material to a purchase decision"
+      "substantiation available for performance, health, earnings or savings claims"
      ],
      "evidence_type": "presence"
     },
@@ -96,7 +103,8 @@
      "https://www.ftc.gov/news-events/news/press-releases/2022/01/fashion-nova-will-pay-42-million-part-settlement-ftc-allegations-it-blocked-negative-reviews"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -195,7 +203,8 @@
      "https://www.ftc.gov/legal-library/browse/federal-register-notices/16-cfr-part-465-trade-regulation-rule-use-consumer-reviews-testimonials-final-rule"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -275,7 +284,8 @@
      "https://www.federalregister.gov/documents/2025/01/17/2025-01361/adjustments-to-civil-penalty-amounts"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -354,7 +364,8 @@
      "https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/eleventh-circuit-vacates-tcpa-11-consent-rule"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -433,7 +444,8 @@
      "https://www.americanbar.org/groups/gpsolo/resources/ereport/archive/title-iii-americans-disabilities-act-website-compliance/"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -525,7 +537,8 @@
      "https://www.ftc.gov/news-events/news/press-releases/2022/12/fortnite-video-game-maker-epic-games-pay-more-half-billion-dollars-over-ftc-allegations"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -609,7 +622,8 @@
      "https://www.crowell.com/en/insights/client-alerts/clicking-all-the-right-boxes-ftc-moves-to-revive-click-to-cancel-rule-following-eighth-circuit-vacatur"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -678,7 +692,8 @@
      "https://www.ftc.gov/news-events/topics/truth-advertising/green-guides"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -747,7 +762,8 @@
      "https://www.federalregister.gov/documents/2021/07/14/2021-14610/made-in-usa-labeling-rule"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -837,7 +853,8 @@
      "https://oag.ca.gov/news/press-releases/attorney-general-bonta-announces-settlement-sephora-part-ongoing-enforcement"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -918,7 +935,8 @@
      "https://www.oag.state.va.us/consumer-protection/index.php/data-privacy"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -976,12 +994,12 @@
     }
    ],
    "penalty": {
-    "typical_low": 2500,
-    "typical_high": 7500,
-    "statutory_max": 7500,
+    "typical_low": null,
+    "typical_high": 20000,
+    "statutory_max": 20000,
     "currency": "USD",
-    "basis": "civil penalties typically up to $7,500 per violation, enforced by the state AG (California adds the CPPA); most states provide a cure period",
-    "max_is_rare": false
+    "basis": "Colorado Privacy Act violations are deceptive trade practices under the Colorado Consumer Protection Act, C.R.S. 6-1-112: civil penalties up to 20,000 dollars per violation (each consumer or transaction a separate violation), enforced by the Colorado Attorney General and district attorneys; the right-to-cure period closed 1 January 2025",
+    "max_is_rare": true
    },
    "regulator": {
     "name": "CO Attorney General",
@@ -996,10 +1014,12 @@
    "provenance": {
     "sources": [
      "https://coag.gov/resources/colorado-privacy-act/",
-     "https://leg.colorado.gov/bills/sb21-190"
+     "https://leg.colorado.gov/bills/sb21-190",
+     "Colorado Revised Statutes 6-1-112 (Colorado Consumer Protection Act civil penalties)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1080,7 +1100,8 @@
      "https://www.cga.ct.gov/2022/act/pa/pdf/2022PA-00015-R00SB-00006-PA.pdf"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1158,10 +1179,12 @@
    "provenance": {
     "sources": [
      "https://le.utah.gov/xcode/Title13/Chapter61/13-61.html",
-     "https://propertyrights.utah.gov/"
+     "https://le.utah.gov/~2022/bills/sbillenr/SB0227.pdf",
+     "https://attorneygeneral.utah.gov/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1242,7 +1265,8 @@
      "https://www.texasattorneygeneral.gov/consumer-protection/privacy"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1316,7 +1340,8 @@
      "https://www.multistate.us/insider/2026/2/4/all-of-the-comprehensive-privacy-laws-that-take-effect-in-2026"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1394,7 +1419,8 @@
      "https://www.seyfarth.com/news-insights/bipa-legislative-update-governor-pritzker-signs-amendment-limiting-damages-to-a-single-recovery-1.html"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1464,7 +1490,8 @@
      "https://oag.ca.gov/consumers"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   }
  ]

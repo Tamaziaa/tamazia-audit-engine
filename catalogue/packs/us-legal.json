@@ -32,7 +32,8 @@
    ],
    "applies_when": [
     "operator is a US-licensed lawyer or law firm marketing legal services",
-    "website makes any communication about the lawyer or the services (this is the baseline rule every state has adopted in some form)"
+    "website makes any communication about the lawyer or the services (this is the baseline rule every state has adopted in some form)",
+    "the prior-results disclaimer duty applies only where the lawyer's licensing state bar requires it (advisory across jurisdictions)"
    ],
    "excluded_when": [
     "operator is not a lawyer or law firm (no legal services offered)",
@@ -50,7 +51,7 @@
      "evidence_type": "behavioural"
     },
     {
-     "duty": "Where case results, verdicts, settlements or client testimonials are advertised, include a disclaimer that prior results do not guarantee a similar outcome (required by comment to Rule 7.1 and by most state bars)",
+     "duty": "Where case results, verdicts, settlements or client testimonials are advertised, and the lawyer's licensing jurisdiction requires it, include a disclaimer that prior results do not guarantee a similar outcome (advisory: the ABA Model Rule places this in the comment to Rule 7.1; many state bars mandate it, others do not)",
      "elements": [
       "'prior results do not guarantee a similar outcome' or equivalent, visible near the results/testimonial content",
       "results stated with enough context that they are not misleading"
@@ -82,10 +83,12 @@
      "seed:US-ABA-7"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_RULE_7_2",
@@ -121,10 +124,10 @@
    ],
    "website_obligations": [
     {
-     "duty": "Include the name and office address of at least one lawyer or firm responsible for the advertising content",
+     "duty": "Include the name and contact information of at least one lawyer or law firm responsible for the advertising content",
      "elements": [
       "identifiable responsible lawyer or firm name",
-      "a contactable office address on the site"
+      "contact information (address, telephone or email) for the responsible lawyer or firm shown on the site"
      ],
      "evidence_type": "absence"
     },
@@ -168,10 +171,12 @@
      "seed:US-ABA-7"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_RULE_7_3",
@@ -248,10 +253,12 @@
      "seed:US-ABA-7"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_SPECIALIZATION",
@@ -319,10 +326,12 @@
      "https://www.calbar.ca.gov/legal-professionals/rules/rules-professional-conduct/current-rules-professional-conduct/chapter-7-information-about-legal-services"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_FIRM_NAMES",
@@ -396,10 +405,12 @@
      "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_RULE_5_5_UPL",
@@ -469,10 +480,12 @@
      "pdf:Research Report (multi-state PI/immigration targets)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_RULE_1_18_INTAKE",
@@ -543,10 +556,12 @@
      "pdf:Research Report (contact-form disclaimer lead)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "US_ABA_FEE_ADVERTISING",
@@ -616,10 +631,12 @@
      "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
-   "client_useful": true
+   "client_useful": true,
+   "advisory": true
   },
   {
    "id": "CA_RPC_CH7",
@@ -700,7 +717,8 @@
      "https://www.calbar.ca.gov/Portals/0/documents/rules/New-Rules-of-Professional-Conduct-2018.pdf"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -778,7 +796,8 @@
      "https://law.justia.com/codes/california/code-bpc/division-3/chapter-4/article-9-5/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -859,7 +878,8 @@
      "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.1"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -944,7 +964,8 @@
      "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.3"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -1023,7 +1044,8 @@
      "https://www.tlie.org/changes-to-texas-lawyers-advertising-and-solicitation-rules-the-highlights/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -1095,7 +1117,8 @@
      "pdf:Research Report (TX pre-approval regime lead)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -1183,7 +1206,8 @@
      "https://www.floridabar.org/the-florida-bar-news/court-disciplines-lawyers-for-1-800-pit-bull-tv-ad/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -1259,7 +1283,8 @@
      "pdf:Research Report (FL ~20-day pre-use filing lead)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true
@@ -1337,7 +1362,8 @@
      "https://www.isba.org/ethics/irpc/rule71"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    },
    "status": "candidate",
    "client_useful": true

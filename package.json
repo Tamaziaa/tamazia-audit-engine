@@ -13,8 +13,8 @@
     "dup": "jscpd .",
     "depcruise": "depcruise --config .dependency-cruiser.cjs applicability breach catalogue eval evidence facts llm mint payload render-proof tools",
     "sweep": "node tools/sweep/run.js",
-    "calibrate": "node eval/calibration-known-bad/run.js",
-    "catalogue": "node catalogue/compile.js",
+    "calibrate": "node eval/calibration-known-bad/run.js --strict",
+    "catalogue": "node catalogue/compile.js --stamp-file RELEASE_STAMP",
     "reference": "node eval/reference-set/run-facts.js",
     "test": "node --test"
   },

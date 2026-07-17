@@ -61,10 +61,10 @@ jobs:
             echo "::warning title=swallow-gate absent::tools/swallow-gate/check.js does not exist yet - gate SKIPPED. This is only acceptable during P0 Foundation."
           fi
 
-      - name: Known-bad calibration corpus
+      - name: Known-bad calibration corpus (--strict: a missing checker fails the build, not just a checker that misses its fixture)
         run: |
           if [ -f eval/calibration-known-bad/run.js ]; then
-            node eval/calibration-known-bad/run.js
+            node eval/calibration-known-bad/run.js --strict
           else
             echo "::warning title=calibration harness absent::eval/calibration-known-bad/run.js does not exist yet - calibration SKIPPED."
             echo "############################################################"
@@ -74,8 +74,15 @@ jobs:
             echo "############################################################"
           fi
 
-      - name: Catalogue compile (deterministic CI stamp)
-        run: npm run catalogue -- --stamp 2026-01-01T00:00:00Z
-
       - name: Unit tests (node --test)
         run: npm test
+
+      # Runs LAST and deliberately un-guarded: this step is EXPECTED to fail until every
+      # catalogue/packs/*.QA.md sidecar is hash-stamped with the CR-2 machine-readable
+      # qa-approval header (see catalogue/compile.js's own header and catalogue/README.md) - a
+      # human legal-QA action outside code review, owned by a separate workstream. Placed after
+      # every other gate so a red run here never hides a red result anywhere else; it is not
+      # softened, because shipping a compiled artifact without verified sign-off is exactly the
+      # class of defect Constitution Rule 14 exists to stop.
+      - name: Catalogue compile (release stamp from the committed RELEASE_STAMP file, CR-1)
+        run: npm run catalogue

@@ -89,7 +89,8 @@
      "seed compliance_laws.json UK-CQC-20"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -173,7 +174,8 @@
      "https://www.cqc.org.uk/cqc-ratings-and-promotional-graphics/how-providers-must-display-ratings"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -267,7 +269,8 @@
      "seed compliance_laws.json UK-MHRA-HMR / UK-MHRA-POM-BOTOX (section range corrected from 286-297 to reg 284)"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -341,7 +344,8 @@
      "https://www.gov.uk/government/publications/botulinum-toxin-and-cosmetic-fillers-for-under-18s/botulinum-toxin-and-cosmetic-fillers-for-under-18s"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -418,7 +422,8 @@
      "seed compliance_laws.json UK-GMC-GMP"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -491,7 +496,8 @@
      "seed compliance_laws.json UK-GDC-STD"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -561,7 +567,8 @@
      "seed compliance_laws.json UK-GDC-SPEC"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -595,20 +602,22 @@
    ],
    "applies_when": [
     "sells or supplies medicines to the public online (distance selling / internet pharmacy)",
-    "operates as a GPhC-registered pharmacy offering services online"
+    "operates as a GPhC-registered pharmacy offering services online",
+    "established in Northern Ireland and selling medicines to the public online: the MHRA distance-selling (EU common) logo remains a legal requirement under the Windsor Framework, and the seller must be on the MHRA medicine-seller register"
    ],
    "excluded_when": [
     "no medicines sold or supplied online",
-    "provider is not a registered pharmacy and makes no pharmacy claim"
+    "provider is not a registered pharmacy and makes no pharmacy claim",
+    "established in Great Britain (England, Scotland, Wales): since 1 January 2021 the EU common / MHRA distance-selling logo is no longer a legal requirement for GB sellers; GB verification is via GPhC registration and the register, and the GPhC internet-pharmacy logo is voluntary"
    ],
    "website_obligations": [
     {
-     "duty": "Display GPhC registration details and, where selling medicines at a distance, register with and display the MHRA distance-selling logo linking to the MHRA medicine-seller register",
+     "duty": "Display GPhC registration details and, for sellers established in Northern Ireland, register with and display the MHRA distance-selling logo linking to the MHRA medicine-seller register",
      "elements": [
       "GPhC registration number and registered pharmacy identity shown",
       "superintendent/responsible pharmacist identifiable",
-      "MHRA distance-selling logo displayed on pages offering medicines, linking to the MHRA register",
-      "the pharmacy appears on the MHRA medicine-seller register"
+      "for Northern Ireland sellers, the MHRA distance-selling (EU common) logo displayed on pages offering medicines and linking to the MHRA register (a legal requirement in NI under the Windsor Framework; the equivalent GPhC internet-pharmacy logo is voluntary in Great Britain)",
+      "for Northern Ireland sellers, the pharmacy appears on the MHRA medicine-seller register"
      ],
      "evidence_type": "presence"
     },
@@ -626,7 +635,7 @@
     "typical_high": 500000,
     "statutory_max": null,
     "currency": "GBP",
-    "basis": "GPhC can impose conditions, suspend or remove registration; unlawful online supply of medicines is a criminal offence under HMR 2012 with unlimited fines; the GPhC internet-pharmacy logo scheme itself is voluntary",
+    "basis": "GPhC can impose conditions, suspend or remove registration; unlawful online supply of medicines is a criminal offence under HMR 2012 with unlimited fines; the mandatory MHRA distance-selling (EU common) logo applies to sellers in Northern Ireland only (Windsor Framework), while the GPhC internet-pharmacy logo scheme in Great Britain is voluntary",
     "max_is_rare": true
    },
    "regulator": {
@@ -647,7 +656,8 @@
      "seed compliance_laws.json NEON-UK-GPHC (gap-filled with statutory and register detail)"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -723,7 +733,8 @@
      "seed compliance_laws.json UK-ASA-12"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -796,7 +807,8 @@
      "seed compliance_laws.json UK-CAP-1212"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -870,7 +882,8 @@
      "https://www.hfea.gov.uk/about-us/news-and-press-releases/2023-news-and-press-releases/uk-fertility-regulator-launches-improved-ratings-for-fertility-treatment-add-ons/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -943,7 +956,8 @@
      "https://www.legislation.gov.uk/ukpga/2024/13/contents"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1019,7 +1033,8 @@
      "https://www.legislation.gov.uk/ukpga/2024/13/contents"
     ],
     "seed_status": "not_in_seed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1093,7 +1108,8 @@
      "seed compliance_laws.json UK-VMD"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1166,7 +1182,8 @@
      "seed compliance_laws.json UK-RCVS"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1237,7 +1254,8 @@
      "https://www.legislation.gov.uk/ukpga/1989/44/contents"
     ],
     "seed_status": "not_in_seed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1308,7 +1326,8 @@
      "https://www.legislation.gov.uk/uksi/2002/254/contents"
     ],
     "seed_status": "not_in_seed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   }
  ]

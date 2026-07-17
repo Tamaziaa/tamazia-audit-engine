@@ -1,13 +1,16 @@
+<!-- qa-approval pack_sha256=71503675e2c18ef7ad81e5d091cfb48304c01f990e09b5ff2e02bf36d8256ca1 verdict=approved reviewed=2026-07-17 -->
+Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+
 # QA Report — us-healthcare.json
 
 **QA date:** 2026-07-17
-**Records:** 17 (confirmed 5, corrected 1, gap_filled 11, not_in_seed 0)
+**Records:** 17 total. By **seed provenance** (where the row came from): seed-confirmed 5, seed-corrected 1, gap_filled 11, not_in_seed 0. This is a different axis from the **QA-verdict** counts below (whether the row survived this review) — the two "confirmed" numbers measure different things and are labelled here to keep them distinct (CR-23).
 **Verdict:** PASS. No fabrications, no polarity errors, no records downgraded.
 
-## Counts
+## Counts (QA verdict — did the row survive review)
 - **Checked:** 17 records; 12 citations/enforcement facts fetched or searched to source.
 - **Confirmed:** 17 (all records survive QA)
-- **Corrected:** 0 (no edits made — see minor issues, all left as-is)
+- **Corrected:** 0 at original QA (a later P2 verification wave, 2026-07-17, applied targeted edits — see the P2 wave section at the foot)
 - **Downgraded to rejected_qa:** 0
 - **CRITICAL:** 0
 
@@ -22,9 +25,9 @@
 ## Spot-verified legal thresholds & high-penalty figures
 - **HHS Section 504 web/mobile deadline extension** (US_HHS_504_WEB, gap_filled) — TOP fabrication suspect; **CONFIRMED REAL.** HHS OCR interim final rule (announced 7 May 2026, Fed. Reg. 11 May 2026) extended 15+-employee recipients to **11 May 2027** and smaller recipients to **10 May 2028**. The record's dates are exact. WCAG 2.1 AA obligation stands. ✅
 - **HBNR civil penalty $53,088/violation** (US_FTC_HBNR) — CONFIRMED (2025 inflation adjustment, up from $51,744, effective 17 Jan 2025). ✅
-- **HIPAA annual cap $2,134,831** (US_HIPAA_MKT, US_HIPAA_TRACKING) — CONFIRMED as the 2025 inflation-adjusted calendar-year cap. ✅
+- **HIPAA annual cap** (US_HIPAA_MKT, US_HIPAA_TRACKING) — the pack's `statutory_max` was $2,134,831 (2024/2025 figure); the **current** highest-tier per-violation maximum and calendar-year cap are both **$2,190,294** for 2026 (HHS annual inflation adjustment, Fed. Reg. 2026-01688, eff. 28 Jan 2026). P2 wave updated both records to $2,190,294. ✅
 - **California B&P §651** (US_MEDBOARD_ADV_CA) — CONFIRMED: false/misleading healing-arts advertising, misdemeanor, covers Internet communications. ✅
-- **US_CURES_INFOBLOCK $1M CMP** for developers/HINs, providers face disincentives — consistent with 45 CFR Part 171 framework. ✅ (not independently fetched; matches known ONC/OIG structure)
+- **US_CURES_INFOBLOCK $1M CMP** for health IT developers / HINs / HIEs; health care providers face "appropriate disincentives" rather than CMPs — **CONFIRMED** against the HHS-OIG final rule (Fed. Reg. 2023-13851, 3 July 2023; oig.hhs.gov information-blocking page): up to $1,000,000 per violation. P2 wave added both official sources; record stays `candidate` (verified, not `needs_verification`). ✅
 
 ## Polarity red-team
 Checked applies_when / excluded_when logic on the HIPAA, HBNR, and tracking records:
@@ -32,14 +35,26 @@ Checked applies_when / excluded_when logic on the HIPAA, HBNR, and tracking reco
 - US_FTC_HBNR correctly **applies** to non-HIPAA PHR vendors and **excludes** HIPAA covered entities (mutually exclusive with the HIPAA records). ✅
 - No inverted include/exclude conditions found.
 
-## Minor issues (NOT downgraded — left as-is, flagged for author)
-1. **statutory_max semantics across the 3 FTC records** (US_FTC_HBNR, US_FTC5_HEALTH, US_FTC_SUBST_HEALTH): `statutory_max` = 53088 (per-violation figure) sits *below* `typical_low`/`typical_high` (millions, which are aggregate settlement totals). The `basis` text explains it, but a downstream renderer that assumes statutory_max is the ceiling would display "$53k max" beside "$7.8M typical". **This is the worst finding — structural/semantic, not a factual error.** Recommend either lifting the per-day/aggregate ceiling into statutory_max or renaming the field's meaning.
-2. **US_ADA3 DOJ penalty figures** ($75,000 first / $150,000 subsequent) are the pre-inflation statutory amounts; current inflation-adjusted maxima are ~$104,660 / ~$209,323. Understated, and DOJ penalties are rare here (private suits dominate) so `max_is_rare` arguably should be true. Low impact.
-3. **US_MEDBOARD_ADV_CA §2271** characterized as "misdemeanor for deceptive advertising" — §651 carries the misdemeanor; §2271 makes a §17500 false-advertising violation grounds for discipline. Both sections real and relevant; characterization slightly loose.
-4. **US_HIPAA_TRACKING intel** claims ">$100m aggregate exposure" — true only across the whole pixel-litigation wave, not the single Advocate ($12.225M) settlement. Defensible as aggregate but loosely attributed.
+## Minor issues (resolved in the P2 wave 2026-07-17 — see foot)
+1. **statutory_max semantics on the two §5 records** (US_FTC5_HEALTH, US_FTC_SUBST_HEALTH): the $53,088 sat in `statutory_max` as if it were a Section 5 ceiling, but FTC Act §5 carries **no general civil penalty** — the $53,088 (16 CFR 1.98; 15 U.S.C. 45(l)/(m)) applies only to violations of a prior FTC order or a specific FTC rule. **RESOLVED:** `statutory_max` set to `null` on both, with `basis` naming when a civil penalty does attach (CR-20). (US_FTC_HBNR keeps $53,088 — the HBNR is itself a rule with a per-violation penalty, so that record is correct.)
+2. **US_ADA3 DOJ penalty figures** ($75,000 first / $150,000 subsequent) were the pre-inflation statutory amounts. **RESOLVED:** updated to the current inflation-adjusted maxima **$118,225 first / $236,451 subsequent** (28 CFR 85.5, referenced by 28 CFR 36.504, eff. 3 July 2025; Fed. Reg. 2025-12494), and `max_is_rare` set true (private suits dominate; DOJ penalties are rare) (CR-21/CR-25). Note: CodeRabbit floated two different figures; neither matched — the verified current pair from the source of record is $118,225/$236,451.
+3. **US_MEDBOARD_ADV_CA §2271/§651** characterisation was reversed. **RESOLVED:** citation.section now reads §651 (false/misleading healing-arts advertising; a §651 violation is a misdemeanor) and §2271 (advertising in violation of the false-advertising law is unprofessional conduct and grounds for licence discipline) (CR-26). The four other state medical-board records (NY/TX/FL/IL) carried the California-specific misdemeanor line in their `penalty.basis`; each now carries jurisdiction-correct consequences with amounts null (CR-22).
+4. **US_HIPAA_TRACKING intel** claimed ">$100m aggregate exposure". **RESOLVED:** reworded to attribute the >$100m to the hospital pixel-tracking litigation wave, not the single Advocate ($12.225M) settlement (CR-27).
 
 ## Usefulness to persona (US healthcare provider website)
 Strong. The pack leads with the two highest-cost, page-detectable web failures (tracking pixels on portal/appointment pages; NPP + marketing-authorization discipline), then FTC health-data/Section-5, ADA + Section 504 accessibility, FDA promotion, FTC substantiation, five state medical-board advertising rules, telehealth licensure, Cures Act patient access, and WA MHMDA for non-HIPAA wellness sites. Coverage is coherent and every obligation maps to something observable on a site. Out-of-cell exclusions (TCPA, COPPA, GLBA, BIPA, etc.) correctly left in their own cells; only WA MHMDA pulled from privacy set, appropriately (catches non-HIPAA health-data sites).
 
 ## Fines sanity
 All amounts USD, all within realistic ranges for their regulators, all cross-checked figures matched source. No currency or order-of-magnitude errors.
+
+## P2 law-verification wave (2026-07-17) — summary of applied edits
+Every figure below was re-verified on an official source of record before editing; verification URLs are recorded in each record's `provenance.sources`.
+- **US_HIPAA_MKT / US_HIPAA_TRACKING:** `statutory_max` 2,134,831 → **2,190,294** (2026 HHS inflation adjustment, Fed. Reg. 2026-01688).
+- **US_FTC5_HEALTH / US_FTC_SUBST_HEALTH:** `statutory_max` 53,088 → **null** (FTC Act §5 has no general civil penalty; the $53,088 rule/order figure is described in `basis`).
+- **US_ADA3:** DOJ Title III maxima → **$118,225 first / $236,451 subsequent** (28 CFR 85.5, eff. 3 Jul 2025); `max_is_rare` true.
+- **US_CURES_INFOBLOCK:** $1M CMP confirmed on the HHS-OIG final rule; official sources added.
+- **US_MEDBOARD_ADV_CA:** §651 (misdemeanor) / §2271 (discipline) characterisation corrected.
+- **US_MEDBOARD_ADV_NY / TX / FL / IL:** California-specific misdemeanor line removed; jurisdiction-correct disciplinary consequences written, amounts null (not independently verified per-state; generic board-discipline is the honest floor).
+- **US_TELEHEALTH_LICENSURE:** `advisory: true` added (multi-state licensure is an obligation-to-confirm, not a hard breach).
+- **US_HIPAA_TRACKING:** ">$100m" attributed to the pixel-litigation wave.
+- **All 17 records:** `provenance.last_synced: "2026-07-17"` added.

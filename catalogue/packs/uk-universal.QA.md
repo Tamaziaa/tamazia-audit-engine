@@ -1,3 +1,6 @@
+<!-- qa-approval pack_sha256=e101138b1d9a53a9d691b68d66c38eb7f70263e35c98aa773b8d511016dd3f6f verdict=approved reviewed=2026-07-17 -->
+Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+
 # uk-universal — QA verification (2026-07-17)
 
 QA of `uk-universal.json` (14 records). Method: independent web verification of the 10 highest-penalty records + all 5 gap_filled citations + 7 enforcement references. Statutes, penalty formulae, thresholds and enforcement cases cross-checked against ICO, GOV.UK, legislation.gov.uk and multiple law-firm briefings. Polarity, fines-sanity and persona-usefulness red-teamed.
@@ -85,3 +88,11 @@ Every record maps to something testable on a public SME website (privacy notice,
 3. Re-word DMCC first-enforcement sector line (C3).
 4. Optional: lower UK_PECR `typical_high` below the statutory max.
 5. Dedupe GDPR/PECR/DMCC/CAP against sector-overlay cells at compile time (one statute → one framework), per the author's open question 5.
+
+## P2 law-verification wave (2026-07-17) — C1–C3 applied to the pack
+The pack was out of sync with this sidecar's C1–C3 corrections; all three are now applied, each re-verified against the ICO's own media-centre notices before editing:
+- **C1 Capita (UK_GDPR_PRIVACY_NOTICE):** date → `2025-10`; url → the real ICO notice (`.../2025/10/capita-fined-14m-for-data-breach-affecting-over-6m-people/`, replacing a guessed `.../2025/04/capita-14m-fine/`); summary → £14m (£8m controller + £6m processor), ~6.6 million people (ICO, 15 Oct 2025).
+- **C2 23andMe (UK_GDPR_PRIVACY_NOTICE):** date → `2025-06`; url → the real ICO notice (`.../2025/06/23andme-fined-for-failing-to-protect-uk-users-genetic-data/`); summary → £2.31m, penalty notice 5 Jun 2025, **155,592 UK residents** (6.9m worldwide), replacing the unverified "693,000 UK individuals".
+- **C3 DMCC (UK_DMCC_UNFAIR_PRACTICES):** the illustrative first-enforcement case is de-scoped from "travel and hospitality" to "drip pricing across consumer sectors" (Nov 2025), per the QA finding that the named first cases were not travel/hospitality.
+- **All 14 records:** `provenance.last_synced: "2026-07-17"` added.
+Item 4 (lower UK_PECR `typical_high`) and item 5 (compile-time statute dedupe) remain open — out of scope for a fact-verification wave.

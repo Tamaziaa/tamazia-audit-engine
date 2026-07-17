@@ -57,9 +57,9 @@
       "penalty": {
         "typical_low": 50000,
         "typical_high": 1500000,
-        "statutory_max": 2134831,
+        "statutory_max": 2190294,
         "currency": "USD",
-        "basis": "Tiered civil monetary penalties per violation, with an annual cap per identical provision (inflation-adjusted, roughly 2.1m per violation category per calendar year); OCR resolution agreements common",
+        "basis": "Tiered civil monetary penalties per violation, with an annual cap per identical provision (inflation-adjusted; the highest-tier per-violation maximum and the calendar-year cap are both 2,190,294 dollars for 2026); OCR resolution agreements common",
         "max_is_rare": true
       },
       "regulator": {
@@ -84,10 +84,12 @@
         "sources": [
           "https://www.ecfr.gov/current/title-45/section-164.508",
           "https://www.ecfr.gov/current/title-45/section-164.520",
-          "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/marketing/index.html"
+          "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/marketing/index.html",
+          "https://www.federalregister.gov/documents/2026/01/28/2026-01688/annual-civil-monetary-penalties-inflation-adjustment"
         ],
         "seed_status": "confirmed",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -138,7 +140,7 @@
       "penalty": {
         "typical_low": 50000,
         "typical_high": 1500000,
-        "statutory_max": 2134831,
+        "statutory_max": 2190294,
         "currency": "USD",
         "basis": "HIPAA civil monetary penalties where an impermissible disclosure occurs; separate class-action and FTC exposure runs far higher (see enforcement)",
         "max_is_rare": true
@@ -149,7 +151,7 @@
       },
       "enforcement": [],
       "intel": {
-        "why_matters": "A tracking pixel on an appointment or portal page is the single highest-cost web-compliance failure in US healthcare, with aggregate settlement exposure above 100m dollars, and it is detectable from network requests.",
+        "why_matters": "A tracking pixel on an appointment or portal page is the single highest-cost web-compliance failure in US healthcare, with aggregate settlement exposure across the hospital pixel-tracking litigation wave above 100m dollars, and it is detectable from network requests.",
         "regulator_asks_first": "Which third-party trackers load on authenticated and appointment pages, and is each covered by a BAA or removed?",
         "relevance_hook": "State it honestly: the court cut back part of the bulletin in June 2024, but the class actions and the FTC did not stop; the durable message is that PHI leaving through a pixel is still a live risk."
       },
@@ -158,10 +160,12 @@
           "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/hipaa-online-tracking/index.html",
           "https://www.aha.org/news/headline/2024-08-29-hhs-will-not-appeal-aha-court-victory-online-tracking-case",
           "https://www.hipaajournal.com/advocate-aurora-health-settles-pixel-lawsuit-for-12-25-million/",
-          "https://www.aha.org/news/news/2024-06-20-judge-rules-favor-aha-vacating-hhs-online-tracking-bulletin-unlawful-and-beyond-agency-authority"
+          "https://www.aha.org/news/news/2024-06-20-judge-rules-favor-aha-vacating-hhs-online-tracking-bulletin-unlawful-and-beyond-agency-authority",
+          "https://www.federalregister.gov/documents/2026/01/28/2026-01688/annual-civil-monetary-penalties-inflation-adjustment"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -250,7 +254,8 @@
           "https://www.ftc.gov/news-events/news/press-releases/2024/04/ftc-finalizes-changes-health-breach-notification-rule"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-16",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -300,9 +305,9 @@
       "penalty": {
         "typical_low": 7100000,
         "typical_high": 7800000,
-        "statutory_max": 53088,
+        "statutory_max": null,
         "currency": "USD",
-        "basis": "Section 5 has no fixed maximum; relief includes consumer redress, disgorgement, injunctive bans, and civil penalties up to 53,088 dollars per violation where an order or rule is breached",
+        "basis": "FTC Act Section 5 carries no general civil penalty for a first unfair/deceptive act; relief is consumer redress, disgorgement and injunctive bans. A civil penalty (up to 53,088 dollars per violation, 16 CFR 1.98, 15 U.S.C. 45(l)/(m)) attaches only where the conduct violates a prior FTC order or a specific FTC rule",
         "max_is_rare": false
       },
       "regulator": {
@@ -336,7 +341,8 @@
           "https://www.ftc.gov/business-guidance/blog/2023/03/ftc-says-online-counseling-service-betterhelp-pushed-people-handing-over-health-information"
         ],
         "seed_status": "confirmed",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -383,11 +389,11 @@
       ],
       "penalty": {
         "typical_low": 25000,
-        "typical_high": 150000,
-        "statutory_max": 150000,
+        "typical_high": 236451,
+        "statutory_max": 236451,
         "currency": "USD",
-        "basis": "Private suits seek injunctive relief plus attorney fees (settlements commonly tens of thousands); DOJ civil penalties up to 75,000 dollars for a first violation and 150,000 for subsequent violations",
-        "max_is_rare": false
+        "basis": "Private suits seek injunctive relief plus attorney fees (settlements commonly tens of thousands); DOJ civil penalties in government-initiated Title III actions are inflation-adjusted to up to 118,225 dollars for a first violation and 236,451 for subsequent violations (28 CFR 85.5, referenced by 28 CFR 36.504, effective 3 July 2025)",
+        "max_is_rare": true
       },
       "regulator": {
         "name": "U.S. Department of Justice, Civil Rights Division (plus private litigants)",
@@ -417,10 +423,13 @@
       "provenance": {
         "sources": [
           "https://www.ada.gov/resources/web-guidance/",
-          "https://www.ftc.gov/legal-library/browse/cases-proceedings/2223156-accessibe-inc"
+          "https://www.ftc.gov/legal-library/browse/cases-proceedings/2223156-accessibe-inc",
+          "https://www.ecfr.gov/current/title-28/chapter-I/part-85/section-85.5",
+          "https://www.federalregister.gov/documents/2025/07/03/2025-12494/civil-monetary-penalties-inflation-adjustments-for-2025"
         ],
         "seed_status": "confirmed",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -488,7 +497,8 @@
           "https://www.hhs.gov/press-room/hhs-extends-mobile-and-web-accessibility-deadline.html"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-16",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -559,7 +569,8 @@
           "https://www.fda.gov/about-fda/center-drug-evaluation-and-research-cder/office-prescription-drug-promotion-opdp"
         ],
         "seed_status": "confirmed",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-16",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -629,7 +640,8 @@
           "https://www.fda.gov/medical-devices/device-advice-comprehensive-regulatory-assistance/medical-device-advertising-and-promotion"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-16",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -680,9 +692,9 @@
       "penalty": {
         "typical_low": null,
         "typical_high": null,
-        "statutory_max": 53088,
+        "statutory_max": null,
         "currency": "USD",
-        "basis": "Injunctive relief, consumer redress, disgorgement, and corrective advertising; civil penalties up to 53,088 dollars per violation where an order or the Health Products rule framework is breached",
+        "basis": "Injunctive relief, consumer redress, disgorgement and corrective advertising; FTC Act Section 5 carries no general civil penalty. A civil penalty (up to 53,088 dollars per violation, 16 CFR 1.98, 15 U.S.C. 45(l)/(m)) attaches only where a prior FTC order or a specific FTC rule is breached",
         "max_is_rare": false
       },
       "regulator": {
@@ -701,7 +713,8 @@
           "https://www.ftc.gov/legal-library/browse/federal-register-notices/policy-statement-regarding-advertising-substantiation"
         ],
         "seed_status": "confirmed",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -711,7 +724,7 @@
       "name": "State Medical Board Advertising Rules - California",
       "citation": {
         "act": "California Business and Professions Code; Medical Board of California",
-        "section": "Cal. Bus. & Prof. Code 651 (false or misleading advertising); 2271 (misdemeanor for deceptive advertising)",
+        "section": "Cal. Bus. & Prof. Code 651 (false, misleading or deceptive advertising by healing-arts licensees; a violation of s.651 is a misdemeanor); 2271 (advertising in violation of the false-advertising law is unprofessional conduct and grounds for licence discipline)",
         "url": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=651."
       },
       "jurisdiction": "US",
@@ -754,7 +767,7 @@
         "typical_high": null,
         "statutory_max": null,
         "currency": "USD",
-        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "basis": "State-board disciplinary action for unprofessional conduct under B&P s.2271 (licence suspension or revocation, administrative fines); false or misleading advertising under B&P s.651 is separately a misdemeanor; amounts vary by board",
         "max_is_rare": true
       },
       "regulator": {
@@ -773,7 +786,8 @@
           "https://www.mbc.ca.gov/"
         ],
         "seed_status": "corrected",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -826,7 +840,7 @@
         "typical_high": null,
         "statutory_max": null,
         "currency": "USD",
-        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "basis": "New York State Board for Professional Medical Conduct disciplinary action for professional misconduct (false, deceptive or misleading advertising under Educ. Law 6530(27) / 8 NYCRR 29.1): censure or reprimand, licence suspension or revocation, and monetary penalties set by the board; no fixed website-specific tariff",
         "max_is_rare": true
       },
       "regulator": {
@@ -845,7 +859,8 @@
           "https://www.health.ny.gov/professionals/doctors/conduct/"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -898,7 +913,7 @@
         "typical_high": null,
         "statutory_max": null,
         "currency": "USD",
-        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "basis": "Texas Medical Board disciplinary action for false, misleading or deceptive advertising under Tex. Occ. Code 164.052(a)(6): administrative penalties, licence restriction, suspension or revocation; amounts are set by the board",
         "max_is_rare": true
       },
       "regulator": {
@@ -917,7 +932,8 @@
           "https://www.tmb.texas.gov/"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -970,7 +986,7 @@
         "typical_high": null,
         "statutory_max": null,
         "currency": "USD",
-        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "basis": "Florida Board of Medicine disciplinary action under Fla. Stat. 458.331 / 456.072: administrative fines, reprimand, and licence suspension or revocation; amounts are set by the board",
         "max_is_rare": true
       },
       "regulator": {
@@ -989,7 +1005,8 @@
           "https://flboardofmedicine.gov/"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -1042,7 +1059,7 @@
         "typical_high": null,
         "statutory_max": null,
         "currency": "USD",
-        "basis": "State-board disciplinary action: licence suspension or revocation, administrative fines, and in some states (for example California) misdemeanor liability; amounts vary by board",
+        "basis": "Illinois Medical Disciplinary Board (IDFPR) disciplinary action under 225 ILCS 60/22 for false or misleading statements about skill or the value of treatment: reprimand, fines, and licence suspension or revocation; amounts are set by the board",
         "max_is_rare": true
       },
       "regulator": {
@@ -1061,7 +1078,8 @@
           "https://idfpr.illinois.gov/"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -1134,10 +1152,12 @@
           "https://www.fsmb.org/contact-a-state-medical-board/"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-16",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
-      "client_useful": true
+      "client_useful": true,
+      "advisory": true
     },
     {
       "id": "US_CURES_INFOBLOCK",
@@ -1200,10 +1220,13 @@
         "sources": [
           "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-171",
           "https://www.healthit.gov/topic/information-blocking",
-          "https://www.federalregister.gov/documents/2024/07/01/2024-13793/21st-century-cures-act-establishment-of-disincentives-for-health-care-providers-that-have-committed"
+          "https://www.federalregister.gov/documents/2024/07/01/2024-13793/21st-century-cures-act-establishment-of-disincentives-for-health-care-providers-that-have-committed",
+          "https://www.federalregister.gov/documents/2023/07/03/2023-13851/grants-contracts-and-other-agreements-fraud-and-abuse-information-blocking-office-of-inspector",
+          "https://oig.hhs.gov/reports/featured/information-blocking/"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-17",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true
@@ -1276,7 +1299,8 @@
           "https://www.atg.wa.gov/protecting-washingtonians-personal-health-data-and-privacy"
         ],
         "seed_status": "gap_filled",
-        "verified_date": "2026-07-16"
+        "verified_date": "2026-07-16",
+        "last_synced": "2026-07-17"
       },
       "status": "candidate",
       "client_useful": true

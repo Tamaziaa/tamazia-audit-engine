@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 
 const linter = require('./polarity.js');
 const lib = require('./lib.js');
-const { packsDirExistsOrSkip } = require('./test-helpers.js');
+const { packsDirOrFail } = require('./test-helpers.js');
 
 // ---------------------------------------------------------------------------------
 // checkComRecord: the SEMANTIC DOCTRINE
@@ -50,6 +50,37 @@ test('checkComRecord: requirement language typed "absence" is a polarity-require
   };
   const v = linter.checkComRecord(r, 'test');
   assert.ok(v.some((f) => f.rule === 'polarity-requirement-mismatch'));
+});
+
+// ---------------------------------------------------------------------------------
+// CR-9: inverted-combination fixtures modelled on real catalogue defect classes flagged on PR #3 -
+// "the zero-polarity assertion is currently false confidence" without these. Each fixture below is
+// modelled on a REAL record shape (cited in comments) rather than an arbitrary synthetic string, so
+// the test documents exactly which production disease class it locks against a regression.
+// ---------------------------------------------------------------------------------
+
+test('checkComRecord: inverted combination - a PROHIBITION duty phrased "breach ... being present" (catalogue/packs/uk-tech-media-industrial.json\'s unfair-terms duty) typed "presence" is flagged polarity-prohibition-mismatch (CR-8)', () => {
+  const r = {
+    id: 'CAL_TEST_INVERTED_BREACH_PRESENT',
+    website_obligations: [{
+      duty: 'Published membership terms must be fair and transparent (the breach is an unfair term being present in the published terms)',
+      evidence_type: 'presence', // inverted: this is prohibition wording, must be "absence"
+    }],
+  };
+  const v = linter.checkComRecord(r, 'test');
+  assert.ok(v.some((f) => f.rule === 'polarity-prohibition-mismatch'), 'expected the "breach ... being present" wording class to be caught; got: ' + JSON.stringify(v));
+});
+
+test('checkComRecord: inverted combination - a REQUIREMENT duty ("must include a disclaimer", the US_ABA_RULE_7_1 prior-results-disclaimer class) typed "absence" is flagged polarity-requirement-mismatch', () => {
+  const r = {
+    id: 'CAL_TEST_INVERTED_DISCLAIMER_ABSENCE',
+    website_obligations: [{
+      duty: 'Where case results or testimonials are advertised, the firm must include a disclaimer that prior results do not guarantee a similar outcome',
+      evidence_type: 'absence', // inverted: this is requirement wording, must be "presence" or "register"
+    }],
+  };
+  const v = linter.checkComRecord(r, 'test');
+  assert.ok(v.some((f) => f.rule === 'polarity-requirement-mismatch'), 'expected the requirement-typed-absence inversion to be caught; got: ' + JSON.stringify(v));
 });
 
 test('checkComRecord: requirement language typed "presence" or "register" both clear (no mismatch)', () => {
@@ -134,8 +165,8 @@ test('scan against eval/calibration-known-bad/fixtures also still catches the pr
 // Real-pack smoke test
 // ---------------------------------------------------------------------------------
 
-test('scan: real committed packs produce zero polarity findings (NY_RPC_7_3_7_4 carries prohibition wording under evidence_type "behavioural", which is exempt by design - see the behavioural-exemption test above)', (t) => {
-  if (!packsDirExistsOrSkip(t, __dirname)) return;
+test('scan: real committed packs produce zero polarity findings (NY_RPC_7_3_7_4 carries prohibition wording under evidence_type "behavioural", which is exempt by design - see the behavioural-exemption test above; several UK register-verified claim-authenticity duties carry "breach ... being present" wording under evidence_type "register", also exempt by design - see the BREACH_PRESENT_RX register-exemption selfTest case)', () => {
+  packsDirOrFail(__dirname);
   const res = linter.scan([lib.DEFAULT_PACK_GLOB]);
   assert.ok(res.scanned > 0);
   assert.deepEqual(res.violations, [], 'unexpected polarity findings on real packs: ' + JSON.stringify(res.violations));

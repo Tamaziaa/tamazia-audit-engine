@@ -150,6 +150,9 @@ function scan(dirsOrPatterns) {
       violations.push({ file: entry.file, ...f });
     }
   }
+  // CR-7: an unreadable/unparseable file fails the gate through the same violations array a real
+  // citation-completeness defect uses.
+  for (const v of lib.parseErrorViolations(parseErrors)) violations.push(v);
   return { violations, scanned: entries.length, parseErrors };
 }
 

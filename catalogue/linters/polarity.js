@@ -44,7 +44,29 @@
 // does not otherwise touch.
 const lib = require('./lib');
 
+// The core prohibition-language alternations. A duty matching any of these must be typed "absence"
+// with NO exemption for "register" - verified against every current real pack, no "register"-typed
+// duty ever uses one of these hard words, so there is no legitimate register-verified class this
+// would misfire on.
 const PROHIBITION_RX = /\bmust not\b|\bmay not\b|\bprohibited\b|\bshall not\b|\bis an offence to\b|\bban(?:ned)? on\b/i;
+
+// BREACH_PRESENT_RX: a SEPARATE wording class CodeRabbit flagged on PR #3
+// (catalogue/linters/polarity.js#L47-L48): a duty can phrase its prohibition as "the breach is X
+// being present" / "the breach occurs when X is present" rather than any of PROHIBITION_RX's hard
+// words - a real record does exactly this (catalogue/packs/uk-tech-media-industrial.json's
+// unfair-terms duty: "the breach is an unfair term being present in the published terms", typed
+// "presence" - a genuine mismatch). Both alternations require the word "breach" within 80 chars of
+// "being present"/"is present" so this never fires on an unrelated "X is present" sentence with no
+// breach language nearby.
+//
+// UNLIKE PROHIBITION_RX above, evidence_type "register" IS exempt from this specific wording class:
+// several real duties use this exact phrasing to describe a REGISTER-VERIFIED claim-authenticity
+// check ("only claim regulator membership that is actually held ... the breach is a false
+// membership claim being present") - matching this file's own SEMANTIC DOCTRINE header ("'register'
+// ... treated as a presence-family check for polarity purposes"), not a prohibition mistyped. A
+// mismatch here still requires anything other than "absence" or "register".
+const BREACH_PRESENT_RX = /\bbreach(?:es)?\b.{0,80}\bbeing present\b|\bbreach(?:es)?\b.{0,80}\bis present\b/i;
+
 const REQUIREMENT_RX = /\bmust (?:publish|display|include|state|provide)\b|\brequired to\b/i;
 
 // Self-declaration / compliance-claim wording: prose that asserts "we already do/don't X" rather
@@ -77,6 +99,11 @@ function checkComRecord(record, locator) {
         findings.push({
           locator, id, rule: 'polarity-prohibition-mismatch',
           message: tag + ' contains prohibition language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence"): ' + JSON.stringify(duty),
+        });
+      } else if (BREACH_PRESENT_RX.test(duty) && evidenceType !== 'absence' && evidenceType !== 'register') {
+        findings.push({
+          locator, id, rule: 'polarity-prohibition-mismatch',
+          message: tag + ' contains "breach ... being/is present" prohibition wording but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence", or "register" for a register-verified claim-authenticity check): ' + JSON.stringify(duty),
         });
       }
       if (REQUIREMENT_RX.test(duty) && evidenceType !== 'presence' && evidenceType !== 'register') {
@@ -118,6 +145,9 @@ function scan(dirsOrPatterns) {
       : checkLegacyRecord(entry.record, entry.locator);
     for (const f of findings) violations.push({ file: entry.file, ...f });
   }
+  // CR-7: a file this scan could not read/parse fails the gate through the SAME violations array a
+  // real polarity defect uses, never a side channel the CLI's exit code forgets to check.
+  for (const v of lib.parseErrorViolations(parseErrors)) violations.push(v);
   return { violations, scanned: entries.length, parseErrors };
 }
 
@@ -125,6 +155,10 @@ function selfTest() {
   const inverted = {
     id: 'CAL_SELFTEST_PROHIBIT',
     website_obligations: [{ duty: 'It is an offence to advertise this product to the public', elements: ['x'], evidence_type: 'presence' }],
+  };
+  const invertedBreachPresent = {
+    id: 'CAL_SELFTEST_BREACH_PRESENT',
+    website_obligations: [{ duty: 'Published membership terms must be fair and transparent (the breach is an unfair term being present in the published terms)', elements: ['x'], evidence_type: 'presence' }],
   };
   const invertedRequirement = {
     id: 'CAL_SELFTEST_REQUIRE',
@@ -142,17 +176,22 @@ function selfTest() {
       // behavioural duties are exempt from polarity language checks (SEMANTIC DOCTRINE above):
       // this one carries prohibition language ("must not") but is legitimately observed-action.
       { duty: 'Firm names and domain names must not be false or misleading', elements: ['x'], evidence_type: 'behavioural' },
+      // "register" IS exempt from the BREACH_PRESENT_RX wording class specifically (real
+      // register-verified claim-authenticity duties phrase it exactly this way) - must clear.
+      { duty: 'Only claim regulator membership that is actually held (the breach is a false membership claim being present)', elements: ['x'], evidence_type: 'register' },
     ],
   };
   const legacyBad = { id: 'CAL_LEGACY', style: 'prohibit', regex_pattern: 'we (ask for|obtain) your consent before (setting|placing)( any)? cookies' };
 
   const invertedF = checkComRecord(inverted, 'selftest');
+  const invertedBreachPresentF = checkComRecord(invertedBreachPresent, 'selftest');
   const invertedReqF = checkComRecord(invertedRequirement, 'selftest');
   const negF = checkComRecord(negationGuard, 'selftest');
   const goodF = checkComRecord(good, 'selftest');
   const legacyF = checkLegacyRecord(legacyBad, 'selftest');
 
   const pass = invertedF.some((f) => f.rule === 'polarity-prohibition-mismatch')
+    && invertedBreachPresentF.some((f) => f.rule === 'polarity-prohibition-mismatch')
     && invertedReqF.some((f) => f.rule === 'polarity-requirement-mismatch')
     && negF.some((f) => f.rule === 'negation-guard-needed')
     && goodF.length === 0
@@ -161,8 +200,8 @@ function selfTest() {
   return {
     pass,
     detail: pass
-      ? 'catches an inverted prohibition, an inverted requirement, a negation-guard case, the legacy inverted-consent class, and clears correctly-typed duties'
-      : 'FAILED one or more self-test cases: ' + JSON.stringify({ invertedF, invertedReqF, negF, goodF, legacyF }),
+      ? 'catches an inverted prohibition, the "breach ... being present" wording class, an inverted requirement, a negation-guard case, the legacy inverted-consent class, and clears correctly-typed duties'
+      : 'FAILED one or more self-test cases: ' + JSON.stringify({ invertedF, invertedBreachPresentF, invertedReqF, negF, goodF, legacyF }),
   };
 }
 
@@ -174,4 +213,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { PROHIBITION_RX, REQUIREMENT_RX, SELF_DECLARATION_RX, LEGACY_COMPLIANT_CONSENT_RX, checkComRecord, checkLegacyRecord, scan, selfTest, toFindings };
+module.exports = { PROHIBITION_RX, BREACH_PRESENT_RX, REQUIREMENT_RX, SELF_DECLARATION_RX, LEGACY_COMPLIANT_CONSENT_RX, checkComRecord, checkLegacyRecord, scan, selfTest, toFindings };

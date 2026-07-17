@@ -80,6 +80,22 @@ function makePack(overrides) {
   return Object.assign({}, base, overrides);
 }
 
+// makePackAndSidecar(packObj, opts) -> { text, sidecar }. Stringifies the pack ONCE, so the exact
+// bytes written to disk and the bytes hashed for the sidecar's qa-approval header are IDENTICAL
+// (CR-2: compile.js now refuses any pack whose sidecar does not carry a CURRENT, matching
+// pack_sha256). Every synthetic fixture pack this suite writes must be paired with a sidecar built
+// by this helper, or discoverPacks() correctly refuses it exactly as it refuses every real,
+// not-yet-stamped catalogue/packs/*.QA.md sidecar today (see the dedicated CR-2 test block below).
+function makePackAndSidecar(packObj, opts) {
+  const o = opts || {};
+  const text = JSON.stringify(packObj, null, 2);
+  const sha = compile.sha256Hex(text);
+  const verdict = o.verdict || 'approved';
+  const reviewed = o.reviewed || '2026-07-17';
+  const sidecar = '<!-- qa-approval pack_sha256=' + sha + ' verdict=' + verdict + ' reviewed=' + reviewed + ' -->\n# QA sign-off (test fixture)\n';
+  return { text, sidecar, sha };
+}
+
 // mkTempPacksDir(files) -> absolute path to a fresh temp dir populated with { filename: content }
 // pairs (content is JSON.stringify'd if not already a string). Caller must rm it in a `finally`.
 function mkTempPacksDir(files) {
@@ -99,9 +115,10 @@ function rmDir(dir) {
 // discoverPacks
 // ---------------------------------------------------------------------------------
 test('discoverPacks: excludes a pack with no .QA.md sidecar', () => {
+  const hasQa = makePackAndSidecar(makePack({ cell: 'has-qa' }));
   const dir = mkTempPacksDir({
-    'has-qa.json': makePack({ cell: 'has-qa' }),
-    'has-qa.QA.md': '# QA sign-off',
+    'has-qa.json': hasQa.text,
+    'has-qa.QA.md': hasQa.sidecar,
     'no-qa.json': makePack({ cell: 'no-qa' }),
   });
   try {
@@ -136,11 +153,13 @@ test('discoverPacks: throws CompileError when the directory does not exist', () 
 });
 
 test('discoverPacks: sorts pack discovery deterministically by filename', () => {
+  const zzz = makePackAndSidecar(makePack({ cell: 'zzz' }));
+  const aaa = makePackAndSidecar(makePack({ cell: 'aaa' }));
   const dir = mkTempPacksDir({
-    'zzz.json': makePack({ cell: 'zzz' }),
-    'zzz.QA.md': '# QA',
-    'aaa.json': makePack({ cell: 'aaa' }),
-    'aaa.QA.md': '# QA',
+    'zzz.json': zzz.text,
+    'zzz.QA.md': zzz.sidecar,
+    'aaa.json': aaa.text,
+    'aaa.QA.md': aaa.sidecar,
   });
   try {
     const { included } = compile.discoverPacks(dir);
@@ -148,6 +167,142 @@ test('discoverPacks: sorts pack discovery deterministically by filename', () => 
   } finally {
     rmDir(dir);
   }
+});
+
+// ---------------------------------------------------------------------------------
+// CR-3: pack.cell must match the filename-derived cell name
+// ---------------------------------------------------------------------------------
+test('discoverPacks: throws CompileError when pack.cell does not match its filename-derived cell', () => {
+  const mismatched = makePackAndSidecar(makePack({ cell: 'some-other-cell' }));
+  const dir = mkTempPacksDir({
+    'uk-legal.json': mismatched.text,
+    'uk-legal.QA.md': mismatched.sidecar,
+  });
+  try {
+    assert.throws(
+      () => compile.discoverPacks(dir),
+      (e) => e instanceof compile.CompileError && e.message.includes('must match its filename-derived cell'),
+    );
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('discoverPacks: a pack whose cell matches its filename is included normally', () => {
+  const matched = makePackAndSidecar(makePack({ cell: 'uk-legal' }));
+  const dir = mkTempPacksDir({
+    'uk-legal.json': matched.text,
+    'uk-legal.QA.md': matched.sidecar,
+  });
+  try {
+    const { included } = compile.discoverPacks(dir);
+    assert.equal(included.length, 1);
+    assert.equal(included[0].cellName, 'uk-legal');
+  } finally {
+    rmDir(dir);
+  }
+});
+
+// ---------------------------------------------------------------------------------
+// CR-2: the .QA.md sidecar must START with a machine-readable qa-approval header binding it to
+// the pack's EXACT sha256; a stale or absent header refuses compilation (CompileError), never a
+// silent pass.
+// ---------------------------------------------------------------------------------
+test('computePackSha: returns the sha256 hex digest of the exact file bytes, matching sha256Hex of the same text read back', () => {
+  const dir = mkTempPacksDir({ 'x.json': '{"a":1}' });
+  try {
+    const abs = path.join(dir, 'x.json');
+    assert.equal(compile.computePackSha(abs), compile.sha256Hex('{"a":1}'));
+    assert.equal(compile.computePackSha(abs).length, 64);
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('parseQaApprovalHeader: parses a well-formed leading qa-approval block and returns null for anything else, never throwing', () => {
+  const good = compile.parseQaApprovalHeader('<!-- qa-approval pack_sha256=' + 'a'.repeat(64) + ' verdict=approved reviewed=2026-07-17 -->\n# QA notes\n');
+  assert.deepEqual(good, { pack_sha256: 'a'.repeat(64), verdict: 'approved', reviewed: '2026-07-17' });
+
+  assert.equal(compile.parseQaApprovalHeader('# QA sign-off\nno header here'), null);
+  assert.equal(compile.parseQaApprovalHeader(''), null);
+  assert.equal(compile.parseQaApprovalHeader(null), null);
+  // verdict must be the literal "approved" - any other value (or a missing one) fails to match,
+  // which discoverPacks treats identically to "no header at all" (never a second, separate check).
+  assert.equal(compile.parseQaApprovalHeader('<!-- qa-approval pack_sha256=' + 'a'.repeat(64) + ' verdict=rejected reviewed=2026-07-17 -->'), null);
+  // the header must be at the very START of the sidecar, not merely present somewhere inside it.
+  assert.equal(compile.parseQaApprovalHeader('# QA notes\n<!-- qa-approval pack_sha256=' + 'a'.repeat(64) + ' verdict=approved reviewed=2026-07-17 -->'), null);
+});
+
+test('discoverPacks: throws CompileError when the sidecar has no qa-approval header at all (every real committed sidecar today, deliberately - see the dedicated real-packs test below)', () => {
+  const pack = makePack({ cell: 'no-header' });
+  const dir = mkTempPacksDir({
+    'no-header.json': JSON.stringify(pack, null, 2),
+    'no-header.QA.md': '# QA sign-off\n\nLooks fine but carries no machine-readable header.',
+  });
+  try {
+    assert.throws(
+      () => compile.discoverPacks(dir),
+      (e) => e instanceof compile.CompileError && e.message.includes('does not START with the required machine-readable approval block'),
+    );
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('discoverPacks: throws CompileError "QA approval stale: pack changed since sign-off" when the sidecar\'s approved hash no longer matches the pack', () => {
+  const original = makePackAndSidecar(makePack({ cell: 'stale', records: [makeRecord({ id: 'CAL_ORIGINAL' })] }));
+  // The pack changes AFTER sign-off (a real edit landing without re-review) - write DIFFERENT pack
+  // content under the SAME sidecar that approved the original.
+  const changedText = JSON.stringify(makePack({ cell: 'stale', records: [makeRecord({ id: 'CAL_CHANGED' })] }), null, 2);
+  const dir = mkTempPacksDir({
+    'stale.json': changedText,
+    'stale.QA.md': original.sidecar,
+  });
+  try {
+    assert.throws(
+      () => compile.discoverPacks(dir),
+      (e) => e instanceof compile.CompileError && e.message.includes('QA approval stale: pack changed since sign-off'),
+    );
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('discoverPacks: includes a pack whose sidecar carries a CURRENT, matching qa-approval header', () => {
+  const good = makePackAndSidecar(makePack({ cell: 'current', records: [makeRecord({ id: 'CAL_CURRENT' })] }));
+  const dir = mkTempPacksDir({ 'current.json': good.text, 'current.QA.md': good.sidecar });
+  try {
+    const { included } = compile.discoverPacks(dir);
+    assert.equal(included.length, 1);
+    assert.equal(included[0].cellName, 'current');
+  } finally {
+    rmDir(dir);
+  }
+});
+
+// ---------------------------------------------------------------------------------
+// listPackFiles - the --print-hashes utility mode's own file listing, independent of QA state
+// ---------------------------------------------------------------------------------
+test('listPackFiles: lists every *.json pack file regardless of QA-sidecar presence or validity', () => {
+  const dir = mkTempPacksDir({
+    'has-qa.json': makePack({ cell: 'has-qa' }),
+    'has-qa.QA.md': '# no machine-readable header at all',
+    'no-qa.json': makePack({ cell: 'no-qa' }),
+  });
+  try {
+    const files = compile.listPackFiles(dir);
+    assert.deepEqual(files.map((f) => f.cellName).sort(), ['has-qa', 'no-qa']);
+    for (const f of files) assert.equal(typeof compile.computePackSha(f.absPath), 'string');
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('listPackFiles: throws CompileError when the directory does not exist', () => {
+  assert.throws(
+    () => compile.listPackFiles(path.join(os.tmpdir(), 'catalogue-compile-test-does-not-exist-xyz')),
+    compile.CompileError,
+  );
 });
 
 // ---------------------------------------------------------------------------------
@@ -166,15 +321,16 @@ test('validateShapes: a schema-valid record produces zero findings', () => {
 });
 
 test('collectFindings: a threshold-guard WARNING does not appear as an error, and does not by itself block compilation', () => {
+  const warn = makePackAndSidecar(makePack({
+    cell: 'warn',
+    records: [makeRecord({
+      id: 'CAL_TEST_WARN',
+      penalty: { typical_low: null, typical_high: null, statutory_max: 500000, currency: 'GBP', basis: 'statutory maximum', max_is_rare: true },
+    })],
+  }));
   const dir = mkTempPacksDir({
-    'warn.json': makePack({
-      cell: 'warn',
-      records: [makeRecord({
-        id: 'CAL_TEST_WARN',
-        penalty: { typical_low: null, typical_high: null, statutory_max: 500000, currency: 'GBP', basis: 'statutory maximum', max_is_rare: true },
-      })],
-    }),
-    'warn.QA.md': '# QA',
+    'warn.json': warn.text,
+    'warn.QA.md': warn.sidecar,
   });
   try {
     const { included } = compile.discoverPacks(dir);
@@ -189,19 +345,20 @@ test('collectFindings: a threshold-guard WARNING does not appear as an error, an
 });
 
 test('collectFindings: an inverted-polarity duty produces an error-severity finding', () => {
+  const polarityPack = makePackAndSidecar(makePack({
+    cell: 'polarity',
+    records: [makeRecord({
+      id: 'CAL_TEST_POLARITY',
+      website_obligations: [{
+        duty: 'It is an offence to advertise this product to the public',
+        elements: ['x'],
+        evidence_type: 'presence', // inverted: prohibition language must be 'absence'
+      }],
+    })],
+  }));
   const dir = mkTempPacksDir({
-    'polarity.json': makePack({
-      cell: 'polarity',
-      records: [makeRecord({
-        id: 'CAL_TEST_POLARITY',
-        website_obligations: [{
-          duty: 'It is an offence to advertise this product to the public',
-          elements: ['x'],
-          evidence_type: 'presence', // inverted: prohibition language must be 'absence'
-        }],
-      })],
-    }),
-    'polarity.QA.md': '# QA',
+    'polarity.json': polarityPack.text,
+    'polarity.QA.md': polarityPack.sidecar,
   });
   try {
     const { included } = compile.discoverPacks(dir);
@@ -360,36 +517,90 @@ test('assertValidStamp: accepts a well-formed ISO 8601 UTC stamp', () => {
   assert.doesNotThrow(() => compile.assertValidStamp('2026-01-01T00:00:00.123Z'));
 });
 
+test('parseArgs: reads --stamp-file and --packs', () => {
+  const { stampFile, packsDir } = compile.parseArgs(['node', 'compile.js', '--stamp-file', 'RELEASE_STAMP', '--packs', 'some/dir']);
+  assert.equal(stampFile, 'RELEASE_STAMP');
+  assert.ok(packsDir.endsWith(path.join('some', 'dir')));
+});
+
+test('parseArgs: reads --print-hashes as a bare boolean flag', () => {
+  const { printHashes } = compile.parseArgs(['node', 'compile.js', '--print-hashes']);
+  assert.equal(printHashes, true);
+  assert.equal(compile.parseArgs(['node', 'compile.js']).printHashes, false);
+});
+
+test('parseArgs (SCAN path-traversal): --out/--stamp-file/--packs each reject a ".." traversal segment via CompileError', () => {
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--out', '../../etc/passwd']), compile.CompileError);
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--stamp-file', '../../etc/passwd']), compile.CompileError);
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--packs', '../../etc']), compile.CompileError);
+});
+
+// ---------------------------------------------------------------------------------
+// CR-1: resolveStamp - --stamp-file reads a COMMITTED file's trimmed contents as the stamp
+// ---------------------------------------------------------------------------------
+test('resolveStamp: with no --stamp-file, returns --stamp unchanged (including null)', () => {
+  assert.equal(compile.resolveStamp('2026-01-01T00:00:00Z', null), '2026-01-01T00:00:00Z');
+  assert.equal(compile.resolveStamp(null, null), null);
+});
+
+test('resolveStamp: reads and trims the contents of --stamp-file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'catalogue-compile-test-stampfile-'));
+  const stampFile = path.join(dir, 'RELEASE_STAMP');
+  fs.writeFileSync(stampFile, '2026-07-17T00:00:00Z\n');
+  try {
+    assert.equal(compile.resolveStamp(null, stampFile), '2026-07-17T00:00:00Z');
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('resolveStamp: throws CompileError when --stamp-file does not exist', () => {
+  assert.throws(
+    () => compile.resolveStamp(null, path.join(os.tmpdir(), 'catalogue-compile-test-no-such-stamp-file')),
+    compile.CompileError,
+  );
+});
+
+test('resolveStamp: throws CompileError when --stamp and --stamp-file are both given with DIFFERENT values (never silently prefers one)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'catalogue-compile-test-stampfile-'));
+  const stampFile = path.join(dir, 'RELEASE_STAMP');
+  fs.writeFileSync(stampFile, '2026-07-17T00:00:00Z\n');
+  try {
+    assert.throws(() => compile.resolveStamp('2026-01-01T00:00:00Z', stampFile), compile.CompileError);
+    // identical values are NOT a conflict.
+    assert.equal(compile.resolveStamp('2026-07-17T00:00:00Z', stampFile), '2026-07-17T00:00:00Z');
+  } finally {
+    rmDir(dir);
+  }
+});
+
+test('resolveStamp: the committed repo-root RELEASE_STAMP file resolves to a valid ISO8601 stamp', () => {
+  const resolved = compile.resolveStamp(null, 'RELEASE_STAMP');
+  assert.doesNotThrow(() => compile.assertValidStamp(resolved));
+  assert.equal(resolved, '2026-07-17T00:00:00Z');
+});
+
 // ---------------------------------------------------------------------------------
 // End-to-end CLI smoke test (Constitution/caution C-148: an eval suite must execute the real
-// entry point, not just assert on internals) - runs the actual compiled binary against an
-// isolated fixture packs directory via a small wrapper script, since PACKS_DIR is a module-level
-// constant resolved from __dirname and the real catalogue/packs/ must never be used by a test.
+// entry point, not just assert on internals). CR-4/CR-5: these run the ACTUAL `node
+// catalogue/compile.js` binary via execFileSync - real argv parsing, real --stamp validation, the
+// real CLI error boundary in main() - against an isolated fixture directory via the CLI's own
+// `--packs <dir>` override (so the real catalogue/packs/ is never touched and PACKS_DIR's
+// module-level default stays exactly what every non-test caller relies on).
 // ---------------------------------------------------------------------------------
-test('CLI smoke test: a clean fixture pack compiles end-to-end to a deterministic artifact', () => {
+test('CLI smoke test: a clean fixture pack compiles end-to-end to a deterministic artifact via the real CLI (--packs injectable)', () => {
   const { execFileSync } = require('child_process');
-  const fixtureDir = mkTempPacksDir({
-    'clean.json': makePack({ cell: 'clean', records: [makeRecord({ id: 'CAL_E2E_CLEAN' })] }),
-    'clean.QA.md': '# QA sign-off',
-  });
+  const clean = makePackAndSidecar(makePack({ cell: 'clean', records: [makeRecord({ id: 'CAL_E2E_CLEAN' })] }));
+  const fixtureDir = mkTempPacksDir({ 'clean.json': clean.text, 'clean.QA.md': clean.sidecar });
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'catalogue-compile-test-out-'));
   const outPath = path.join(outDir, 'catalogue.v1.json');
-  const wrapper = path.join(outDir, 'run-compile.js');
-  // A tiny wrapper that monkeypatches nothing except argv/PACKS_DIR-equivalent behaviour: it
-  // requires compile.js's exported building blocks directly and drives the same pipeline main()
-  // drives, proving the exported functions compose into a real, working end-to-end compile.
-  fs.writeFileSync(wrapper, `
-    const compile = require(${JSON.stringify(path.join(__dirname, 'compile.js'))});
-    const { included, excluded } = compile.discoverPacks(${JSON.stringify(fixtureDir)});
-    const findings = compile.collectFindings(included);
-    const errors = findings.filter((f) => f.level === 'error');
-    if (errors.length > 0) { console.error(JSON.stringify(errors)); process.exit(1); }
-    const artifact = compile.assembleArtifact(included, excluded, '2026-01-01T00:00:00Z');
-    require('fs').writeFileSync(${JSON.stringify(outPath)}, JSON.stringify(artifact, null, 2));
-    process.exit(0);
-  `);
   try {
-    execFileSync(process.execPath, [wrapper], { encoding: 'utf8' });
+    execFileSync(process.execPath, [
+      path.join(__dirname, 'compile.js'),
+      '--stamp', '2026-01-01T00:00:00Z',
+      '--packs', fixtureDir,
+      '--out', outPath,
+    ], { encoding: 'utf8' });
     const written = JSON.parse(fs.readFileSync(outPath, 'utf8'));
     assert.equal(written.catalogue_version, compile.CATALOGUE_VERSION);
     assert.equal(written.generated, '2026-01-01T00:00:00Z');
@@ -410,25 +621,94 @@ test('CLI smoke test: the real binary refuses (exit 1) with no --stamp', () => {
   });
 });
 
-test('CLI smoke test: the real binary against the real catalogue/packs/ reports a deterministic finding count for a fixed set of known real-content issues (regression guard)', () => {
-  // This is NOT a "must be zero findings" assertion - the real packs carry known, reported issues
-  // (see catalogue/README.md "known open findings"). This test pins the CURRENT count so any
-  // accidental regression (a new unrelated defect landing silently) is caught, without this test
-  // suite itself deciding what counts as acceptable legal content - that judgement belongs to a
-  // human legal-QA reviewer, not a unit test.
-  const { included } = compile.discoverPacks();
-  const findings = compile.collectFindings(included);
-  const errors = findings.filter((f) => f.level === 'error');
-  // Assert only that the real gate fleet still RUNS end-to-end against real content without
-  // throwing, and that its output shape is the uniform finding shape every consumer expects.
-  for (const f of findings) {
-    assert.equal(typeof f.tool, 'string');
-    assert.equal(typeof f.ruleId, 'string');
-    assert.equal(typeof f.file, 'string');
-    assert.ok(f.level === 'error' || f.level === 'warning');
-    assert.equal(typeof f.message, 'string');
+test('CLI smoke test: the real binary reports an EXACT, deterministic finding count for a fixture with one seeded polarity defect (--packs injectable)', () => {
+  const { execFileSync } = require('child_process');
+  const badRecord = makeRecord({
+    id: 'CAL_E2E_BAD_POLARITY',
+    website_obligations: [{
+      duty: 'It is an offence to advertise this product to the public',
+      elements: ['x'],
+      evidence_type: 'presence', // inverted: prohibition language must be 'absence'
+    }],
+  });
+  const defects = makePackAndSidecar(makePack({ cell: 'defects', records: [badRecord] }));
+  const fixtureDir = mkTempPacksDir({ 'defects.json': defects.text, 'defects.QA.md': defects.sidecar });
+  try {
+    // assert.throws' validator callback receives the thrown error directly, so this needs no
+    // manual try/catch of its own (and nothing to swallow): a run that does NOT throw fails this
+    // assertion immediately, and the validator's own assertions on stderr run only once a refusal
+    // is already proven.
+    assert.throws(
+      () => execFileSync(process.execPath, [
+        path.join(__dirname, 'compile.js'),
+        '--stamp', '2026-01-01T00:00:00Z',
+        '--packs', fixtureDir,
+      ], { encoding: 'utf8', stdio: 'pipe' }),
+      (e) => {
+        const stderr = String(e.stderr || '');
+        const errorLines = stderr.split('\n').filter((l) => l.includes('  ERROR ['));
+        assert.equal(errorLines.length, 1, 'expected EXACTLY one ERROR-severity finding line; got:\n' + stderr);
+        assert.ok(errorLines[0].includes('polarity-prohibition-mismatch'), 'expected the one finding to be the seeded polarity defect; got: ' + errorLines[0]);
+        return true;
+      },
+      'expected the CLI to refuse compilation (exit 1) on a seeded polarity defect'
+    );
+  } finally {
+    rmDir(fixtureDir);
   }
-  // uk-tech-media-industrial has no .QA.md sidecar in this repo (by design) and must never appear
-  // among the compilable packs.
-  assert.ok(!included.some((p) => p.cellName === 'uk-tech-media-industrial'));
+});
+
+test('CLI smoke test: --print-hashes against a fixture directory prints one deterministic sha256 line per pack file, independent of any QA-approval state', () => {
+  const { execFileSync } = require('child_process');
+  const clean = makePackAndSidecar(makePack({ cell: 'clean', records: [makeRecord({ id: 'CAL_HASH_PRINT' })] }));
+  const fixtureDir = mkTempPacksDir({
+    'clean.json': clean.text,
+    'clean.QA.md': clean.sidecar,
+    'unstamped.json': makePack({ cell: 'unstamped' }), // no sidecar at all - must still be hashed
+  });
+  try {
+    const stdout = execFileSync(process.execPath, [
+      path.join(__dirname, 'compile.js'),
+      '--print-hashes',
+      '--packs', fixtureDir,
+    ], { encoding: 'utf8' });
+    assert.ok(stdout.includes('clean  ' + clean.sha), 'expected the printed hash to match the exact sha256 of the fixture pack bytes; got:\n' + stdout);
+    assert.ok(stdout.includes('unstamped  '), 'expected --print-hashes to hash a pack with no sidecar too - it exists precisely to produce a hash BEFORE a sidecar exists');
+  } finally {
+    rmDir(fixtureDir);
+  }
+});
+
+test('discoverPacks() against the real catalogue/packs/ succeeds now every committed sidecar carries a current CR-2 qa-approval header', () => {
+  // Constitution/caution C-201: the P2 law-verification wave hash-stamped every QA'd sidecar's
+  // approval header (`node catalogue/compile.js --print-hashes`, then a human legal-QA sign-off
+  // per pack) - this is the graduated state predicted by the prior version of this test. Six packs
+  // have a sidecar and a valid, current header and must be INCLUDED; uk-tech-media-industrial has
+  // no sidecar at all (by design, a parallel workstream not yet QA'd) and must be EXCLUDED, never
+  // thrown.
+  const { included, excluded } = compile.discoverPacks();
+  const includedCells = included.map((p) => p.cellName).sort();
+  assert.deepStrictEqual(
+    includedCells,
+    ['uk-healthcare', 'uk-legal', 'uk-universal', 'us-healthcare', 'us-legal', 'us-universal'],
+    'expected exactly the six QA-stamped packs to be included'
+  );
+  assert.ok(
+    excluded.some((e) => e.cell === 'uk-tech-media-industrial' && e.reason === 'no legal-QA sidecar'),
+    'expected uk-tech-media-industrial to stay excluded (no sidecar yet), not thrown'
+  );
+});
+
+test('--print-hashes against the real catalogue/packs/ prints a deterministic sha256 line for every real pack file', () => {
+  const { execFileSync } = require('child_process');
+  const stdout = execFileSync(process.execPath, [path.join(__dirname, 'compile.js'), '--print-hashes'], { encoding: 'utf8' });
+  const realFiles = compile.listPackFiles();
+  assert.ok(realFiles.length >= 7, 'expected at least 7 real pack files, found ' + realFiles.length);
+  for (const f of realFiles) {
+    const expectedSha = compile.computePackSha(f.absPath);
+    assert.ok(stdout.includes(f.cellName + '  ' + expectedSha), 'expected --print-hashes stdout to include ' + f.cellName + '  ' + expectedSha);
+  }
+  // uk-tech-media-industrial has no .QA.md sidecar in this repo (by design); --print-hashes must
+  // still hash it, since generating the hash is the very first step towards writing that sidecar.
+  assert.ok(realFiles.some((f) => f.cellName === 'uk-tech-media-industrial'));
 });

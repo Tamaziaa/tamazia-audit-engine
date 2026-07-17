@@ -59,6 +59,12 @@ function recordFinding(findings, entry) {
   findings.push(entry);
 }
 
+// MAX_PATTERN_LENGTH (SCAN-7): a catalogue-supplied pattern longer than this is refused BEFORE it
+// ever reaches `new RegExp(...)` - a length cap is real, cheap defence-in-depth against a
+// pathologically long/adversarial pattern string reaching regex compilation, independent of the
+// try/catch immediately below.
+const MAX_PATTERN_LENGTH = 2000;
+
 // checkRecord(record, locator) -> finding[]
 function checkRecord(record, locator) {
   const findings = [];
@@ -66,8 +72,13 @@ function checkRecord(record, locator) {
   const fields = walkForPatternFields(record, 'record', []);
 
   for (const f of fields) {
+    if (f.pattern.length > MAX_PATTERN_LENGTH) {
+      recordFinding(findings, { locator, id, rule: 'regex-health/pattern-too-long', level: 'error', message: f.path + ': pattern is ' + f.pattern.length + ' chars, exceeds the ' + MAX_PATTERN_LENGTH + '-char cap this linter enforces before compiling a catalogue-supplied pattern (ReDoS defence-in-depth) - shorten the pattern' });
+      continue;
+    }
     let compiled = null;
     try {
+      // By design: this linter compiles catalogue patterns to prove they are alive; input length-capped, failure is itself a finding.
       compiled = new RegExp(f.pattern, f.flags);
     } catch (e) {
       recordFinding(findings, { locator, id, rule: 'regex-health/pattern-does-not-compile', level: 'error', message: f.path + ': ' + JSON.stringify(f.pattern) + ' fails to compile: ' + e.message });
@@ -96,6 +107,9 @@ function scan(dirsOrPatterns) {
     patternCount += n;
     for (const f of findings) violations.push({ file: entry.file, ...f });
   }
+  // CR-7: an unreadable/unparseable file fails the gate through the same violations array a real
+  // regex-health defect uses.
+  for (const v of lib.parseErrorViolations(parseErrors)) violations.push(v);
   return { violations, scanned: entries.length, patternCount, parseErrors };
 }
 
@@ -104,22 +118,27 @@ function selfTest() {
   const noExample = { id: 'CAL_SELFTEST_NOEX', regex_pattern: 'dpo@' };
   const good = { id: 'CAL_SELFTEST_GOOD', detection: { pattern: 'dpo\\s*@', positive_example: 'email dpo@example.com for data requests' } };
   const zero = { id: 'CAL_SELFTEST_ZERO', name: 'no regex fields at all here' };
+  // SCAN-7: a pattern past MAX_PATTERN_LENGTH must be refused BEFORE compilation, never reach
+  // new RegExp() at all.
+  const tooLong = { id: 'CAL_SELFTEST_TOOLONG', detection: { pattern: 'a'.repeat(MAX_PATTERN_LENGTH + 1), positive_example: 'aaa' } };
 
   const deadR = checkRecord(dead, 'selftest');
   const noExR = checkRecord(noExample, 'selftest');
   const goodR = checkRecord(good, 'selftest');
   const zeroR = checkRecord(zero, 'selftest');
+  const tooLongR = checkRecord(tooLong, 'selftest');
 
   const pass = deadR.findings.some((f) => f.rule === 'regex-dead-pattern')
     && noExR.findings.some((f) => f.rule === 'regex-no-positive-example')
     && goodR.findings.length === 0
-    && zeroR.patternCount === 0 && zeroR.findings.length === 0;
+    && zeroR.patternCount === 0 && zeroR.findings.length === 0
+    && tooLongR.findings.some((f) => f.rule === 'regex-health/pattern-too-long');
 
   return {
     pass,
     detail: pass
-      ? 'catches a dead over-escaped pattern, catches a missing positive_example, clears a genuinely matching pattern, and reports zero patterns honestly when none exist'
-      : 'FAILED one or more self-test cases: ' + JSON.stringify({ deadR, noExR, goodR, zeroR }),
+      ? 'catches a dead over-escaped pattern, catches a missing positive_example, catches an over-long pattern before compilation, clears a genuinely matching pattern, and reports zero patterns honestly when none exist'
+      : 'FAILED one or more self-test cases: ' + JSON.stringify({ deadR, noExR, goodR, zeroR, tooLongR }),
   };
 }
 
@@ -137,4 +156,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { walkForPatternFields, checkRecord, scan, selfTest, toFindings, REGEX_FIELD_KEY_RX };
+module.exports = { walkForPatternFields, checkRecord, scan, selfTest, toFindings, REGEX_FIELD_KEY_RX, MAX_PATTERN_LENGTH };

@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 
 const linter = require('./regex-health.js');
 const lib = require('./lib.js');
-const { packsDirExistsOrSkip } = require('./test-helpers.js');
+const { packsDirOrFail } = require('./test-helpers.js');
 
 // ---------------------------------------------------------------------------------
 // walkForPatternFields
@@ -81,6 +81,19 @@ test('checkRecord: positive_example may live on the record itself (legacy flat-r
   assert.deepEqual(res.findings, []);
 });
 
+test('checkRecord (SCAN-7): a pattern longer than MAX_PATTERN_LENGTH is flagged regex-health/pattern-too-long and is never handed to new RegExp() at all', () => {
+  const r = { id: 'CAL_TEST_TOOLONG', detection: { pattern: 'a'.repeat(linter.MAX_PATTERN_LENGTH + 1), positive_example: 'aaa' } };
+  const res = linter.checkRecord(r, 'test');
+  assert.ok(res.findings.some((f) => f.rule === 'regex-health/pattern-too-long'));
+  assert.ok(!res.findings.some((f) => f.rule === 'regex-health/pattern-does-not-compile'), 'an over-long pattern must be refused BEFORE compilation is attempted');
+});
+
+test('checkRecord: a pattern at exactly MAX_PATTERN_LENGTH is not flagged pattern-too-long', () => {
+  const r = { id: 'CAL_TEST_ATLIMIT', detection: { pattern: 'a'.repeat(linter.MAX_PATTERN_LENGTH), positive_example: 'aaa' } };
+  const res = linter.checkRecord(r, 'test');
+  assert.deepEqual(res.findings.filter((f) => f.rule === 'regex-health/pattern-too-long'), []);
+});
+
 test('checkRecord: never throws on a record whose "pattern"-named field is not a regex-shaped string container (e.g. an object rather than a string is walked into, not treated as a pattern)', () => {
   const r = { id: 'CAL_TEST_CONTAINER', pattern: { nested: 'not a pattern string itself' } };
   assert.doesNotThrow(() => linter.checkRecord(r, 'test'));
@@ -114,8 +127,8 @@ test('scan against eval/calibration-known-bad/fixtures also still catches the pr
 // Real-pack smoke test (C-148 doctrine)
 // ---------------------------------------------------------------------------------
 
-test('scan: real committed packs carry zero regex-bearing fields today (detection is a future migration step) and this is reported as an honest zero, not a false pass', (t) => {
-  if (!packsDirExistsOrSkip(t, __dirname)) return;
+test('scan: real committed packs carry zero regex-bearing fields today (detection is a future migration step) and this is reported as an honest zero, not a false pass', () => {
+  packsDirOrFail(__dirname);
   const res = linter.scan([lib.DEFAULT_PACK_GLOB]);
   assert.ok(res.scanned > 0);
   assert.equal(res.patternCount, 0, 'expected zero regex-bearing fields in the current COM packs; got ' + res.patternCount + ' - update this test if a migration has landed regex detection fields');

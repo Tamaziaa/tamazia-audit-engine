@@ -12,6 +12,17 @@ const schema = require('./schema.js');
 // ---------------------------------------------------------------------------------
 // A known-good record, structurally identical to real pack records (pruned to a
 // minimal-but-complete shape so mutation tests are easy to read).
+//
+// CR-37: every fact below is a SYNTHETIC placeholder ("Fake Act 2099" style) - never a real law
+// name, citation, penalty figure, regulator or enforcement case. This is a pure SHAPE-validation
+// fixture (catalogue/schema.js checks structure, type and enum membership only, never content
+// truth), so it has no need of real legal content to do its job, and Constitution Rule 2
+// (catalogue-only law facts) is best honoured by never hand-copying a real fine/regulator/law title
+// into a test fixture outside catalogue/packs/ in the first place - a stale or drifted copy here
+// would be exactly the class of defect Rule 2 exists to prevent, just one repo-search away from
+// looking like a second source of truth. The citation/enforcement/register URLs use the `.example`
+// TLD (IANA-reserved for documentation and testing, RFC 2606) so nothing here can ever collide with
+// a real, live domain.
 // ---------------------------------------------------------------------------------
 function goodRecord() {
   return {
@@ -19,18 +30,18 @@ function goodRecord() {
     sub_jurisdiction: null,
     status: 'candidate',
     client_useful: true,
-    id: 'UK_GDPR_PRIVACY_NOTICE',
-    name: 'UK GDPR and Data Protection Act 2018 (privacy notice)',
+    id: 'FAKE_ACT_2099_TEST_RECORD',
+    name: 'Fake Act 2099 (synthetic test fixture - privacy notice duty)',
     citation: {
-      act: 'UK GDPR (assimilated Regulation (EU) 2016/679); Data Protection Act 2018',
-      section: 'UK GDPR Arts 5, 6, 13, 14, 21',
-      url: 'https://www.legislation.gov.uk/eur/2016/679/contents',
+      act: 'Fake Act 2099 (synthetic fixture, not a real statute)',
+      section: 'Fake Act 2099 s.1',
+      url: 'https://law.example/fake-act-2099',
     },
     sector: ['universal'],
     sub_sector: [],
     activity_tags: ['b2c', 'ecommerce', 'cookies_present'],
     required_nexus: ['processes_residents_of', 'serves_customers_in'],
-    applies_when: ['processes personal data of UK residents'],
+    applies_when: ['processes personal data of UK residents (synthetic fixture)'],
     excluded_when: ['purely personal or household processing'],
     website_obligations: [
       {
@@ -40,33 +51,33 @@ function goodRecord() {
       },
     ],
     penalty: {
-      typical_low: 1230000,
-      typical_high: 14000000,
-      statutory_max: 17500000,
+      typical_low: 100000,
+      typical_high: 900000,
+      statutory_max: 1000000,
       currency: 'GBP',
-      basis: 'Higher maximum of GBP 17.5m or 4% of turnover',
+      basis: 'Synthetic test penalty basis (Fake Act 2099 s.9, not a real figure)',
       max_is_rare: true,
     },
     regulator: {
-      name: "Information Commissioner's Office (ICO)",
-      register_url: 'https://ico.org.uk/ESDWebPages/Search',
+      name: 'Fake Test Regulator (synthetic fixture, not a real body)',
+      register_url: 'https://law.example/register',
     },
     enforcement: [
       {
-        case: 'ICO v Capita plc',
-        date: '2025-10',
-        amount: 'GBP 14,000,000',
-        url: 'https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/10/capita-14m-fine/',
-        summary: 'Fined GBP 14m after a ransomware attack.',
+        case: 'Fake Test Regulator v Fake Test Co Ltd (synthetic fixture)',
+        date: '2099-01',
+        amount: 'GBP 900,000',
+        url: 'https://law.example/enforcement/fake-test-co',
+        summary: 'Synthetic test enforcement case; not a real regulatory action.',
       },
     ],
     intel: {
-      why_matters: 'Almost every business website processes personal data.',
-      regulator_asks_first: 'Show me your privacy notice.',
-      relevance_hook: 'A missing privacy notice is a visible, evidenced breach.',
+      why_matters: 'Synthetic fixture: exercises the intel.why_matters shape only.',
+      regulator_asks_first: 'Synthetic fixture: exercises the intel.regulator_asks_first shape only.',
+      relevance_hook: 'Synthetic fixture: exercises the intel.relevance_hook shape only.',
     },
     provenance: {
-      sources: ['UK-GDPR-01 (seed, confirmed)'],
+      sources: ['FAKE-SOURCE-01 (synthetic test fixture, not a real source)'],
       seed_status: 'confirmed',
       verified_date: '2026-07-16',
     },
@@ -75,7 +86,7 @@ function goodRecord() {
 
 function goodPack() {
   return {
-    cell: 'uk-universal',
+    cell: 'fake-test-cell',
     jurisdiction: 'UK',
     generated: '2026-07-16',
     records: [goodRecord()],
@@ -136,6 +147,13 @@ test('validateRecord: sub_sector accepts empty array and lowercase-hyphen slugs,
 
   const bad = goodRecord(); bad.sub_sector = ['medical_devices'];
   assert.ok(schema.validateRecord(bad).some((m) => m.includes('sub_sector:') && m.includes('medical_devices')));
+});
+
+test('validateRecord (CR-36): sub_sector is enum-checked against facts/vocabulary.js CANONICAL_SUB_SECTORS - a well-formed slug that is not a canonical member is rejected', () => {
+  const bad = goodRecord();
+  bad.sub_sector = ['not-a-real-sub-sector'];
+  const v = schema.validateRecord(bad);
+  assert.ok(v.some((m) => m.includes('sub_sector:') && m.includes('not-a-real-sub-sector') && m.includes('CANONICAL_SUB_SECTORS')));
 });
 
 test('validateRecord: activity_tags is enum-checked against facts/vocabulary.js ACTIVITY_TAGS', () => {
@@ -339,20 +357,22 @@ test('validatePack: catches every seeded defect in the p2-schema-violation.json 
 // pass); every real pack now clears with zero schema violations. Re-add a KNOWN_FINDINGS entry
 // here (never loosen the schema itself) if a real pack regresses.
 //
-// catalogue/packs/ is STAGED INPUT DATA, not something this module owns or writes. If it is
-// absent at test time (a fresh clone before the packs are staged, or a working tree where they
-// have not been restored) this smoke test SKIPS with a loud, explicit reason rather than either
-// silently passing (a directory that does not exist is not "zero violations") or hard-failing
-// the whole suite on a precondition outside catalogue/schema.js's control.
+// CR-10 (fail closed, caution.md C-201): catalogue/packs/ is COMMITTED, git-tracked staged data
+// (`git ls-files catalogue/packs` lists all 13 files) - never a gitignored build output this module
+// happens not to own. Its absence at test time therefore means a broken checkout, not a legitimate
+// reason to silently SKIP the one smoke test that exercises real content: a skip here looks
+// IDENTICAL to a clean pass in a green CI run. This test now FAILS instead.
 // ---------------------------------------------------------------------------------
 
 const PACKS_DIR = path.join(__dirname, 'packs');
 
-test('validatePack: smoke test against every real committed pack', (t) => {
-  if (!fs.existsSync(PACKS_DIR)) {
-    t.skip('catalogue/packs/ is not present on disk (staged input data, not owned by this module) - skipping the real-pack smoke test');
-    return;
-  }
+test('validatePack: smoke test against every real committed pack', () => {
+  assert.ok(
+    fs.existsSync(PACKS_DIR),
+    'catalogue/packs/ is not present on disk. This directory is committed, git-tracked staged data '
+    + '(see `git ls-files catalogue/packs`), not a build output - its absence means a broken checkout '
+    + 'or a working tree not cloned from repo HEAD (caution.md C-201), not a legitimate skip condition.'
+  );
   const files = fs.readdirSync(PACKS_DIR).filter((f) => f.endsWith('.json'));
   assert.ok(files.length >= 7, 'expected at least 7 packs on disk, found ' + files.length);
 

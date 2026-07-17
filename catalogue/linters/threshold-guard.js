@@ -20,7 +20,19 @@ const lib = require('./lib');
 
 // Deliberately broad: a false positive here is a BLOCKING finding demanding a human confirm an
 // excluded_when entry exists, never a silent pass-through of an unmodelled size threshold.
-const THRESHOLD_RX = /\bturnover\b|\brevenue\b|\bemployee(?:s)?\s*(?:count|number)?\b|\bnumber of employees\b|\bcompany size\b|\bsize of (?:the )?(?:company|business|firm)\b|\bsmall (?:and medium-sized )?(?:business(?:es)?|enterprises?)\b|\bSMEs?\b|\bstaff (?:count|number|headcount)\b|\bheadcount\b|\bfewer than \d|\bmore than \d+\s*(?:employees|staff)\b|\bGBP\s?\d[\d,]*\s*(?:m|million|k)\b|\b£\s?\d[\d,]*\s*(?:m|million|k)\b|\$\s?\d[\d,]*\s*(?:m|million|k)\b/i;
+//
+// CR-13: the currency alternatives deliberately do NOT lead with \b before a non-word symbol
+// (£/$). \b only fires at a transition between a word char and a non-word char; a currency symbol
+// preceded by whitespace (the overwhelmingly common real case: "turnover of £36m") is a
+// non-word-to-non-word transition, so a LEADING \b before £ never matches at all - proven dead by
+// this file's own selfTest below. GBP keeps its leading \b (GBP is word characters, the boundary is
+// real); £ and $ do not need one, since \d immediately after already anchors the match precisely
+// and a currency symbol has no letter-run for a spurious mid-token match to hide inside.
+// "employee(s)" alone is NOT a size signal: an endorsement "by an employee" is authorship, not
+// headcount (the US_FTC_REVIEWS_ENDORSEMENTS false positive, PR #3 gate loop). The employee
+// alternations therefore REQUIRE count context: a mandatory count/number/threshold qualifier or a
+// leading numeral ("250 or more employees").
+const THRESHOLD_RX = /\bturnover\b|\brevenue\b|\bemployee(?:s)?\s+(?:count|number|threshold)\b|\bnumber of employees\b|\b\d[\d,]*\s*(?:or more\s+)?employees\b|\bcompany size\b|\bsize of (?:the )?(?:company|business|firm)\b|\bsmall (?:and medium-sized )?(?:business(?:es)?|enterprises?)\b|\bSMEs?\b|\bstaff (?:count|number|headcount)\b|\bheadcount\b|\bfewer than \d|\bmore than \d+\s*(?:employees|staff)\b|\bGBP\s?\d[\d,]*\s*(?:m|million|k)\b|£\s?\d[\d,]*\s*(?:m|million|k)\b|\$\s?\d[\d,]*\s*(?:m|million|k)\b/i;
 
 function textMentionsThreshold(record) {
   const haystacks = [];
@@ -34,8 +46,20 @@ function textMentionsThreshold(record) {
   return haystacks.some((h) => THRESHOLD_RX.test(h));
 }
 
+// hasNonEmptyExcludedWhen(record) -> true only when excluded_when carries a GENUINE "below the
+// threshold, excluded" entry (CR-12) - not merely any non-empty string. An unrelated exclusion
+// reason (e.g. "B2B-only firms are out of scope" on a size-gated record, with no size language
+// anywhere in it) must never satisfy this check while the actual sub-threshold carve-out stays
+// unmodelled: a genuine entry re-uses THRESHOLD_RX itself - the SAME vocabulary that triggered this
+// check in the first place - which already mixes both a threshold KEYWORD class ("turnover",
+// "revenue", "employees", "SME", ...) and a NUMERIC/currency-amount class ("GBP 36 million", "£36m",
+// "$10m", "fewer than 250"). Re-using one regex for both directions means a threshold-mention
+// vocabulary change can never silently drift the two checks apart. A bare digit test (e.g. "\d")
+// was deliberately rejected here: it false-positived on "B2B-only" (the "2" in "B2B"), which is
+// exactly the unrelated-entry class this tightening exists to reject.
 function hasNonEmptyExcludedWhen(record) {
-  return Array.isArray(record.excluded_when) && record.excluded_when.some((e) => typeof e === 'string' && e.trim().length > 0);
+  if (!Array.isArray(record.excluded_when)) return false;
+  return record.excluded_when.some((e) => typeof e === 'string' && e.trim().length > 0 && THRESHOLD_RX.test(e));
 }
 
 function isFiniteNumber(x) {
@@ -49,9 +73,13 @@ function checkRecord(record, locator) {
   const add = (rule, message, severity) => findings.push({ locator, id, rule, message, severity });
 
   if (textMentionsThreshold(record) && !hasNonEmptyExcludedWhen(record)) {
+    // CR-11/CR-12: 'error' passed EXPLICITLY (not left to makeToFindings' implicit
+    // undefined-defaults-to-error behaviour) - this is the blocking rule; a future refactor of the
+    // shared severity default must not silently downgrade it.
     add(
       'threshold-excluded-when-missing',
-      'name/applies_when/excluded_when mentions a turnover/revenue/employee-count/company-size threshold but excluded_when is empty - a size-gated law with no modelled "below threshold, excluded" entry attaches to every firm regardless of size (the Modern Slavery Act-on-an-SME class, caution.md C-071)'
+      'name/applies_when/excluded_when mentions a turnover/revenue/employee-count/company-size threshold but excluded_when carries no matching below-threshold exclusion - a size-gated law with no modelled "below threshold, excluded" entry attaches to every firm regardless of size (the Modern Slavery Act-on-an-SME class, caution.md C-071)',
+      'error'
     );
   }
 
@@ -74,6 +102,9 @@ function scan(dirsOrPatterns) {
     if (entry.shape !== 'com') continue; // this linter reads applies_when/excluded_when/penalty, the COM shape only
     for (const f of checkRecord(entry.record, entry.locator)) violations.push({ file: entry.file, ...f });
   }
+  // CR-7: an unreadable/unparseable file fails the gate through the same violations array a real
+  // threshold defect uses.
+  for (const v of lib.parseErrorViolations(parseErrors)) violations.push(v);
   return { violations, scanned: entries.length, parseErrors };
 }
 
@@ -106,13 +137,33 @@ function selfTest() {
     excluded_when: [],
     penalty: { typical_low: 1000, typical_high: 2000, statutory_max: 5000, currency: 'GBP', basis: 'x', max_is_rare: false },
   };
+  // CR-12: an excluded_when entry that carries NO threshold keyword or number (an unrelated
+  // exclusion reason) must NOT satisfy hasNonEmptyExcludedWhen - the record stays flagged.
+  const unrelatedExcluded = {
+    id: 'CAL_SELFTEST_UNRELATED_EXCLUDED',
+    name: 'Modern Slavery Act 2015 (transparency statement)',
+    applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+    excluded_when: ['B2B-only firms are out of scope'],
+    penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
+  };
+  // CR-13: a bare currency-symbol threshold mention at the very START of a string (no preceding
+  // word-boundary transition to anchor a leading \b) must still be recognised.
+  const currencyTokenStart = { name: '£36m', applies_when: [], excluded_when: [] };
+  const dollarTokenStart = { name: '$10m', applies_when: [], excluded_when: [] };
 
   const missingF = checkRecord(missingExcluded, 'selftest');
   const goodF = checkRecord(good, 'selftest');
   const bandF = checkRecord(bandMissing, 'selftest');
   const noThreshF = checkRecord(noThreshold, 'selftest');
+  const unrelatedExcludedF = checkRecord(unrelatedExcluded, 'selftest');
+
+  const missingIsBlockingError = missingF.some((f) => f.rule === 'threshold-excluded-when-missing' && f.severity === 'error');
 
   const pass = missingF.some((f) => f.rule === 'threshold-excluded-when-missing')
+    && missingIsBlockingError
+    && unrelatedExcludedF.some((f) => f.rule === 'threshold-excluded-when-missing')
+    && textMentionsThreshold(currencyTokenStart)
+    && textMentionsThreshold(dollarTokenStart)
     && goodF.filter((f) => f.rule === 'threshold-excluded-when-missing').length === 0
     && bandF.some((f) => f.rule === 'typical-band-missing')
     && noThreshF.length === 0;
@@ -120,8 +171,8 @@ function selfTest() {
   return {
     pass,
     detail: pass
-      ? 'catches a threshold mention with empty excluded_when, clears one with a populated excluded_when, catches a statutory_max with no typical band, and stays silent on a record with no threshold and a full penalty band'
-      : 'FAILED one or more self-test cases: ' + JSON.stringify({ missingF, goodF, bandF, noThreshF }),
+      ? 'catches a threshold mention with empty excluded_when (as a blocking error), an unrelated non-size excluded_when entry, £/$ threshold mentions at token start, clears a genuine below-threshold excluded_when, catches a statutory_max with no typical band, and stays silent on a record with no threshold and a full penalty band'
+      : 'FAILED one or more self-test cases: ' + JSON.stringify({ missingF, goodF, bandF, noThreshF, unrelatedExcludedF, missingIsBlockingError }),
   };
 }
 

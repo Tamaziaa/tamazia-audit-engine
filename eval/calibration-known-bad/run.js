@@ -246,13 +246,18 @@ function main(argv) {
 
     try {
       const findings = runExternalChecker(checker);
+      // CR-38: EVERY fixture listed for this calibration must be caught, not just ANY one of them.
+      // A multi-fixture calibration (e.g. the legacy + p2 pair on regex-health/polarity) previously
+      // passed as long as ONE fixture produced a finding, so a checker could keep catching the old
+      // fixture while completely missing a newly-added one and still report green.
+      const missingFixtures = cal.fixtures.filter((fx) => !findings.some((fd) => String(fd.file || '').includes(fx)));
       const fixtureHits = findings.filter((fd) =>
         cal.fixtures.some((fx) => String(fd.file || '').includes(fx))
       );
-      if (fixtureHits.length > 0) {
-        results.push({ name: cal.name, status: 'PASS', detail: `${fixtureHits.length} finding(s) on the fixture via ${path.relative(REPO_ROOT, checker)}` });
+      if (missingFixtures.length === 0) {
+        results.push({ name: cal.name, status: 'PASS', detail: `${fixtureHits.length} finding(s) across all ${cal.fixtures.length} fixture(s) via ${path.relative(REPO_ROOT, checker)}` });
       } else {
-        results.push({ name: cal.name, status: 'FAIL', detail: `${path.relative(REPO_ROOT, checker)} reported ZERO findings on ${cal.fixtures.join(', ')} - it has not earned its zero (${cal.description})` });
+        results.push({ name: cal.name, status: 'FAIL', detail: `${path.relative(REPO_ROOT, checker)} reported ZERO findings on: ${missingFixtures.join(', ')} - it has not earned its zero on every seeded fixture (${cal.description})` });
         failed++;
       }
     } catch (e) {

@@ -76,10 +76,10 @@
    "enforcement": [
     {
      "case": "ICO v Capita plc",
-     "date": "2025-04",
+     "date": "2025-10",
      "amount": "GBP 14,000,000",
-     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/04/capita-14m-fine/",
-     "summary": "Fined GBP 14m after a 2023 ransomware attack exposed the personal data of around 90,000 people, for failure to implement appropriate security."
+     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/10/capita-fined-14m-for-data-breach-affecting-over-6m-people/",
+     "summary": "Fined GBP 14m (GBP 8m controller plus GBP 6m processor) after a March 2023 cyber attack exposed the personal data of around 6.6 million people; failure to implement appropriate security measures."
     },
     {
      "case": "ICO v Advanced Computer Software Group",
@@ -90,10 +90,10 @@
     },
     {
      "case": "ICO v 23andMe",
-     "date": "2025-04",
+     "date": "2025-06",
      "amount": "GBP 2,310,000",
-     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/04/23andme-fine/",
-     "summary": "Fined for a 2023 breach exposing genetic data of 6.9m users worldwide, including 693,000 UK individuals."
+     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/06/23andme-fined-for-failing-to-protect-uk-users-genetic-data/",
+     "summary": "Fined GBP 2.31m for a 2023 credential-stuffing breach exposing genetic and other data; the ICO penalty notice (5 June 2025) concerned 155,592 UK residents, with 6.9m affected worldwide."
     }
    ],
    "intel": {
@@ -108,7 +108,8 @@
      "ICO monetary penalties 2025 (seed compliance_enforcement)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -206,7 +207,8 @@
      "ICO cookie review + HelloFresh (seed compliance_enforcement)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -284,7 +286,8 @@
      "DUAA PECR uplift note (seed compliance_enforcement)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -360,7 +363,8 @@
      "DPA 2018 fee regime"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -431,7 +435,8 @@
      "US accessiBe FTC action re overlay claims (seed, comparative)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -512,7 +517,8 @@
      "E-Commerce Regs 2002 reg 6 (gap_filled)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -580,7 +586,8 @@
      "UK-CRA-15 (seed, confirmed)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -652,7 +659,8 @@
      "UK-CCR-13 (seed, confirmed)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -729,11 +737,11 @@
    },
    "enforcement": [
     {
-     "case": "CMA first DMCC drip-pricing enforcement (travel and hospitality)",
+     "case": "CMA first DMCC drip-pricing enforcement",
      "date": "2025-11",
      "amount": "Investigation opened",
      "url": "https://www.gov.uk/government/organisations/competition-and-markets-authority",
-     "summary": "CMA opened its first DMCC Act consumer-protection action targeting drip pricing in the travel and hospitality sectors."
+     "summary": "CMA opened its first DMCC Act consumer-protection actions (November 2025) targeting drip pricing across consumer sectors."
     }
    ],
    "intel": {
@@ -748,7 +756,8 @@
      "CMA drip-pricing + fake-reviews actions (seed compliance_enforcement)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -823,7 +832,8 @@
      "UK-CPR-08 (seed, confirmed)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -891,7 +901,8 @@
      "CAP Code 12th edition"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -960,7 +971,8 @@
      "NEON-UK-OSA-2023 (seed, corrected: activity-gated, penalty = greater of GBP 18m or 10% qualifying worldwide revenue)"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1029,7 +1041,8 @@
      "SI 2015/1833 GBP 36m threshold (gap_filled)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -1100,7 +1113,8 @@
      "UK-DMCC-24 (seed)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   }
  ]

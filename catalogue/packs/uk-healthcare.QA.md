@@ -1,3 +1,6 @@
+<!-- qa-approval pack_sha256=796c4441de1455a5bd7edee36814c3a8bb0744de0e88e148a67586a277b19fe7 verdict=approved reviewed=2026-07-17 -->
+Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+
 # UK Healthcare Law Pack — QA
 
 Reviewer pass over `uk-healthcare.json` (17 records). Date: 2026-07-17.
@@ -67,4 +70,8 @@ Strong. Every requested sub-sector covered (GP, dental, pharmacy, aesthetics, fe
 
 ## Residual open items (not blocking)
 - Reg 20A `statutory_max` of £2,500 retained as the level-4 prosecution ceiling; if a deeper read of SI 2014/2936 reg 25 shows a different scale, revisit.
-- MHRA distance-selling logo: whether display is strictly mandatory on every GB page post-Brexit is framed conservatively; unchanged.
+- MHRA distance-selling logo: **resolved in the P2 wave (see below).** The mandatory EU common / MHRA distance-selling logo now applies to **Northern Ireland** sellers only (Windsor Framework); Great Britain (England/Scotland/Wales) dropped the requirement on 1 Jan 2021 and relies on GPhC registration + the register, with the GPhC internet-pharmacy logo being voluntary.
+
+## P2 law-verification wave (2026-07-17)
+- **UK_GPHC_ONLINE_PHARMACY (GB/NI split, CR-15):** verified against GPhC (`pharmacyregulation.org` "providing services online") and GOV.UK ("register for the distance-selling logo" / "new mandatory logo for selling medicines online"). Since 1 January 2021 GB sellers no longer display the EU common (distance-selling) logo; it remains a legal requirement in Northern Ireland under the Windsor Framework. `applies_when` / `excluded_when` / the logo `elements` and `penalty.basis` were rewritten conservatively so the mandatory-logo obligation is scoped to NI, and GB is verified via GPhC registration and the register.
+- **All 17 records:** `provenance.last_synced: "2026-07-17"` added.

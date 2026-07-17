@@ -1,6 +1,9 @@
+<!-- qa-approval pack_sha256=aaa98ae654c5538b49210f8fc453205502c04fa3488b09b7d678d7f7119e7c9a verdict=approved reviewed=2026-07-17 -->
+Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+
 # QA Report — us-legal law pack
 
-- File: `lawpacks/us-legal.json`
+- File: `catalogue/packs/us-legal.json`
 - QA date: 2026-07-17
 - Records checked: 17 (all)
 - Verdict: **PASS** — no records downgraded, no CRITICAL findings
@@ -43,3 +46,8 @@ The QA brief asked to verify **≥5 enforcement cases**; the pack contains **onl
 ## Minor notes (no action required)
 - All records carry `status: "candidate"` — appropriate; QA promotes none automatically, but none should be blocked either.
 - US_ABA_FIRM_NAMES and CA_RPC_CH7 rely on state-retained numbered 7.4/7.5 vs the deleted ABA model numbers; both handle the ABA-vs-state numbering divergence correctly.
+
+## P2 law-verification wave (2026-07-17)
+- **US_ABA_RULE_7_2 (Rule 7.2(d) wording):** duty corrected from "name and office address" to "name and **contact information** of at least one lawyer or law firm responsible for the content", matching the current ABA Model Rule 7.2(d) (verified via americanbar.org rule text / mrpc-7-2 PDF).
+- **US_ABA_RULE_7_1 (prior-results disclaimer):** narrowed — the disclaimer duty now applies only where the lawyer's licensing state bar requires it (the ABA Model Rule places it in the comment, not the black-letter), framed advisory.
+- **Advisory tier:** all 8 `US_ABA_*` records now carry `advisory: true` (schema tolerates the field; caution.md C-055 tier marker). These model rules are advisory templates adopted with variation per state, so they attach as an advisory obligation to confirm against the operator's admitting jurisdiction, not a hard breach.

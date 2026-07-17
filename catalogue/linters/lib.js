@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { runGateCli } = require('../../tools/lib/gate-cli');
+const safePath = require('../../tools/lib/safe-path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_PACK_GLOB = 'catalogue/packs/*.json';
@@ -49,14 +50,20 @@ function resolveJsonFiles(patternOrDir) {
   } else {
     dir = raw;
   }
+  // dir/raw are caller-supplied (a CLI positional, DEFAULT_PACK_GLOB, or CALIBRATE_DIR) - allowlist
+  // them as safe RELATIVE paths (no ".." traversal segment) before they ever reach path.resolve.
+  // An empty string is a legitimate "no directory named" case (falls through to the empty [] return
+  // below) so it is exempted from the check rather than treated as unsafe.
+  if (dir) safePath.assertSafeRelativePath(dir, { label: 'catalogue linter scan directory' });
   const absDir = path.resolve(REPO_ROOT, dir);
   if (fs.existsSync(absDir) && fs.statSync(absDir).isDirectory()) {
     return fs.readdirSync(absDir)
       .filter((f) => (ext ? f.endsWith(ext) : true))
       .filter((f) => f.endsWith('.json')) // this loader only ever parses JSON
       .sort()
-      .map((f) => path.join(absDir, f));
+      .map((f) => safePath.safeJoin(absDir, [f], { label: 'catalogue linter input file' }));
   }
+  if (raw) safePath.assertSafeRelativePath(raw, { label: 'catalogue linter scan file' });
   const absFile = path.resolve(REPO_ROOT, raw);
   if (fs.existsSync(absFile) && fs.statSync(absFile).isFile()) return [absFile];
   return [];
@@ -156,6 +163,24 @@ function loadRecords(dirsOrPatterns) {
   return { entries, parseErrors, filesScanned: files.length };
 }
 
+// parseErrorViolations(parseErrors) -> violation[] in the SAME uniform {file, locator, id, rule,
+// message} shape every linter's own content-check violations already use. Every catalogue linter's
+// scan() folds this straight into the violations array it returns (never a side channel the CLI
+// forgets to look at) so a file that could not even be READ fails the gate through the exact same
+// path a real content defect does (Constitution Rule 4/CR-7): before this existed, a linter whose
+// ONLY problem that run was an unreadable/unparseable file returned zero violations and exited 0 -
+// a gate that never actually looked at a file is not the same as a gate that found nothing wrong.
+// `file` is recovered from the loader's own "rel: reason" string shape (recordParseError above);
+// this stays backward-compatible with any caller still reading the raw parseErrors string array.
+function parseErrorViolations(parseErrors) {
+  return (parseErrors || []).map((pe) => {
+    const sepIdx = pe.indexOf(': ');
+    const file = sepIdx === -1 ? pe : pe.slice(0, sepIdx);
+    const reason = sepIdx === -1 ? pe : pe.slice(sepIdx + 2);
+    return { file, locator: file, id: '<parse-error>', rule: 'linter-parse-error', message: reason };
+  });
+}
+
 // ---------------------------------------------------------------------------------
 // Host allowlist matching: host === suffix, or host ends with "." + suffix. Used by
 // citation-completeness.js against its OFFICIAL_HOSTS export.
@@ -232,6 +257,7 @@ module.exports = {
   resolveManyJsonFiles,
   recordsFromFile,
   loadRecords,
+  parseErrorViolations,
   hostMatchesAllowlist,
   urlHost,
   runLinterCli,

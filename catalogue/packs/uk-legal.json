@@ -119,7 +119,8 @@
      "seed compliance_enforcement.json id 41"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -213,7 +214,8 @@
      "seed compliance_enforcement.json id 40"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -286,7 +288,8 @@
      "https://www.sra.org.uk/solicitors/guidance/publishing-complaints-procedure/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -359,7 +362,8 @@
      "seed compliance_laws.json UK-LSA-07"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -438,7 +442,8 @@
      "seed compliance_laws.json UK-BSB"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -511,7 +516,8 @@
      "https://www.barstandardsboard.org.uk/static/259bb9ac-1e32-4a0d-84d9f948ff2d88f1/b7987890-43e5-46d5-a8546268dc7a8d74/Transparency-Standards-Guidance-2-Section-1.pdf"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -599,7 +605,8 @@
      "https://www.clc-uk.org/consumers/reporting-problems/"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -670,7 +677,8 @@
      "seed compliance_laws.json NEON-UK-HMRC-AML"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -694,7 +702,7 @@
    "citation": {
     "act": "The Provision of Services Regulations 2009 (SI 2009/2999)",
     "section": "reg 8 (information a provider must make available), reg 9 (further information on request), reg 11 (professional liability insurance information where the provider is required to hold it)",
-    "url": "https://www.legislation.gov.uk/ukdsi/2009/9780111486276/contents"
+    "url": "https://www.legislation.gov.uk/uksi/2009/2999/contents/made"
    },
    "sector": [
     "legal"
@@ -750,12 +758,14 @@
    },
    "provenance": {
     "sources": [
+     "https://www.legislation.gov.uk/uksi/2009/2999/contents/made",
      "https://www.legislation.gov.uk/ukdsi/2009/9780111486276/contents",
      "https://www.barcouncilethics.co.uk/wp-content/uploads/2017/10/annex_5_-_the_provision_of_services_regulations.pdf",
      "seed compliance_laws.json EU-SERVICES-DIR"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-17",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -829,7 +839,8 @@
      "seed compliance_laws.json UK-COMP-82"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -904,7 +915,8 @@
      "seed compliance_laws.json UK-SRA-CODE (rule SRA_TR_DIVERSITY)"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   },
   {
@@ -977,7 +989,8 @@
      "https://www.legalfutures.co.uk/latest-news/cilex-regulation-pushes-ahead-with-transparency-for-all-legal-services"
     ],
     "seed_status": "not_in_seed",
-    "verified_date": "2026-07-16"
+    "verified_date": "2026-07-16",
+    "last_synced": "2026-07-17"
    }
   }
  ]

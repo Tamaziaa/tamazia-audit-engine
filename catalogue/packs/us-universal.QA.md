@@ -1,11 +1,16 @@
+<!-- qa-approval pack_sha256=c2bb253c1b2585bc581c99f7a9ee5456dcc5926635aa8a645eb54411315dd9e3 verdict=approved reviewed=2026-07-17 -->
+Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+
 # us-universal — QA verification (2026-07-17)
 
 QA of `us-universal.json` (18 records; 9 federal binding, 9 state advisory). Method: full read of every record + independent web verification of the 10 highest-penalty records' load-bearing facts, all 7 gap_filled citations, and every populated enforcement case, against primary/official sources (ftc.gov, oag.ca.gov, federalregister.gov, state statute portals, court-decision coverage). Plus analytical passes: thresholds, polarity red-team, USD fine sanity, persona usefulness.
 
 ## Headline counts
 - **Checked:** 18 / 18 records
-- **Confirmed (no change needed):** 18
+- **Confirmed (no change needed):** 17
 - **Corrected (edits recommended):** 1 (minor — bad secondary source URL, US_UCPA)
+
+(17 confirmed + 1 corrected = 18 checked; the earlier "18 confirmed" double-counted the corrected US_UCPA record.)
 - **Downgraded to `rejected_qa`:** 0 (nothing was unverifiable; no fabricated statute, section, fine, or case found)
 - **CRITICAL:** 0
 
@@ -59,6 +64,11 @@ Every record is website-facing, auditable, and carries `website_obligations` wit
 
 ## Recommended correction (1, minor)
 - **US_UCPA provenance:** replace the secondary source `https://propertyrights.utah.gov/` (Utah Office of the Property Rights Ombudsman — unrelated to consumer privacy; also returns HTTP 403) with a relevant source (Utah AG consumer-privacy page or the SB 227 enactment record). The primary citation `le.utah.gov/xcode/Title13/Chapter61/13-61.html` is correct, so **no downgrade** — record remains valid.
+
+## P2 law-verification wave (2026-07-17)
+- **US_UCPA provenance (applied):** `propertyrights.utah.gov` replaced with the SB 227 enrolled bill (`le.utah.gov/~2022/bills/sbillenr/SB0227.pdf`) and the Utah Attorney General (`attorneygeneral.utah.gov`). UCPA $7,500-per-violation, AG enforcement via the Division of Consumer Protection, effective 31 Dec 2023 — verified (le.utah.gov SB0227).
+- **US_CPA penalty (corrected):** Colorado Privacy Act penalty rebased from a generic $7,500 to **$20,000 per violation** — CPA violations are deceptive trade practices enforced under the Colorado Consumer Protection Act, C.R.S. 6-1-112, up to $20,000 per violation (each consumer/transaction a separate violation); CO AG / district attorneys enforce; right-to-cure closed 1 Jan 2025 (verified via C.R.S. 6-1-112). This supersedes the "state privacy $2,500/$7,500" note in the Fine-sanity section for Colorado specifically.
+- **Advisory field watch item resolved:** `catalogue/schema.js` explicitly tolerates the top-level boolean `advisory` (scope decision #4, caution.md C-055); no rename needed.
 
 ## Watch items (not defects)
 1. **2026 FTC penalty figure.** Pack uses the verified 2025 cap $53,088 and flags 2026 as an open question — correct and defensible. If a 2026 headline number will render, confirm the exact 2026 per-violation figure before ship (a Jan-2026 inflation notice exists; a mid-2026 "no adjustment" notice also surfaced in search — reconcile before printing a number).

@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 
 const linter = require('./citation-completeness.js');
 const lib = require('./lib.js');
-const { packsDirExistsOrSkip } = require('./test-helpers.js');
+const { packsDirOrFail } = require('./test-helpers.js');
 
 // ---------------------------------------------------------------------------------
 // OFFICIAL_HOSTS shape
@@ -137,8 +137,8 @@ test('scan against eval/calibration-known-bad/fixtures catches the seeded p2-cit
 // visible rather than silently tolerated.
 // ---------------------------------------------------------------------------------
 
-test('scan: real committed packs produce exactly the documented known findings', (t) => {
-  if (!packsDirExistsOrSkip(t, __dirname)) return;
+test('scan: real committed packs produce exactly the documented known findings', () => {
+  packsDirOrFail(__dirname);
   const res = linter.scan([lib.DEFAULT_PACK_GLOB]);
   assert.ok(res.scanned > 0);
 
