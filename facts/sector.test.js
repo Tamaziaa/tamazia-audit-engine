@@ -443,7 +443,12 @@ for (const file of fixtureFiles) {
   const fx = JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, file), 'utf8'));
   for (const [vocabName, vocab] of vocabularies) {
     test('calibration ' + fx.id + ' [' + vocabName + ']', () => {
-      const r = sector.resolveSector(fx.bundle, Object.assign({ vocabulary: vocab }, fx.options || {}));
+      // Explicit object literal over the one option key these fixtures actually carry (`hint`),
+      // rather than Object.assign/spread of the whole fixture-provided options object: fixtures
+      // are local JSON but the flagged pattern still reads as an insecure merge to static
+      // analysis, and this repo has no fixture that needs any other resolveSector() option.
+      const opts = fx.options || {};
+      const r = sector.resolveSector(fx.bundle, { vocabulary: vocab, hint: opts.hint });
       if (fx.expect.abstain === true) {
         assert.equal(r.value, null, fx.id + ': must abstain, got ' + JSON.stringify(r.value));
         assert.equal(r.confidence, 'abstain');

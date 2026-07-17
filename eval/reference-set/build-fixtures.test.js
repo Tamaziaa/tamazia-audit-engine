@@ -17,6 +17,8 @@ const {
   looksLikeSpaShell,
   trimToBudget,
   buildBundlePage,
+  stripControlChars,
+  logSafe,
   MAX_FIXTURE_BYTES,
 } = require('./build-fixtures.js');
 
@@ -141,4 +143,44 @@ test('looksLikeSpaShell flags a 200 HTML shell with near-zero visible text (C-03
 
 test('decodeEntities never throws on malformed numeric references', () => {
   assert.equal(typeof decodeEntities('&#xFFFFFFFF; &#0; &unknown;'), 'string');
+});
+
+// ---------------------------------------------------------------------------------------------
+// stripControlChars / logSafe (Semgrep bidi-control-char + log-injection fixes). Built from
+// String.fromCodePoint/fromCharCode rather than embedding literal bidi/control bytes in this
+// source file, for the same reason the fix exists: those code points are invisible and easy to
+// mis-transcribe.
+// ---------------------------------------------------------------------------------------------
+
+test('stripControlChars removes bidi control characters, keeping the wrapped text (abspartners.ae live class)', () => {
+  const LRE = String.fromCodePoint(0x202A);
+  const PDF = String.fromCodePoint(0x202C);
+  const RLO = String.fromCodePoint(0x202E);
+  const LRI = String.fromCodePoint(0x2066);
+  const PDI = String.fromCodePoint(0x2069);
+  const LRM = String.fromCodePoint(0x200E);
+  const RLM = String.fromCodePoint(0x200F);
+  const wrapped = LRE + '+971504517950' + PDF + ' ' + LRI + 'text' + PDI + ' ' + LRM + RLM + RLO;
+  assert.equal(stripControlChars(wrapped), '+971504517950 text ');
+});
+
+test('stripControlChars removes C0/C1 controls but keeps \\n and \\t', () => {
+  let all = '';
+  for (let cp = 0x00; cp <= 0x1f; cp++) all += String.fromCharCode(cp);
+  all += String.fromCharCode(0x7f);
+  for (let cp = 0x80; cp <= 0x9f; cp++) all += String.fromCharCode(cp);
+  assert.equal(stripControlChars(all), '\t\n');
+});
+
+test('stripControlChars never touches printable text (letters, currency, curly quotes, em-dash)', () => {
+  const text = 'Café £99 "quoted" - plain visible prose';
+  assert.equal(stripControlChars(text), text);
+});
+
+test('logSafe strips newlines/carriage-returns so a remote title cannot forge extra log lines, and caps length', () => {
+  const injected = 'Acme Ltd\nFAKE LOG LINE: audit approved\r' + 'x'.repeat(400);
+  const safe = logSafe(injected);
+  assert.equal(safe.includes('\n'), false);
+  assert.equal(safe.includes('\r'), false);
+  assert.ok(safe.length <= 300, 'logSafe must cap length at 300 chars, got ' + safe.length);
 });

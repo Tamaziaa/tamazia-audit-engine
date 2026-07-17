@@ -78,6 +78,28 @@ function safeFromCodePoint(cp) {
   }
 }
 
+// Strip Unicode bidi control characters (LRE/RLE/PDF/LRO/RLO U+202A-U+202E, LRI/RLI/FSI/PDI
+// U+2066-U+2069, LRM/RLM U+200E/U+200F - used live on abspartners.ae to wrap a phone number
+// and on knightsbridge.ae) plus C0/C1 control bytes, EXCEPT \n and \t. Scraped HTML can carry
+// these from copy-pasted rich text; they are never printable content and must never reach a
+// fixture, a log line or a rendered page. Printable text (letters, punctuation, currency signs,
+// curly quotes) is never touched.
+const BIDI_CONTROL_RX = /[\u202A-\u202E\u2066-\u2069\u200E\u200F]/g;
+const C0_C1_CONTROL_RX = /[\x00-\x08\x0B-\x1F\x7F-\x9F]/g;
+function stripControlChars(s) {
+  return String(s == null ? '' : s)
+    .replace(BIDI_CONTROL_RX, '')
+    .replace(C0_C1_CONTROL_RX, '');
+}
+
+// Wrap a possibly remote-derived value (a fetched title, a redirect URL, an error message
+// carrying response text) before it reaches console output: collapse newlines/carriage
+// returns/spaces/hyphens to a single space and cap the length, so a hostile title or redirect
+// target can never forge extra log lines or flood the terminal (CodeQL log-injection class).
+function logSafe(s) {
+  return String(s).replace(/[\r\n -]/g, ' ').slice(0, 300);
+}
+
 // Visible text only (caution.md C-012: never classify on <script>/<style> noise).
 function stripHtml(html) {
   let s = String(html);
@@ -91,12 +113,13 @@ function stripHtml(html) {
   s = s.replace(/[ \t\r\f\v]+/g, ' ');
   s = s.replace(/ ?\n ?/g, '\n');
   s = s.replace(/\n{3,}/g, '\n\n');
+  s = stripControlChars(s);
   return s.trim();
 }
 
 function extractTitle(html) {
   const m = /<title[^>]*>([\s\S]*?)<\/title\s*>/i.exec(String(html));
-  return m ? decodeEntities(m[1]).replace(/\s+/g, ' ').trim() : '';
+  return m ? stripControlChars(decodeEntities(m[1]).replace(/\s+/g, ' ').trim()) : '';
 }
 
 function extractOgSiteName(html) {
@@ -107,7 +130,7 @@ function extractOgSiteName(html) {
     const tag = m[0];
     if (!/property\s*=\s*["']og:site_name["']/i.test(tag)) continue;
     const c = /content\s*=\s*["']([^"']*)["']/i.exec(tag);
-    if (c) return decodeEntities(c[1]).trim();
+    if (c) return stripControlChars(decodeEntities(c[1]).trim());
   }
   return undefined;
 }
@@ -327,6 +350,11 @@ async function fetchHomepage(domain) {
 
 async function buildFixtureForDomain(domain) {
   const fetchedAt = new Date().toISOString();
+  // By design: this offline dev tool fetches the reference-set domains (never in the mint
+  // path). Domain validated above.
+  if (!/^[a-z0-9][a-z0-9.-]{1,251}[a-z0-9]$/.test(domain)) {
+    return { domain, fetched_at: fetchedAt, unreachable: true, note: 'invalid domain, refused' };
+  }
   let home;
   try {
     home = await fetchHomepage(domain);
@@ -391,14 +419,58 @@ async function buildFixtureForDomain(domain) {
 }
 
 // ---------------------------------------------------------------------------
+// --clean-existing: a one-off transform over ALREADY-WRITTEN fixtures on disk. Applies
+// stripControlChars to every string field (not just the four fields the live crawl path
+// covers) and rewrites the file with the same stable shape and indentation, so a fixture
+// captured before this fix landed (or hand-edited) still ends up clean. Guarded behind a CLI
+// flag because it mutates committed fixtures; it never runs as a side effect of a normal build.
+// ---------------------------------------------------------------------------
+
+function deepStripControlChars(value) {
+  if (typeof value === 'string') return stripControlChars(value);
+  if (Array.isArray(value)) return value.map(deepStripControlChars);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const k of Object.keys(value)) out[k] = deepStripControlChars(value[k]);
+    return out;
+  }
+  return value;
+}
+
+function cleanExistingFixtures(dir) {
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
+  let changed = 0;
+  for (const f of files) {
+    const fp = path.join(dir, f);
+    const before = fs.readFileSync(fp, 'utf8');
+    const parsed = JSON.parse(before);
+    const cleaned = deepStripControlChars(parsed);
+    const after = JSON.stringify(cleaned, null, 2) + '\n';
+    if (after !== before) {
+      fs.writeFileSync(fp, after);
+      changed += 1;
+      console.log(`cleaned ${logSafe(f)}`);
+    }
+  }
+  console.log(`--clean-existing: ${changed}/${files.length} fixture(s) rewritten`);
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
 async function main(argv) {
   const args = argv.slice(2);
   const listOnly = args.includes('--list');
+  const cleanExisting = args.includes('--clean-existing');
   const onlyIdx = args.indexOf('--only');
   const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
+
+  if (cleanExisting) {
+    cleanExistingFixtures(OUT_DIR);
+    return 0;
+  }
 
   const refSet = JSON.parse(fs.readFileSync(REF_SET, 'utf8'));
   let domains = refSet.firms.map((f) => f.domain);
@@ -422,7 +494,9 @@ async function main(argv) {
     fs.writeFileSync(outPath, JSON.stringify(fixture, null, 2) + '\n');
     if (fixture.unreachable) {
       blocked++;
-      console.log(`UNREACHABLE (${fixture.note})`);
+      // fixture.note can carry remote-derived text (a fetched <title>, a redirect URL, a
+      // network error message) - never printed to the terminal unsanitised (log-injection).
+      console.log(`UNREACHABLE (${logSafe(fixture.note)})`);
     } else {
       ok++;
       const bytes = fs.statSync(outPath).size;
@@ -453,6 +527,10 @@ module.exports = {
   trimToBudget,
   buildBundlePage,
   buildFixtureForDomain,
+  stripControlChars,
+  logSafe,
+  deepStripControlChars,
+  cleanExistingFixtures,
   MAX_FIXTURE_BYTES,
   MAX_TEXT_CHARS,
   FOOTER_CHARS,

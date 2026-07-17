@@ -414,6 +414,59 @@ const SECTORS = {
   },
 };
 
+// =================================================================================
+// 2b. Regex compilation door (Constitution Rule 1 extended to pattern compilation): the ONLY
+//    `new RegExp(...)` construction over a detect pattern in the whole facts layer lives here.
+//    compileDetectGlobal derives the global+case-insensitive variant every matchAll-based
+//    consumer needs (the distinct-cue counting in facts/sector.js _scoreSectors) from either an
+//    already-compiled `detect` RegExp (the shipped tree above) or a raw string (a test-injected
+//    vocabulary, the C-050 dead-regex class); a malformed string throws E_VOCABULARY_BAD_DETECT
+//    rather than being silently skipped (Rule 4, fail closed).
+//
+//    Every SECTORS node's compiled global variant is precomputed ONCE below, before the
+//    deep-freeze pass, and exposed as a `detectGlobal` sibling alongside the untouched `detect`
+//    source (so existing vocabulary tests reading `.detect` stay green). facts/sector.js reads
+//    `detectGlobal` directly for the shipped tree and never constructs a RegExp of its own; this
+//    function remains the fallback compiler for any vocabulary it is handed at runtime (an
+//    injected test tree, or a raw string detect).
+//
+//    A frozen GLOBAL regex is safe to share and reuse across calls with String.matchAll (the
+//    spec clones the regex internally and only READS the shared object's lastIndex, which stays
+//    0 forever on a frozen object); it is NOT safe with .test()/.exec(), which WRITE lastIndex on
+//    the object itself and throw on a frozen one. facts/sector.js's matchAll-based scorer relies
+//    on the former; its single `.test()` call site (resolveSubSector) uses the plain, non-global
+//    `detect` source directly instead, never the global variant.
+// =================================================================================
+
+function compileDetectGlobal(detect) {
+  if (detect instanceof RegExp) {
+    const flags = detect.flags.includes('g') ? detect.flags : detect.flags + 'g';
+    return new RegExp(detect.source, flags.includes('i') ? flags : flags + 'i');
+  }
+  if (typeof detect === 'string' && detect) {
+    try {
+      return new RegExp(detect, 'gi');
+    } catch (err) {
+      const e = new Error(
+        'facts/vocabulary.js compileDetectGlobal: detect pattern does not compile: '
+        + JSON.stringify(detect) + ' (' + String(err && err.message) + ')'
+      );
+      e.code = 'E_VOCABULARY_BAD_DETECT';
+      throw e;
+    }
+  }
+  return null;
+}
+
+// Precompile the shipped tree's global variants before the deep-freeze pass at the foot of this
+// module; never re-compiled at request time.
+for (const _node of Object.values(SECTORS)) {
+  if (_node.detect) _node.detectGlobal = compileDetectGlobal(_node.detect);
+  for (const _sub of Object.values(_node.sub || {})) {
+    if (_sub.detect) _sub.detectGlobal = compileDetectGlobal(_sub.detect);
+  }
+}
+
 // Sector alias fold: any variant sourcing might emit -> a canonical top-level SECTORS key.
 // Ported from registry/sector.js SECTOR_ALIASES, keeping only aliases whose target exists as a
 // canonical parent node here (so canonicalSector always returns a real tree key or null).
@@ -728,6 +781,8 @@ const EXPORTS = {
   SUB_EXCLUSIVE,
   DOMAIN_SELF_IDENTITY,
   sectorSelfIdFromDomain,
+  // regex compilation door (facts/sector.js delegates every detect-pattern compilation here)
+  compileDetectGlobal,
   // jurisdiction (facts/jurisdiction.js reads COUNTRY_TOKENS)
   JURISDICTIONS,
   SUB_JURISDICTIONS,

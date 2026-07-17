@@ -130,6 +130,11 @@ function capsSummary(caps) {
 // Per-firm run. Returns a row; throws only escape to the caller which records them as ERROR rows.
 // -------------------------------------------------------------------------------------------------
 function runFirm(firm, fixturesDir) {
+  // Fail closed on an unsafe path component before it ever reaches path.join (traversal guard);
+  // every domain in reference-set.json is a plain hostname, so this never fires in practice.
+  if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(firm.domain)) {
+    throw new Error('unsafe path component: ' + JSON.stringify(firm.domain));
+  }
   const fixturePath = path.join(fixturesDir, firm.domain + '.json');
   if (!fs.existsSync(fixturePath)) {
     return { domain: firm.domain, role: firm.role, status: 'UNREACHABLE', detail: 'no fixture on disk', report: null };

@@ -723,6 +723,12 @@ function runCalibration(fixturesDir) {
   const findings = [];
   const files = fs.readdirSync(dir).filter((f) => /^p1-identity-.*\.json$/.test(f)).sort();
   for (const f of files) {
+    // Fail closed on an unsafe path component before it ever reaches path.join (traversal
+    // guard); every fixture name comes from the already-filtered p1-identity-*.json glob above,
+    // so this never fires in practice.
+    if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(f)) {
+      throw new Error('unsafe path component: ' + JSON.stringify(f));
+    }
     const abs = path.join(dir, f);
     const fixture = JSON.parse(fs.readFileSync(abs, 'utf8'));
     const poison = fixture.poison || {};

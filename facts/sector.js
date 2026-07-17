@@ -139,30 +139,57 @@ function _isClientIndustryMention(text, start, end) {
 // Cue scoring (the E-005 port): distinct cue matches per parent sector, over visible segments.
 // ---------------------------------------------------------------------------------------------
 
-function _toGlobalRegex(detect) {
-  if (detect instanceof RegExp) {
-    const flags = detect.flags.includes('g') ? detect.flags : detect.flags + 'g';
-    return new RegExp(detect.source, flags.includes('i') ? flags : flags + 'i');
+// Regex compilation door delegation (Constitution Rule 1 extended to pattern compilation): the
+// only place a detect pattern is turned into a live RegExp is facts/vocabulary.js's
+// compileDetectGlobal. No `new RegExp(...)` construction remains in this module. The shipped
+// tree already carries a precompiled `detectGlobal` sibling alongside every `detect` source
+// (computed once at facts/vocabulary.js load time); this module reads that directly for the
+// default tree. A test-injected vocabulary (or a raw string detect, the C-050 dead-regex class)
+// has no precompiled field, so its pattern is compiled on demand through the SAME
+// vocabulary-owned function - never via a local construction here.
+let _compileDetectGlobalFn = null;
+function _detectCompiler() {
+  if (_compileDetectGlobalFn) return _compileDetectGlobalFn;
+  const mod = require('./vocabulary.js');
+  if (typeof mod.compileDetectGlobal !== 'function') {
+    const e = new Error('facts/sector.js: facts/vocabulary.js is present but does not export compileDetectGlobal.');
+    e.code = 'E_VOCABULARY_MALFORMED';
+    throw e;
   }
-  if (typeof detect === 'string' && detect) {
-    try {
-      return new RegExp(detect, 'gi');
-    } catch (err) {
-      // Fail closed (C-050, the dead-regex class): a malformed detect pattern in the vocabulary
-      // is a data bug that must surface at first scan, never be skipped silently.
-      const e = new Error('facts/sector.js: vocabulary detect pattern does not compile: ' + String(detect) + ' (' + String(err && err.message) + ')');
-      e.code = 'E_VOCABULARY_BAD_DETECT';
-      throw e;
-    }
-  }
+  _compileDetectGlobalFn = mod.compileDetectGlobal;
+  return _compileDetectGlobalFn;
+}
+
+// The matchAll-safe GLOBAL detector for one node/sub's detect field: prefer the sibling
+// `detectGlobal` vocabulary.js precomputed (frozen; safe to share because matchAll clones the
+// regex internally and only reads lastIndex, never writes it - see vocabulary.js); otherwise
+// compile via the vocabulary door on demand.
+function _globalDetectorOf(detect, precompiledGlobal) {
+  if (precompiledGlobal instanceof RegExp) return precompiledGlobal;
+  if (detect == null) return null;
+  return _detectCompiler()(detect);
+}
+
+// A single stateless `.test()` call needs no global flag: reusing the tree's own frozen
+// non-global `detect` object directly is always safe, because a non-global regex's `.test()`
+// never reads or writes `lastIndex` (only global/sticky regexes do). Only a raw string detect
+// (the injected-vocabulary case) needs compiling, and that still routes through the vocabulary
+// compilation door rather than a local `new RegExp(...)`.
+function _plainDetectorOf(detect) {
+  if (detect instanceof RegExp) return detect;
+  if (typeof detect === 'string' && detect) return _detectCompiler()(detect);
   return null;
 }
 
 function _detectorsFor(node) {
   const list = [];
-  if (node && node.detect) { const r = _toGlobalRegex(node.detect); if (r) list.push(r); }
+  const top = _globalDetectorOf(node && node.detect, node && node.detectGlobal);
+  if (top) list.push(top);
   const sub = (node && node.sub) || {};
-  for (const s of Object.values(sub)) { const r = _toGlobalRegex(s && s.detect); if (r) list.push(r); }
+  for (const s of Object.values(sub)) {
+    const rx = _globalDetectorOf(s && s.detect, s && s.detectGlobal);
+    if (rx) list.push(rx);
+  }
   return list;
 }
 
@@ -189,7 +216,11 @@ function _scoreSectors(tree, segments) {
     const distinct = new Map(); // normalised cue -> {quote, source}
     for (const seg of segments) {
       for (const rx of detectors) {
-        rx.lastIndex = 0;
+        // No manual lastIndex reset: String.prototype.matchAll clones the regex internally and
+        // only READS the source object's lastIndex (never writes it), so a shared/frozen global
+        // regex always scans each segment fresh from 0. Resetting lastIndex here would THROW on
+        // the precompiled, deep-frozen detectors facts/vocabulary.js ships (Object.freeze makes
+        // lastIndex non-writable) - see facts/vocabulary.js's compileDetectGlobal doc comment.
         for (const m of seg.text.matchAll(rx)) {
           const matched = m[0];
           if (!matched || !matched.trim()) continue;
@@ -279,8 +310,8 @@ function resolveSubSector(tree, parent, corpusText) {
 
   const node = tree[parent];
   for (const [subId, s] of Object.entries(node.sub || {})) {
-    const rx = _toGlobalRegex(s && s.detect);
-    if (rx) { rx.lastIndex = 0; if (rx.test(lc)) return { parent, sub: subId }; }
+    const rx = _plainDetectorOf(s && s.detect);
+    if (rx && rx.test(lc)) return { parent, sub: subId };
   }
   return { parent, sub: null };
 }
