@@ -1,8 +1,11 @@
 # eval/reference-set - hand-verified ground truth
 
-`reference-set.json` holds verified expectations for 27 real firms (9 forensic-audit
-firms, 10 watch-list, 8 legal/health x UK/IE/US/AE matrix). `verify.js` checks an
-engine payload against them under one law: **match or abstain, never contradict**.
+`reference-set.json` holds verified expectations for 30 real firms (9 forensic-audit
+firms, 13 watch-list, 8 legal/health x UK/IE/US/AE matrix). The watch-list includes
+3 US cell exemplars added 2026-07-18 (munsch.com for us-legal, cedars-sinai.org for
+us-healthcare, kabodcoffee.com for us-universal), each scoped with verified sector,
+jurisdiction and catalogue-id frameworks. `verify.js` checks an engine payload against
+them under one law: **match or abstain, never contradict**.
 
 - **Match**: the engine asserts a value that agrees with a verified expectation.
 - **Abstain**: the engine omits it, or ships it as needs-review. Allowed and logged -

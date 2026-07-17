@@ -82,7 +82,7 @@ function pageClassForObligation(obligation) {
   if (et !== 'presence' && et !== 'absence') return null;
   const text = ((obligation.duty || '') + ' ' + (obligation.elements || []).join(' ')).toLowerCase();
   if (/\b(privacy|data protection|gdpr|cookie|personal data)\b/.test(text)) return 'privacy';
-  if (/\b(complaint|ombudsman|redress)\b/.test(text)) return 'complaints';
+  if (/\b(complaints?|ombudsman|redress)\b/.test(text)) return 'complaints';
   if (/\bfees?\b/.test(text)) return 'fees';
   if (/\b(pricing|price|tariff|charges|cost of service)\b/.test(text)) return 'pricing';
   if (/\b(terms|conditions)\b/.test(text)) return 'terms';

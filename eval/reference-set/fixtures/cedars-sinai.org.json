@@ -1,0 +1,7 @@
+{
+  "domain": "cedars-sinai.org",
+  "fetched_at": "2026-07-17T22:51:18.969Z",
+  "unreachable": true,
+  "spa_shell": true,
+  "note": "unrendered SPA shell: HTTP 200 but 0 chars of visible text without JS rendering (C-032); no absence claim may be made from this fixture"
+}

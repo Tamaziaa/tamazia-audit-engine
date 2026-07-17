@@ -264,6 +264,7 @@ module.exports = {
   verifyAll,
   verifyQuote,
   normaliseWhitespace,
+  resolveQuoteArtifact,
   CODES,
   runCalibration,
   calibrateMain,
