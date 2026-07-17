@@ -267,7 +267,9 @@ function scanContent(relPath, src) {
   catch (e) { throw new Error(relPath + ': acorn cannot parse this file: ' + e.message + ' (a parse failure is NOT zero violations)'); }
   const engine = 'acorn';
   const violations = fns.flatMap((fn) => judgeFunction(relPath, fn));
-  const totalLines = src.split('\n').length;
+  // Count LINES, not newline-split segments: a trailing newline (every POSIX text file) otherwise
+  // inflates the count by one, so a legal 500-line file misreports as 501 and fails the cap.
+  const totalLines = src.length === 0 ? 0 : src.replace(/\n$/, '').split('\n').length;
   if (totalLines > MAX_FILE_LINES) {
     violations.push({ file: relPath, line: 1, name: '(file)', kind: 'large-file', metric: totalLines, cap: MAX_FILE_LINES,
       message: `file is ${totalLines} lines (cap ${MAX_FILE_LINES})` });
