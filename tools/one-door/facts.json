@@ -4,7 +4,7 @@
     {
       "id": "jurisdiction",
       "label": "JURISDICTION NEXUS (which legal regimes bind the subject)",
-      "allowed_producers": ["facts/jurisdiction.js"],
+      "allowed_producers": ["facts/jurisdiction.js", "facts/vocabulary.js"],
       "patterns": [
         "established_in\\s*[:=]",
         "\\bjurisdiction\\s*[:=]\\s*['\"`]",
@@ -14,7 +14,7 @@
         "\\bTIER_[ABC]\\b",
         "function\\s+\\w*[Jj]urisdiction|(detect|infer|resolve|attach|derive|guess)Jurisdictions?\\s*[(=]|boundJurisdictions?\\s*[(=]"
       ],
-      "note": "Tier A register/authorisation/registered-office, Tier B office-postcode/local-phone/ccTLD, Tier C prose never attaches. One ladder, one file."
+      "note": "Tier A register/authorisation/registered-office, Tier B office-postcode/local-phone/ccTLD, Tier C prose never attaches. The NEXUS RESOLUTION (attach rule, tier ladder, EU derivation) has exactly one door: facts/jurisdiction.js. facts/vocabulary.js is the shared vocabulary keystone and is a co-door ONLY for the jurisdiction VOCABULARY primitives it owns (the canonical code list, famCanon family canonicaliser, isJurisdiction validator) that every facts module imports rather than re-declares; it produces no nexus itself."
     },
     {
       "id": "host",
@@ -99,6 +99,16 @@
         "og:site_name"
       ],
       "note": "Register-first ladder (schema.org legalName/sameAs, og:site_name, register match, title, domain stem) lives in one file and emits legal_name + company_number + registered_office."
+    },
+    {
+      "id": "capabilities",
+      "label": "CAPABILITY PREDICATES (which activities the subject does: ecommerce, ads, AI, payments, UGC, ...)",
+      "allowed_producers": ["facts/capabilities.js"],
+      "patterns": [
+        "\\bCAPABILITY_TAGS\\s*=",
+        "function\\s+\\w*[Cc]apabilit(y|ies)|(derive|classify|resolve|detect)Capabilit(y|ies)\\s*[(=]"
+      ],
+      "note": "Capability predicates gate which frameworks apply (the ICP served-cells doctrine downstream). One derivation door: each predicate is present / absent / unknown with evidence, and absence is only asserted once the page budget is met. A second capability classifier anywhere else is a second door."
     }
   ]
 }

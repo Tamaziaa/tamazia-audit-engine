@@ -1,0 +1,69 @@
+{
+  "comment": "THE ICP GATE dataset (PRD section 5, P5: UK depth-first). facts/sector.js auditableCell() is the ONLY reader. A (sector, sub_sector, jurisdiction) triple is auditable ONLY when it matches a served:true cell here. No match means the engine refuses the audit with a stated reason; silence is free. sub_sectors '*' means every sub-sector of that parent, including unresolved (null). Sector keys must stay in sync with the canonical parent nodes in facts/vocabulary.js; sector.test.js asserts the sync when the vocabulary is present.",
+  "version": 1,
+  "generated": "2026-07-16",
+  "phase": "P1",
+  "cells": [
+    { "jurisdiction": "UK", "sector": "law-firms", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "barristers", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "healthcare", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "dental", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "aesthetics", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "finance", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "real-estate", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "accounting", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "professional-services", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "hospitality", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "education", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "charity", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "energy", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "transport", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "aviation", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "media", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "marketing", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "manufacturing", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "construction", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "fitness", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "food", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "ecommerce", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "retail", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "saas", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "tech", "sub_sectors": "*", "served": true },
+    { "jurisdiction": "UK", "sector": "automotive", "sub_sectors": "*", "served": true },
+    {
+      "jurisdiction": "EU",
+      "sector": "*",
+      "sub_sectors": "*",
+      "served": false,
+      "activates": "P5 EU wave (DE, FR, NL, IE, ES depth-first) after UK cells pass the reference set"
+    },
+    {
+      "jurisdiction": "US",
+      "sector": "*",
+      "sub_sectors": "*",
+      "served": false,
+      "activates": "P5 US wave (CA, NY, TX, FL, IL) with nexus-gated state privacy law"
+    },
+    {
+      "jurisdiction": "AE",
+      "sector": "*",
+      "sub_sectors": "*",
+      "served": false,
+      "activates": "P5 Middle East wave (onshore AE plus DIFC and ADGM as distinct typed nexus) after Gulf honest-frontier sign-off"
+    },
+    {
+      "jurisdiction": "SA",
+      "sector": "*",
+      "sub_sectors": "*",
+      "served": false,
+      "activates": "P5 Middle East wave after Gulf honest-frontier sign-off"
+    },
+    {
+      "jurisdiction": "QA",
+      "sector": "*",
+      "sub_sectors": "*",
+      "served": false,
+      "activates": "P5 Middle East wave after Gulf honest-frontier sign-off"
+    }
+  ]
+}

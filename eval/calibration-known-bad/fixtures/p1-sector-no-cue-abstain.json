@@ -1,0 +1,25 @@
+{
+  "id": "p1-sector-no-cue-abstain",
+  "class": "known-bad",
+  "module": "facts/sector.js",
+  "description": "A General/no-cue page: readable visible text with no sector cues at all. The sector door must ABSTAIN (value null, confidence abstain). Any build that defaults a cueless site to a sector (the old professional-services default, or 'General') is broken; abstention is the first-class outcome and silence is free.",
+  "bundle": {
+    "domain": "plainpage.example",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://plainpage.example/",
+          "title": "Plainpage",
+          "text": "Streamline your day with simple tools that keep your projects on track. Our team believes in clarity, momentum and doing fewer things better. Read our story, meet the people behind the product, and get in touch if you would like to say hello.",
+          "jsonLd": []
+        }
+      ]
+    },
+    "registers": {}
+  },
+  "options": {},
+  "expect": {
+    "abstain": true,
+    "sector": null
+  }
+}

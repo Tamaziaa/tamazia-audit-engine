@@ -1,0 +1,25 @@
+{
+  "id": "p1-sector-own-identity-marketing",
+  "class": "known-bad",
+  "module": "facts/sector.js",
+  "description": "Own-identity guard: a marketing agency whose page mentions 'law firm SEO' (a client industry it sells to). The sector door must resolve marketing, never law-firms; a sector word used as a client-industry mention must not classify the subject. A build that lets 'law firm SEO' attach law-firms is broken.",
+  "bundle": {
+    "domain": "brightreach.example",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://brightreach.example/",
+          "title": "Brightreach",
+          "text": "We are a digital marketing agency based in Manchester. As a specialist seo agency we deliver law firm SEO, and our campaigns win new enquiries month after month. Talk to our advertising agency team about growing your practice online.",
+          "jsonLd": []
+        }
+      ]
+    },
+    "registers": {}
+  },
+  "options": {},
+  "expect": {
+    "abstain": false,
+    "sector": "marketing"
+  }
+}

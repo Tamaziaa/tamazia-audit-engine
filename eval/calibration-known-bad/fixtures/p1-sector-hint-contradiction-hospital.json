@@ -1,0 +1,28 @@
+{
+  "id": "p1-sector-hint-contradiction-hospital",
+  "class": "known-bad",
+  "module": "facts/sector.js",
+  "description": "The ahdubai class: a hospital site whose two-cue visible-text evidence says healthcare while the lead-queue hint says law-firms. The sector door must resolve healthcare from the evidence AND flag the hint contradiction; the hint is data about upstream rot, never evidence. A build that follows the hint (or abstains because of it) is broken.",
+  "bundle": {
+    "domain": "harbourview-hospital.example",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://harbourview-hospital.example/",
+          "title": "Harbourview Hospital",
+          "text": "Welcome to Harbourview Hospital, a leading private hospital and medical centre. Our general practice team offers same day GP appointments, and our oncology department provides cancer care to patients across the region. The clinic is CQC registered and our consultants publish their outcomes every year.",
+          "jsonLd": []
+        }
+      ],
+      "footerText": "Harbourview Hospital. Registered in England. All enquiries welcome."
+    },
+    "registers": {}
+  },
+  "options": { "hint": "law-firms" },
+  "expect": {
+    "abstain": false,
+    "sector": "healthcare",
+    "contradiction_kinds": ["hint-contradiction"],
+    "confidence_in": ["corroborated", "register"]
+  }
+}

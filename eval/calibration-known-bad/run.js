@@ -93,6 +93,28 @@ const CALIBRATIONS = [
     ],
   },
   {
+    name: 'p1-unreachable-bundle-abstain',
+    description:
+      'bot-walled and SPA-shell EvidenceBundles (C-038/C-032): any facts module emitting a non-abstain fact or any finding on them is broken',
+    fixtures: ['p1-reference-fixtures-unreachable-bundle.json'],
+    checkerCandidates: [
+      'tools/domain-gates/unreachable-abstain.js',
+      'facts/tools/abstain-calibrate.js',
+      'tools/facts-abstain/check.js',
+    ],
+  },
+  {
+    name: 'identity-marketing-headline',
+    description:
+      'facts/identity.js must refuse a marketing headline with HTML entity residue as display_name/slug (the amp-slug class, caution C-003)',
+    fixtures: ['p1-identity-marketing-headline.json'],
+    checkerCandidates: [
+      // the identity module IS the gate here: --calibrate replays every
+      // p1-identity-*.json fixture and emits a finding per refused poison
+      'facts/identity.js',
+    ],
+  },
+  {
     name: 'payload-contract',
     description: 'payload missing REQUIRED contract fields must validate non-empty missing[]',
     fixtures: ['payload-missing-fields.json'],

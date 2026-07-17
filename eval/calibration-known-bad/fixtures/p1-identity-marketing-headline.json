@@ -1,0 +1,29 @@
+{
+  "comment": "P1 identity calibration (the amp-slug class, caution C-003). The best on-page candidates are a marketing headline carrying HTML entity residue and a 'Price List' page title: the exact inputs that minted the live slugs 'luxury-aesthetic-clinic-for-radiant-skin-amp-body' and 'price-list' on the old estate. facts/identity.js must refuse both as display_name and must never derive the poisoned slugs; the honest resolution here is the domain stem at confidence 'weak'. Run via: node facts/identity.js --calibrate. A finding is emitted only when the poison is refused; zero findings fails eval/calibration-known-bad/run.js (earn-your-zero).",
+  "bundle": {
+    "domain": "aurora-aesthetics.co.uk",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://aurora-aesthetics.co.uk/",
+          "title": "Luxury Aesthetic Clinic for Radiant Skin &amp; Body | Price List",
+          "text": "Welcome to our clinic. Book your consultation today. Treatments for radiant skin and body confidence.",
+          "jsonLd": [],
+          "ogSiteName": "Luxury Aesthetic Clinic for Radiant Skin &amp; Body"
+        }
+      ],
+      "footerText": ""
+    },
+    "registers": {}
+  },
+  "poison": {
+    "display_name_forbidden": [
+      "Luxury Aesthetic Clinic for Radiant Skin &amp; Body",
+      "Price List"
+    ],
+    "slug_forbidden": [
+      "luxury-aesthetic-clinic-for-radiant-skin-amp-body",
+      "price-list"
+    ]
+  }
+}

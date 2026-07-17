@@ -1,0 +1,45 @@
+{
+  "__calibration": {
+    "module": "eval/reference-set (P1 evidence fixtures)",
+    "seeded_disease": "An unreadable site presented as an EvidenceBundle. bundles[0] is a bot-wall/challenge page (the carbonhealth.com/jarir.com class, caution.md C-038); bundles[1] is an unrendered SPA shell with zero visible text (the royalparkpartners.com class, caution.md C-032). Both shapes occur verbatim in eval/reference-set/fixtures/ as real fetched data.",
+    "expected_failure": "Any facts module fed either bundle MUST abstain on every fact (confidence 'abstain', no emitted values) and no breach/absence claim may exist. A checker that lets a fact or finding through on these bundles has not earned its zero.",
+    "checker_contract": "The checker runs each facts module against both bundles and reports a finding for every non-abstain fact or non-empty finding list."
+  },
+  "bundles": [
+    {
+      "domain": "calibration-botwall.example",
+      "unreachable": true,
+      "note": "blocked: HTTP 403, title \"Attention Required! | Cloudflare\" - bot wall or challenge page; no content asserted (C-038)",
+      "corpus": {
+        "pages": [
+          {
+            "url": "https://calibration-botwall.example/",
+            "title": "Attention Required! | Cloudflare",
+            "text": "Please enable cookies. Attention Required! One more step. Please complete the security check to access this site. Checking your browser before accessing. This process is automatic.",
+            "jsonLd": []
+          }
+        ],
+        "footerText": ""
+      },
+      "registers": {}
+    },
+    {
+      "domain": "calibration-spa-shell.example",
+      "unreachable": true,
+      "spa_shell": true,
+      "note": "unrendered SPA shell: HTTP 200 but 0 chars of visible text without JS rendering (C-032); no absence claim may be made from this fixture",
+      "corpus": {
+        "pages": [
+          {
+            "url": "https://calibration-spa-shell.example/",
+            "title": "",
+            "text": "",
+            "jsonLd": []
+          }
+        ],
+        "footerText": ""
+      },
+      "registers": {}
+    }
+  ]
+}

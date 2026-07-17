@@ -1,0 +1,6 @@
+{
+  "domain": "carbonhealth.com",
+  "fetched_at": "2026-07-16T16:37:37.913Z",
+  "unreachable": true,
+  "note": "blocked: HTTP 403, title \"Attention Required! | Cloudflare\" - bot wall or challenge page; no content asserted (C-038)"
+}

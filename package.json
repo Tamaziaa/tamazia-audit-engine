@@ -14,6 +14,7 @@
     "depcruise": "depcruise --config .dependency-cruiser.cjs applicability breach catalogue eval evidence facts llm mint payload render-proof tools",
     "sweep": "node tools/sweep/run.js",
     "calibrate": "node eval/calibration-known-bad/run.js",
+    "reference": "node eval/reference-set/run-facts.js",
     "test": "node --test"
   },
   "devDependencies": {
