@@ -1,3 +1,0 @@
-# Fresh build outputs are produced by the build under test and never committed.
-# Goldens (goldens/) ARE committed - they are the pinned truth.
-fresh/
