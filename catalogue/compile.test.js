@@ -745,3 +745,10 @@ test('--print-hashes against the real catalogue/packs/ prints a deterministic sh
   // still hash it, since generating the hash is the very first step towards writing that sidecar.
   assert.ok(realFiles.some((f) => f.cellName === 'uk-tech-media-industrial'));
 });
+
+test('parseArgs: a value flag must not consume the next flag as its value (CR round-5)', () => {
+  // "--out --print-hashes" would otherwise treat "--print-hashes" as the output path and complete
+  // the wrong operation entirely.
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--out', '--print-hashes']), compile.CompileError);
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--stamp']), compile.CompileError);
+});

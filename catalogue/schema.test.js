@@ -419,3 +419,9 @@ test('validatePack: smoke test against every real committed pack', () => {
     }
   }
 });
+
+test('validateRecord: an OMITTED sub_jurisdiction key is rejected; only explicit null passes (CR round-5)', () => {
+  const omitted = goodRecord();
+  delete omitted.sub_jurisdiction;
+  assert.ok(schema.validateRecord(omitted).some((m) => m.includes('sub_jurisdiction:') && m.includes('required key')));
+});

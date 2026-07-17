@@ -255,3 +255,11 @@ test('logSafe strips newlines/carriage-returns so a remote title cannot forge ex
   assert.equal(safe.includes('\r'), false);
   assert.ok(safe.length <= 300, 'logSafe must cap length at 300 chars, got ' + safe.length);
 });
+
+test('isBlockedAddress: IPv4-mapped IPv6 spellings of private/loopback addresses are blocked (CR round-5)', () => {
+  assert.equal(isBlockedAddress('::ffff:10.0.0.1'), true);
+  assert.equal(isBlockedAddress('::ffff:127.0.0.1'), true);
+  assert.equal(isBlockedAddress('0:0:0:0:0:ffff:192.168.1.1'), true);
+  assert.equal(isBlockedAddress('[::ffff:169.254.169.254]'), true);
+  assert.equal(isBlockedAddress('::ffff:93.184.216.34'), false); // mapped PUBLIC address stays allowed
+});

@@ -53,7 +53,15 @@ function parseArgs(argv, defaultOut, ErrorClass) {
     const flag = args[i];
     if (flag === '--print-hashes') { state.printHashes = true; continue; }
     const handler = VALUE_FLAGS[flag];
-    if (handler) { handler(state, args[i + 1], ErrorClass); i += 1; continue; }
+    if (handler) {
+      const value = args[i + 1];
+      // A value flag must never consume the NEXT FLAG as its value: "--out --print-hashes" would
+      // otherwise treat "--print-hashes" as the output path and complete the wrong operation.
+      if (value === undefined || value.startsWith('--')) {
+        throw new ErrorClass(flag + ' requires a value, got ' + (value === undefined ? 'end of arguments' : JSON.stringify(value)));
+      }
+      handler(state, value, ErrorClass); i += 1; continue;
+    }
     state.unknown.push(flag);
   }
   return state;

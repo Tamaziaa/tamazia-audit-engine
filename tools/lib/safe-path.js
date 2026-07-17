@@ -126,20 +126,23 @@ function assertSafeScanPath(p, opts) {
 // entry in `components` is a safe single segment (assertSafePathComponent) AND that the resolved
 // result stays inside baseDir (belt-and-braces: even an allowlisted component could theoretically
 // still escape on a platform with unusual path semantics, so the resolved path is re-checked too).
+// assertInsideBase(resolvedBase, resolvedJoined, opts) -> throws when the resolved join landed
+// outside the base directory (the belt-and-braces escape check safeJoin delegates to).
+function assertInsideBase(resolvedBase, resolvedJoined, opts) {
+  if (resolvedJoined === resolvedBase || resolvedJoined.startsWith(resolvedBase + path.sep)) return;
+  const o = opts || {};
+  const ErrorClass = o.ErrorClass || Error;
+  throw new ErrorClass(
+    (o.label || 'safeJoin') + ': resolved path ' + JSON.stringify(resolvedJoined)
+    + ' escapes base directory ' + JSON.stringify(resolvedBase)
+  );
+}
+
 function safeJoin(baseDir, components, opts) {
   const parts = Array.isArray(components) ? components : [components];
   for (const c of parts) assertSafePathComponent(c, opts);
   const joined = path.join(baseDir, ...parts);
-  const resolvedBase = path.resolve(baseDir);
-  const resolvedJoined = path.resolve(joined);
-  if (resolvedJoined !== resolvedBase && !resolvedJoined.startsWith(resolvedBase + path.sep)) {
-    const o = opts || {};
-    const ErrorClass = o.ErrorClass || Error;
-    throw new ErrorClass(
-      (o.label || 'safeJoin') + ': resolved path ' + JSON.stringify(resolvedJoined)
-      + ' escapes base directory ' + JSON.stringify(resolvedBase)
-    );
-  }
+  assertInsideBase(path.resolve(baseDir), path.resolve(joined), opts);
   return joined;
 }
 

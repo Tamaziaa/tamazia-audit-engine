@@ -20,18 +20,16 @@
 //
 // SCOPE DECISIONS worth reading before extending this file:
 //  1. sector[] accepts the vocabulary's canonical sectors (via canonicalSector, folding aliases like
-//     'legal' -> 'law-firms') PLUS the sentinel 'universal' (a law that binds regardless of sector,
-//     caution.md C-069). 'universal' is NOT a vocabulary sector; the schema keeps it a deliberate
-//     state rather than a typo that happens to canonicalise to null.
-//  2. sub_sector[] (CR-36) is enum-checked against facts/vocabulary.js CANONICAL_SUB_SECTORS - a flat
-//     canonical set richer than the SECTORS detection tree (it also carries authored values like
-//     'attorney'/'conveyancing'/'notaries'/'immigration'). A new sub_sector value is added THERE first
-//     (one door, Rule 1), exactly like sector/activity_tags/required_nexus.
-//  3. sub_jurisdiction accepts null, the sentinel 'multi' (binds across sub-jurisdictions of one
-//     top-level jurisdiction), or a facts/vocabulary.js SUB_JURISDICTIONS code for the record's own
-//     (family-folded) jurisdiction. A jurisdiction with no modelled structure takes only null/'multi'.
-//  4. Extra fields (e.g. the boolean `advisory` tier marker, caution.md C-055) are tolerated: this
-//     validator checks REQUIRED fields are present and well-typed; it does not reject unknown fields.
+//     'legal' -> 'law-firms') PLUS the sentinel 'universal' (binds regardless of sector, C-069) -
+//     kept a deliberate state rather than a typo that happens to canonicalise to null.
+//  2. sub_sector[] (CR-36) is enum-checked against facts/vocabulary.js CANONICAL_SUB_SECTORS (richer
+//     than the SECTORS detection tree: 'attorney'/'conveyancing'/'notaries'/'immigration'). A new
+//     value is added THERE first (one door, Rule 1), like sector/activity_tags/required_nexus.
+//  3. sub_jurisdiction: explicit null, 'multi' (binds across sub-jurisdictions of one top-level
+//     jurisdiction), or a SUB_JURISDICTIONS code for the record's own (family-folded) jurisdiction.
+//     The key itself is REQUIRED; a jurisdiction with no modelled structure takes only null/'multi'.
+//  4. Extra fields (e.g. the boolean `advisory` tier marker, C-055) are tolerated: REQUIRED fields
+//     are checked present and well-typed; unknown fields are not rejected.
 
 const vocabulary = require('../facts/vocabulary.js');
 
@@ -120,16 +118,15 @@ function subJurisdictionHas(subDef, group, sub) {
 }
 
 function isValidSubJurisdiction(jurisdiction, sub) {
-  if (sub == null || sub === 'multi') return true; // null/undefined or the cross-sub sentinel
+  if (sub === null || sub === 'multi') return true; // EXPLICIT null or the cross-sub sentinel
   if (typeof sub !== 'string' || sub.trim().length === 0) return false;
   const subDef = vocabulary.SUB_JURISDICTIONS[vocabulary.famCanon(jurisdiction)];
   if (!subDef) return false;
   return SUB_JURISDICTION_GROUPS.some((g) => subJurisdictionHas(subDef, g, sub));
 }
 
-// validateRecord(record) -> string[]. Decomposed into one pure validator per field group (each under
-// the health-gate caps); validateRecord aggregates every group's violations and prefixes the id tag.
-// Message strings are unchanged from the pre-refactor monolith (tests assert on them verbatim).
+// validateRecord(record) -> string[]. One pure validator per field group; validateRecord aggregates
+// and prefixes the id tag. Message strings are pre-refactor verbatim (tests assert on them).
 
 // id, name
 function validateIdentity(record) {
@@ -158,7 +155,11 @@ function validateCitation(record) {
 function validateJurisdictionFields(record) {
   const v = [];
   pushJurisdictionCode(v, record.jurisdiction, 'jurisdiction');
-  if (!isValidSubJurisdiction(record.jurisdiction, record.sub_jurisdiction)) {
+  // The key must be PRESENT: omission is an incomplete record, not an implicit "whole jurisdiction";
+  // only an explicit null carries that meaning (JSON.parse never yields undefined for a present key).
+  if (!Object.prototype.hasOwnProperty.call(record, 'sub_jurisdiction')) {
+    v.push('sub_jurisdiction: required key (explicit null for whole-jurisdiction scope, "multi", or a SUB_JURISDICTIONS code) - omitting it is not an implicit null');
+  } else if (!isValidSubJurisdiction(record.jurisdiction, record.sub_jurisdiction)) {
     v.push('sub_jurisdiction: ' + JSON.stringify(record.sub_jurisdiction) + ' is not null, "multi", or a facts/vocabulary.js SUB_JURISDICTIONS code for jurisdiction ' + JSON.stringify(record.jurisdiction));
   }
   return v;
@@ -268,28 +269,27 @@ function validateNexusAndConditions(record) {
 }
 
 // website_obligations[]
-function validateObligations(record) {
+// filter+map keeps pre-refactor multiplicity (one message per bad element).
+function validateObligationElements(w, tag) {
+  if (!isNonEmptyArray(w.elements)) return [tag + '.elements: required non-empty array of strings'];
+  return w.elements.filter((el) => !isNonEmptyString(el)).map(() => tag + '.elements: every entry must be a non-empty string');
+}
+
+function validateObligationEntry(w, i) {
+  const tag = 'website_obligations[' + i + ']';
+  if (!isPlainObject(w)) return [tag + ': must be an object'];
   const v = [];
-  if (!isNonEmptyArray(record.website_obligations)) {
-    v.push('website_obligations: required non-empty array');
-  } else {
-    record.website_obligations.forEach((w, i) => {
-      const tag = 'website_obligations[' + i + ']';
-      if (!isPlainObject(w)) { v.push(tag + ': must be an object'); return; }
-      if (!isNonEmptyString(w.duty)) v.push(tag + '.duty: required non-empty string');
-      if (!isNonEmptyArray(w.elements)) {
-        v.push(tag + '.elements: required non-empty array of strings');
-      } else {
-        for (const el of w.elements) {
-          if (!isNonEmptyString(el)) v.push(tag + '.elements: every entry must be a non-empty string');
-        }
-      }
-      if (!EVIDENCE_TYPES.includes(w.evidence_type)) {
-        v.push(tag + '.evidence_type: ' + JSON.stringify(w.evidence_type) + ' must be one of ' + EVIDENCE_TYPES.join('|'));
-      }
-    });
+  if (!isNonEmptyString(w.duty)) v.push(tag + '.duty: required non-empty string');
+  v.push(...validateObligationElements(w, tag));
+  if (!EVIDENCE_TYPES.includes(w.evidence_type)) {
+    v.push(tag + '.evidence_type: ' + JSON.stringify(w.evidence_type) + ' must be one of ' + EVIDENCE_TYPES.join('|'));
   }
   return v;
+}
+
+function validateObligations(record) {
+  if (!isNonEmptyArray(record.website_obligations)) return ['website_obligations: required non-empty array'];
+  return record.website_obligations.flatMap((w, i) => validateObligationEntry(w, i));
 }
 
 // penaltyLowExceedsHigh(p) -> true only when both bounds are numbers and low > high (guard-claused).

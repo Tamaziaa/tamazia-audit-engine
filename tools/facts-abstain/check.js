@@ -231,6 +231,12 @@ function scan(pathsOrDirs) {
     if (!target) continue;
     for (const file of target.files) scanBundlesInFile(file, target.isDir, acc);
   }
+  // Terminal fail-closed check: inputs were supplied but yielded zero recognised bundles (an empty
+  // directory, or every file skipped as malformed/unrelated). A scan that examined nothing must
+  // never report a clean pass - same doctrine as the no-input guard above.
+  if (inputs.length > 0 && acc.bundlesSeen === 0) {
+    recordScanError(acc.violations, '(no bundles)', 'supplied path(s) yielded 0 recognised bundles - nothing was actually checked; an empty scan must never report a clean pass');
+  }
   return { violations: acc.violations, bundlesSeen: acc.bundlesSeen, unreachableSeen: acc.unreachableSeen };
 }
 

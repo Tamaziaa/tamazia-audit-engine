@@ -55,3 +55,21 @@ test('selfTest: every seeded violation kind is caught exactly', () => {
   const st = selfTest();
   assert.strictEqual(st.pass, true, st.detail);
 });
+
+test('realGateExists: a SYMLINK never counts as a live gate, even pointing at a real file (CR round-5)', () => {
+  const { realGateExists } = require('./check');
+  const os = require('node:os');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const ROOT = path.resolve(__dirname, '..', '..');
+  const linkRel = 'tools/history-regression/.tmp-gate-link.js';
+  const linkAbs = path.join(ROOT, linkRel);
+  fs.rmSync(linkAbs, { force: true });
+  fs.symlinkSync(path.join(ROOT, 'tools/history-regression/check.js'), linkAbs);
+  try {
+    // statSync would follow the link to a genuine file; lstat sees the link itself and refuses.
+    assert.strictEqual(realGateExists(linkRel), false);
+  } finally {
+    fs.rmSync(linkAbs, { force: true });
+  }
+});

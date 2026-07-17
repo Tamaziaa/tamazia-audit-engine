@@ -251,12 +251,23 @@ function normaliseHost(host) {
   return String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
 }
 
+// V4_MAPPED_RX: an IPv4-mapped IPv6 literal, compressed (::ffff:1.2.3.4) or expanded
+// (0:0:0:0:0:ffff:1.2.3.4). Node's URL/dns layers can emit either spelling for the same address.
+const V4_MAPPED_RX = /^(?:::|(?:0+:){5})ffff:(\d{1,3}(?:\.\d{1,3}){3})$/;
+
+// unmapIpv4(h) -> the embedded dotted IPv4 when h is an IPv4-mapped IPv6 literal, else h unchanged.
+// Without this, ::ffff:10.0.0.1 is "IPv6" to every IPv4 range check and sails through the door.
+function unmapIpv4(h) {
+  const m = V4_MAPPED_RX.exec(h);
+  return m ? m[1] : h;
+}
+
 // isBlockedAddress(ip) -> true for a loopback/private/link-local/CGNAT IP LITERAL (v4 or v6). This is
 // the resolved-IP door: a DNS answer is an IP literal, and it is validated here against the SAME
 // ranges as the hostname door, so a name that resolves to a private address cannot slip through
 // (DNS-rebinding SSRF). isBlockedHost delegates its literal checks here so there is one door, not two.
 function isBlockedAddress(ip) {
-  const h = normaliseHost(ip);
+  const h = unmapIpv4(normaliseHost(ip));
   if (WILDCARD_LOOPBACK_LITERALS.has(h)) return true;
   if (isPrivateIPv4(h)) return true;
   return isBlockedIpv6(h);

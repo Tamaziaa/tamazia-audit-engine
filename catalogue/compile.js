@@ -144,19 +144,23 @@ function listPackFiles(packsDir) {
 // CompileError on an unreadable file, invalid JSON, wrong shape, or a cell mismatch (CR-3: a pack
 // signed off under one identity must never compile under another). Split out of discoverPacks so
 // each stage of "read this pack file" stays a small, independently readable unit.
-function readAndValidatePackFile(absPath, relPath, cellName) {
+// readPackJson -> parsed JSON; throws CompileError on unreadable/invalid (rethrown typed, never swallowed).
+function readPackJson(absPath, relPath) {
   let raw;
   try {
     raw = fs.readFileSync(absPath, 'utf8');
   } catch (e) {
     throw new CompileError(relPath + ': failed to read: ' + e.message);
   }
-  let pack;
   try {
-    pack = JSON.parse(raw);
+    return JSON.parse(raw);
   } catch (e) {
     throw new CompileError(relPath + ': invalid JSON: ' + e.message);
   }
+}
+
+function readAndValidatePackFile(absPath, relPath, cellName) {
+  const pack = readPackJson(absPath, relPath);
   if (!isPlainObject(pack) || !Array.isArray(pack.records)) {
     throw new CompileError(relPath + ': pack has a legal-QA sidecar but is not a valid {cell, jurisdiction, generated, records:[]} pack shape');
   }

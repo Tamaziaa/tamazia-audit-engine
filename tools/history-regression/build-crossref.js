@@ -150,34 +150,36 @@ function assertSweepConsistent(sweep) {
 // collectDefects(sweep) -> the full defect list: the classified sweep clusters, the 5 domain-gate
 // classes (engine-semantic defects no marketplace tool found), and the 6 ACT items (>=2 tools agree,
 // recorded as their own entries so the ledger names them directly).
+function sweepDefects(sweep) {
+  return sweep.findings.map((f, i) => entryFor(classForSweep(f), {
+    id: 'SW-' + String(i + 1).padStart(4, '0'),
+    source: 'sweep',
+    act: (f.corroboration || 0) >= 2,
+    severity: f.severity,
+    category: f.category,
+    corroboration: f.corroboration || 0,
+    tools: f.tools || [],
+    path: f.path,
+    message: f.message,
+    fingerprint: f.fingerprint,
+  }));
+}
+
+function domainGateDefects() {
+  return DOMAIN_GATES.map((dg) => entryFor(dg.class, {
+    id: dg.id, source: 'domain-gate', act: true, severity: dg.past_severity,
+    path: 'digest-findings-bible.md §12', message: dg.name + ': ' + dg.note,
+  }));
+}
+
+function actDefects() {
+  return ACT.map((a) => entryFor(a.class, {
+    id: a.id, source: 'act', act: true, severity: a.past_severity, path: a.path, message: a.note,
+  }));
+}
+
 function collectDefects(sweep) {
-  const defects = [];
-  sweep.findings.forEach((f, i) => {
-    defects.push(entryFor(classForSweep(f), {
-      id: 'SW-' + String(i + 1).padStart(4, '0'),
-      source: 'sweep',
-      act: (f.corroboration || 0) >= 2,
-      severity: f.severity,
-      category: f.category,
-      corroboration: f.corroboration || 0,
-      tools: f.tools || [],
-      path: f.path,
-      message: f.message,
-      fingerprint: f.fingerprint,
-    }));
-  });
-  for (const dg of DOMAIN_GATES) {
-    defects.push(entryFor(dg.class, {
-      id: dg.id, source: 'domain-gate', act: true, severity: dg.past_severity,
-      path: 'digest-findings-bible.md §12', message: dg.name + ': ' + dg.note,
-    }));
-  }
-  for (const a of ACT) {
-    defects.push(entryFor(a.class, {
-      id: a.id, source: 'act', act: true, severity: a.past_severity, path: a.path, message: a.note,
-    }));
-  }
-  return defects;
+  return [...sweepDefects(sweep), ...domainGateDefects(), ...actDefects()];
 }
 
 // buildTaxonomyRollup(defects) -> one row per class carrying the caution pointers it distils and its

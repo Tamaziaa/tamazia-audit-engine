@@ -165,7 +165,11 @@ test('scan (CR-41): a directly-named unreadable/invalid-JSON file fails closed, 
     assert.ok(directRes.violations.some((v) => v.rule === 'facts-abstain/scan-error'), 'a directly-named unreadable file must fail closed');
 
     const dirRes = gate.scan([dir]);
-    assert.deepEqual(dirRes.violations, [], 'the SAME file discovered while walking a mixed directory is a legitimate skip, not this gate\'s problem');
+    // The malformed file itself stays a legitimate per-file skip inside a mixed directory (no
+    // parse-error violation for it) - but since NOTHING else was scanned either, the CR round-5
+    // terminal check still refuses the empty result as a whole (0 recognised bundles).
+    assert.ok(!dirRes.violations.some((v) => v.message.includes('failed to read/parse')), 'the SAME file discovered while walking a mixed directory is a legitimate skip, not this gate\'s problem');
+    assert.ok(dirRes.violations.some((v) => v.message.includes('0 recognised bundles')), 'an all-skipped directory must still fail the terminal no-bundles check');
   } finally {
     fsMod.rmSync(dir, { recursive: true, force: true });
   }
@@ -189,4 +193,18 @@ test('scan (CR-41): a directly-named file that parses but is not a recognised bu
 test('scan (CR-41/SCAN path-traversal): a ".." traversal path fails closed with a facts-abstain/scan-error violation rather than resolving outside the repo', () => {
   const res = gate.scan(['../../../etc/passwd']);
   assert.ok(res.violations.some((v) => v.rule === 'facts-abstain/scan-error'));
+});
+
+test('scan: supplied paths yielding ZERO recognised bundles fail closed, never a clean pass (CR round-5)', () => {
+  const fsMod = require('node:fs');
+  const osMod = require('node:os');
+  const pathMod = require('node:path');
+  const emptyDir = fsMod.mkdtempSync(pathMod.join(osMod.tmpdir(), 'fa-empty-'));
+  try {
+    const res = gate.scan([emptyDir]);
+    assert.equal(res.bundlesSeen, 0);
+    assert.ok(res.violations.some((v) => v.rule === 'facts-abstain/scan-error' && v.message.includes('0 recognised bundles')));
+  } finally {
+    fsMod.rmSync(emptyDir, { recursive: true, force: true });
+  }
 });

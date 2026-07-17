@@ -67,12 +67,12 @@ function realGateExists(rel) {
   // a "../.." escape is rejected here (returns false), so a class can never satisfy a guarded claim by
   // pointing at a host file outside the repo.
   if (!safePath.isSafeRelativePath(rel)) return false;
-  // A gate must be a real FILE, not merely an existing path: fs.existsSync is true for a directory, so
-  // a guarded class pointing at (say) "tools/" would falsely claim a live gate. statSync(...).isFile()
-  // is the only honest check (CR round-4). throwIfNoEntry:false makes a MISSING path return undefined
-  // (not a throw), so a non-existent gate is "absent" (fail closed) with no swallowing catch to justify;
-  // a directory returns a Stats whose isFile() is false, so it too fails the check.
-  const st = fs.statSync(path.resolve(ROOT, rel), { throwIfNoEntry: false });
+  // A gate must be a real REGULAR FILE inside the repo: existsSync is true for a directory, and
+  // statSync FOLLOWS symlinks, so a repo-local link pointing at an external file would still count
+  // (CR round-5). lstatSync stats the entry ITSELF - a symlink's lstat is never isFile(), so only a
+  // genuine in-tree regular file satisfies the claim. throwIfNoEntry:false makes a MISSING path
+  // return undefined (fail closed) with no swallowing catch to justify.
+  const st = fs.lstatSync(path.resolve(ROOT, rel), { throwIfNoEntry: false });
   return Boolean(st) && st.isFile();
 }
 
