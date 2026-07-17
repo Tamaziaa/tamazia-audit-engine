@@ -134,26 +134,48 @@ function checkPenaltyFields(record, locator, id) {
   return findings;
 }
 
+// enforcementUrlMissing/enforcementDateMissing: named predicates (each RETURNS a boolean, so the
+// multi-operator test lives in the predicate, not in an if/else-if TEST position) pulled out of
+// checkEnforcementEntries' former forEach callback (Constitution Rule 4/tools/health-gate/check.js
+// caps: the anonymous callback carried this file's whole per-entry decision tree).
+function enforcementUrlMissing(e) {
+  return !e || typeof e.url !== 'string' || e.url.trim().length === 0;
+}
+function enforcementDateMissing(e) {
+  return !e || typeof e.date !== 'string' || e.date.trim().length === 0;
+}
+
+// checkEnforcementEntry(e, i, add) - one enforcement[] entry's url/date checks. Named and
+// extracted out of the former forEach callback so its decisions are counted against this small
+// unit, not against checkEnforcementEntries itself.
+function checkEnforcementEntry(e, i, add) {
+  const tag = 'enforcement[' + i + ']';
+  if (enforcementUrlMissing(e)) {
+    add('enforcement-url-missing', tag + ' has no url');
+  } else if (!citationHostOfficial(e.url)) {
+    // secondary/informational: report honestly, do not silently allow, but keep distinct.
+    const host = lib.urlHost(e.url);
+    add('enforcement-host-unofficial', tag + '.url host ' + JSON.stringify(host || e.url) + ' is not on OFFICIAL_HOSTS: ' + e.url);
+  }
+  if (enforcementDateMissing(e)) {
+    add('enforcement-date-missing', tag + ' has no date');
+  }
+}
+
 // 4. enforcement[] entries each carry url + date (every row); url is also checked against
 // OFFICIAL_HOSTS as a secondary/informational finding (reported honestly, never silently allowed).
 function checkEnforcementEntries(record, locator, id) {
   const findings = [];
   const add = (rule, message) => findings.push({ locator, id, rule, message });
   const enforcement = Array.isArray(record.enforcement) ? record.enforcement : [];
-  enforcement.forEach((e, i) => {
-    const tag = 'enforcement[' + i + ']';
-    if (!e || typeof e.url !== 'string' || e.url.trim().length === 0) {
-      add('enforcement-url-missing', tag + ' has no url');
-    } else if (!citationHostOfficial(e.url)) {
-      // secondary/informational: report honestly, do not silently allow, but keep distinct.
-      const host = lib.urlHost(e.url);
-      add('enforcement-host-unofficial', tag + '.url host ' + JSON.stringify(host || e.url) + ' is not on OFFICIAL_HOSTS: ' + e.url);
-    }
-    if (!e || typeof e.date !== 'string' || e.date.trim().length === 0) {
-      add('enforcement-date-missing', tag + ' has no date');
-    }
-  });
+  enforcement.forEach((e, i) => checkEnforcementEntry(e, i, add));
   return findings;
+}
+
+// registerUrlNeedsCheck(registerUrl) -> boolean. Named predicate pulled out of checkRegisterUrl's
+// own if TEST (the multi-operator test now lives in a RETURN, not a test position).
+function registerUrlNeedsCheck(registerUrl) {
+  return typeof registerUrl === 'string' && registerUrl.trim().length > 0 && !citationHostOfficial(registerUrl);
 }
 
 // SECONDARY (informational): regulator.register_url is also checked against OFFICIAL_HOSTS.
@@ -161,7 +183,7 @@ function checkRegisterUrl(record, locator, id) {
   const findings = [];
   const add = (rule, message) => findings.push({ locator, id, rule, message });
   const registerUrl = record.regulator && record.regulator.register_url;
-  if (typeof registerUrl === 'string' && registerUrl.trim().length > 0 && !citationHostOfficial(registerUrl)) {
+  if (registerUrlNeedsCheck(registerUrl)) {
     const host = lib.urlHost(registerUrl);
     add('register-host-unofficial', 'regulator.register_url host ' + JSON.stringify(host || registerUrl) + ' is not on OFFICIAL_HOSTS: ' + registerUrl);
   }

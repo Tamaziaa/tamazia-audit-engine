@@ -25,6 +25,18 @@ const lib = require('./lib');
 
 const REGEX_FIELD_KEY_RX = /^(pattern|regex|regex_pattern|detect|detection|check_spec)$/i;
 
+// isPatternFieldEntry(key, value) -> boolean. Named predicate pulled out of walkForPatternFields'
+// own if TEST (the multi-operator test now lives in a RETURN, not a test position; Constitution
+// Rule 4/tools/health-gate/check.js caps).
+function isPatternFieldEntry(key, value) {
+  return REGEX_FIELD_KEY_RX.test(key) && typeof value === 'string' && value.length > 0;
+}
+
+// flagsFor(node) -> the regex flags a pattern-bearing node declares, or the 'i' default.
+function flagsFor(node) {
+  return typeof node.flags === 'string' ? node.flags : 'i';
+}
+
 // walkForPatternFields(node, pathStr) -> [{ path, pattern, flags, parent }]
 // parent is the object that DIRECTLY holds the pattern field, so a sibling positive_example can
 // be looked up next to it.
@@ -37,13 +49,8 @@ function walkForPatternFields(node, pathStr, out) {
   for (const key of Object.keys(node)) {
     const value = node[key];
     const childPath = pathStr + '.' + key;
-    if (REGEX_FIELD_KEY_RX.test(key) && typeof value === 'string' && value.length > 0) {
-      out.push({
-        path: childPath,
-        pattern: value,
-        flags: typeof node.flags === 'string' ? node.flags : 'i',
-        parent: node,
-      });
+    if (isPatternFieldEntry(key, value)) {
+      out.push({ path: childPath, pattern: value, flags: flagsFor(node), parent: node });
     }
     walkForPatternFields(value, childPath, out);
   }
@@ -65,36 +72,61 @@ function recordFinding(findings, entry) {
 // try/catch immediately below.
 const MAX_PATTERN_LENGTH = 2000;
 
+// recordId(record) -> the record's own id, or its legacy framework_short, or '<no id>'. Pulled out
+// of checkRecord's former nested ternary (Constitution Rule 4/tools/health-gate/check.js caps).
+function recordId(record) {
+  if (typeof record.id === 'string') return record.id;
+  if (typeof record.framework_short === 'string') return record.framework_short;
+  return '<no id>';
+}
+
+// computePositiveExample(f, record) -> the positive_example string to prove a pattern against
+// (sibling-first, then record-level, then null). Pulled out of checkOneField below so the former
+// OR-chain lives in a small named unit of its own.
+function computePositiveExample(f, record) {
+  if (typeof f.parent.positive_example === 'string' && f.parent.positive_example) return f.parent.positive_example;
+  if (typeof record.positive_example === 'string' && record.positive_example) return record.positive_example;
+  return null;
+}
+
+// checkOneField(f, ctx) - one regex-bearing field's full length/compile/example/match check.
+// Pulled out of checkRecord's former for-loop body (Constitution Rule 4/tools/health-gate/
+// check.js caps: the loop body carried this file's whole per-field decision tree). ctx bundles
+// {record, id, locator, findings} (Constitution Rule 4/tools/health-gate/check.js ARGS cap: keeps
+// this helper at two formal params instead of five). Pushes onto ctx.findings directly (mirrors
+// the original loop's early `continue` exits as early `return`s, since there was never anything
+// after them in the loop body).
+function checkOneField(f, ctx) {
+  const { record, id, locator, findings } = ctx;
+  if (f.pattern.length > MAX_PATTERN_LENGTH) {
+    recordFinding(findings, { locator, id, rule: 'regex-health/pattern-too-long', level: 'error', message: f.path + ': pattern is ' + f.pattern.length + ' chars, exceeds the ' + MAX_PATTERN_LENGTH + '-char cap this linter enforces before compiling a catalogue-supplied pattern (ReDoS defence-in-depth) - shorten the pattern' });
+    return;
+  }
+  let compiled = null;
+  try {
+    // By design: this linter compiles catalogue patterns to prove they are alive; input length-capped, failure is itself a finding.
+    compiled = new RegExp(f.pattern, f.flags);
+  } catch (e) {
+    recordFinding(findings, { locator, id, rule: 'regex-health/pattern-does-not-compile', level: 'error', message: f.path + ': ' + JSON.stringify(f.pattern) + ' fails to compile: ' + e.message });
+    return;
+  }
+  const positiveExample = computePositiveExample(f, record);
+  if (!positiveExample) {
+    findings.push({ locator, id, rule: 'regex-no-positive-example', message: f.path + ': ' + JSON.stringify(f.pattern) + ' has no positive_example to prove it against (earn-your-zero: an unproven pattern is a dead pattern until shown otherwise)' });
+    return;
+  }
+  if (!compiled.test(positiveExample)) {
+    findings.push({ locator, id, rule: 'regex-dead-pattern', message: f.path + ': ' + JSON.stringify(f.pattern) + ' does NOT match its own positive_example ' + JSON.stringify(positiveExample) + ' (the over-escaped/C-050 dead-regex class)' });
+  }
+}
+
 // checkRecord(record, locator) -> finding[]
 function checkRecord(record, locator) {
-  const findings = [];
-  const id = typeof record.id === 'string' ? record.id : (typeof record.framework_short === 'string' ? record.framework_short : '<no id>');
+  const id = recordId(record);
   const fields = walkForPatternFields(record, 'record', []);
-
-  for (const f of fields) {
-    if (f.pattern.length > MAX_PATTERN_LENGTH) {
-      recordFinding(findings, { locator, id, rule: 'regex-health/pattern-too-long', level: 'error', message: f.path + ': pattern is ' + f.pattern.length + ' chars, exceeds the ' + MAX_PATTERN_LENGTH + '-char cap this linter enforces before compiling a catalogue-supplied pattern (ReDoS defence-in-depth) - shorten the pattern' });
-      continue;
-    }
-    let compiled = null;
-    try {
-      // By design: this linter compiles catalogue patterns to prove they are alive; input length-capped, failure is itself a finding.
-      compiled = new RegExp(f.pattern, f.flags);
-    } catch (e) {
-      recordFinding(findings, { locator, id, rule: 'regex-health/pattern-does-not-compile', level: 'error', message: f.path + ': ' + JSON.stringify(f.pattern) + ' fails to compile: ' + e.message });
-      continue;
-    }
-    const positiveExample = (typeof f.parent.positive_example === 'string' && f.parent.positive_example)
-      || (typeof record.positive_example === 'string' && record.positive_example)
-      || null;
-    if (!positiveExample) {
-      findings.push({ locator, id, rule: 'regex-no-positive-example', message: f.path + ': ' + JSON.stringify(f.pattern) + ' has no positive_example to prove it against (earn-your-zero: an unproven pattern is a dead pattern until shown otherwise)' });
-      continue;
-    }
-    if (!compiled.test(positiveExample)) {
-      findings.push({ locator, id, rule: 'regex-dead-pattern', message: f.path + ': ' + JSON.stringify(f.pattern) + ' does NOT match its own positive_example ' + JSON.stringify(positiveExample) + ' (the over-escaped/C-050 dead-regex class)' });
-    }
-  }
+  const findings = [];
+  const ctx = { record, id, locator, findings };
+  for (const f of fields) checkOneField(f, ctx);
   return { findings, patternCount: fields.length };
 }
 

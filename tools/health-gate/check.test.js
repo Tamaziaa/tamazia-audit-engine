@@ -178,37 +178,33 @@ test('judgeFunction: one unit over every cap produces all four violation kinds',
 
 // ── scanTree: real directory walking, skip rules ────────────────────────────────────────────────────────────
 
-test('scanTree: *.test.js files are never scanned (they are fixtures/tests, not builder-authored logic)', () => {
+// assertScanTreeSkips(relFile, subdir) -> write a deliberately over-long function into relFile (under a
+// freshly-made temp dir, optionally inside subdir) and assert scanTree walks it but SKIPS the file, so
+// it scans nothing and reports no violations. Shared by both skip-rule tests so they are not two
+// structurally-identical bodies (CodeScene Code Duplication; jscpd's own clone class).
+function assertScanTreeSkips(relFile, subdir) {
   const fs = require('node:fs');
   const os = require('node:os');
   const gate = loadGate('acorn');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'health-gate-test-'));
   try {
+    if (subdir) fs.mkdirSync(path.join(dir, subdir));
     const longBody = Array.from({ length: 62 }, (_, i) => `  const v${i} = ${i};`).join('\n');
-    fs.writeFileSync(path.join(dir, 'thing.test.js'), `function longTest(a) {\n${longBody}\n  return a;\n}\n`);
+    fs.writeFileSync(path.join(dir, relFile), `function longSkipped(a) {\n${longBody}\n  return a;\n}\n`);
     const r = gate.scanTree([dir]);
     assert.deepEqual(r.violations, []);
     assert.equal(r.scanned, 0);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+test('scanTree: *.test.js files are never scanned (they are fixtures/tests, not builder-authored logic)', () => {
+  assertScanTreeSkips('thing.test.js', null);
 });
 
 test('scanTree: a "packs" or "fixtures" subdirectory is skipped by name (data directories, not builder logic)', () => {
-  const fs = require('node:fs');
-  const os = require('node:os');
-  const gate = loadGate('acorn');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'health-gate-test-'));
-  try {
-    fs.mkdirSync(path.join(dir, 'packs'));
-    const longBody = Array.from({ length: 62 }, (_, i) => `  const v${i} = ${i};`).join('\n');
-    fs.writeFileSync(path.join(dir, 'packs', 'data.js'), `function longInPack(a) {\n${longBody}\n  return a;\n}\n`);
-    const r = gate.scanTree([dir]);
-    assert.deepEqual(r.violations, []);
-    assert.equal(r.scanned, 0);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+  assertScanTreeSkips(path.join('packs', 'data.js'), 'packs');
 });
 
 test('scanTree: health-gate\'s OWN source tree (tools/health-gate/) is itself clean against all five caps (earn-your-zero applies to the gate too)', () => {

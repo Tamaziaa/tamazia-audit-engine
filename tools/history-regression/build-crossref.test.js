@@ -39,3 +39,22 @@ test('assertSweepConsistent: findings.length matching clusters is accepted', () 
 test('assertSweepConsistent: a non-array findings field is rejected', () => {
   assert.throws(() => assertSweepConsistent({ findings: 'nope', clusters: 0 }), /not an array/);
 });
+
+// CR round-4: sweep.clusters is REQUIRED and must be a non-negative integer. Missing or non-numeric
+// metadata must FAIL CLOSED (never optional-skip), because line ~194 still publishes it as the
+// declared cluster count. Both branches tested: the reject branch and the accept branch.
+test('assertSweepConsistent: MISSING clusters metadata is rejected (fail closed, not optional-skip)', () => {
+  assert.throws(() => assertSweepConsistent({ findings: [{}] }), /non-negative integer/);
+});
+
+test('assertSweepConsistent: non-numeric, negative and fractional clusters are all rejected', () => {
+  assert.throws(() => assertSweepConsistent({ findings: [{}], clusters: '1' }), /non-negative integer/);
+  assert.throws(() => assertSweepConsistent({ findings: [{}], clusters: null }), /non-negative integer/);
+  assert.throws(() => assertSweepConsistent({ findings: [], clusters: -1 }), /non-negative integer/);
+  assert.throws(() => assertSweepConsistent({ findings: [{}], clusters: 1.5 }), /non-negative integer/);
+});
+
+test('assertSweepConsistent: a valid non-negative integer that matches findings.length is accepted', () => {
+  assert.doesNotThrow(() => assertSweepConsistent({ findings: [{}], clusters: 1 }));
+  assert.doesNotThrow(() => assertSweepConsistent({ findings: [], clusters: 0 }));
+});

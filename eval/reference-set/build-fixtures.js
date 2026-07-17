@@ -32,6 +32,7 @@ const path = require('path');
 const zlib = require('zlib');
 const https = require('https');
 const http = require('http');
+const dns = require('dns');
 
 const USER_AGENT =
   'TamaziaReferenceFixtureBot/1.0 (compliance-audit reference fixtures; contact: hello@tamazia.co.uk)';
@@ -67,8 +68,16 @@ const {
   stripControlChars,
   logSafe,
   isBlockedHost,
+  isBlockedAddress,
   parseSafeFetchTarget,
+  makeSafeLookup,
 } = require('./build-fixtures-lib.js');
+
+// The single resolved-address guard, built once from the real resolver. Passed as the request
+// `lookup` option (below) so every DNS answer - initial hop AND every redirect hop - is validated
+// against the private/loopback/link-local blocklist before a socket is opened. The hostname string
+// is checked by parseSafeFetchTarget; the resolved IP is checked here; one door decides both.
+const safeLookup = makeSafeLookup(dns.lookup);
 
 // ---------------------------------------------------------------------------
 // Network layer (deadline-wrapped; never used by facts modules)
@@ -93,6 +102,10 @@ function fetchOnce(url) {
           'Accept-Encoding': 'gzip, deflate',
         },
         timeout: FETCH_DEADLINE_MS,
+        // Pin the connection to a resolved address that has passed the private/loopback/link-local
+        // blocklist. Without this, parseSafeFetchTarget validates only the HOSTNAME and DNS could
+        // still resolve it to an internal address after the check (DNS-rebinding SSRF).
+        lookup: safeLookup,
       },
       (res) => {
         const chunks = [];
@@ -380,7 +393,9 @@ module.exports = {
   buildFixtureForDomain,
   isFetchableDomain,
   isBlockedHost,
+  isBlockedAddress,
   parseSafeFetchTarget,
+  makeSafeLookup,
   stripControlChars,
   logSafe,
   deepStripControlChars,

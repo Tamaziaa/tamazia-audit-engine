@@ -23,6 +23,23 @@ const { isRealTimestamp } = require('./valid-date.js');
 
 const ISO_RX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
+// VALUE_FLAGS: the flags that consume the NEXT token as their value, each a named handler that writes
+// the parsed value onto the accumulating state object. A dispatch table keeps parseArgs a flat loop
+// (one lookup, not a long if/else-if chain) while every branch stays a tiny, independently readable
+// unit. --stamp-file/--out/--packs route their raw path through the single safe-path door before use.
+const VALUE_FLAGS = {
+  '--stamp': (state, value) => { state.stamp = value; },
+  '--stamp-file': (state, value, ErrorClass) => {
+    state.stampFile = safePath.assertSafeRelativePath(value || '', { label: '--stamp-file', ErrorClass });
+  },
+  '--out': (state, value, ErrorClass) => {
+    state.out = path.resolve(process.cwd(), safePath.assertSafeRelativePath(value || '', { label: '--out', ErrorClass }));
+  },
+  '--packs': (state, value, ErrorClass) => {
+    state.packsDir = path.resolve(process.cwd(), safePath.assertSafeRelativePath(value || '', { label: '--packs', ErrorClass }));
+  },
+};
+
 // parseArgs(argv, defaultOut, ErrorClass): --stamp <ISO8601> and --stamp-file <path> are two ways
 // to supply the SAME thing (the artifact's "generated" value); at most one may be given
 // (resolveStamp below throws on a conflicting pair). --print-hashes is a separate utility mode
@@ -31,29 +48,15 @@ const ISO_RX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 // header exists.
 function parseArgs(argv, defaultOut, ErrorClass) {
   const args = argv.slice(2);
-  let stamp = null;
-  let stampFile = null;
-  let out = defaultOut;
-  let packsDir = null;
-  let printHashes = false;
-  const unknown = [];
+  const state = { stamp: null, stampFile: null, out: defaultOut, packsDir: null, printHashes: false, unknown: [] };
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--stamp') { stamp = args[i + 1]; i += 1; }
-    else if (args[i] === '--stamp-file') {
-      stampFile = safePath.assertSafeRelativePath(args[i + 1] || '', { label: '--stamp-file', ErrorClass });
-      i += 1;
-    } else if (args[i] === '--out') {
-      const raw = safePath.assertSafeRelativePath(args[i + 1] || '', { label: '--out', ErrorClass });
-      out = path.resolve(process.cwd(), raw);
-      i += 1;
-    } else if (args[i] === '--packs') {
-      const raw = safePath.assertSafeRelativePath(args[i + 1] || '', { label: '--packs', ErrorClass });
-      packsDir = path.resolve(process.cwd(), raw);
-      i += 1;
-    } else if (args[i] === '--print-hashes') { printHashes = true; }
-    else unknown.push(args[i]);
+    const flag = args[i];
+    if (flag === '--print-hashes') { state.printHashes = true; continue; }
+    const handler = VALUE_FLAGS[flag];
+    if (handler) { handler(state, args[i + 1], ErrorClass); i += 1; continue; }
+    state.unknown.push(flag);
   }
-  return { stamp, stampFile, out, packsDir, printHashes, unknown };
+  return state;
 }
 
 // resolveStamp(stamp, stampFile, repoRoot, ErrorClass) -> the ISO8601 string to use as the

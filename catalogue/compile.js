@@ -37,27 +37,17 @@
 //
 // CLI: node catalogue/compile.js (--stamp <ISO8601> | --stamp-file <path>) [--out <path>] [--packs <dir>]
 //   node catalogue/compile.js --print-hashes [--packs <dir>]
-//   --packs overrides catalogue/packs/ (default) with any directory of *.json pack files -
-//   PACKS_DIR is a module-level constant elsewhere in this file precisely so nothing downstream
-//   ever points it somewhere else by accident, but the CLI itself needs to be exercisable
-//   end-to-end against an isolated fixture directory (compile.test.js's CLI smoke tests inject it
-//   this way rather than driving exported helper functions directly, so the real argv parsing,
-//   stamp validation and CLI error boundary are all actually exercised - caution.md C-148).
-//   Exactly one of --stamp or --stamp-file is REQUIRED for a real compile. There is no wall-clock
-//   fallback: an artifact with no supplied stamp is a build this compiler refuses to produce, not a
-//   build it silently timestamps for you. --stamp-file points at a COMMITTED file (RELEASE_STAMP at
-//   the repo root, by convention) whose trimmed contents are the stamp - CI uses this so bumping the
-//   release stamp is a one-line, reviewable file edit, never a hardcoded workflow literal (CR-1).
-//   --print-hashes is a separate utility mode, independent of --stamp/--stamp-file: it prints every
-//   catalogue/packs/*.json file's current sha256 so a human can stamp (or re-stamp) the matching
-//   .QA.md sidecar's approval header after reviewing it.
+//   --packs overrides the default catalogue/packs/ with any *.json pack directory (compile.test.js's
+//   CLI smoke tests inject an isolated fixture dir this way, so real argv parsing/stamp validation/CLI
+//   error boundary are all exercised - caution.md C-148). Exactly one of --stamp/--stamp-file is
+//   REQUIRED: there is NO wall-clock fallback (a build with no supplied stamp is refused, never silently
+//   timestamped). --stamp-file points at a COMMITTED file (RELEASE_STAMP by convention) whose trimmed
+//   contents are the stamp, so CI bumps it via a one-line reviewable edit (CR-1). --print-hashes is a
+//   separate utility mode that prints each pack's sha256 for stamping its .QA.md approval header.
 //
-// Exit codes: 0 = artifact written (or hashes printed); 1 = refused (bad args, no compilable packs, or an
-// error-severity finding). Every refusal is a THROWN CompileError caught once at the CLI boundary
-// in main() (never a bare process.exit() buried inside a library function) so every exported
-// function below stays a plain, testable function: node:test can call discoverPacks() or
-// runLinterFleet() directly and assert on a thrown CompileError instead of losing the whole test
-// process to an exit call three stack frames down.
+// Exit codes: 0 = artifact written (or hashes printed); 1 = refused. Every refusal is a THROWN
+// CompileError caught once at the CLI boundary in main() (never a bare process.exit() buried in a
+// library function), so every exported function stays a plain, testable function.
 
 const fs = require('fs');
 const path = require('path');
@@ -215,7 +205,7 @@ function discoverPacks(packsDir) {
     }
 
     const pack = readAndValidatePackFile(absPath, relPath, cellName);
-    qaApproval.verifyQaApproval(absPath, qaSidecarAbs, relPath, relQaPath, CompileError);
+    qaApproval.verifyQaApproval({ absPath, qaSidecarAbs, relPath, relQaPath }, CompileError);
 
     included.push({ cellName, absPath, relPath, pack });
   }
@@ -425,45 +415,57 @@ function reportFindings(included, excluded, findings) {
   );
 }
 
+// runCompile() -> the full compile pipeline (arg parse -> stamp -> discover -> findings -> assemble
+// -> write), or the --print-hashes utility mode. Throws CompileError on any modelled refusal; main()
+// owns the single catch/exit boundary. Extracted from main() so the try body and the catch handler
+// are each a small, independently readable unit under the complexity cap.
+function runCompile() {
+  const { stamp, stampFile, out, packsDir, printHashes, unknown } = parseArgs(process.argv);
+  if (unknown.length) throw new CompileError('unknown argument(s): ' + unknown.join(', '));
+
+  if (printHashes) {
+    runPrintHashesMode(packsDir);
+    return;
+  }
+
+  const resolvedStamp = resolveStamp(stamp, stampFile);
+  assertValidStamp(resolvedStamp);
+
+  const { included, excluded } = discoverPacks(packsDir || undefined);
+  if (included.length === 0) {
+    throw new CompileError('zero compilable packs found under catalogue/packs/ (every pack excluded for missing a legal-QA sidecar, or the directory is empty)');
+  }
+
+  const findings = collectFindings(included);
+  reportFindings(included, excluded, findings);
+
+  const artifact = assembleArtifact(included, excluded, resolvedStamp);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(artifact, null, 2) + '\n');
+
+  console.log('catalogue/compile.js: wrote ' + path.relative(REPO_ROOT, out) + ' - ' + artifact.records.length + ' record(s) across ' + artifact.cells.length + ' cell(s), content_hash ' + artifact.content_hash.slice(0, 12) + '...');
+}
+
+// reportFailure(e) -> the single catch handler: RECORDS the failure (prints it) and fails closed
+// (exit 1), never swallows (Constitution Rule 4 / the silent-swallow gate; its name matches the gate's
+// RECORDER pattern so the extracted catch is still read as recording). A CompileError is a modelled
+// refusal; anything else (a genuine programmer bug) is printed with its stack so it is loud.
+function reportFailure(e) {
+  if (e instanceof CompileError) {
+    console.error('catalogue/compile.js: REFUSED - ' + e.message);
+  } else {
+    console.error('catalogue/compile.js: UNEXPECTED ERROR (this is a bug, not a modelled refusal):');
+    console.error(e.stack || e.message);
+  }
+  process.exit(1);
+}
+
 function main() {
   try {
-    const { stamp, stampFile, out, packsDir, printHashes, unknown } = parseArgs(process.argv);
-    if (unknown.length) throw new CompileError('unknown argument(s): ' + unknown.join(', '));
-
-    if (printHashes) {
-      runPrintHashesMode(packsDir);
-      process.exit(0);
-    }
-
-    const resolvedStamp = resolveStamp(stamp, stampFile);
-    assertValidStamp(resolvedStamp);
-
-    const { included, excluded } = discoverPacks(packsDir || undefined);
-    if (included.length === 0) {
-      throw new CompileError('zero compilable packs found under catalogue/packs/ (every pack excluded for missing a legal-QA sidecar, or the directory is empty)');
-    }
-
-    const findings = collectFindings(included);
-    reportFindings(included, excluded, findings);
-
-    const artifact = assembleArtifact(included, excluded, resolvedStamp);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    fs.writeFileSync(out, JSON.stringify(artifact, null, 2) + '\n');
-
-    console.log('catalogue/compile.js: wrote ' + path.relative(REPO_ROOT, out) + ' - ' + artifact.records.length + ' record(s) across ' + artifact.cells.length + ' cell(s), content_hash ' + artifact.content_hash.slice(0, 12) + '...');
+    runCompile();
     process.exit(0);
   } catch (e) {
-    // The one catch in this file: RECORDS the failure (prints it) and fails closed (exit 1),
-    // never swallows (Constitution Rule 4 / the silent-swallow gate). A CompileError is a modelled
-    // refusal; anything else (a genuine programmer bug) is printed with its stack so it is loud,
-    // not disguised as a modelled refusal.
-    if (e instanceof CompileError) {
-      console.error('catalogue/compile.js: REFUSED - ' + e.message);
-    } else {
-      console.error('catalogue/compile.js: UNEXPECTED ERROR (this is a bug, not a modelled refusal):');
-      console.error(e.stack || e.message);
-    }
-    process.exit(1);
+    reportFailure(e);
   }
 }
 

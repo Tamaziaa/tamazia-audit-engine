@@ -79,6 +79,20 @@ const SELF_DECLARATION_RX = /\bwe (?:do not|don't|never)\b|\bself[- ]?declar|\bs
 // breach signal (the rule-polarity-inverted.json class).
 const LEGACY_COMPLIANT_CONSENT_RX = /\b(?:ask(?:s|ed)? for|obtain(?:s|ed)?)\b.{0,40}\bconsent\b.{0,40}\b(?:before|prior to)\b/i;
 
+// isProhibitionMismatch/isBreachPresentMismatch/isRequirementMismatch: named predicates (each
+// RETURNS a boolean, so the multi-operator test lives in the predicate, not in an if/else-if TEST
+// position) pulled out of checkObligationPolarityMismatch below (Constitution Rule
+// 4/tools/health-gate/check.js caps).
+function isProhibitionMismatch(duty, evidenceType) {
+  return PROHIBITION_RX.test(duty) && evidenceType !== 'absence';
+}
+function isBreachPresentMismatch(duty, evidenceType) {
+  return BREACH_PRESENT_RX.test(duty) && evidenceType !== 'absence' && evidenceType !== 'register';
+}
+function isRequirementMismatch(duty, evidenceType) {
+  return REQUIREMENT_RX.test(duty) && evidenceType !== 'presence' && evidenceType !== 'register';
+}
+
 // checkObligationPolarityMismatch(duty, evidenceType, tag) -> finding[] (Lint 1: prohibition/
 // requirement language vs evidence_type). 'behavioural' is deliberately exempt (see the SEMANTIC
 // DOCTRINE header): an observed-action duty can legitimately carry prohibition OR requirement
@@ -88,18 +102,18 @@ function checkObligationPolarityMismatch(duty, evidenceType, tag) {
   const findings = [];
   if (evidenceType === 'behavioural') return findings;
 
-  if (PROHIBITION_RX.test(duty) && evidenceType !== 'absence') {
+  if (isProhibitionMismatch(duty, evidenceType)) {
     findings.push({
       rule: 'polarity-prohibition-mismatch',
       message: tag + ' contains prohibition language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence"): ' + JSON.stringify(duty),
     });
-  } else if (BREACH_PRESENT_RX.test(duty) && evidenceType !== 'absence' && evidenceType !== 'register') {
+  } else if (isBreachPresentMismatch(duty, evidenceType)) {
     findings.push({
       rule: 'polarity-prohibition-mismatch',
       message: tag + ' contains "breach ... being/is present" prohibition wording but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence", or "register" for a register-verified claim-authenticity check): ' + JSON.stringify(duty),
     });
   }
-  if (REQUIREMENT_RX.test(duty) && evidenceType !== 'presence' && evidenceType !== 'register') {
+  if (isRequirementMismatch(duty, evidenceType)) {
     findings.push({
       rule: 'polarity-requirement-mismatch',
       message: tag + ' contains requirement language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "presence" or "register"): ' + JSON.stringify(duty),
@@ -145,10 +159,16 @@ function checkComRecord(record, locator) {
   return findings;
 }
 
+// isLegacyInvertedConsent(record) -> boolean. Named predicate pulled out of checkLegacyRecord's
+// own if TEST (the multi-operator test now lives in a RETURN, not a test position).
+function isLegacyInvertedConsent(record) {
+  return record.style === 'prohibit' && typeof record.regex_pattern === 'string' && LEGACY_COMPLIANT_CONSENT_RX.test(record.regex_pattern);
+}
+
 function checkLegacyRecord(record, locator) {
   const findings = [];
   const id = typeof record.id === 'string' ? record.id : (typeof record.framework_short === 'string' ? record.framework_short : '<no id>');
-  if (record.style === 'prohibit' && typeof record.regex_pattern === 'string' && LEGACY_COMPLIANT_CONSENT_RX.test(record.regex_pattern)) {
+  if (isLegacyInvertedConsent(record)) {
     findings.push({
       locator, id, rule: 'legacy-polarity-inverted',
       message: 'legacy flat rule is style="prohibit" but its regex_pattern describes asking for/obtaining consent BEFORE an action - that is the LAWFUL workflow, not a breach signal: ' + JSON.stringify(record.regex_pattern),

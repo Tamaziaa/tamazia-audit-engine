@@ -39,17 +39,30 @@ function isPlainObject(x) {
 // glob, or a single literal file path. Anything else resolves to [] rather than throwing -
 // the caller reports "0 files matched", never crashes on an odd argv.
 // ---------------------------------------------------------------------------------
+// parseDirAndExt(raw) -> { dir, ext }. A "<dir>/*.ext" or "<dir>/*" wildcard splits into its
+// directory and extension filter; anything else is a literal dir/file with the default ".json"
+// filter. Pulled out of resolveJsonFiles below (Constitution Rule 4/tools/health-gate/check.js
+// caps) as a pure, branch-light data-shaping step.
+function parseDirAndExt(raw) {
+  const wildcardMatch = raw.match(/^(.*)\/\*(\.[A-Za-z0-9]+)?$/);
+  if (wildcardMatch) return { dir: wildcardMatch[1], ext: wildcardMatch[2] || '' }; // "<dir>/*" (no extension filter) vs "<dir>/*.json"
+  return { dir: raw, ext: '.json' };
+}
+
+// listDirJsonFiles(absDir, ext) -> the sorted, safe-joined *.json files directly inside absDir
+// matching the optional extension filter. Pulled out of resolveJsonFiles below so the directory
+// leg is its own small named unit.
+function listDirJsonFiles(absDir, ext) {
+  return fs.readdirSync(absDir)
+    .filter((f) => (ext ? f.endsWith(ext) : true))
+    .filter((f) => f.endsWith('.json')) // this loader only ever parses JSON
+    .sort()
+    .map((f) => safePath.safeJoin(absDir, [f], { label: 'catalogue linter input file' }));
+}
+
 function resolveJsonFiles(patternOrDir) {
   const raw = String(patternOrDir || '');
-  const wildcardMatch = raw.match(/^(.*)\/\*(\.[A-Za-z0-9]+)?$/);
-  let dir;
-  let ext = '.json';
-  if (wildcardMatch) {
-    dir = wildcardMatch[1];
-    ext = wildcardMatch[2] || ''; // "<dir>/*" (no extension filter) vs "<dir>/*.json"
-  } else {
-    dir = raw;
-  }
+  const { dir, ext } = parseDirAndExt(raw);
   // dir/raw are caller-supplied SCAN targets: a CLI positional, DEFAULT_PACK_GLOB, CALIBRATE_DIR,
   // OR the ABSOLUTE per-pack paths catalogue/compile.js hands its linter fleet (already safeJoin-
   // validated from PACKS_DIR). Allowlist them as safe SCAN paths (absolute is accepted and used
@@ -61,11 +74,7 @@ function resolveJsonFiles(patternOrDir) {
   if (dir) safePath.assertSafeScanPath(dir, { label: 'catalogue linter scan directory' });
   const absDir = path.resolve(REPO_ROOT, dir);
   if (fs.existsSync(absDir) && fs.statSync(absDir).isDirectory()) {
-    return fs.readdirSync(absDir)
-      .filter((f) => (ext ? f.endsWith(ext) : true))
-      .filter((f) => f.endsWith('.json')) // this loader only ever parses JSON
-      .sort()
-      .map((f) => safePath.safeJoin(absDir, [f], { label: 'catalogue linter input file' }));
+    return listDirJsonFiles(absDir, ext);
   }
   if (raw) safePath.assertSafeScanPath(raw, { label: 'catalogue linter scan file' });
   const absFile = path.resolve(REPO_ROOT, raw);
@@ -213,11 +222,37 @@ function urlHost(u) {
 // summary/calibrateSummary/violationLine wording verbatim (the jscpd clone this helper exists to
 // clear); regex-health overrides summary/calibrateSummary via opts for its "honest zero" wording.
 // Every linter still owns its own selfTest/scan/toFindings.
+// isCliPositionalArg(a, i, argv) -> boolean. Named predicate pulled out of resolvePackGlob's
+// former inline filter callback (Constitution Rule 4/tools/health-gate/check.js caps).
+function isCliPositionalArg(a, i, argv) {
+  return a !== '--calibrate' && a !== '--json' && argv[i - 1] !== '--json';
+}
+
+// resolvePackGlob(argv) -> the first positional CLI arg (ignoring --calibrate/--json and the
+// --json value), or DEFAULT_PACK_GLOB. Pulled out of runLinterCli below.
+function resolvePackGlob(argv) {
+  const positional = argv.filter((a, i) => isCliPositionalArg(a, i, argv));
+  return positional[0] || DEFAULT_PACK_GLOB;
+}
+
+// defaultSummary/defaultCalibrateSummary/defaultViolationLine: the shared wording three of the
+// four catalogue linters use verbatim (see the jscpd-clone note on runLinterCli below). Named and
+// pulled out of runLinterCli's own default-option expressions so each is its own small unit.
+function defaultSummary(r) {
+  return r.scanned + ' record(s) scanned, ' + r.violations.length + ' violation(s)'
+    + (r.parseErrors.length ? ' (' + r.parseErrors.length + ' file(s) unreadable: ' + r.parseErrors.join('; ') + ')' : '');
+}
+function defaultCalibrateSummary(r) {
+  return r.scanned + ' fixture record(s) scanned, ' + r.violations.length + ' seeded violation(s) found';
+}
+function defaultViolationLine(v) {
+  return '[' + v.rule + '] ' + v.locator + ' (' + v.id + '): ' + v.message;
+}
+
 function runLinterCli(linter, name, opts) {
   const o = opts || {};
   const argv = process.argv.slice(2);
-  const positional = argv.filter((a, i) => a !== '--calibrate' && a !== '--json' && argv[i - 1] !== '--json');
-  const packGlob = positional[0] || DEFAULT_PACK_GLOB;
+  const packGlob = resolvePackGlob(argv);
 
   runGateCli({
     name,
@@ -225,10 +260,9 @@ function runLinterCli(linter, name, opts) {
     scan: linter.scan,
     toFindings: linter.toFindings,
     scanDirs: [packGlob],
-    summary: o.summary || ((r) => r.scanned + ' record(s) scanned, ' + r.violations.length + ' violation(s)'
-      + (r.parseErrors.length ? ' (' + r.parseErrors.length + ' file(s) unreadable: ' + r.parseErrors.join('; ') + ')' : '')),
-    calibrateSummary: o.calibrateSummary || ((r) => r.scanned + ' fixture record(s) scanned, ' + r.violations.length + ' seeded violation(s) found'),
-    violationLine: o.violationLine || ((v) => '[' + v.rule + '] ' + v.locator + ' (' + v.id + '): ' + v.message),
+    summary: o.summary || defaultSummary,
+    calibrateSummary: o.calibrateSummary || defaultCalibrateSummary,
+    violationLine: o.violationLine || defaultViolationLine,
   });
 }
 

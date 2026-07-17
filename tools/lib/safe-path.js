@@ -38,17 +38,23 @@ const path = require('path');
 
 const SAFE_COMPONENT_RX = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
+// isEmptyOrHasNullByte(p) -> true for a non-string, an empty string, or a string carrying a null byte.
+// The shared first gate of all three shapes (never a valid path), so each predicate opens with one call
+// instead of repeating the same two guards.
+function isEmptyOrHasNullByte(p) {
+  if (typeof p !== 'string' || p.length === 0) return true;
+  return p.includes('\0');
+}
+
 function isSafePathComponent(component) {
-  if (typeof component !== 'string' || component.length === 0) return false;
+  if (isEmptyOrHasNullByte(component)) return false;
   if (component === '.' || component === '..') return false;
   if (component.includes('/') || component.includes('\\')) return false;
-  if (component.includes('\0')) return false;
   return SAFE_COMPONENT_RX.test(component);
 }
 
 function isSafeRelativePath(p) {
-  if (typeof p !== 'string' || p.length === 0) return false;
-  if (p.includes('\0')) return false;
+  if (isEmptyOrHasNullByte(p)) return false;
   // CR (safe-path.js:43): a "relative" path must actually BE relative. An ABSOLUTE path
   // (/etc/passwd, C:\Windows) carries no ".." segment yet still escapes the intended base
   // entirely: path.resolve(base, absolute) discards base and resolves to the absolute location.
@@ -70,53 +76,50 @@ function isSafeRelativePath(p) {
 // facts-abstain do not grow two subtly-different absolute-path branches (CR safe-path.js:43 consumer
 // audit).
 function isSafeScanPath(p) {
-  if (typeof p !== 'string' || p.length === 0) return false;
-  if (p.includes('\0')) return false;
+  if (isEmptyOrHasNullByte(p)) return false;
   if (path.isAbsolute(p)) return true;
   return isSafeRelativePath(p);
+}
+
+// assertSafe(value, isValid, opts, defaultLabel, reason) -> value. THE shared assert body for all
+// three shapes: run the shape's own predicate and, on failure, throw opts.ErrorClass (default Error)
+// with a "<label>: <value> <reason>" message. Extracted so the three public asserts are one-line
+// wrappers around one door, not three structurally-identical throw blocks (CodeScene Code Duplication;
+// this is exactly the clone class jscpd exists to catch elsewhere in the repo).
+function assertSafe(value, isValid, opts, message) {
+  const o = opts || {};
+  if (!isValid(value)) {
+    const ErrorClass = o.ErrorClass || Error;
+    throw new ErrorClass((o.label || message.defaultLabel) + ': ' + JSON.stringify(value) + ' ' + message.reason);
+  }
+  return value;
 }
 
 // assertSafePathComponent(component, opts) -> component. THROWS (opts.ErrorClass, default Error) on
 // anything that is not a single, traversal-free path segment. opts.label names the call site.
 function assertSafePathComponent(component, opts) {
-  const o = opts || {};
-  if (!isSafePathComponent(component)) {
-    const ErrorClass = o.ErrorClass || Error;
-    throw new ErrorClass(
-      (o.label || 'path component') + ': ' + JSON.stringify(component)
-      + ' is not a safe path component (must match ' + SAFE_COMPONENT_RX
-      + ', no "." or ".." alone, no path separators, no null byte)'
-    );
-  }
-  return component;
+  return assertSafe(component, isSafePathComponent, opts, {
+    defaultLabel: 'path component',
+    reason: 'is not a safe path component (must match ' + SAFE_COMPONENT_RX + ', no "." or ".." alone, no path separators, no null byte)',
+  });
 }
 
 // assertSafeRelativePath(p, opts) -> p. THROWS on an absolute path, a null byte, or any
 // ".."/"." traversal segment.
 function assertSafeRelativePath(p, opts) {
-  const o = opts || {};
-  if (!isSafeRelativePath(p)) {
-    const ErrorClass = o.ErrorClass || Error;
-    throw new ErrorClass(
-      (o.label || 'path') + ': ' + JSON.stringify(p)
-      + ' is not a safe relative path (must be relative, not absolute; no ".."/"." traversal segments; no null byte; non-empty)'
-    );
-  }
-  return p;
+  return assertSafe(p, isSafeRelativePath, opts, {
+    defaultLabel: 'path',
+    reason: 'is not a safe relative path (must be relative, not absolute; no ".."/"." traversal segments; no null byte; non-empty)',
+  });
 }
 
 // assertSafeScanPath(p, opts) -> p. THROWS on a null byte, an empty/non-string, or a RELATIVE path
 // carrying a ".."/"." traversal segment. An absolute path is accepted (see isSafeScanPath).
 function assertSafeScanPath(p, opts) {
-  const o = opts || {};
-  if (!isSafeScanPath(p)) {
-    const ErrorClass = o.ErrorClass || Error;
-    throw new ErrorClass(
-      (o.label || 'scan path') + ': ' + JSON.stringify(p)
-      + ' is not a safe scan path (absolute is allowed; a relative one must carry no ".."/"." traversal segments; no null byte; non-empty)'
-    );
-  }
-  return p;
+  return assertSafe(p, isSafeScanPath, opts, {
+    defaultLabel: 'scan path',
+    reason: 'is not a safe scan path (absolute is allowed; a relative one must carry no ".."/"." traversal segments; no null byte; non-empty)',
+  });
 }
 
 // safeJoin(baseDir, components, opts) -> path.join(baseDir, ...components), after asserting every

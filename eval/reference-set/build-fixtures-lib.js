@@ -32,9 +32,14 @@ function decodeEntities(s) {
     );
 }
 
+function isValidCodePoint(cp) {
+  if (!Number.isFinite(cp)) return false;
+  return cp >= 9 && cp <= 0x10ffff;
+}
+
 function safeFromCodePoint(cp) {
   try {
-    if (!Number.isFinite(cp) || cp < 9 || cp > 0x10ffff) return ' ';
+    if (!isValidCodePoint(cp)) return ' ';
     return String.fromCodePoint(cp);
   } catch (e) {
     return ' '; // invalid code point in source HTML; a space is the honest substitute
@@ -119,6 +124,36 @@ function extractJsonLd(html) {
 // same registrable host. Query-string URLs are permitted (caution.md C-027).
 const SECONDARY_PATH_RE = /(about|contact|who-we-are|our-(team|firm|practice|clinic|company)|legal|imprint|privacy|terms)/i;
 
+// hrefToUrl(href, base) -> a resolved http(s) URL for a candidate <a href>, or null when the href is
+// empty, a mailto/tel/javascript scheme, unparseable, or not http(s). Pure over its inputs.
+function hrefToUrl(href, base) {
+  if (!href) return null;
+  if (/^(mailto:|tel:|javascript:)/i.test(href)) return null;
+  let u;
+  try { u = new URL(href, base); } catch (e) { return null; }
+  return /^https?:$/.test(u.protocol) ? u : null;
+}
+
+const SECONDARY_ASSET_RE = /\.(pdf|jpg|jpeg|png|gif|webp|svg|zip|doc|docx|mp4)$/i;
+
+// isWantedSecondaryUrl(u, base) -> true when u is a same-registrable-host about/contact/legal page
+// (not an asset download). Host is compared parsed (stripWww), never substring-matched.
+function isWantedSecondaryUrl(u, base) {
+  if (stripWww(u.hostname) !== stripWww(base.hostname)) return false;
+  if (!SECONDARY_PATH_RE.test(u.pathname + u.search)) return false;
+  return !SECONDARY_ASSET_RE.test(u.pathname);
+}
+
+// recordNewSecondary(u, base, seen) -> true (and records the key) when u is a not-yet-seen page other
+// than the base page itself; false when it duplicates the base or an already-collected page.
+function recordNewSecondary(u, base, seen) {
+  const key = u.origin + u.pathname + u.search;
+  if (seen.has(key)) return false;
+  if (key === base.origin + base.pathname + base.search) return false;
+  seen.add(key);
+  return true;
+}
+
 function discoverSecondaryLinks(html, baseUrl, max) {
   const cap = typeof max === 'number' ? max : 2;
   const found = [];
@@ -127,20 +162,11 @@ function discoverSecondaryLinks(html, baseUrl, max) {
   try { base = new URL(baseUrl); } catch (e) { return found; }
   const re = /<a\b[^>]*href\s*=\s*["']([^"'#]+)["'][^>]*>/gi;
   let m;
-  while ((m = re.exec(String(html))) !== null && found.length < cap) {
-    const href = decodeEntities(m[1]).trim();
-    if (!href || /^(mailto:|tel:|javascript:)/i.test(href)) continue;
-    let u;
-    try { u = new URL(href, base); } catch (e) { continue; }
-    if (!/^https?:$/.test(u.protocol)) continue;
-    if (stripWww(u.hostname) !== stripWww(base.hostname)) continue;
-    if (!SECONDARY_PATH_RE.test(u.pathname + u.search)) continue;
-    if (/\.(pdf|jpg|jpeg|png|gif|webp|svg|zip|doc|docx|mp4)$/i.test(u.pathname)) continue;
-    const key = u.origin + u.pathname + u.search;
-    if (seen.has(key)) continue;
-    if (key === base.origin + base.pathname + base.search) continue;
-    seen.add(key);
-    found.push(u.href);
+  while ((m = re.exec(String(html))) !== null) {
+    if (found.length >= cap) break;
+    const u = hrefToUrl(decodeEntities(m[1]).trim(), base);
+    if (!u || !isWantedSecondaryUrl(u, base)) continue;
+    if (recordNewSecondary(u, base, seen)) found.push(u.href);
   }
   return found;
 }
@@ -158,8 +184,11 @@ const CHALLENGE_MARKERS = [
   'incapsula', 'perimeterx', 'are you a robot',
 ];
 
+// HTTP statuses that are themselves a wall answer (a bot block, rate limit or auth gate), never content.
+const WALL_STATUSES = new Set([401, 403, 429, 503]);
+
 function looksLikeChallengePage(status, text, title) {
-  if (status === 403 || status === 429 || status === 503 || status === 401) return true;
+  if (WALL_STATUSES.has(status)) return true;
   const hay = `${title || ''}\n${(text || '').slice(0, 2500)}`.toLowerCase();
   if (!hay.trim()) return false;
   const marked = CHALLENGE_MARKERS.some((mk) => hay.includes(mk));
@@ -208,16 +237,38 @@ function isPrivateIPv4(host) {
   return BLOCKED_IPV4_RANGES.some((r) => a === r[0] && b >= r[1] && b <= r[2]);
 }
 
+// Wildcard/loopback literals that are never a fetch target, in either IPv4 or IPv6 form.
+const WILDCARD_LOOPBACK_LITERALS = new Set(['0.0.0.0', '::', '::1']);
+
+// isBlockedIpv6(h) -> true for an IPv6 ULA (fc00::/7) or link-local (fe80::/10) literal.
+function isBlockedIpv6(h) {
+  if (/^f[cd][0-9a-f]{2}:/.test(h)) return true; // fc00::/7 ULA
+  return /^fe[89ab][0-9a-f]:/.test(h); // fe80::/10 link-local
+}
+
+// normaliseHost(host) -> lowercased host with any surrounding IPv6 brackets stripped.
+function normaliseHost(host) {
+  return String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
+}
+
+// isBlockedAddress(ip) -> true for a loopback/private/link-local/CGNAT IP LITERAL (v4 or v6). This is
+// the resolved-IP door: a DNS answer is an IP literal, and it is validated here against the SAME
+// ranges as the hostname door, so a name that resolves to a private address cannot slip through
+// (DNS-rebinding SSRF). isBlockedHost delegates its literal checks here so there is one door, not two.
+function isBlockedAddress(ip) {
+  const h = normaliseHost(ip);
+  if (WILDCARD_LOOPBACK_LITERALS.has(h)) return true;
+  if (isPrivateIPv4(h)) return true;
+  return isBlockedIpv6(h);
+}
+
 // isBlockedHost(host) -> true for any host this tool must never fetch: localhost, loopback, private
 // or link-local literals, IPv6 ULA/link-local, and bare dot-less names (not a public DNS target).
 function isBlockedHost(host) {
-  const h = String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
+  const h = normaliseHost(host);
   if (!h) return true;
   if (h === 'localhost' || h.endsWith('.localhost')) return true;
-  if (h === '0.0.0.0' || h === '::' || h === '::1') return true;
-  if (/^f[cd][0-9a-f]{2}:/.test(h)) return true; // fc00::/7 ULA
-  if (/^fe[89ab][0-9a-f]:/.test(h)) return true; // fe80::/10 link-local
-  if (isPrivateIPv4(h)) return true;
+  if (isBlockedAddress(h)) return true;
   return !h.includes('.'); // a dot-less name is an internal/unqualified host, not fetchable
 }
 
@@ -230,27 +281,68 @@ function parseSafeFetchTarget(rawUrl) {
   return u;
 }
 
+// makeLookupCallback(hostname, wantAll, cb) -> the dns.lookup callback that validates the resolved
+// addresses. Every resolved address is checked against isBlockedAddress (the same door the hostname
+// check uses); if ANY resolved address is private/loopback/link-local the whole lookup is refused, so
+// a name that resolves (or re-resolves, mid-redirect) to an internal address never reaches a socket.
+// Only when every address is public is the connection allowed to proceed.
+function makeLookupCallback(hostname, wantAll, cb) {
+  return function onResolved(err, addresses) {
+    if (err) return cb(err);
+    const list = Array.isArray(addresses) ? addresses : [];
+    const blocked = list.find((a) => isBlockedAddress(a.address));
+    if (blocked) return cb(new Error('refused: ' + hostname + ' resolved to blocked address ' + blocked.address + ' (SSRF/DNS-rebinding guard)'));
+    if (wantAll) return cb(null, list);
+    if (!list.length) return cb(new Error('refused: no address resolved for ' + hostname));
+    return cb(null, list[0].address, list[0].family);
+  };
+}
+
+// makeSafeLookup(dnsLookup) -> a Node `lookup`-option callback that resolves via the injected
+// dnsLookup (dns.lookup), validates EVERY resolved address against the private/loopback/link-local
+// blocklist, and only then allows the connection. Passed as the request `lookup` option so the
+// approved address is re-checked on the initial hop AND on every redirect hop. The dns dependency is
+// injected (not required here) so this module stays pure/offline and the factory is unit-testable
+// with a stubbed lookup that returns a private address (which must be refused).
+function makeSafeLookup(dnsLookup) {
+  return function safeLookup(hostname, options, callback) {
+    const optionsIsCallback = typeof options === 'function';
+    const cb = optionsIsCallback ? options : callback;
+    const opts = optionsIsCallback ? {} : (options || {});
+    const wantAll = Boolean(opts.all);
+    dnsLookup(hostname, Object.assign({}, opts, { all: true }), makeLookupCallback(hostname, wantAll, cb));
+  };
+}
+
+const fixtureByteSize = (o) => Buffer.byteLength(JSON.stringify(o), 'utf8');
+
+// The deterministic trim steps, most-conservative first: drop only oversized JSON-LD, then cap text,
+// then drop all JSON-LD, then shed pages. Each mutates the working copy in place and is a named unit so
+// trimToBudget stays a thin driver loop (never fabricates; only ever removes captured bytes).
+function trimStepDropOversizedJsonLd(f) { for (const p of pagesOf(f)) if (p.jsonLd && fixtureByteSize(p.jsonLd) > 20000) p.jsonLd = []; }
+function trimStepCapTextLong(f) { for (const p of pagesOf(f)) p.text = (p.text || '').slice(0, 12000); }
+function trimStepDropAllJsonLd(f) { for (const p of pagesOf(f)) p.jsonLd = []; }
+function trimStepTwoPages(f) { const pp = pagesOf(f); if (pp.length > 2) pp.length = 2; }
+function trimStepCapTextShort(f) { for (const p of pagesOf(f)) p.text = (p.text || '').slice(0, 6000); }
+function trimStepOnePage(f) { const pp = pagesOf(f); if (pp.length > 1) pp.length = 1; }
+
+const TRIM_STEPS = [
+  trimStepDropOversizedJsonLd, trimStepCapTextLong, trimStepDropAllJsonLd,
+  trimStepTwoPages, trimStepCapTextShort, trimStepOnePage,
+];
+
 // Trim a fixture object under the byte budget without fabricating anything.
 function trimToBudget(fixture, maxBytes) {
-  const size = (o) => Buffer.byteLength(JSON.stringify(o), 'utf8');
-  if (size(fixture) <= maxBytes) return fixture;
+  if (fixtureByteSize(fixture) <= maxBytes) return fixture;
   const f = JSON.parse(JSON.stringify(fixture));
-  const steps = [
-    () => { for (const p of pagesOf(f)) if (p.jsonLd && size(p.jsonLd) > 20000) p.jsonLd = []; },
-    () => { for (const p of pagesOf(f)) p.text = (p.text || '').slice(0, 12000); },
-    () => { for (const p of pagesOf(f)) p.jsonLd = []; },
-    () => { const pp = pagesOf(f); if (pp.length > 2) pp.length = 2; },
-    () => { for (const p of pagesOf(f)) p.text = (p.text || '').slice(0, 6000); },
-    () => { const pp = pagesOf(f); if (pp.length > 1) pp.length = 1; },
-  ];
-  for (const step of steps) {
-    step();
-    if (size(f) <= maxBytes) { f.trimmed = true; return f; }
+  for (const step of TRIM_STEPS) {
+    step(f);
+    if (fixtureByteSize(f) <= maxBytes) { f.trimmed = true; return f; }
   }
   // Fail closed: after exhausting every deterministic trim step the fixture is STILL over budget
   // (an unusually large title or other untrimmed field). Never return an oversized fixture marked
   // "trimmed" - that would be a budget behaving as anything but a hard cap (Constitution Rule 8).
-  throw new Error('fixture exceeds byte budget after trimming: ' + size(f) + ' > ' + maxBytes + ' bytes');
+  throw new Error('fixture exceeds byte budget after trimming: ' + fixtureByteSize(f) + ' > ' + maxBytes + ' bytes');
 }
 
 function pagesOf(f) {
@@ -282,5 +374,7 @@ module.exports = {
   stripControlChars,
   logSafe,
   isBlockedHost,
+  isBlockedAddress,
   parseSafeFetchTarget,
+  makeSafeLookup,
 };

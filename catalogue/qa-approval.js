@@ -55,13 +55,15 @@ function parseQaApprovalHeader(sidecarText) {
   return { pack_sha256: m[1], verdict: 'approved', reviewed: m[2] };
 }
 
-// verifyQaApproval(absPath, qaSidecarAbs, relPath, relQaPath, ErrorClass) -> throws ErrorClass on
-// any failure, returns nothing on success. CR-2: the sidecar must START with a machine-readable
-// qa-approval header binding it to the EXACT pack bytes it approved. A sidecar with no such header
-// at all (every sidecar committed before this gate landed, deliberately - see
-// catalogue/README.md) is refused exactly like an unreadable pack: it claims sign-off but carries
-// nothing this compiler can verify.
-function verifyQaApproval(absPath, qaSidecarAbs, relPath, relQaPath, ErrorClass) {
+// verifyQaApproval(paths, ErrorClass) -> throws ErrorClass on any failure, returns nothing on
+// success. `paths` bundles the four related file paths ({ absPath, qaSidecarAbs, relPath, relQaPath })
+// into one argument so the signature stays within the argument cap (CR round-4: <=4 formal params).
+// CR-2: the sidecar must START with a machine-readable qa-approval header binding it to the EXACT
+// pack bytes it approved. A sidecar with no such header at all (every sidecar committed before this
+// gate landed, deliberately - see catalogue/README.md) is refused exactly like an unreadable pack:
+// it claims sign-off but carries nothing this compiler can verify.
+function verifyQaApproval(paths, ErrorClass) {
+  const { absPath, qaSidecarAbs, relPath, relQaPath } = paths;
   let qaRaw;
   try {
     qaRaw = fs.readFileSync(qaSidecarAbs, 'utf8');

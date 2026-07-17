@@ -22,7 +22,9 @@ const {
   MAX_FIXTURE_BYTES,
   isFetchableDomain,
   isBlockedHost,
+  isBlockedAddress,
   parseSafeFetchTarget,
+  makeSafeLookup,
 } = require('./build-fixtures.js');
 
 test('stripHtml removes script/style/head noise and keeps visible prose (C-012)', () => {
@@ -167,6 +169,39 @@ test('URL-safety single door refuses localhost, loopback, private and malformed 
   assert.equal(isFetchableDomain('dermexpert.co.uk'), true);
   assert.equal(isFetchableDomain('127.0.0.1'), false);
   assert.equal(isFetchableDomain('localhost'), false);
+});
+
+test('makeSafeLookup refuses a hostname that resolves to a private/loopback address (DNS-rebinding SSRF)', () => {
+  // A hostname alone can pass every hostname-shape check and STILL resolve to an internal address.
+  // makeSafeLookup pins the connection to the RESOLVED address and re-checks it against the same
+  // blocklist, so the rebind is caught after resolution, before any socket opens.
+  const rebindLookup = (host, opts, cb) => cb(null, [{ address: '169.254.169.254', family: 4 }]);
+  const safeLookup = makeSafeLookup(rebindLookup);
+  let errored = null;
+  let allowed = false;
+  safeLookup('cloud-metadata.attacker.example', { all: true }, (err) => { if (err) errored = err; else allowed = true; });
+  assert.ok(errored, 'a private resolved address must be refused');
+  assert.match(errored.message, /169\.254\.169\.254/);
+  assert.match(errored.message, /SSRF|rebind|blocked/i);
+  assert.equal(allowed, false);
+
+  // isBlockedAddress is the shared resolved-IP door: private/loopback literals blocked, public allowed.
+  assert.equal(isBlockedAddress('169.254.169.254'), true);
+  assert.equal(isBlockedAddress('10.1.2.3'), true);
+  assert.equal(isBlockedAddress('fc00::1'), true);
+  assert.equal(isBlockedAddress('93.184.216.34'), false);
+
+  // A public resolved address passes: the callback receives the pinned address, no error.
+  const publicLookup = (host, opts, cb) => cb(null, [{ address: '93.184.216.34', family: 4 }]);
+  let pinned = null;
+  makeSafeLookup(publicLookup)('example.com', {}, (err, address, family) => { if (!err) pinned = { address, family }; });
+  assert.deepEqual(pinned, { address: '93.184.216.34', family: 4 });
+
+  // A resolver error propagates (fail closed), never silently allows.
+  const failing = (host, opts, cb) => cb(new Error('ENOTFOUND'));
+  let propagated = null;
+  makeSafeLookup(failing)('nope.example', { all: true }, (err) => { propagated = err; });
+  assert.match(propagated.message, /ENOTFOUND/);
 });
 
 test('looksLikeSpaShell flags a 200 HTML shell with near-zero visible text (C-032)', () => {

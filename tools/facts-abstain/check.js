@@ -40,21 +40,30 @@ const sector = require('../../facts/sector.js');
 // facts/identity.js's own footer-text detection reads) is NOT the bot-walled/SPA-shell class this
 // gate exists to police; treating it as unreachable would wrongly force abstention on a genuinely
 // readable page.
+// corpusVisibleText(bundle) -> { pageCount, text }: the count of captured pages and ALL the visible
+// text this gate is willing to call "content" (every page's text PLUS corpus.footerText, per CR-40),
+// trimmed. Extracted so looksUnreachable stays a thin decision under the caps.
+function corpusVisibleText(bundle) {
+  const corpus = (bundle && bundle.corpus) || {};
+  const pages = Array.isArray(corpus.pages) ? corpus.pages : [];
+  const pageText = pages.map((p) => (p && typeof p.text === 'string' ? p.text : '')).join('');
+  const footerText = typeof corpus.footerText === 'string' ? corpus.footerText : '';
+  return { pageCount: pages.length, text: (pageText + footerText).trim() };
+}
+
 function looksUnreachable(bundle) {
   if (!bundle || typeof bundle !== 'object') return false;
   if (bundle.unreachable === true) return true;
-  const pages = bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
-  const pageText = pages.map((p) => (p && typeof p.text === 'string' ? p.text : '')).join('');
-  const footerText = bundle.corpus && typeof bundle.corpus.footerText === 'string' ? bundle.corpus.footerText : '';
-  const text = (pageText + footerText).trim();
-  return pages.length > 0 && text.length === 0;
+  const { pageCount, text } = corpusVisibleText(bundle);
+  return pageCount > 0 && text.length === 0;
 }
 
 // bundlesIn(parsed) -> [bundle, ...]. Accepts either the calibration fixture's {bundles:[...]}
 // wrapper or a single bare EvidenceBundle (the "loads a bundle JSON given as argv" shape).
 function bundlesIn(parsed) {
-  if (parsed && Array.isArray(parsed.bundles)) return parsed.bundles;
-  if (parsed && typeof parsed === 'object' && parsed.corpus) return [parsed];
+  if (!parsed || typeof parsed !== 'object') return [];
+  if (Array.isArray(parsed.bundles)) return parsed.bundles;
+  if (parsed.corpus) return [parsed];
   return [];
 }
 
@@ -77,45 +86,57 @@ const REAL_RESOLVERS = {
 // run always use REAL_RESOLVERS; selfTest below injects DELIBERATELY FAULTY stubs instead, so this
 // gate's self-test proves its OWN detection logic, not a currently-live production bug that a
 // future fix could silently make disappear.
-function checkBundle(bundle, source, resolvers) {
-  const R = resolvers || REAL_RESOLVERS;
-  const findings = [];
-  // recordFinding: named so the repo-wide swallow-gate AST scan (tools/swallow-gate/check.js)
-  // recognises the catch blocks below as RECORDING, not swallowing - a facts module throwing on
-  // an unreachable bundle is itself a finding this gate must surface, never hide.
-  const recordFinding = (rule, message) => findings.push({ file: source, rule, message });
-  const domain = (bundle && bundle.domain) || '(no domain)';
-
+// checkIdentity/checkJurisdiction/checkSector: one resolver each, split out of checkBundle so no single
+// unit exceeds the caps. `record(rule, message)` is the shared recorder; each catch RECORDS via it (a
+// facts module throwing on an unreachable bundle is itself a finding this gate must surface, never
+// swallow). recordFinding is named to match the swallow-gate RECORDER pattern (record[A-Z_]...) so its
+// AST scan reads every catch below as RECORDING, not silently swallowing.
+function checkIdentity(bundle, resolveIdentity, domain, recordFinding) {
+  let id;
   try {
-    const id = R.resolveIdentity(bundle);
-    for (const field of ['display_name', 'legal_name', 'company_number', 'registered_office', 'slug']) {
-      const f = id[field];
-      if (f && f.confidence !== 'abstain') {
-        recordFinding('facts-abstain/identity-non-abstain', domain + ': facts/identity.js emitted ' + field + '=' + JSON.stringify(f.value) + ' at confidence ' + f.confidence + ' on an unreachable bundle; it must abstain');
-      }
-    }
+    id = resolveIdentity(bundle);
   } catch (e) {
     recordFinding('facts-abstain/identity-threw', domain + ': facts/identity.js threw instead of abstaining: ' + e.message);
+    return;
   }
+  for (const field of ['display_name', 'legal_name', 'company_number', 'registered_office', 'slug']) {
+    const f = id[field];
+    if (f && f.confidence !== 'abstain') {
+      recordFinding('facts-abstain/identity-non-abstain', domain + ': facts/identity.js emitted ' + field + '=' + JSON.stringify(f.value) + ' at confidence ' + f.confidence + ' on an unreachable bundle; it must abstain');
+    }
+  }
+}
 
+function checkJurisdiction(bundle, resolveJurisdiction, domain, recordFinding) {
   try {
-    const jur = R.resolveJurisdiction(bundle);
+    const jur = resolveJurisdiction(bundle);
     if (!jur.abstained) {
       recordFinding('facts-abstain/jurisdiction-non-abstain', domain + ': facts/jurisdiction.js bound [' + jur.bound.map((b) => b.jurisdiction).join(',') + '] on an unreachable bundle; it must abstain');
     }
   } catch (e) {
     recordFinding('facts-abstain/jurisdiction-threw', domain + ': facts/jurisdiction.js threw instead of abstaining: ' + e.message);
   }
+}
 
+function checkSector(bundle, resolveSector, domain, recordFinding) {
   try {
-    const sec = R.resolveSector(bundle);
+    const sec = resolveSector(bundle);
     if (sec.confidence !== 'abstain') {
       recordFinding('facts-abstain/sector-non-abstain', domain + ': facts/sector.js emitted sector=' + JSON.stringify(sec.value) + ' at confidence ' + sec.confidence + ' on an unreachable bundle; it must abstain');
     }
   } catch (e) {
     recordFinding('facts-abstain/sector-threw', domain + ': facts/sector.js threw instead of abstaining: ' + e.message);
   }
+}
 
+function checkBundle(bundle, source, resolvers) {
+  const R = resolvers || REAL_RESOLVERS;
+  const findings = [];
+  const recordFinding = (rule, message) => findings.push({ file: source, rule, message });
+  const domain = (bundle && bundle.domain) || '(no domain)';
+  checkIdentity(bundle, R.resolveIdentity, domain, recordFinding);
+  checkJurisdiction(bundle, R.resolveJurisdiction, domain, recordFinding);
+  checkSector(bundle, R.resolveSector, domain, recordFinding);
   return findings;
 }
 
@@ -141,61 +162,76 @@ function recordScanError(violations, file, message) {
   violations.push({ file, rule: 'facts-abstain/scan-error', message });
 }
 
+// resolveScanTarget(p, violations) -> { files, isDir } for one input, or null (recording the reason)
+// when it is an unsafe path or does not exist. A scan target is a READ path a caller names: it
+// legitimately arrives ABSOLUTE (an operator naming a bundle anywhere on disk, or a test's temp
+// fixture) and is used directly; assertSafeScanPath accepts absolute and traversal-guards a relative
+// one, path.resolve(ROOT, abs) is a no-op for an absolute p (CR safe-path.js:43 consumer audit).
+function resolveScanTarget(p, violations) {
+  let abs;
+  try {
+    safePath.assertSafeScanPath(p, { label: 'facts-abstain scan path' });
+    abs = path.resolve(ROOT, p);
+  } catch (e) {
+    recordScanError(violations, String(p), e.message);
+    return null;
+  }
+  if (!fs.existsSync(abs)) {
+    recordScanError(violations, String(p), 'path does not exist: ' + p);
+    return null;
+  }
+  const isDir = fs.statSync(abs).isDirectory();
+  const files = isDir
+    ? fs.readdirSync(abs).filter((f) => f.endsWith('.json')).map((f) => safePath.safeJoin(abs, [f], { label: 'facts-abstain bundle filename' }))
+    : [abs];
+  return { files, isDir };
+}
+
+// processBundles(bundles, rel, acc) -> run checkBundle over every bundle that LOOKS unreachable,
+// folding its findings into acc.violations and updating the seen counters.
+function processBundles(bundles, rel, acc) {
+  for (const bundle of bundles) {
+    acc.bundlesSeen++;
+    if (!looksUnreachable(bundle)) continue;
+    acc.unreachableSeen++;
+    acc.violations.push(...checkBundle(bundle, rel));
+  }
+}
+
+// scanBundlesInFile(file, isDir, acc) -> parse one file and process its bundles. A parse failure on a
+// file discovered while walking a MIXED DIRECTORY legitimately belongs to another gate (FAIL-OPEN,
+// skip); a DIRECTLY named file carries no such excuse and fails closed (CR-41), recorded not swallowed.
+function scanBundlesInFile(file, isDir, acc) {
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/');
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (e) {
+    if (isDir) return; // FAIL-OPEN: mixed-directory fixture belonging to another gate.
+    recordScanError(acc.violations, rel, 'failed to read/parse as JSON: ' + e.message);
+    return;
+  }
+  const bundles = bundlesIn(parsed);
+  if (bundles.length === 0 && !isDir) {
+    recordScanError(acc.violations, rel, 'not a recognised EvidenceBundle or {bundles:[...]} wrapper shape');
+  }
+  processBundles(bundles, rel, acc);
+}
+
 function scan(pathsOrDirs) {
-  const violations = [];
-  let bundlesSeen = 0;
-  let unreachableSeen = 0;
+  const acc = { violations: [], bundlesSeen: 0, unreachableSeen: 0 };
   const inputs = pathsOrDirs || [];
 
   if (inputs.length === 0) {
-    recordScanError(violations, '(no input)', 'no path(s) or directory(ies) supplied - nothing was scanned; a scan that never ran must never report a clean pass');
+    recordScanError(acc.violations, '(no input)', 'no path(s) or directory(ies) supplied - nothing was scanned; a scan that never ran must never report a clean pass');
   }
 
   for (const p of inputs) {
-    let abs;
-    try {
-      // A scan target is a READ path an operator/caller names for this gate to read: it legitimately
-      // arrives ABSOLUTE (an operator naming a bundle anywhere on disk, or a test's temp fixture) and
-      // is used directly, not path.resolve(base, p)'d against a base it could discard. assertSafeScanPath
-      // accepts absolute and traversal-guards a relative one; path.resolve(ROOT, abs) is a no-op for an
-      // absolute p and roots a relative one (CR safe-path.js:43 consumer audit).
-      safePath.assertSafeScanPath(p, { label: 'facts-abstain scan path' });
-      abs = path.resolve(ROOT, p);
-    } catch (e) {
-      recordScanError(violations, String(p), e.message);
-      continue;
-    }
-    if (!fs.existsSync(abs)) {
-      recordScanError(violations, String(p), 'path does not exist: ' + p);
-      continue;
-    }
-    const isDir = fs.statSync(abs).isDirectory();
-    const files = isDir
-      ? fs.readdirSync(abs).filter((f) => f.endsWith('.json')).map((f) => safePath.safeJoin(abs, [f], { label: 'facts-abstain bundle filename' }))
-      : [abs];
-    for (const file of files) {
-      const rel = path.relative(ROOT, file).replace(/\\/g, '/');
-      let parsed;
-      try {
-        parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-      } catch (e) {
-        if (isDir) continue; // FAIL-OPEN: a file discovered while walking a MIXED DIRECTORY legitimately belongs to another gate (a directory scan is expected to hold fixtures this gate does not own); a file the CALLER named DIRECTLY carries no such excuse and fails closed instead (CR-41), recorded just below.
-        recordScanError(violations, rel, 'failed to read/parse as JSON: ' + e.message);
-        continue;
-      }
-      const bundles = bundlesIn(parsed);
-      if (bundles.length === 0 && !isDir) {
-        recordScanError(violations, rel, 'not a recognised EvidenceBundle or {bundles:[...]} wrapper shape');
-      }
-      for (const bundle of bundles) {
-        bundlesSeen++;
-        if (!looksUnreachable(bundle)) continue;
-        unreachableSeen++;
-        violations.push(...checkBundle(bundle, rel));
-      }
-    }
+    const target = resolveScanTarget(p, acc.violations);
+    if (!target) continue;
+    for (const file of target.files) scanBundlesInFile(file, target.isDir, acc);
   }
-  return { violations, bundlesSeen, unreachableSeen };
+  return { violations: acc.violations, bundlesSeen: acc.bundlesSeen, unreachableSeen: acc.unreachableSeen };
 }
 
 function toFindings(violations) {
@@ -280,16 +316,19 @@ function runSelfTestCases() {
 // evaluateSelfTestCases(r) -> boolean pass; every individual expectation the original selfTest
 // asserted, unchanged.
 function evaluateSelfTestCases(r) {
-  return r.nonAbstainF.some((f) => f.rule === 'facts-abstain/identity-non-abstain')
-    && r.nonAbstainF.some((f) => f.rule === 'facts-abstain/jurisdiction-non-abstain')
-    && r.nonAbstainF.some((f) => f.rule === 'facts-abstain/sector-non-abstain')
-    && r.throwF.some((f) => f.rule === 'facts-abstain/identity-threw')
-    && r.throwF.some((f) => f.rule === 'facts-abstain/jurisdiction-threw')
-    && r.throwF.some((f) => f.rule === 'facts-abstain/sector-threw')
-    && r.abstainingF.length === 0
-    && r.ordinaryIsNotUnreachable
-    && r.footerTextIsReachable
-    && r.emptyScanFailsClosed;
+  const checks = [
+    r.nonAbstainF.some((f) => f.rule === 'facts-abstain/identity-non-abstain'),
+    r.nonAbstainF.some((f) => f.rule === 'facts-abstain/jurisdiction-non-abstain'),
+    r.nonAbstainF.some((f) => f.rule === 'facts-abstain/sector-non-abstain'),
+    r.throwF.some((f) => f.rule === 'facts-abstain/identity-threw'),
+    r.throwF.some((f) => f.rule === 'facts-abstain/jurisdiction-threw'),
+    r.throwF.some((f) => f.rule === 'facts-abstain/sector-threw'),
+    r.abstainingF.length === 0,
+    r.ordinaryIsNotUnreachable,
+    r.footerTextIsReachable,
+    r.emptyScanFailsClosed,
+  ];
+  return checks.every(Boolean);
 }
 
 function selfTest() {

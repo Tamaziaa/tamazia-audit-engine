@@ -65,10 +65,15 @@ const PHASE_RX = /^P[0-9]$/;
 function realGateExists(rel) {
   // isSafeRelativePath is the non-throwing boolean form of the single path door: an absolute path or
   // a "../.." escape is rejected here (returns false), so a class can never satisfy a guarded claim by
-  // pointing at a host file outside the repo. No catch needed - the guard returns a boolean, and a
-  // rejected path counts as "gate does not exist" (fail closed) for the caller.
+  // pointing at a host file outside the repo.
   if (!safePath.isSafeRelativePath(rel)) return false;
-  return fs.existsSync(path.resolve(ROOT, rel));
+  // A gate must be a real FILE, not merely an existing path: fs.existsSync is true for a directory, so
+  // a guarded class pointing at (say) "tools/" would falsely claim a live gate. statSync(...).isFile()
+  // is the only honest check (CR round-4). throwIfNoEntry:false makes a MISSING path return undefined
+  // (not a throw), so a non-existent gate is "absent" (fail closed) with no swallowing catch to justify;
+  // a directory returns a Stats whose isFile() is false, so it too fails the check.
+  const st = fs.statSync(path.resolve(ROOT, rel), { throwIfNoEntry: false });
+  return Boolean(st) && st.isFile();
 }
 
 // validateClassIdentifiers(taxonomy) -> violations[] for missing/duplicate class ids. Run BEFORE the
@@ -100,7 +105,10 @@ function classifyGuardedRow(cls, gate, gateExists) {
   return { class: cls, kind: 'guarded-gate-missing', detail: 'status=guarded but catching_gate "' + gate + '" does not exist. A class claiming live protection must point at a real file; a deleted or mistyped gate is a false claim of coverage.' };
 }
 
-function classifyGapRow(cls, gate, t, gateExists, deferred) {
+// classifyGapRow(row, gateExists, deferred) where row = { cls, gate, t }. Bundled into one row object
+// so the signature stays within the argument cap (CR round-4: <=4 formal parameters).
+function classifyGapRow(row, gateExists, deferred) {
+  const { cls, gate, t } = row;
   // rule 3: a gap must carry a phase that closes it.
   if (!t.phase || !PHASE_RX.test(String(t.phase))) {
     return { class: cls, kind: 'gap-no-phase', detail: 'status=gap with no valid phase (expected P0..P9). A gap with no committed phase is an unowned hole, not a plan.' };
@@ -113,16 +121,24 @@ function classifyGapRow(cls, gate, t, gateExists, deferred) {
   return null;
 }
 
+// rowClassAndGate(t) -> the normalised { cls, gate } for one taxonomy row: a trimmed class id (or
+// "(unnamed)") and a trimmed catching_gate string (or ""). Factored out so validateTaxonomyRow stays
+// a thin dispatcher under the complexity cap.
+function rowClassAndGate(t) {
+  const cls = t && t.class ? String(t.class) : '(unnamed)';
+  const gate = t && typeof t.catching_gate === 'string' ? t.catching_gate.trim() : '';
+  return { cls, gate };
+}
+
 // validateTaxonomyRow(t, gateExists, counters, deferred) -> a violation object or null, incrementing
 // counters.guarded / counters.gap as it classifies one row (rules 1, 2, 3, 4, 5a).
 function validateTaxonomyRow(t, gateExists, counters, deferred) {
-  const cls = t && t.class ? String(t.class) : '(unnamed)';
-  const gate = t && typeof t.catching_gate === 'string' ? t.catching_gate.trim() : '';
+  const { cls, gate } = rowClassAndGate(t);
   if (!gate || gate === 'MISSING') {
     return { class: cls, kind: 'no-gate-named', detail: 'catching_gate is empty or "MISSING": no gate has been named for this historical failure class.' };
   }
   if (t.status === 'guarded') { counters.guarded++; return classifyGuardedRow(cls, gate, gateExists); }
-  if (t.status === 'gap') { counters.gap++; return classifyGapRow(cls, gate, t, gateExists, deferred); }
+  if (t.status === 'gap') { counters.gap++; return classifyGapRow({ cls, gate, t }, gateExists, deferred); }
   return { class: cls, kind: 'bad-status', detail: 'status must be "guarded" or "gap"; got "' + String(t.status) + '".' };
 }
 
@@ -143,6 +159,15 @@ function validateDefects(defects, known, byClass) {
   return violations;
 }
 
+// indexTaxonomy(taxonomy) -> { known, byClass }: the Set of class ids and the class->row Map the defect
+// validation reads. Built after validateClassIdentifiers has already flagged duplicates, so the silent
+// last-wins collapse of these structures is never load-bearing.
+function indexTaxonomy(taxonomy) {
+  const known = new Set(taxonomy.map((t) => t && t.class));
+  const byClass = new Map(taxonomy.map((t) => [t && t.class, t]));
+  return { known, byClass };
+}
+
 // validate(doc, gateExists) -> { violations, guarded, gap, deferred }
 // Pure over its inputs (Constitution: pure functions over explicit inputs). Never reads argv,
 // never exits; the CLI wrapper decides exit codes.
@@ -153,8 +178,7 @@ function validate(doc, gateExists) {
   }
 
   const violations = validateClassIdentifiers(taxonomy);
-  const known = new Set(taxonomy.map((t) => t && t.class));
-  const byClass = new Map(taxonomy.map((t) => [t && t.class, t]));
+  const { known, byClass } = indexTaxonomy(taxonomy);
   const counters = { guarded: 0, gap: 0 };
   const deferred = []; // gap classes correctly awaiting a future phase (reported, not failed)
 
@@ -217,38 +241,53 @@ function loadDoc(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-function main() {
-  const { calibrate, writeJson } = parseGateArgs(process.argv);
-
+// abortIfSelfTestFails() -> run the in-memory self-test and exit 2 (a broken tool) if the checker
+// cannot see the class it exists to catch. Every clean run after a failed self-test is unearned.
+function abortIfSelfTestFails() {
   const st = selfTest();
-  if (!st.pass) {
-    console.error(NAME + ' SELF-TEST FAILED: ' + st.detail);
-    console.error('The checker cannot see the class it exists to catch. Every clean run it reports is unearned.');
-    process.exit(2);
-  }
+  if (st.pass) return;
+  console.error(NAME + ' SELF-TEST FAILED: ' + st.detail);
+  console.error('The checker cannot see the class it exists to catch. Every clean run it reports is unearned.');
+  process.exit(2);
+}
 
-  if (calibrate) {
-    if (!fs.existsSync(FIXTURE)) {
-      console.error(NAME + ' CALIBRATION FAILED: ' + path.relative(ROOT, FIXTURE) + ' does not exist. There is nothing to earn a zero against.');
-      process.exit(1);
-    }
-    const res = validate(loadDoc(FIXTURE), realGateExists);
-    writeJson(toFindings(res.violations));
-    const kinds = res.violations.map((v) => v.kind).sort();
-    // The fixture seeds EXACTLY one planted defect: a status=guarded class pointing at a gate file
-    // that does not exist (guarded-gate-missing), plus a control clean class. Assert the checker
-    // catches precisely that kind - "any violation > 0" would let a partially-broken checker earn a
-    // green by tripping on some unrelated defect while missing the seeded one (CR).
-    const WANT = ['guarded-gate-missing'];
-    console.log('  ' + NAME + ' calibration: ' + res.violations.length + ' seeded violation(s) caught in the broken fixture');
-    for (const v of res.violations) console.log('    CAUGHT [' + v.kind + '] ' + v.class + ': ' + v.detail);
-    if (JSON.stringify(kinds) !== JSON.stringify(WANT)) {
-      console.error(NAME + ' CALIBRATION FAILED: expected exactly [' + WANT.join(', ') + '] on the seeded fixture, got [' + kinds.join(', ') + ']. The fixture must trip its planted defect and only that.');
-      process.exit(1);
-    }
-    process.exit(0);
+// runCalibration(writeJson) -> --calibrate: validate the seeded broken fixture and REQUIRE it trips
+// exactly the planted defect (guarded-gate-missing) and only that. Never returns (always exits).
+function runCalibration(writeJson) {
+  if (!fs.existsSync(FIXTURE)) {
+    console.error(NAME + ' CALIBRATION FAILED: ' + path.relative(ROOT, FIXTURE) + ' does not exist. There is nothing to earn a zero against.');
+    process.exit(1);
   }
+  const res = validate(loadDoc(FIXTURE), realGateExists);
+  writeJson(toFindings(res.violations));
+  const kinds = res.violations.map((v) => v.kind).sort();
+  // The fixture seeds EXACTLY one planted defect: a status=guarded class pointing at a gate file
+  // that does not exist (guarded-gate-missing), plus a control clean class. Assert the checker
+  // catches precisely that kind - "any violation > 0" would let a partially-broken checker earn a
+  // green by tripping on some unrelated defect while missing the seeded one (CR).
+  const WANT = ['guarded-gate-missing'];
+  console.log('  ' + NAME + ' calibration: ' + res.violations.length + ' seeded violation(s) caught in the broken fixture');
+  for (const v of res.violations) console.log('    CAUGHT [' + v.kind + '] ' + v.class + ': ' + v.detail);
+  if (JSON.stringify(kinds) !== JSON.stringify(WANT)) {
+    console.error(NAME + ' CALIBRATION FAILED: expected exactly [' + WANT.join(', ') + '] on the seeded fixture, got [' + kinds.join(', ') + ']. The fixture must trip its planted defect and only that.');
+    process.exit(1);
+  }
+  process.exit(0);
+}
 
+// printDeferred(deferred) -> the honest phase-owned gap report: historical classes not yet guarded,
+// printed loudly every run (they are visible by design, never a silent hole) but not a failure.
+function printDeferred(deferred) {
+  if (!deferred.length) return;
+  console.log('  ' + deferred.length + ' historical failure class(es) NOT YET GUARDED (visible by design, phase-owned):');
+  for (const g of deferred.slice().sort((a, b) => a.phase.localeCompare(b.phase))) {
+    console.log('    GAP  [' + g.phase + '] ' + g.class.padEnd(26) + ' -> ' + g.gate + '  (past severity ' + g.past_severity + ')');
+  }
+}
+
+// runValidation(writeJson) -> the normal run: validate the committed crossref, report guarded/gap
+// counts and any integrity violations, and exit 1 if any violation exists. Never returns.
+function runValidation(writeJson) {
   if (!fs.existsSync(CROSSREF)) {
     console.error(NAME + ': ' + path.relative(ROOT, CROSSREF) + ' does not exist. Build it with `npm run history:build`.');
     process.exit(1);
@@ -257,14 +296,16 @@ function main() {
   writeJson(toFindings(res.violations));
 
   console.log('  ' + NAME + ': ' + res.guarded + ' guarded classes, ' + res.gap + ' gap classes, ' + res.violations.length + ' integrity violation(s) (self-test: earned)');
-  if (res.deferred.length) {
-    console.log('  ' + res.deferred.length + ' historical failure class(es) NOT YET GUARDED (visible by design, phase-owned):');
-    for (const g of res.deferred.slice().sort((a, b) => a.phase.localeCompare(b.phase))) {
-      console.log('    GAP  [' + g.phase + '] ' + g.class.padEnd(26) + ' -> ' + g.gate + '  (past severity ' + g.past_severity + ')');
-    }
-  }
+  printDeferred(res.deferred);
   for (const v of res.violations) console.error('  VIOLATION [' + v.kind + '] ' + v.class + ': ' + v.detail);
   process.exit(res.violations.length > 0 ? 1 : 0);
+}
+
+function main() {
+  const { calibrate, writeJson } = parseGateArgs(process.argv);
+  abortIfSelfTestFails();
+  if (calibrate) return runCalibration(writeJson);
+  return runValidation(writeJson);
 }
 
 if (require.main === module) main();

@@ -41,6 +41,16 @@ test('validate: an absolute/traversal catching_gate never satisfies a guarded cl
   assert.strictEqual(realGateExists('tools/history-regression/check.js'), true);
 });
 
+test('realGateExists: a DIRECTORY path never counts as a live gate (CR round-4)', () => {
+  const { realGateExists } = require('./check');
+  // fs.existsSync would be true for these directories; a catching_gate must resolve to a real FILE,
+  // so a guarded class pointing at a directory must be caught as missing, not accepted.
+  assert.strictEqual(realGateExists('tools'), false);
+  assert.strictEqual(realGateExists('tools/history-regression'), false);
+  // A non-existent path is also (still) false.
+  assert.strictEqual(realGateExists('tools/history-regression/no-such-gate.js'), false);
+});
+
 test('selfTest: every seeded violation kind is caught exactly', () => {
   const st = selfTest();
   assert.strictEqual(st.pass, true, st.detail);

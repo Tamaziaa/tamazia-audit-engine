@@ -54,12 +54,15 @@ const LANES = [
 // (exit 2) - every zero after a failed self-test is unearned.
 function runSelfTestsOrAbort() {
   step('0. self-tests (earn the zero)');
-  const oneDoor = require(path.join(ROOT, 'tools', 'one-door', 'check.js'));
-  const swallow = require(path.join(ROOT, 'tools', 'swallow-gate', 'check.js'));
+  // STRING-LITERAL REQUIRES ONLY (per .coderabbit path instructions): a computed require(path.join(...))
+  // is invisible to the static reachability gate (madge/dependency-cruiser), so these dependency edges
+  // must be literal relative paths, not built at runtime. Behaviour is identical; the graph is now visible.
+  const oneDoor = require('../one-door/check.js');
+  const swallow = require('../swallow-gate/check.js');
   // The workflow parser is mandatory BEFORE collection (caution.md C-202): a broken or missing
   // workflow makes required checks vanish, and its self-test also fails closed when python3/PyYAML
   // never ran, so it cannot silently be skipped here.
-  const workflows = require(path.join(ROOT, 'tools', 'sweep', 'collect-workflows.js'));
+  const workflows = require('./collect-workflows.js');
   for (const [name, mod] of [['one-door', oneDoor], ['swallow-gate', swallow], ['workflow-parse', workflows]]) {
     const st = mod.selfTest();
     console.log('  ' + name + ' self-test: ' + (st.pass ? 'PASS' : 'FAIL') + ' (' + st.detail + ')');

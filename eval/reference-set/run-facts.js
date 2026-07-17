@@ -56,6 +56,33 @@ function canonSector(s) {
   return c || s;
 }
 
+// deriveSectorFamily(facts) -> the canonicalised sector FAMILY key the sector door emitted, or
+// null when the door produced no sector value. Split out of factsToPayload (health-gate caps).
+function deriveSectorFamily(facts) {
+  const emitted = facts.sector && facts.sector.value; // { sector, sub_sector } | null
+  let sectorFamily = null;
+  if (emitted && emitted.sector) {
+    sectorFamily = canonSector(sector.familyOf(TREE, emitted.sector));
+  }
+  return sectorFamily;
+}
+
+// deriveBoundJurisdictions(facts) -> the jurisdiction door's bound list, projected to the code array.
+function deriveBoundJurisdictions(facts) {
+  return (facts.jurisdiction && Array.isArray(facts.jurisdiction.bound))
+    ? facts.jurisdiction.bound.map((b) => b && b.jurisdiction).filter(Boolean)
+    : [];
+}
+// factValueOrNull(fact) -> a facts-door field's value, or null when the door had no confident value.
+function factValueOrNull(fact) {
+  return fact && fact.value != null ? fact.value : null;
+}
+// deriveIdentityFields(facts) -> {legalName, companyNumber} off the identity door's output.
+function deriveIdentityFields(facts) {
+  const id = facts.identity || {};
+  return { legalName: factValueOrNull(id.legal_name), companyNumber: factValueOrNull(id.company_number) };
+}
+
 // -------------------------------------------------------------------------------------------------
 // Turn the four facts outputs into the tolerant payload shape verify.js reads, applying the one
 // piece of canonicalisation the facts layer owes the comparator: lift the engine's emitted sector
@@ -64,19 +91,9 @@ function canonSector(s) {
 // the informational column (below) and never fed to the contradiction check - never contradict.
 // -------------------------------------------------------------------------------------------------
 function factsToPayload(domain, facts) {
-  const emitted = facts.sector && facts.sector.value; // { sector, sub_sector } | null
-  let sectorFamily = null;
-  if (emitted && emitted.sector) {
-    sectorFamily = canonSector(sector.familyOf(TREE, emitted.sector));
-  }
-
-  const bound = (facts.jurisdiction && Array.isArray(facts.jurisdiction.bound))
-    ? facts.jurisdiction.bound.map((b) => b && b.jurisdiction).filter(Boolean)
-    : [];
-
-  const id = facts.identity || {};
-  const legalName = id.legal_name && id.legal_name.value != null ? id.legal_name.value : null;
-  const companyNumber = id.company_number && id.company_number.value != null ? id.company_number.value : null;
+  const sectorFamily = deriveSectorFamily(facts);
+  const bound = deriveBoundJurisdictions(facts);
+  const { legalName, companyNumber } = deriveIdentityFields(facts);
 
   return {
     meta: { domain, sector: sectorFamily || null },
@@ -101,6 +118,13 @@ function canonicaliseFirm(firm) {
   });
 }
 
+// subSectorTokensMatch(a, b) -> true when two normalised tokens agree exactly or one contains the
+// other (loose match; both non-empty). Boolean lives in a RETURN, not a ternary test (COND guard).
+function subSectorTokensMatch(a, b) {
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
 // The informational sub-sector read: match if the engine's mid-tier sector descriptor agrees with
 // the verified sub-sector under a loose token compare; otherwise ABSTAIN. It never contradicts.
 function subSectorNote(emitted, expectedSub) {
@@ -114,18 +138,32 @@ function subSectorNote(emitted, expectedSub) {
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const a = norm(descriptor);
   const b = norm(expectedSub);
-  return (a && b && (a === b || a.includes(b) || b.includes(a))) ? 'match' : 'abstain';
+  return subSectorTokensMatch(a, b) ? 'match' : 'abstain';
 }
 
+// predicateIsPresent(pred) -> true when a capability predicate entry is marked present.
+function predicateIsPresent(pred) {
+  return pred && pred.present === 'yes';
+}
 function capsSummary(caps) {
   const preds = caps && caps.predicates ? caps.predicates : {};
   let present = 0;
   let total = 0;
   for (const k of Object.keys(preds)) {
     total++;
-    if (preds[k] && preds[k].present === 'yes') present++;
+    if (predicateIsPresent(preds[k])) present++;
   }
   return { present, total };
+}
+
+// pageHasVisibleText(page) -> true when a page object carries non-empty visible text (named so
+// Array.prototype.some can take it directly; an inline arrow rolls complexity into the caller).
+function pageHasVisibleText(page) {
+  return page && typeof page.text === 'string' && page.text.trim() !== '';
+}
+// footerHasVisibleText(corpus) -> true when the corpus's footerText carries non-empty visible text.
+function footerHasVisibleText(corpus) {
+  return typeof corpus.footerText === 'string' && corpus.footerText.trim() !== '';
 }
 
 // hasReadableCorpus(bundle) -> true when the bundle carries OBSERVED VISIBLE TEXT: at least one page
@@ -138,17 +176,21 @@ function hasReadableCorpus(bundle) {
   const corpus = bundle && bundle.corpus;
   if (!corpus || typeof corpus !== 'object') return false;
   const pages = Array.isArray(corpus.pages) ? corpus.pages : [];
-  const hasPageText = pages.some((p) => p && typeof p.text === 'string' && p.text.trim() !== '');
-  const hasFooterText = typeof corpus.footerText === 'string' && corpus.footerText.trim() !== '';
+  const hasPageText = pages.some(pageHasVisibleText);
+  const hasFooterText = footerHasVisibleText(corpus);
   return hasPageText || hasFooterText;
 }
 
+// bundleHasPagesArray(bundle) -> true when bundle.corpus.pages exists and is an array (RETURN, not a ternary test - COND guard).
+function bundleHasPagesArray(bundle) {
+  return bundle && bundle.corpus && Array.isArray(bundle.corpus.pages);
+}
 // deriveFactsForBundle(bundle, hasCorpus) -> the four facts doors' output for one bundle.
 // deriveCapabilities requires a scannable pages array by contract, so on a bundle with no pages to
 // scan (footer-only, or an unreadable bundle) capabilities is simply not applicable (null) rather
 // than invoked - it is NOT an error.
 function deriveFactsForBundle(bundle, hasCorpus) {
-  const pages = bundle && bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
+  const pages = bundleHasPagesArray(bundle) ? bundle.corpus.pages : [];
   const canDeriveCaps = hasCorpus && pages.length > 0;
   return {
     identity: identity.resolveIdentity(bundle),
@@ -158,10 +200,10 @@ function deriveFactsForBundle(bundle, hasCorpus) {
   };
 }
 
-// buildFirmResultRow(firm, facts, payload, report, bundleUnreachable) -> the final per-firm row,
-// once facts have been derived and verified. Split out of runFirm so the row-assembly reads
-// separately from the fixture-loading/door-invocation plumbing above it.
-function buildFirmResultRow(firm, facts, payload, report, bundleUnreachable) {
+// buildFirmResultRow(ctx) -> the final per-firm row. ctx = {firm, facts, payload, report,
+// bundleUnreachable}, bundled (not exported; only caller is the call site below).
+function buildFirmResultRow(ctx) {
+  const { firm, facts, payload, report, bundleUnreachable } = ctx;
   const emitted = facts.sector && facts.sector.value;
   const emittedFamily = payload.meta.sector;
   const sub = subSectorNote(emitted, firm.expected && firm.expected.sub_sector);
@@ -181,15 +223,16 @@ function buildFirmResultRow(firm, facts, payload, report, bundleUnreachable) {
   };
 }
 
-// -------------------------------------------------------------------------------------------------
 // Per-firm run. Returns a row; throws only escape to the caller which records them as ERROR rows.
-// -------------------------------------------------------------------------------------------------
-function runFirm(firm, fixturesDir) {
-  // Fail closed on an unsafe path component before it ever reaches path.join (traversal guard);
-  // every domain in reference-set.json is a plain hostname, so this never fires in practice.
-  if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(firm.domain)) {
-    throw new Error('unsafe path component: ' + JSON.stringify(firm.domain));
+// assertSafeDomain(domain) -> throws on an unsafe path component before path.join (traversal guard).
+function assertSafeDomain(domain) {
+  if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(domain)) {
+    throw new Error('unsafe path component: ' + JSON.stringify(domain));
   }
+}
+
+function runFirm(firm, fixturesDir) {
+  assertSafeDomain(firm.domain);
   const fixturePath = path.join(fixturesDir, firm.domain + '.json');
   if (!fs.existsSync(fixturePath)) {
     // A verified firm with NO captured artefact on disk is an uncovered gap, not an abstention. Only
@@ -222,7 +265,7 @@ function runFirm(firm, fixturesDir) {
   const payload = factsToPayload(firm.domain, facts);
   const report = verifyPayload(payload, canonicaliseFirm(firm));
 
-  return buildFirmResultRow(firm, facts, payload, report, bundleUnreachable);
+  return buildFirmResultRow({ firm, facts, payload, report, bundleUnreachable });
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -241,33 +284,49 @@ function pad(s, n) {
   return s.length >= n ? s : s + ' '.repeat(n - s.length);
 }
 
+// printPlaceholderRow(r, W, status) -> the placeholder row for UNREACHABLE/ERROR/MISSING statuses
+// (the status label that varies between the original two inline blocks is now a parameter).
+function printPlaceholderRow(r, W, status) {
+  console.log([pad(r.domain, W[0]), pad(r.role, W[1]), pad('-', W[2]), pad('-', W[3]), pad('-', W[4]), pad('-', W[5]), pad(status, W[6])].join(' '));
+}
+
+// sectorCellText(sec) -> the sector column cell text (CONTRADICT stays CONTRADICT, else as-is).
+function sectorCellText(sec) {
+  return sec === 'CONTRADICT' ? 'CONTRADICT' : sec;
+}
+// formatJurCell(jur, bound) -> the jurisdiction cell: CONTRADICT stays bare, else the label is
+// suffixed with the bound jurisdiction codes when there are any.
+function formatJurCell(jur, bound) {
+  if (jur === 'CONTRADICT') return jur;
+  return bound.length ? jur + ':' + bound.join('/') : jur;
+}
+
+// printFirmRow(r, W) -> the full data row for a firm that actually ran (not UNREACHABLE/ERROR/MISSING).
+function printFirmRow(r, W) {
+  const sec = statusOf(r.report, 'sector');
+  const jur = statusOf(r.report, 'jurisdictions_bound');
+  const capCell = r.caps ? (r.caps.present + '/' + r.caps.total) : 'n/a';
+  const resultCell = r.status === 'OK' && r.bundle_unreachable ? 'OK*' : r.status;
+  console.log([
+    pad(r.domain, W[0]),
+    pad(r.role, W[1]),
+    pad(sectorCellText(sec), W[2]),
+    pad(r.sub_sector_note || '-', W[3]),
+    pad(formatJurCell(jur, r.bound), W[4]),
+    pad(capCell, W[5]),
+    pad(resultCell, W[6]),
+  ].join(' '));
+}
+
 function printTable(rows) {
   const H = ['domain', 'role', 'sector', 'sub', 'jur', 'caps', 'result'];
   const W = [28, 10, 12, 9, 12, 7, 11];
   console.log(H.map((h, i) => pad(h, W[i])).join(' '));
   console.log(W.map((w) => '-'.repeat(w)).join(' '));
   for (const r of rows) {
-    if (r.status === 'UNREACHABLE') {
-      console.log([pad(r.domain, W[0]), pad(r.role, W[1]), pad('-', W[2]), pad('-', W[3]), pad('-', W[4]), pad('-', W[5]), pad('UNREACHABLE', W[6])].join(' '));
-      continue;
-    }
-    if (r.status === 'ERROR' || r.status === 'MISSING') {
-      console.log([pad(r.domain, W[0]), pad(r.role, W[1]), pad('-', W[2]), pad('-', W[3]), pad('-', W[4]), pad('-', W[5]), pad(r.status, W[6])].join(' '));
-      continue;
-    }
-    const sec = statusOf(r.report, 'sector');
-    const jur = statusOf(r.report, 'jurisdictions_bound');
-    const capCell = r.caps ? (r.caps.present + '/' + r.caps.total) : 'n/a';
-    const resultCell = r.status === 'OK' && r.bundle_unreachable ? 'OK*' : r.status;
-    console.log([
-      pad(r.domain, W[0]),
-      pad(r.role, W[1]),
-      pad(sec === 'CONTRADICT' ? 'CONTRADICT' : sec, W[2]),
-      pad(r.sub_sector_note || '-', W[3]),
-      pad(jur === 'CONTRADICT' ? 'CONTRADICT' : (r.bound.length ? jur + ':' + r.bound.join('/') : jur), W[4]),
-      pad(capCell, W[5]),
-      pad(resultCell, W[6]),
-    ].join(' '));
+    if (r.status === 'UNREACHABLE') { printPlaceholderRow(r, W, 'UNREACHABLE'); continue; }
+    if (r.status === 'ERROR' || r.status === 'MISSING') { printPlaceholderRow(r, W, r.status); continue; }
+    printFirmRow(r, W);
   }
 }
 
@@ -303,11 +362,12 @@ function parseRunFactsArgs(argv) {
   const opts = { json: false, set: DEFAULT_SET, fixtures: DEFAULT_FIXTURES, domain: null };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === '--json') opts.json = true;
-    else if (a === '--set') opts.set = args[++i];
-    else if (a === '--fixtures') opts.fixtures = args[++i];
-    else if (a === '--domain') opts.domain = args[++i];
-    else { console.error('Unknown argument: ' + a); return { exitCode: 2 }; }
+    if (a === '--json') { opts.json = true; continue; }
+    if (a === '--set') { opts.set = args[++i]; continue; }
+    if (a === '--fixtures') { opts.fixtures = args[++i]; continue; }
+    if (a === '--domain') { opts.domain = args[++i]; continue; }
+    console.error('Unknown argument: ' + a);
+    return { exitCode: 2 };
   }
   return { opts };
 }
@@ -357,9 +417,28 @@ function selectFirms(refSet, opts) {
   return { firms };
 }
 
+// printContradictionDetail(rows) -> the "contradictions (each fails the gate):" block.
+function printContradictionDetail(rows) {
+  console.log('\ncontradictions (each fails the gate):');
+  for (const r of rows) {
+    if (!r.report) continue;
+    for (const c of r.report.contradictions) {
+      console.log('  FAIL  ' + r.domain + '  [' + c.check + ']  ' + c.detail);
+    }
+  }
+}
+// resultLine(summary) -> the final RESULT: line (sequential ifs, not the original nested ternary).
+function resultLine(summary) {
+  if (summary.errored > 0 || summary.missing > 0) {
+    return 'RESULT: ERROR - a facts door threw, a fixture was unreadable, or a verified firm had no captured fixture (uncovered gap)';
+  }
+  if (summary.contradictions > 0) {
+    return 'RESULT: CONTRADICTION - the facts layer contradicted hand-verified ground truth';
+  }
+  return 'RESULT: OK (no contradictions; abstentions and unreachable fixtures allowed)';
+}
 // printHumanReport(rows, summary, errored) -> the full non-JSON report: header, table, legend,
-// summary counts, contradiction detail and error detail, unchanged from the original inline else
-// block in main().
+// summary counts, contradiction detail and error detail.
 function printHumanReport(rows, summary, errored) {
   console.log('reference-set run-facts: the four facts doors vs hand-verified ground truth');
   console.log('law: match or abstain, never contradict (canonicalised through facts/vocabulary.js)\n');
@@ -372,22 +451,17 @@ function printHumanReport(rows, summary, errored) {
     + summary.contradicting + ' contradicting | ' + summary.missing + ' missing-fixture | ' + summary.errored + ' errored');
   console.log('         ' + summary.matches + ' matches, ' + summary.abstentions + ' abstentions (allowed), '
     + summary.contradictions + ' contradictions');
-  if (summary.contradictions > 0) {
-    console.log('\ncontradictions (each fails the gate):');
-    for (const r of rows) {
-      if (!r.report) continue;
-      for (const c of r.report.contradictions) {
-        console.log('  FAIL  ' + r.domain + '  [' + c.check + ']  ' + c.detail);
-      }
-    }
-  }
+  if (summary.contradictions > 0) printContradictionDetail(rows);
   for (const r of errored) console.log('\nERROR  ' + r.domain + ': ' + r.detail);
   console.log('');
-  console.log((summary.errored > 0 || summary.missing > 0)
-    ? 'RESULT: ERROR - a facts door threw, a fixture was unreadable, or a verified firm had no captured fixture (uncovered gap)'
-    : (summary.contradictions > 0
-      ? 'RESULT: CONTRADICTION - the facts layer contradicted hand-verified ground truth'
-      : 'RESULT: OK (no contradictions; abstentions and unreachable fixtures allowed)'));
+  console.log(resultLine(summary));
+}
+
+// exitCodeFor(summary) -> exit code for a completed run: 2 on ERROR/MISSING (gate did not fully
+// run), else 1 on any contradiction, else 0.
+function exitCodeFor(summary) {
+  if (summary.errored > 0 || summary.missing > 0) return 2;
+  return summary.contradictions > 0 ? 1 : 0;
 }
 
 function main(argv) {
@@ -413,10 +487,7 @@ function main(argv) {
     printHumanReport(rows, summary, errored);
   }
 
-  // Fail closed: a door throwing or an unreadable fixture (ERROR) or a verified firm with no captured
-  // artefact (MISSING) both mean the gate did not fully run. A contradiction is the substantive fail.
-  if (summary.errored > 0 || summary.missing > 0) return 2;
-  return summary.contradictions > 0 ? 1 : 0;
+  return exitCodeFor(summary);
 }
 
 if (require.main === module) {

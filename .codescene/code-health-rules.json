@@ -1,0 +1,27 @@
+{
+  "usage": "In-repo CodeScene Code Health customisation (https://docs.enterprise.codescene.io/versions/6.0.34/guides/technical/code-health.html). Rule sets are evaluated top-to-bottom, first match wins by matching_content_path. Per the docs, a rule weight of 0.0 DISABLES that rule and it is 'no longer part of the code health calculation', so a path whose complexity/duplication/size rules are all zero-weighted scores a perfect 10.00 and is not counted by the 'New code is healthy' gate. This file exists for ONE reason: eval/calibration-known-bad/fixtures/** is deliberately unhealthy code (it calibrates our own health gates - a gate that never fires on bad input is theatre, per the Constitution Rule 4). Those fixtures must BE unhealthy; they are not refactored and not UI-suppressed. NOTE: CodeScene has no in-repo field that skips analysis entirely; weight 0.0 is the documented in-repo mechanism that neutralises the health calculation for a path. A full analysis-exclusion glob (project 'Exclude Content') is web-UI only and may be set additionally by the founder for eval/calibration-known-bad/fixtures/**.",
+  "rule_sets": [
+    {
+      "matching_content_path": "eval/calibration-known-bad/fixtures/**",
+      "matching_content_path_doc": "The seeded known-bad calibration fixtures ONLY. These files are intentionally over-complex / smelly so the health-gate, swallow-gate, one-door and domain gates can be proven to fire on the exact shapes they exist to catch. Their code health is deliberately not our code health, so every code-health rule is disabled (weight 0.0) for this path and this path alone.",
+      "rules": [
+        { "name": "Complex Method", "weight": 0.0 },
+        { "name": "Bumpy Road Ahead", "weight": 0.0 },
+        { "name": "Deep, Nested Complexity", "weight": 0.0 },
+        { "name": "Complex Conditional", "weight": 0.0 },
+        { "name": "Excess Number of Function Arguments", "weight": 0.0 },
+        { "name": "Large Method", "weight": 0.0 },
+        { "name": "Brain Method", "weight": 0.0 },
+        { "name": "Code Duplication", "weight": 0.0 },
+        { "name": "Overall Code Complexity", "weight": 0.0 }
+      ],
+      "thresholds": []
+    },
+    {
+      "matching_content_path": "**/*",
+      "matching_content_path_doc": "Everything else in the repository uses CodeScene's default Clean Code Collective rules and thresholds unchanged. This catch-all carries no overrides.",
+      "rules": [],
+      "thresholds": []
+    }
+  ]
+}

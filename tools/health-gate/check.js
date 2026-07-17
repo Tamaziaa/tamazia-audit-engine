@@ -84,35 +84,59 @@ function isMetaKey(key) {
   return key === 'loc' || key === 'start' || key === 'end' || key === 'range';
 }
 
+// Each hint source is a guard-claused predicate returning the name or null, so computeChildHint stays a
+// flat nullish-coalescing chain with no multi-operator conditional in any test position.
+function variableDeclaratorHint(node, key) {
+  if (node.type !== 'VariableDeclarator' || key !== 'init') return null;
+  if (!node.id || node.id.type !== 'Identifier') return null;
+  return node.id.name;
+}
+
+function propertyOrMethodHint(node, key) {
+  if (node.type !== 'Property' && node.type !== 'MethodDefinition') return null;
+  if (key !== 'value' || !node.key) return null;
+  return keyName(node.key);
+}
+
+function assignmentHint(node, key) {
+  if (node.type !== 'AssignmentExpression' || key !== 'right') return null;
+  return exprName(node.left);
+}
+
 // A function-like node's immediate syntactic context tells us its best-effort display name: the
 // variable it was assigned to, the object/class key it lives under, or the identifier it was
 // reassigned onto. Anything else is anonymous (fine: naming is cosmetic here, never load-bearing).
 function computeChildHint(node, key) {
-  if (node.type === 'VariableDeclarator' && key === 'init' && node.id && node.id.type === 'Identifier') return node.id.name;
-  if (node.type === 'Property' && key === 'value' && node.key) return keyName(node.key);
-  if (node.type === 'MethodDefinition' && key === 'value' && node.key) return keyName(node.key);
-  if (node.type === 'AssignmentExpression' && key === 'right') return exprName(node.left);
-  return null;
+  return variableDeclaratorHint(node, key)
+    ?? propertyOrMethodHint(node, key)
+    ?? assignmentHint(node, key);
 }
 
 // ── acorn engine: collect every function-like node, tagged with a best-effort name ────────────────────────
 
 // Nested functions are collected too (each is its own unit for metrics purposes; walkMetrics stops at
-// a nested function's boundary so inner units are never double-charged against the outer one).
+// a nested function's boundary so inner units are never double-charged against the outer one). The walk
+// is split into three small units (node / array / children) so no single one exceeds the caps.
+function walkCollectChildren(node, out) {
+  for (const key of Object.keys(node)) {
+    if (isMetaKey(key)) continue;
+    const value = node[key];
+    if (!value || typeof value !== 'object') continue;
+    walkCollect(value, computeChildHint(node, key), out);
+  }
+}
+
+function walkCollect(node, hint, out) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { for (const n of node) walkCollect(n, hint, out); return; }
+  if (typeof node.type !== 'string') return;
+  if (FUNCTION_TYPES.has(node.type)) out.push({ node, name: functionDisplayName(node, hint) });
+  walkCollectChildren(node, out);
+}
+
 function collectFunctions(root) {
   const out = [];
-  (function walk(node, hint) {
-    if (!node || typeof node !== 'object') return;
-    if (Array.isArray(node)) { for (const n of node) walk(n, hint); return; }
-    if (typeof node.type !== 'string') return;
-    if (FUNCTION_TYPES.has(node.type)) out.push({ node, name: functionDisplayName(node, hint) });
-    for (const key of Object.keys(node)) {
-      if (isMetaKey(key)) continue;
-      const value = node[key];
-      if (!value || typeof value !== 'object') continue;
-      walk(value, computeChildHint(node, key));
-    }
-  })(root, null);
+  walkCollect(root, null, out);
   return out;
 }
 

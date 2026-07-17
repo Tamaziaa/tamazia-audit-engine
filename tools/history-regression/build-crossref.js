@@ -87,18 +87,26 @@ function classifyOther(message) {
   return null; // no keyword claimed it
 }
 
-function classForSweep(f) {
-  // 1. A one-door tool finding IS the two-doors class, whatever its prose says.
+// isOneDoorFinding(f) -> a one-door tool finding IS the two-doors class, whatever its prose says.
+function isOneDoorFinding(f) {
   const tools = (f.tools || []).map((t) => String(t).toLowerCase());
-  if (tools.includes('one-door') || /^two doors/i.test(f.message || '')) return 'two-doors';
-  // 2. A clean category bucket (secret/injection/duplication/dead-code/regex/error-handling/
-  //    async/performance) is authoritative: the tool already typed it. Only "other" is ambiguous.
-  if (f.category && f.category !== 'other' && CATEGORY_CLASS[f.category]) return CATEGORY_CLASS[f.category];
-  // 3. The "other" bucket: keyword-refine the message, else fall to tooling-hygiene.
+  return tools.includes('one-door') || /^two doors/i.test(f.message || '');
+}
+
+// hasCleanCategory(f) -> a non-"other" category bucket the tool already typed authoritatively
+// (secret/injection/duplication/dead-code/regex/error-handling/async/performance); only "other" is ambiguous.
+function hasCleanCategory(f) {
+  return Boolean(f.category && f.category !== 'other' && CATEGORY_CLASS[f.category]);
+}
+
+function classForSweep(f) {
+  if (isOneDoorFinding(f)) return 'two-doors';
+  if (hasCleanCategory(f)) return CATEGORY_CLASS[f.category];
+  // The "other" bucket: keyword-refine the message, else fall to tooling-hygiene (tooling/test/CI
+  // housekeeping or a genuinely diffuse lead - sweep-tool files, test gaps, workflow config; never dropped).
   const kw = classifyOther(f.message);
   if (kw) return kw;
-  return 'tooling-hygiene'; // tooling/test/CI housekeeping or a genuinely diffuse lead the sweep
-  // surfaced (sweep-tool files, test gaps, workflow config); never silently dropped.
+  return 'tooling-hygiene';
 }
 
 function entryFor(cls, extra) {
@@ -112,6 +120,20 @@ function entryFor(cls, extra) {
   }, extra);
 }
 
+// assertValidClusterCount(sweep) -> the cluster-metadata gate, factored out. sweep.clusters is REQUIRED
+// and must be a non-negative integer: a missing, non-numeric, negative or fractional cluster count is
+// rejected (fail closed), NEVER treated as an optional check to skip. Line ~194 publishes sweep.clusters
+// as the declared cluster count, so a malformed value must never reach the cross-reference at all.
+function assertValidClusterCount(sweep) {
+  if (!Number.isInteger(sweep.clusters) || sweep.clusters < 0) {
+    throw new Error('build-crossref: sweep.clusters must be a non-negative integer (missing/non-numeric/negative/fractional cluster metadata fails closed, never optional-skip); got ' + JSON.stringify(sweep.clusters) + '.');
+  }
+  if (sweep.findings.length !== sweep.clusters) {
+    throw new Error('build-crossref: sweep metadata is inconsistent - findings.length=' + sweep.findings.length
+      + ' but metadata claims clusters=' + sweep.clusters + '. A truncated findings array must not produce a crossref asserting the original cluster count.');
+  }
+}
+
 // assertSweepConsistent(sweep) -> throws when the sweep JSON is truncated or its metadata disagrees
 // with its findings. A truncated findings array must never silently produce a crossref that still
 // claims the original cluster count (CR: reject inconsistent input before emitting the cross-ref).
@@ -122,10 +144,7 @@ function assertSweepConsistent(sweep) {
   if (!Array.isArray(sweep.findings)) {
     throw new Error('build-crossref: sweep.findings is not an array; refusing to build a crossref from malformed sweep output.');
   }
-  if (typeof sweep.clusters === 'number' && sweep.findings.length !== sweep.clusters) {
-    throw new Error('build-crossref: sweep metadata is inconsistent - findings.length=' + sweep.findings.length
-      + ' but metadata claims clusters=' + sweep.clusters + '. A truncated findings array must not produce a crossref asserting the original cluster count.');
-  }
+  assertValidClusterCount(sweep);
 }
 
 // collectDefects(sweep) -> the full defect list: the classified sweep clusters, the 5 domain-gate
@@ -209,43 +228,49 @@ function build(sweepPath) {
   };
 }
 
+// printExplain(doc) -> the --explain audit dump: one line per class with its status and defect count.
+function printExplain(doc) {
+  const byClass = {};
+  for (const d of doc.defects) (byClass[d.class] = byClass[d.class] || []).push(d.id);
+  for (const t of doc.taxonomy) console.log((t.status === 'gap' ? 'GAP  ' : 'guard') + ' ' + t.class.padEnd(26) + ' ' + String(t.defect_count).padStart(3) + '  ' + t.catching_gate);
+}
+
+// runCheckMode(outPath, json, doc) -> --check: diff the freshly-built JSON against the committed file
+// (ignoring generated_at) and exit 1 if stale, 0 if current. Never returns (always exits).
+function runCheckMode(outPath, json, doc) {
+  if (!fs.existsSync(outPath)) { console.error('crossref.json missing at ' + outPath); process.exit(1); }
+  const current = fs.readFileSync(outPath, 'utf8');
+  const norm = (s) => s.replace(/"generated_at":\s*"[^"]*"/, '"generated_at":"X"');
+  if (norm(current) !== norm(json)) {
+    console.error('crossref.json is STALE: rebuild with `npm run history:build`. The committed file does not match the sources.');
+    process.exit(1);
+  }
+  console.log('crossref.json is up to date (' + doc.totals.defects + ' defects, ' + doc.totals.classes + ' classes).');
+  process.exit(0);
+}
+
+// writeCrossref(outPath, json, doc) -> write the built crossref to disk and report the totals.
+function writeCrossref(outPath, json, doc) {
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, json);
+  console.log('wrote ' + outPath + ': ' + doc.totals.defects + ' defects, ' + doc.totals.classes + ' classes (' + doc.totals.guarded_classes + ' guarded, ' + doc.totals.gap_classes + ' gap), ' + doc.totals.act + ' ACT.');
+}
+
 function main() {
   const args = process.argv.slice(2);
   const sweepIdx = args.indexOf('--sweep');
-  const outIdx = args.indexOf('--out');
-  const check = args.includes('--check');
-  const explain = args.includes('--explain');
   if (sweepIdx < 0) {
     console.error('usage: build-crossref.js --sweep <sweep-findings.json> [--out <path>] [--check] [--explain]');
     process.exit(2);
   }
-  const sweepPath = args[sweepIdx + 1];
+  const outIdx = args.indexOf('--out');
   const outPath = outIdx >= 0 ? args[outIdx + 1] : DEFAULT_OUT;
-  const doc = build(sweepPath);
+  const doc = build(args[sweepIdx + 1]);
   const json = JSON.stringify(doc, null, 2) + '\n';
 
-  if (explain) {
-    const byClass = {};
-    for (const d of doc.defects) (byClass[d.class] = byClass[d.class] || []).push(d.id);
-    for (const t of doc.taxonomy) console.log((t.status === 'gap' ? 'GAP  ' : 'guard') + ' ' + t.class.padEnd(26) + ' ' + String(t.defect_count).padStart(3) + '  ' + t.catching_gate);
-  }
-
-  if (check) {
-    if (!fs.existsSync(outPath)) { console.error('crossref.json missing at ' + outPath); process.exit(1); }
-    const current = fs.readFileSync(outPath, 'utf8');
-    // Compare ignoring the generated_at date so a rebuild on another day is not a spurious diff.
-    const norm = (s) => s.replace(/"generated_at":\s*"[^"]*"/, '"generated_at":"X"');
-    if (norm(current) !== norm(json)) {
-      console.error('crossref.json is STALE: rebuild with `npm run history:build`. The committed file does not match the sources.');
-      process.exit(1);
-    }
-    console.log('crossref.json is up to date (' + doc.totals.defects + ' defects, ' + doc.totals.classes + ' classes).');
-    process.exit(0);
-  }
-
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, json);
-  console.log('wrote ' + outPath + ': ' + doc.totals.defects + ' defects, ' + doc.totals.classes + ' classes (' + doc.totals.guarded_classes + ' guarded, ' + doc.totals.gap_classes + ' gap), ' + doc.totals.act + ' ACT.');
+  if (args.includes('--explain')) printExplain(doc);
+  if (args.includes('--check')) runCheckMode(outPath, json, doc);
+  writeCrossref(outPath, json, doc);
 }
 
 if (require.main === module) main();

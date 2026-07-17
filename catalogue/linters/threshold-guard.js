@@ -43,15 +43,20 @@ const THRESHOLD_RX = /\bturnover\b|\brevenue\b|\bemployee(?:s)?\s+(?:count|numbe
 // same-threshold-but-not-below excluded_when still leaves the record flagged.
 const BELOW_THRESHOLD_RX = /\bbelow\b|\bunder\b|\bbeneath\b|\bless than\b|\bfewer than\b|\bsmaller than\b|\bup to\b|\bnot exceeding\b|\bdoes not exceed\b|\bdo(?:es)? not (?:apply|meet|reach)\b|\bat or below\b|\bunderneath\b|\bexempt\b|\bexemption\b|\bde minimis\b/i;
 
+// stringsOf(arr) -> the string elements of arr, or [] if arr is not an array. Pulled out of
+// textMentionsThreshold below so its two former "if array, then for-loop with an inner if" blocks
+// (Constitution Rule 4/tools/health-gate/check.js caps: each was a nested-conditional block on its
+// own) collapse to one non-branching call site each.
+function stringsOf(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((x) => typeof x === 'string');
+}
+
 function textMentionsThreshold(record) {
   const haystacks = [];
   if (typeof record.name === 'string') haystacks.push(record.name);
-  if (Array.isArray(record.applies_when)) {
-    for (const a of record.applies_when) if (typeof a === 'string') haystacks.push(a);
-  }
-  if (Array.isArray(record.excluded_when)) {
-    for (const e of record.excluded_when) if (typeof e === 'string') haystacks.push(e);
-  }
+  haystacks.push(...stringsOf(record.applies_when));
+  haystacks.push(...stringsOf(record.excluded_when));
   return haystacks.some((h) => THRESHOLD_RX.test(h));
 }
 
@@ -80,6 +85,12 @@ function isFiniteNumber(x) {
   return typeof x === 'number' && Number.isFinite(x);
 }
 
+// statutoryMaxWithNoTypicalBand(penalty) -> boolean. Named predicate pulled out of checkRecord's
+// own if TEST (the multi-operator test now lives in a RETURN, not a test position).
+function statutoryMaxWithNoTypicalBand(penalty) {
+  return isFiniteNumber(penalty.statutory_max) && penalty.typical_low === null && penalty.typical_high === null;
+}
+
 // checkRecord(record, locator) -> finding[] (never throws)
 function checkRecord(record, locator) {
   const findings = [];
@@ -98,7 +109,7 @@ function checkRecord(record, locator) {
   }
 
   const penalty = lib.isPlainObject(record.penalty) ? record.penalty : {};
-  if (isFiniteNumber(penalty.statutory_max) && penalty.typical_low === null && penalty.typical_high === null) {
+  if (statutoryMaxWithNoTypicalBand(penalty)) {
     add(
       'typical-band-missing',
       'penalty.statutory_max is set (' + penalty.statutory_max + ') but typical_low and typical_high are both null - a bare statutory ceiling with no typical enforcement band invites the renderer to headline the rare maximum as "your exposure" (caution.md C-096/C-104)',
@@ -193,19 +204,34 @@ function runSelfTestCases(fx) {
   };
 }
 
+// missingIsBlockingErrorCheck(r) -> boolean. Named predicate pulled out of evaluateSelfTestCases'
+// former inline test (the multi-operator test now lives in a RETURN, not a test position).
+function missingIsBlockingErrorCheck(r) {
+  return r.missingF.some((f) => f.rule === 'threshold-excluded-when-missing' && f.severity === 'error');
+}
+
+// selfTestChecks(fx, r, missingIsBlockingError) -> boolean[]. Every individual expectation the
+// original selfTest asserted, as a flat list rather than one long && chain (Constitution Rule
+// 4/tools/health-gate/check.js caps: the former chain carried nine decision points on its own).
+function selfTestChecks(fx, r, missingIsBlockingError) {
+  return [
+    r.missingF.some((f) => f.rule === 'threshold-excluded-when-missing'),
+    missingIsBlockingError,
+    r.unrelatedExcludedF.some((f) => f.rule === 'threshold-excluded-when-missing'),
+    r.sameThresholdNotBelowF.some((f) => f.rule === 'threshold-excluded-when-missing'),
+    textMentionsThreshold(fx.currencyTokenStart),
+    textMentionsThreshold(fx.dollarTokenStart),
+    r.goodF.filter((f) => f.rule === 'threshold-excluded-when-missing').length === 0,
+    r.bandF.some((f) => f.rule === 'typical-band-missing'),
+    r.noThreshF.length === 0,
+  ];
+}
+
 // evaluateSelfTestCases(fx, r) -> {pass, missingIsBlockingError}. Every individual expectation the
 // original selfTest asserted, unchanged.
 function evaluateSelfTestCases(fx, r) {
-  const missingIsBlockingError = r.missingF.some((f) => f.rule === 'threshold-excluded-when-missing' && f.severity === 'error');
-  const pass = r.missingF.some((f) => f.rule === 'threshold-excluded-when-missing')
-    && missingIsBlockingError
-    && r.unrelatedExcludedF.some((f) => f.rule === 'threshold-excluded-when-missing')
-    && r.sameThresholdNotBelowF.some((f) => f.rule === 'threshold-excluded-when-missing')
-    && textMentionsThreshold(fx.currencyTokenStart)
-    && textMentionsThreshold(fx.dollarTokenStart)
-    && r.goodF.filter((f) => f.rule === 'threshold-excluded-when-missing').length === 0
-    && r.bandF.some((f) => f.rule === 'typical-band-missing')
-    && r.noThreshF.length === 0;
+  const missingIsBlockingError = missingIsBlockingErrorCheck(r);
+  const pass = selfTestChecks(fx, r, missingIsBlockingError).every(Boolean);
   return { pass, missingIsBlockingError };
 }
 
