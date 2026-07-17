@@ -53,7 +53,7 @@ async function readOneDocument(url, opts) {
   const pageClass = classifyDoc(url);
   let res;
   try { res = await withDeadline(() => opts.fetchFn(url), opts.deadlineMs, opts.timers); }
-  catch (e) { opts.log('document-unreachable', url + ': ' + e.message); return { url, fetched: false, parsed: false, reason: 'fetch-failed: ' + e.message, pageClass }; }
+  catch (e) { opts.log('document-unreachable', url + ': ' + e.message); return { url, fetched: false, parsed: false, reason: 'fetch-failed: ' + e.message, pageClass }; /* FAIL-OPEN: one document's fetch failure/timeout is RECORDED (logged via opts.log AND returned as fetched:false, reason:'fetch-failed'), then the lane continues; an unreachable document must not abort the whole crawl, and its absence is never asserted (it stays out of unparsedClasses so no obligation is demoted on it). */ }
   if (!res || !res.ok || !res.body) return { url, fetched: Boolean(res && res.status), parsed: false, reason: 'unreachable-or-empty', pageClass };
   if (isPdfLike(url, res.contentType)) {
     opts.log('document-no-parser', url + ': fetched a PDF/binary policy document but there is no zero-dependency parser; recorded parsed:false (C-033 - obligations relying on this page-class demote to needs-review)');

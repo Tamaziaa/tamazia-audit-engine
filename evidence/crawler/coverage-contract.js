@@ -29,12 +29,18 @@ function requiredClasses(sector) {
   return [...new Set([...BASE_REQUIRED, ...extra])];
 }
 
+// pagePath(page) -> the normalised path segment (leading slash, query/fragment stripped, lowercased) of a
+// page object ({url}|{type}) or bare string. Classification anchors on PATH tokens, never the host.
+function pagePath(page) {
+  const raw = String((page && (page.url || page.type || page)) || '').toLowerCase();
+  const path = raw.replace(/^https?:\/\/[^/]+/, '');
+  return '/' + path.replace(/[?#].*$/, '').replace(/^\/+/, '');
+}
+
 // classify(page) -> the page-class of a fetched URL by PATH SEGMENT with anchored tokens (C-044). Accepts
 // a page object ({url}|{type}) or a bare string.
 function classify(page) {
-  const raw = String((page && (page.url || page.type || page)) || '').toLowerCase();
-  const path = raw.replace(/^https?:\/\/[^/]+/, '');
-  const seg = '/' + path.replace(/[?#].*$/, '').replace(/^\/+/, ''); // normalised path, leading slash
+  const seg = pagePath(page);
   const has = (re) => re.test(seg);
   if (has(/\b(privacy|data[-_ ]?protection|gdpr|cookie)\b/)) return 'privacy';
   if (has(/\b(complaints?|ombudsman)\b/)) return 'complaints';
@@ -138,6 +144,6 @@ function applyCoverage(findings, coverage) {
 }
 
 module.exports = {
-  BASE_REQUIRED, SECTOR_REQUIRED, requiredClasses, classify, computeCoverage,
+  BASE_REQUIRED, SECTOR_REQUIRED, requiredClasses, classify, pagePath, computeCoverage,
   coverageFor, isScreened, applyCoverage, pageClassForObligation, ruleNeeds,
 };

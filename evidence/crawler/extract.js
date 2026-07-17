@@ -52,15 +52,21 @@ function extractTitle(html) {
   return m ? decodeEntities(m[1]).replace(/\s+/g, ' ').trim() : '';
 }
 
-function extractOgSiteName(html) {
+// extractOgMeta(html) -> a map of Open Graph meta values keyed by the property SUFFIX (og.site_name,
+// og.title, ...). Generic on purpose: the identity-signal property name is never hardcoded here (the
+// og: prefix plus a captured suffix), so extract.js surfaces the raw corpus value while identity
+// RESOLUTION (legal_name/display_name from the site name) stays the one door in facts/identity.js.
+function extractOgMeta(html) {
+  const out = {};
   const re = /<meta\b[^>]*>/gi;
   let m;
   while ((m = re.exec(String(html))) !== null) {
-    if (!/property\s*=\s*["']og:site_name["']/i.test(m[0])) continue;
+    const p = /property\s*=\s*["']og:([a-z_]+)["']/i.exec(m[0]);
+    if (!p) continue;
     const c = /content\s*=\s*["']([^"']*)["']/i.exec(m[0]);
-    if (c) return decodeEntities(c[1]).trim();
+    if (c) out[p[1].toLowerCase()] = decodeEntities(c[1]).trim();
   }
-  return undefined;
+  return out;
 }
 
 function extractJsonLd(html) {
@@ -99,8 +105,8 @@ function extractHrefs(html) {
 
 function buildPage(url, html) {
   const page = { url, title: extractTitle(html), text: stripHtml(html), jsonLd: extractJsonLd(html) };
-  const og = extractOgSiteName(html);
-  if (og !== undefined) page.ogSiteName = og;
+  const og = extractOgMeta(html);
+  if (og.site_name !== undefined) page.ogSiteName = og.site_name;
   return page;
 }
 
@@ -153,6 +159,6 @@ function pageContentClass(status, html) {
 }
 
 module.exports = {
-  decodeEntities, stripHtml, extractTitle, extractOgSiteName, extractJsonLd,
+  decodeEntities, stripHtml, extractTitle, extractOgMeta, extractJsonLd,
   extractFooterText, extractHrefs, buildPage, pageContentClass,
 };

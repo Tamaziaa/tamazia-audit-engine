@@ -90,7 +90,7 @@ function isBlockedHost(host) {
 // parseSafeFetchTarget(rawUrl) -> a parsed URL when it is a public http(s) target, else null.
 function parseSafeFetchTarget(rawUrl) {
   let u;
-  try { u = new URL(rawUrl); } catch (e) { return null; /* malformed URL: refuse (return null; caller rejects) */ }
+  try { u = new URL(rawUrl); } catch (e) { return null; /* FAIL-OPEN: an unparseable URL cannot be a safe fetch target, so returning null makes every caller REFUSE it (the closed outcome); a malformed string is simply not a fetchable URL and nothing is hidden. */ }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
   if (isBlockedHost(u.hostname)) return null;
   return u;
@@ -157,7 +157,7 @@ function isNonCrawlable(href) {
 // '' when u is not a parseable URL. The ONLY way host identity is read; never a substring of the URL.
 function hostOf(u, base) {
   try { return new URL(String(u), base || undefined).hostname.toLowerCase().replace(/^www\./, ''); }
-  catch (e) { return ''; /* not a URL: no host (the caller treats '' as "not same site") */ }
+  catch (e) { return ''; /* FAIL-OPEN: a value that will not parse as a URL has no host, so returning '' makes the caller treat it as NOT same-site (the closed outcome); it can never produce a false same-site match. */ }
 }
 
 // The common multi-part public suffixes, so a subdomain (blog./help./uk.) and the www variant of the
@@ -196,6 +196,26 @@ function sameRegistrableSite(u, accepted) {
   return set.has(registrableDomain(host));
 }
 
+// inputHost(raw) -> the canonical host of an operator-supplied domain, read through the parsed-host door.
+// The input may arrive bare ("example.com"), schemed ("https://example.com/path"), www-prefixed, cased or
+// ported ("EXAMPLE.com:443"); a scheme is prepended when absent so `new URL` can parse it, and hostOf then
+// lowercases, strips www and drops the port. This is the ONE place a raw domain becomes a host - a consumer
+// never string-strips a URL of its own (the second-door class). Returns '' when no host can be parsed.
+function inputHost(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return '';
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : 'https://' + s;
+  return hostOf(withScheme);
+}
+
+// acceptedSiteSet(raw) -> the Set of registrable domains that count as "this site" for a crawl seeded from
+// `raw`. The crawl passes this Set to sameRegistrableSite for every candidate URL, so host identity is
+// produced once, here, behind the door - the caller holds a Set, never a host primitive of its own.
+function acceptedSiteSet(raw) {
+  const host = inputHost(raw);
+  return new Set(host ? [registrableDomain(host)] : []);
+}
+
 module.exports = {
   // SSRF door (promoted from build-fixtures-lib.js; re-exported there unchanged)
   isBlockedHost,
@@ -209,4 +229,6 @@ module.exports = {
   registrableDomain,
   isSameHost,
   sameRegistrableSite,
+  inputHost,
+  acceptedSiteSet,
 };

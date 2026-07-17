@@ -1,0 +1,23 @@
+{
+  "comment": "P3 adjudicator calibration (Constitution Rule 6 + Rule 12 gate 4; caution.md C-082/C-086/C-092). The old adjudicator's verdict enum had a maybe-ships gap: an ambiguous verdict ('Unclear, leaning no') matched neither branch and the finding stayed CONFIRMED with its fine; a NO_BREACH clearance was accepted with no proof. breach/adjudicator/verdict.js parseVerdict(raw, evidence) must map EVERY malformed or unprovable verdict below to needs_review (quarantine), never to violation or pass. The two controls prove the gate is not trivially abstaining on everything. Consumed by breach/adjudicator/verdict.test.js.",
+  "evidence": "The website footer reads: we are regulated and the required disclosure is present here in full.",
+  "cases": [
+    { "name": "null raw verdict", "raw": null, "expect_state": "needs_review" },
+    { "name": "empty object, no verdict field", "raw": {}, "expect_state": "needs_review" },
+    { "name": "unknown enum value", "raw": { "verdict": "maybe" }, "expect_state": "needs_review" },
+    { "name": "ambiguous natural-language verdict (the Unclear-leaning-no class)", "raw": { "verdict": "unclear, leaning no" }, "expect_state": "needs_review" },
+    { "name": "one of our own internal state names echoed back as a verdict", "raw": { "verdict": "violation" }, "expect_state": "needs_review" },
+    { "name": "another internal state name", "raw": { "verdict": "needs_review" }, "expect_state": "needs_review" },
+    { "name": "wrong-typed verdict (array)", "raw": { "verdict": ["breach"] }, "expect_state": "needs_review" },
+    { "name": "wrong-typed verdict (number)", "raw": { "verdict": 1 }, "expect_state": "needs_review" },
+    { "name": "empty-string verdict", "raw": { "verdict": "" }, "expect_state": "needs_review" },
+    { "name": "punctuation-only garbage verdict", "raw": { "verdict": "  ???  " }, "expect_state": "needs_review" },
+    { "name": "no_breach with no disproof at all", "raw": { "verdict": "no_breach" }, "expect_state": "needs_review" },
+    { "name": "no_breach with a disproof that is NOT verbatim in the evidence (asserted away)", "raw": { "verdict": "no_breach", "disproof": "a fabricated exculpatory sentence the model made up" }, "expect_state": "needs_review" },
+    { "name": "no_breach with a sub-6-char disproof (nav fragment)", "raw": { "verdict": "no_breach", "disproof": "yes" }, "expect_state": "needs_review" }
+  ],
+  "controls": [
+    { "name": "a clean breach still ships as a violation", "raw": { "verdict": "breach", "reason": "prohibited superlative present verbatim" }, "expect_state": "violation" },
+    { "name": "a properly disproved no_breach clears to pass", "raw": { "verdict": "no_breach", "disproof": "the required disclosure is present here" }, "expect_state": "pass" }
+  ]
+}

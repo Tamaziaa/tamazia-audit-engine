@@ -48,8 +48,11 @@ function resolveCap(envName, def, floor) {
   return n;
 }
 
+// normaliseDomain(domain) -> the canonical host for a raw operator-supplied domain, produced through the
+// ONE host door (safe-fetch.inputHost): scheme/path/port/www are parsed off via `new URL`, never string-
+// stripped here (the second-door class, Rule 1). Returns '' when no host can be parsed.
 function normaliseDomain(domain) {
-  return String(domain || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase();
+  return safeFetch.inputHost(domain);
 }
 
 // fetchPage(fetchFn, url, perPageMs, timers) -> the fetch result, or null on failure/timeout (Rule 9:
@@ -123,6 +126,63 @@ function buildCoverage(pages, opts, truncated, unparsedClasses) {
   return out;
 }
 
+// makeRecorder(opts) -> { notes, record }. record(kind,msg) appends a typed note AND forwards to the
+// injected log, so a degraded lane is always recorded and never silent (Rule 4).
+function makeRecorder(opts) {
+  const notes = [];
+  const log = typeof opts.log === 'function' ? opts.log : () => {};
+  const record = (kind, msg) => { notes.push({ kind, msg }); log(kind, msg); };
+  return { notes, record };
+}
+
+// resolveBudgets(opts) -> the effective crawl budgets, each an upper bound (Rule 8): the corpus char cap,
+// the page cap, the pool width, the wall-clock deadline and the per-page deadline. Env caps below their
+// safety floor THROW via resolveCap (C-025); nothing here floors a budget.
+function resolveBudgets(opts) {
+  const cap = typeof opts.corpusMaxChars === 'number' ? opts.corpusMaxChars : resolveCap('CORPUS_MAX_CHARS', CORPUS_CAP_DEFAULT, CORPUS_CAP_FLOOR);
+  const maxPages = typeof opts.maxPages === 'number' ? opts.maxPages : resolveCap('MAX_CRAWL_PAGES', PAGES_DEFAULT, PAGES_FLOOR);
+  const width = typeof opts.width === 'number' && opts.width > 0 ? opts.width : WIDTH_DEFAULT;
+  const deadlineMs = typeof opts.deadlineMs === 'number' ? opts.deadlineMs : DEADLINE_DEFAULT;
+  const perPageMs = Math.min(deadlineMs, opts.perPageMs || 20000);
+  return { cap, maxPages, width, deadlineMs, perPageMs };
+}
+
+// fetchHomepage(ctx) -> { home, homeHtml, homeKlass }. The homepage is the one mandatory surface (footer
+// disclosures live here, C-034); a non-content homepage (login/challenge/error/SPA shell) is recorded and
+// never asserted from (C-031/C-038). ctx carries the shared crawl context (opts, base, perPageMs, record).
+async function fetchHomepage(ctx) {
+  const { opts, base, perPageMs, record } = ctx;
+  const home = await fetchPage(opts.fetchFn, base + '/', perPageMs, opts.timers);
+  const homeHtml = home && home.body ? String(home.body) : '';
+  const homeKlass = extract.pageContentClass(home ? home.status : 0, homeHtml);
+  if (homeKlass !== 'content') record('homepage-not-content', base + '/ classified as "' + homeKlass + '"; no content asserted from it (C-031/C-038)');
+  return { home, homeHtml, homeKlass };
+}
+
+// discoverFetchList(ctx, homeHtml, fetchXml, maxPages) -> the deduped, same-site, Tier-1-FIRST-then-capped
+// fetch list (C-026). Links (homepage) and sitemap are discovered in PARALLEL (E-236); orderCandidates
+// ranks by tier BEFORE the cap slice, so a Tier-1 legal page survives a cap smaller than the candidate
+// count even when it was discovered last.
+async function discoverFetchList(ctx, homeHtml, fetchXml, maxPages) {
+  const { dom, base, accepted } = ctx;
+  const [links, sitemap] = await Promise.all([
+    Promise.resolve(homeHtml ? discover.discoverLinks(homeHtml, base, accepted) : []),
+    discover.discoverSitemap(dom, accepted, fetchXml).catch(() => []),
+  ]);
+  return discover.orderCandidates(base + '/', [...links, ...sitemap], accepted, maxPages);
+}
+
+// followFooterDocuments(ctx, homeHtml, pages) -> the documents-lane result. Skipped (empty) when
+// document-following is disabled or nothing readable was crawled; otherwise footer-linked policy documents
+// are followed and read honestly (C-033, evidence/documents).
+async function followFooterDocuments(ctx, homeHtml, pages) {
+  const { opts, base, accepted, perPageMs, record } = ctx;
+  const empty = { documents: [], unparsed: [], unparsedClasses: new Set(), notes: [] };
+  if (opts.followDocuments === false || !pages.length) return empty;
+  return collectDocuments(footerLinks(homeHtml, base, accepted),
+    { fetchFn: opts.fetchFn, deadlineMs: perPageMs, timers: opts.timers, log: record });
+}
+
 // crawl(domain, opts) -> the evidence bundle. Thin orchestrator: resolve budgets, fetch the homepage,
 // discover links + sitemap in parallel, order Tier-1-first then cap, fetch the corpus in parallel, follow
 // footer documents, and assemble the corpus + coverage report.
@@ -130,51 +190,32 @@ async function crawl(domain, opts = {}) {
   const dom = normaliseDomain(domain);
   if (!dom || !dom.includes('.')) throw new Error('crawl: a fetchable domain (with a public suffix) is required, got ' + JSON.stringify(domain));
   if (typeof opts.fetchFn !== 'function') throw new Error('crawl: opts.fetchFn is required (all network is dependency-injected)');
-  const log = typeof opts.log === 'function' ? opts.log : () => {};
-  const notes = [];
-  const record = (kind, msg) => { notes.push({ kind, msg }); log(kind, msg); };
-
-  const cap = typeof opts.corpusMaxChars === 'number' ? opts.corpusMaxChars : resolveCap('CORPUS_MAX_CHARS', CORPUS_CAP_DEFAULT, CORPUS_CAP_FLOOR);
-  const maxPages = typeof opts.maxPages === 'number' ? opts.maxPages : resolveCap('MAX_CRAWL_PAGES', PAGES_DEFAULT, PAGES_FLOOR);
-  const width = typeof opts.width === 'number' && opts.width > 0 ? opts.width : WIDTH_DEFAULT;
-  const deadlineMs = typeof opts.deadlineMs === 'number' ? opts.deadlineMs : DEADLINE_DEFAULT;
-  const perPageMs = Math.min(deadlineMs, opts.perPageMs || 20000);
+  const { notes, record } = makeRecorder(opts);
+  const { cap, maxPages, width, deadlineMs, perPageMs } = resolveBudgets(opts);
   const base = 'https://' + dom;
-  const accepted = new Set([safeFetch.registrableDomain(dom)]);
-  const fetchXml = typeof opts.fetchXml === 'function' ? opts.fetchXml : makeFetchXml(opts.fetchFn, perPageMs, opts.timers);
-
-  const home = await fetchPage(opts.fetchFn, base + '/', perPageMs, opts.timers);
-  const homeHtml = home && home.body ? String(home.body) : '';
-  const homeKlass = extract.pageContentClass(home ? home.status : 0, homeHtml);
-  if (homeKlass !== 'content') record('homepage-not-content', base + '/ classified as "' + homeKlass + '"; no content asserted from it (C-031/C-038)');
-
-  const [links, sitemap] = await Promise.all([
-    Promise.resolve(homeHtml ? discover.discoverLinks(homeHtml, base, accepted) : []),
-    discover.discoverSitemap(dom, accepted, fetchXml).catch(() => []),
-  ]);
-  const fetchList = discover.orderCandidates(base + '/', [...links, ...sitemap], accepted, maxPages);
-
   const homeUrl = base + '/';
+  const accepted = safeFetch.acceptedSiteSet(dom);
+  const fetchXml = typeof opts.fetchXml === 'function' ? opts.fetchXml : makeFetchXml(opts.fetchFn, perPageMs, opts.timers);
+  const ctx = { opts, dom, base, accepted, perPageMs, record };
+
+  const { home, homeHtml, homeKlass } = await fetchHomepage(ctx);
+  const fetchList = await discoverFetchList(ctx, homeHtml, fetchXml, maxPages);
+
   const results = await runPool(fetchList, width, deadlineMs,
     (u) => (u === homeUrl ? Promise.resolve(home) : fetchPage(opts.fetchFn, u, perPageMs, opts.timers)), opts.now);
   const { pages, truncated, telemetry } = accumulateCorpus(fetchList, results, cap);
   if (truncated) record('corpus-truncated', 'a page exceeded the ' + cap + '-char corpus cap; absence claims on it demote to needs-review (C-024)');
 
   const footerText = extract.extractFooterText(homeHtml);
-  let docResult = { documents: [], unparsed: [], unparsedClasses: new Set(), notes: [] };
-  if (opts.followDocuments !== false && pages.length) {
-    docResult = await collectDocuments(footerLinks(homeHtml, base, accepted),
-      { fetchFn: opts.fetchFn, deadlineMs: perPageMs, timers: opts.timers, log: record });
-  }
+  const docResult = await followFooterDocuments(ctx, homeHtml, pages);
 
   const unreachable = pages.length === 0;
-  const reason = blockReason(home, homeKlass, pages.length);
   const corpus = { pages, footerText: footerText || undefined };
   return {
     domain: dom,
     corpus,
     unreachable,
-    reason,
+    reason: blockReason(home, homeKlass, pages.length),
     documents: { records: docResult.documents, unparsed: docResult.unparsed },
     coverage: buildCoverage(pages, opts, truncated, docResult.unparsedClasses),
     telemetry: { ...telemetry, pages_captured: pages.length, truncated, via: unreachable ? 'none' : 'direct' },
@@ -182,4 +223,7 @@ async function crawl(domain, opts = {}) {
   };
 }
 
-module.exports = { crawl, resolveCap, normaliseDomain, accumulateCorpus, contentPageFrom, footerLinks, blockReason };
+module.exports = {
+  crawl, resolveCap, normaliseDomain, accumulateCorpus, contentPageFrom, footerLinks, blockReason,
+  resolveBudgets, makeRecorder, fetchHomepage, discoverFetchList, followFooterDocuments,
+};

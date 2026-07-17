@@ -10,12 +10,17 @@ function renderTail(deadlineMs, toRender, pool, renderPage) {
   return pool(toRender, 12, Math.max(20000, Math.floor(deadlineMs * 0.6)), renderPage);
 }
 
-// (2) A floor imposed by binding name (the value initialises a timeout).
-const timeoutMs = Math.max(5000, someComputedBudget());
+// (2) A floor imposed by binding name (the value initialises a timeout). Wrapped in a function so the
+//     other operand is a defined parameter (lint-clean); budget-caps still flags the Math.max floor by the
+//     "timeoutMs" binding name.
+function perStepTimeout(someComputedBudget) {
+  const timeoutMs = Math.max(5000, someComputedBudget);
+  return timeoutMs;
+}
 
 // (3) A deadline literal above the 120s hard-deadline cap (the 752s stuck-Chromium class).
 function slowStep(fn) {
   return setTimeout(fn, 200000);
 }
 
-module.exports = { renderTail, timeoutMs, slowStep };
+module.exports = { renderTail, perStepTimeout, slowStep };

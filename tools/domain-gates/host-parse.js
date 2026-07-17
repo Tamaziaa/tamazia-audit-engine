@@ -29,11 +29,8 @@
  *   node tools/domain-gates/host-parse.js --calibrate   scan eval/calibration-known-bad/fixtures/ and
  *                                                        REQUIRE the seeded host-substring to be caught
  */
-const fs = require('fs');
-const path = require('path');
-
-const { runGateCli, ROOT } = require('../lib/gate-cli');
-const { listJsFiles } = require('../lib/fswalk');
+const { runGateCli } = require('../lib/gate-cli');
+const { scanTreeWith } = require('./acorn-scan');
 
 // Engine-side host-comparison surfaces. tools/ is excluded: the parsed-host DOOR (safe-fetch.js) and the
 // gates themselves legitimately parse hosts; scanning them would flag the one place this is allowed.
@@ -107,18 +104,10 @@ function scanContent(relPath, src) {
   return { violations };
 }
 
+// scanTree delegates the identical directory walk to the shared acorn-scan module (one copy for both
+// domain gates); the per-file host-substring detection stays here in scanContent (this gate's door).
 function scanTree(dirs) {
-  const violations = [];
-  let scanned = 0;
-  for (const dir of dirs) {
-    const absDir = path.isAbsolute(dir) ? dir : path.join(ROOT, dir);
-    for (const abs of listJsFiles(absDir, { skipDirs: SKIP_DIRS, skipTests: true })) {
-      scanned++;
-      const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
-      violations.push(...scanContent(rel, fs.readFileSync(abs, 'utf8')).violations);
-    }
-  }
-  return { violations, scanned };
+  return scanTreeWith(dirs, SKIP_DIRS, scanContent);
 }
 
 // Self-test: prove the ACTIVE engine sees the class, and clears legitimate parsed/scheme/dot checks.

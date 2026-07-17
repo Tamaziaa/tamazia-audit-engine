@@ -1,0 +1,27 @@
+{
+  "comment": "P3 verifier calibration (Constitution Rule 12 Gate 2 / caution.md C-032: models paraphrase inside quotation marks, and Stanford HAI documents fabricated pincites). The candidate's quoted SRA number drifts by ONE CHARACTER from the actual corpus text (...500047 in the candidate vs ...500046 on the page). breach/verifiers/quote-match.js must refuse this candidate: verifyCandidate must return verified:false with code quote_mismatch. Run via: node breach/verifiers/quote-match.js --calibrate. A finding is emitted only when the drifted quote is correctly rejected; zero findings means Gate 2's exact re-match has not earned its zero (Constitution Rule 4).",
+  "candidate": {
+    "rule_id": "SRA_AUTHORISATION_DISCLOSURE",
+    "artifact": {
+      "type": "quote",
+      "page_url": "https://example-law-firm.example/about",
+      "surface": "visible_text",
+      "quote": "We are regulated by the Solicitors Regulation Authority, SRA number 500047."
+    }
+  },
+  "bundle": {
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://example-law-firm.example/about",
+          "title": "About us",
+          "text": "About our firm. We are regulated by the Solicitors Regulation Authority, SRA number 500046. Contact us for more information.",
+          "jsonLd": []
+        }
+      ]
+    }
+  },
+  "poison": {
+    "expected_code": "quote_mismatch"
+  }
+}

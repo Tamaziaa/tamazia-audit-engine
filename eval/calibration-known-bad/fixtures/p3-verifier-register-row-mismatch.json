@@ -1,0 +1,37 @@
+{
+  "comment": "P3 verifier calibration (caution.md C-004/C-005 register-grounding class: a register match or its provenance must never be asserted beyond what the register actually returned). The candidate cites an SRA register row with sra_number 999999, but bundle.registers.sra actually carries sra_number 500046 (the genuine name-matched row). breach/verifiers/register-row.js must refuse the altered citation: verifyCandidate must return verified:false with code register_row_mismatch. Run via: node breach/verifiers/quote-match.js --calibrate.",
+  "candidate": {
+    "rule_id": "SRA_AUTHORISATION_DISCLOSURE",
+    "artifact": {
+      "type": "register_row",
+      "register": "sra",
+      "row": {
+        "organisation_name": "Example Law Firm LLP",
+        "sra_number": "999999",
+        "firm_type": "Solicitor firm",
+        "registered_office_address": "1 Example Street, London, EC1 1AA",
+        "source": "sra",
+        "fetched_at": "2026-01-01T00:00:00.000Z",
+        "query": "Example Law Firm LLP",
+        "match": { "name_queried": "Example Law Firm LLP", "name_matched": "EXAMPLE LAW FIRM LLP", "score": 0.98 }
+      }
+    }
+  },
+  "bundle": {
+    "registers": {
+      "sra": {
+        "organisation_name": "Example Law Firm LLP",
+        "sra_number": "500046",
+        "firm_type": "Solicitor firm",
+        "registered_office_address": "1 Example Street, London, EC1 1AA",
+        "source": "sra",
+        "fetched_at": "2026-01-01T00:00:00.000Z",
+        "query": "Example Law Firm LLP",
+        "match": { "name_queried": "Example Law Firm LLP", "name_matched": "EXAMPLE LAW FIRM LLP", "score": 0.98 }
+      }
+    }
+  },
+  "poison": {
+    "expected_code": "register_row_mismatch"
+  }
+}

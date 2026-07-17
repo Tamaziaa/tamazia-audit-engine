@@ -24,11 +24,8 @@
  *   node tools/domain-gates/budget-caps.js --calibrate   scan eval/calibration-known-bad/fixtures/ and
  *                                                         REQUIRE the seeded floor to be caught
  */
-const fs = require('fs');
-const path = require('path');
-
-const { runGateCli, ROOT } = require('../lib/gate-cli');
-const { listJsFiles } = require('../lib/fswalk');
+const { runGateCli } = require('../lib/gate-cli');
+const { scanTreeWith } = require('./acorn-scan');
 
 // evidence/ is the fetch/crawl/browser code where a floor or an oversize deadline does the damage. The
 // gate lives in tools/, so scanning tools/ would flag the gate's own detection literals; evidence is scope.
@@ -133,15 +130,19 @@ function flagLiteral(node, binding, relPath, line) {
 }
 
 // ── walk: carry the binding name to value-carrying children only ──────────────────────────────────────
+// isMetaKey / lineOf are lifted out so walk itself stays under the branch cap (each is trivially small).
+function isMetaKey(k) { return k === 'loc' || k === 'start' || k === 'end'; }
+function lineOf(node) { return (node.loc && node.loc.start.line) || 1; }
+
 function walk(node, binding, relPath, violations) {
   if (!node || typeof node !== 'object') return;
   if (Array.isArray(node)) { for (const n of node) walk(n, null, relPath, violations); return; }
   if (typeof node.type !== 'string') return;
-  const line = (node.loc && node.loc.start.line) || 1;
+  const line = lineOf(node);
   if (node.type === 'CallExpression') violations.push(...flagCall(node, binding, relPath, line));
   else if (node.type === 'Literal') violations.push(...flagLiteral(node, binding, relPath, line));
   for (const k of Object.keys(node)) {
-    if (k === 'loc' || k === 'start' || k === 'end') continue;
+    if (isMetaKey(k)) continue;
     walk(node[k], valueChildBinding(node, k), relPath, violations);
   }
 }
@@ -156,18 +157,10 @@ function scanContent(relPath, src) {
   return { violations };
 }
 
+// scanTree delegates the identical directory walk to the shared acorn-scan module (one copy for both
+// domain gates); the per-file floor/oversize detection stays here in scanContent (this gate's door).
 function scanTree(dirs) {
-  const violations = [];
-  let scanned = 0;
-  for (const dir of dirs) {
-    const absDir = path.isAbsolute(dir) ? dir : path.join(ROOT, dir);
-    for (const abs of listJsFiles(absDir, { skipDirs: SKIP_DIRS, skipTests: true })) {
-      scanned++;
-      const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
-      violations.push(...scanContent(rel, fs.readFileSync(abs, 'utf8')).violations);
-    }
-  }
-  return { violations, scanned };
+  return scanTreeWith(dirs, SKIP_DIRS, scanContent);
 }
 
 function selfTest() {

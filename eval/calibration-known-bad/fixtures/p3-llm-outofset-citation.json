@@ -1,0 +1,25 @@
+{
+  "note": "SEEDED KNOWN-BAD (P3, Constitution Rule 12 gate 1, caution.md C-147). An adjudicator model returns a well-formed JSON verdict that cites source_id 'S9' - an authority that was NEVER in the injected retrieval set (allowedSourceIds = S1, S2). This is the hallucinated-citation class: 13-21% of legal citations across five commercial systems were fabricated (arXiv 2606.00898). llm/gate.js validateResponse() must HARD-REJECT it with an out_of_set_source_id violation (retrieval-gated emission). The schema is valid and there is no quote, so ONLY gate 1 can catch this: if the retrieval gate is removed, nothing else fires and the calibration correctly fails. Run: node llm/gate.js --calibrate. A finding is emitted only when the poison is refused; zero findings fails eval/calibration-known-bad/run.js (earn-your-zero).",
+  "response": "{\"finding_id\":\"F-CK-101\",\"verdict\":\"violation\",\"source_id\":\"S9\",\"rationale\":\"authority S9 establishes the breach\"}",
+  "schema": {
+    "type": "object",
+    "required": ["finding_id", "verdict"],
+    "additionalProperties": true,
+    "properties": {
+      "finding_id": { "type": "string", "minLength": 1 },
+      "verdict": { "type": "string", "enum": ["violation", "needs-review", "pass"] },
+      "source_id": { "type": "string", "minLength": 1 },
+      "quote": { "type": "string", "minLength": 8 },
+      "rationale": { "type": "string" }
+    }
+  },
+  "allowedSourceIds": ["S1", "S2"],
+  "sources": {
+    "S1": "This privacy notice explains how we handle the personal data you provide when you contact our team.",
+    "S2": "We store enquiry details for as long as needed to answer your question and then delete them."
+  },
+  "poison": {
+    "expect_reject": true,
+    "expect_violation": "out_of_set_source_id"
+  }
+}

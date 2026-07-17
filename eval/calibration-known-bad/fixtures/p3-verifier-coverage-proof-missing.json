@@ -1,0 +1,26 @@
+{
+  "comment": "P3 verifier calibration (caution.md C-024/C-025/C-029: absence claims on unread or truncated content). The candidate claims an absence (no complaints procedure found) and cites a coverage_proof, but the cited corpus was TRUNCATED (truncated:true), so the absence cannot be honestly proven - a footer disclosure could sit past the cut, exactly as russell-cooke's SRA string sat at char 11,080 past an earlier 4,000-char cap. breach/verifiers/coverage-proof.js must refuse this coverage_proof: verifyCandidate must return verified:false with code coverage_proof_truncated. Run via: node breach/verifiers/quote-match.js --calibrate.",
+  "candidate": {
+    "rule_id": "COMPLAINTS_PROCEDURE_DISCLOSURE",
+    "artifact": {
+      "type": "coverage_proof",
+      "page_class": "complaints",
+      "coverage": {
+        "pages": ["https://example-law-firm.example/", "https://example-law-firm.example/about"],
+        "tier1_fetched": true,
+        "truncated": true
+      }
+    }
+  },
+  "bundle": {
+    "corpus": {
+      "pages": [
+        { "url": "https://example-law-firm.example/", "title": "Home", "text": "Welcome.", "jsonLd": [] },
+        { "url": "https://example-law-firm.example/about", "title": "About", "text": "About us.", "jsonLd": [] }
+      ]
+    }
+  },
+  "poison": {
+    "expected_code": "coverage_proof_truncated"
+  }
+}
