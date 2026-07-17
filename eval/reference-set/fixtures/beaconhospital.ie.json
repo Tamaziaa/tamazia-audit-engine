@@ -1,0 +1,301 @@
+{
+  "domain": "beaconhospital.ie",
+  "fetched_at": "2026-07-16T16:35:45.116Z",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://www.beaconhospital.ie/",
+        "title": "Beacon Hospital Dublin - Ireland's Most Advanced Private Hospital",
+        "text": "Healthy Living\n\nAbout us\n\nNews\n\nCareers\n\nContact\n\nPay a Bill\n\nHome\n\nPatients & Visitors\n\nDepartments & Services\n\nLimerick\n\nConsultants\n\nGP Information\n\nPay a Bill\nEmergency Department\n\nHome\n\nPatients & Visitors\n\nDepartments & Services\n\nLimerick\n\nConsultants\n\nGP Information\n\nHealthy Living\n\nAbout us\n\nNews\n\nCareers\n\nContact\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nHome\n\nThis is Modern Medicine\n\nBeacon Hospital provides exceptional patient care with dedicated teams of highly skilled compassionate professionals, enabled by our world leading technologies and equipment.\n\nDepartments & Services\n\nAre you suffering from Hip or Knee Osteoarthritis?\n\nWe now offer a Rapid Access Hip and Knee Service to patients suffering from Hip or Knee Osteoarthritis. Patients can be seen by a consultant within one week and if surgery is required this can be arranged within the month.\n\nRapid Access OA Hip & Knee\n\nBeacon Brain Institute\n\nThe first stage of Beacon Hospital's €30 million investment in our neuroscience services has officially opened in the form of Ireland's first neurovascular hybrid theatre in a private hospital setting.\n\nLearn more about Beacon Brain Institute\n\nWhen was the last time you got your heart checked?\n\nYour heart pumps 7,000 litres of blood each day. At Beacon Hospital's Rapid Access Cardiology Clinic we offer a comprehensive heart assessment with fast access and same day results.\n\nLearn More about RACC\n\nEmergency Department\n\nOur team of experts are on hand to offer immediate access to medical assessment and treatment. Our Consultants in Emergency Medicine and their team treat an array of conditions and injuries from sprains, breaks and cardiac complaints to acute medical and surgical emergencies.\n\nLearn More About Our Emergency Department\n\nDepartments\n\nIn each of our department pages, you’ll discover the services available, its consultants, a step-by-step guide and contact details.\n\nCancer Care\n\nCardiology\n\nOrthopaedics\n\nBeacon for Kids\n\nRadiology\n\nWomen's Centre\n\nEndoscopy\n\nUrology\n\nHealthCheck\n\nEar, Nose & Throat ( ENT )\n\nSports Medicine\n\nSurgical Day Unit\n\nView All Departments\n\nServices\n\nExplore our services to find the care you’re looking for, the consultants involved, a step-by-step guide and contact details.\n\nBlood Tests (Phlebotomy)\n\nRadiotherapy (Radiation Oncology)\n\nDiabetes Centre\n\nNeurosurgery\n\nBeacon for Kids: Surgical Services\n\nBeacon for Kids: Outpatient Clinics\n\nHand Surgery\n\nMedical Oncology\n\nLaboratory\n\nView All Services\n\nKeeping You Safe\n\nAll of our departments remain open and we will continue to treat patients with enhanced health and safety standards in place to keep you safe.\n\nBeacon Hospital\n\nLocated in Sandyford, Dublin 18, Beacon Hospital is one of the most technologically advanced private hospital’s in all of Europe.\n\nPatient Information\n\nUseful information for patients and visitors on everything from how we are keeping you safe to visiting hours and more.\n\nEmergency Department\n\nBeacon Hospital's Emergency Department is consultant-led and over 90% of private health insurance plans cover the ED.\n\nGrateful and thankful to all the staff at the Rapid Access Cardiology Clinic. Thank you for the wonderful care and your personal attention. You have gone above and beyond on several occasions. You are much appreciated. I feel I chose the best place and best doctor possible. Thank you.\n\nMark\n\nFEATURED CONSULTANTS\n\nMs Tafadzwa Mandiwanza\n\nConsultant Neurosurgeon\n\nNeurosurgery\n\nBeacon Brain Institute\n\nDr Barry Hennigan\n\nConsultant Interventional Cardiologist\n\nCardiology\n\nNon-Invasive Cardiology\n\nDr Saboohi Tariq\n\nConsultant Gynaecologist\n\nWomen's Centre\n\nMs Phoebe Roche\n\nConsultant Otolaryngologist\n\nEar, Nose & Throat ( ENT )\n\nView All Consultants\n\nLatest News\n\nJuly 16 th 2026\n\nNEW! Official Opening of Ireland’s First Neurovascular Hybrid Theatre in a Private Hospital\n\nBeacon Hospital Opens Ireland’s First Neurovascular Hybrid Theatre in a Private Hospital. Beacon Hospital...\n\nJune 25 th 2026\n\nBeacon Hospital Celebrates Pride!\n\nToday we celebrated Pride 💙💜🩷💛💚❤️🧡🩶🩵🖤🤍🤎 At Beacon Hospital, we are proud to be...\n\nApril 22 nd 2026\n\n2026 Spring GP Study Day with Beacon Hospital – 18th April\n\n2026 Spring GP Study Day Our 2026 Spring GP Study Day took place on Saturday 18th April in UCD O’Reilly...\n\nView All News\n\nBeacon Hospital\n\nLocated in Sandyford, Dublin 18, Beacon Hospital is one of the most technologically advanced private hospital’s in all of Europe.\n\nBeacon Limerick\n\nLimerick’s most advanced private diagnostic imaging & health screening centre, located on the prestigious Barrington Street is now open.\n\nBeacon Dublin 8\n\nInformation on consultants available and appointments at our D8 Clinic located on the South Circular Road.\n\nBeacon Mullingar\n\nSee a full list of Consultants offering clinics in Mullingar or contact the clinic for an appointment.\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n2026 Beacon Hospital\n\nACCREDITED BY\n\nJoint Commission\nInternational\n\nProud Club\nSponsors",
+        "jsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebPage",
+                "@id": "https://www.beaconhospital.ie/",
+                "url": "https://www.beaconhospital.ie/",
+                "name": "Beacon Hospital Dublin - Ireland's Most Advanced Private Hospital",
+                "isPartOf": {
+                  "@id": "https://www.beaconhospital.ie/#website"
+                },
+                "about": {
+                  "@id": "https://www.beaconhospital.ie/#organization"
+                },
+                "datePublished": "2020-07-30T01:04:48+00:00",
+                "dateModified": "2026-07-16T08:55:53+00:00",
+                "description": "Beacon Hospital has Ireland's most advanced diagnostic equipment & an Emergency Department located in Dublin. HealthCheck, Cardiology, Physiotherapy...",
+                "breadcrumb": {
+                  "@id": "https://www.beaconhospital.ie/#breadcrumb"
+                },
+                "inLanguage": "en-GB",
+                "potentialAction": [
+                  {
+                    "@type": "ReadAction",
+                    "target": [
+                      "https://www.beaconhospital.ie/"
+                    ]
+                  }
+                ]
+              },
+              {
+                "@type": "BreadcrumbList",
+                "@id": "https://www.beaconhospital.ie/#breadcrumb",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Home"
+                  }
+                ]
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://www.beaconhospital.ie/#website",
+                "url": "https://www.beaconhospital.ie/",
+                "name": "Beacon Hospital",
+                "description": "This is Modern Medicine",
+                "publisher": {
+                  "@id": "https://www.beaconhospital.ie/#organization"
+                },
+                "potentialAction": [
+                  {
+                    "@type": "SearchAction",
+                    "target": {
+                      "@type": "EntryPoint",
+                      "urlTemplate": "https://www.beaconhospital.ie/?s={search_term_string}"
+                    },
+                    "query-input": {
+                      "@type": "PropertyValueSpecification",
+                      "valueRequired": true,
+                      "valueName": "search_term_string"
+                    }
+                  }
+                ],
+                "inLanguage": "en-GB"
+              },
+              {
+                "@type": "Organization",
+                "@id": "https://www.beaconhospital.ie/#organization",
+                "name": "Beacon Hospital",
+                "url": "https://www.beaconhospital.ie/",
+                "logo": {
+                  "@type": "ImageObject",
+                  "inLanguage": "en-GB",
+                  "@id": "https://www.beaconhospital.ie/#/schema/logo/image/",
+                  "url": "https://www.beaconhospital.ie/wp-content/uploads/2021/05/Beacon-Computer-Screen-Orb-and-Logo-scaled.jpg",
+                  "contentUrl": "https://www.beaconhospital.ie/wp-content/uploads/2021/05/Beacon-Computer-Screen-Orb-and-Logo-scaled.jpg",
+                  "width": 2560,
+                  "height": 1459,
+                  "caption": "Beacon Hospital"
+                },
+                "image": {
+                  "@id": "https://www.beaconhospital.ie/#/schema/logo/image/"
+                }
+              }
+            ]
+          }
+        ],
+        "ogSiteName": "Beacon Hospital"
+      },
+      {
+        "url": "https://www.beaconhospital.ie/about-us/",
+        "title": "About us - Beacon Hospital",
+        "text": "Healthy Living\n\nAbout us\n\nNews\n\nCareers\n\nContact\n\nPay a Bill\n\nHome\n\nPatients & Visitors\n\nDepartments & Services\n\nLimerick\n\nConsultants\n\nGP Information\n\nPay a Bill\nEmergency Department\n\nHome\n\nPatients & Visitors\n\nDepartments & Services\n\nLimerick\n\nConsultants\n\nGP Information\n\nHealthy Living\n\nAbout us\n\nNews\n\nCareers\n\nContact\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nAbout us\n\nAbout us\n\nOverview\n\nPatients & Visitors\n\nGender Pay Gap Report\n\nManagement\n\nOur Staff\n\nBeacon Hospital Research Institute\n\nUCD Beacon Hospital Academy\n\nResearch Ethics Committee\n\nBeacon Foundation\n\nBeacon News\n\nSustainability\n\nSponsorships\n\nKilmacud Crokes\n\nUkraine Urgent Appeal\n\nPublic Relations\n\nMission and Values\n\nRequest Medical Records\n\nData Protection\n\nJCI Accreditation\n\nHousekeeping\n\nInfection Prevention Control\n\nHome About us\n\nHome\n\nAbout Us\n\nBeacon Hospital is Ireland’s most technologically advanced hospital.\n\nLocated in Sandyford, South Dublin, Beacon Hospital is one of the most technologically advanced private hospital’s in all of Europe.\n\nWith 181 inpatients beds 70 day-case beds, 8 operating theatres, 3 cath labs, 4 endoscopy suites, over 1900 healthcare professionals and upwards of 400 consultants, Beacon Hospital operates as a full-service acute hospital. Departments include, but are not limited to; Cancer Care , Cardiology , Cardiothoracic Surgery , Dermatology , Emergency Medicine , Endocrinology , Endoscopy , ENT , General Medicine and Surgery , Intensive Care , Neurology & Neurosurgery , Orthopaedics , Physiotherapy , Paediatric Care ( medical & surgical ), Plastic Surgery , Radiology , Rheumatology , Sports Medicine , Urology , Vascular Services , Women’s Health , Men’s Health and more.\n\nBeacon Hospital treated over 230,000 patients last year across all areas of medicine and surgery.\n\nClick here to read more about Beacon Hospital’s Department’s and Services .\n\nBeacon Hospital’s theatre department has 8 theatres equipped with the latest technology. Our consultant Surgeons and theatre staff are amongst the most highly regarded and experienced in the country. Our theatres perform a range of elective surgeries as well as time sensitive surgeries such as open-heart, brain and cancer surgeries. The most complex of surgeries such as scoliosis correctional surgeries and surgeries to remove deep seated complex brain tumours are performed in our theatres on an almost daily basis.\n\nOur Cancer Centre is the most comprehensive private centre in the whole of Ireland. We offer a fully encompassing cancer service offering all the essential treatments and services such as medical oncology , radiation oncology (with Ireland’s most advanced radiation oncology equipment), surgical oncology, oncology inpatient unit, oncology direct access admissions, pain medicine , palliative care and patient support.\n\nBeacon Centre for Orthopaedics is Ireland’s most complete private Orthopaedic and Sports Medicine service. With access to over 18 specialist Consultants along with our team of Chartered Physiotherapists and Sports Physiologists, our team will have you back on your feet in no time!\n\nBeacon Hospital’s Cardiology and Cardiothoracic Team consistently bring the latest in ground-breaking world-wide techniques to Ireland. In 2020 alone, Beacon Hospital has performed 4 world and Ireland firsts in the area of Heart Health techniques.\n\nBeacon Hospital provides exceptional patient care in an environment where quality, respect, care and compassion are at the centre of all we do. We believe in investing in the best of technology, equipment and expertise in order to provide our patients care unlike anywhere else in the world.\n\nThis Is Modern Medicine.\n\nUCD Beacon Hospital Academy\n\nDid you know Beacon Hospital is a teaching hospital affiliated with UCD?\n\nThe UCD Beacon Hospital Academy\n\nBeacon Foundation\n\nBeacon Hospital's charitable foundation continues to change the lives of seriously ill patients.\n\nThe Beacon Foundation (Charity)\n\nBeacon Hospital Research Institute (BHRI)\n\nOur research institute is involved in many clinical research projects and trials.\n\nBeacon Hospital Research Institute\n\nMain Contact Details:\n\nPhone\n\n01 293 6600\n\nContact Us\n\nContact Form\n\nA Guide to Beacon Hospital\n\nRead More About Beacon Hospital’s Departments and Services.\n\nSign Up for our\n\nSeasonal Newsletter!\n\nBeacon Hospital’s Seasonal Newsletter covers the latest news and current information, including Consultants and services available at Beacon Hospital.\n\nIn addition to this, there will be pieces from our consultants and team with tips for health and well-being, and useful advice for the whole family\n\n\" * \" indicates required fields\n\nTitle *\n\nFirst Name *\n\nLast Name *\n\nEmail Address *\n\nAre you a GP? *\n\nYes\n\nNo\n\nOther Medical Professional\n\nTerms *\n\nAgree to the event Terms & Conditions and GDPR\n\nEmergency Department\n\nBeacon Hospital's Emergency Department is consultant-led and over 90% of private health insurance plans cover the ED.\n\nGetting Here & Parking\n\nHelping you to get to Beacon Hospital via car, LUAS or bus.\n\nPatient Information\n\nUseful information for patients and visitors on everything from how we are keeping you safe to visiting hours and more.\n\nPay a Bill\n\nUse your invoice number to pay a bill or portion of a bill hassle-free online from the comfort of your own home.\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n2026 Beacon Hospital\n\nACCREDITED BY\n\nJoint Commission\nInternational\n\nProud Club\nSponsors",
+        "jsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebPage",
+                "@id": "https://www.beaconhospital.ie/about-us/",
+                "url": "https://www.beaconhospital.ie/about-us/",
+                "name": "About us - Beacon Hospital",
+                "isPartOf": {
+                  "@id": "https://www.beaconhospital.ie/#website"
+                },
+                "datePublished": "2020-07-30T04:38:03+00:00",
+                "dateModified": "2026-07-07T08:28:52+00:00",
+                "description": "Located in Sandyford, South Dublin, Beacon Hospital is one of the most technologically advanced private hospital’s in all of Europe.",
+                "breadcrumb": {
+                  "@id": "https://www.beaconhospital.ie/about-us/#breadcrumb"
+                },
+                "inLanguage": "en-GB",
+                "potentialAction": [
+                  {
+                    "@type": "ReadAction",
+                    "target": [
+                      "https://www.beaconhospital.ie/about-us/"
+                    ]
+                  }
+                ]
+              },
+              {
+                "@type": "BreadcrumbList",
+                "@id": "https://www.beaconhospital.ie/about-us/#breadcrumb",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Home",
+                    "item": "https://www.beaconhospital.ie/"
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "About us"
+                  }
+                ]
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://www.beaconhospital.ie/#website",
+                "url": "https://www.beaconhospital.ie/",
+                "name": "Beacon Hospital",
+                "description": "This is Modern Medicine",
+                "publisher": {
+                  "@id": "https://www.beaconhospital.ie/#organization"
+                },
+                "potentialAction": [
+                  {
+                    "@type": "SearchAction",
+                    "target": {
+                      "@type": "EntryPoint",
+                      "urlTemplate": "https://www.beaconhospital.ie/?s={search_term_string}"
+                    },
+                    "query-input": {
+                      "@type": "PropertyValueSpecification",
+                      "valueRequired": true,
+                      "valueName": "search_term_string"
+                    }
+                  }
+                ],
+                "inLanguage": "en-GB"
+              },
+              {
+                "@type": "Organization",
+                "@id": "https://www.beaconhospital.ie/#organization",
+                "name": "Beacon Hospital",
+                "url": "https://www.beaconhospital.ie/",
+                "logo": {
+                  "@type": "ImageObject",
+                  "inLanguage": "en-GB",
+                  "@id": "https://www.beaconhospital.ie/#/schema/logo/image/",
+                  "url": "https://www.beaconhospital.ie/wp-content/uploads/2021/05/Beacon-Computer-Screen-Orb-and-Logo-scaled.jpg",
+                  "contentUrl": "https://www.beaconhospital.ie/wp-content/uploads/2021/05/Beacon-Computer-Screen-Orb-and-Logo-scaled.jpg",
+                  "width": 2560,
+                  "height": 1459,
+                  "caption": "Beacon Hospital"
+                },
+                "image": {
+                  "@id": "https://www.beaconhospital.ie/#/schema/logo/image/"
+                }
+              }
+            ]
+          }
+        ],
+        "ogSiteName": "Beacon Hospital"
+      },
+      {
+        "url": "https://www.beaconhospital.ie/contact/",
+        "title": "Contact - Beacon Hospital",
+        "text": "Healthy Living\n\nAbout us\n\nNews\n\nCareers\n\nContact\n\nPay a Bill\n\nHome\n\nPatients & Visitors\n\nDepartments & Services\n\nLimerick\n\nConsultants\n\nGP Information\n\nPay a Bill\nEmergency Department\n\nHome\n\nPatients & Visitors\n\nDepartments & Services\n\nLimerick\n\nConsultants\n\nGP Information\n\nHealthy Living\n\nAbout us\n\nNews\n\nCareers\n\nContact\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nHome Contact\n\nHome\n\nContact\n\nUnable to find the information you are looking for? Use our contact form to request any additional information which you require about Beacon Hospital.\n\nGeneral Contacts\n\nCall our front desk\n\n01 293 6600\n\nThese queries will be answered during regular office hours (ie. not during evenings, weekends or Bank Holidays). For urgent medical or appointment related enquiries (including cancellations) please telephone the Hospital Switch at any time.\n\nPlease do NOT email any personal or sensitive medical information to this address. Instead please telephone the Hospital Switch for assistance.\n\nIf you have a job or career-related enquiry, please use the email address: [email protected] , which is accessed by Human Resources. Thank you for your interest.\n\nSign Up for Our Seasonal Newsletter!\n\nBeacon Hospital’s Seasonal Newsletter covers the latest news and current information, including Consultants and services available at Beacon Hospital.\n\nIn addition to this, there will be pieces from our consultants and team with tips for health and well-being, and useful advice for the whole family.\n\nSign Up Now! \n\nMake an Enquiry\n\nFirst Name *\n\nSurname *\n\nEmail Address *\n\nMobile Number *\n\nType of Enquiry Select option General Enquiries Billing Enquiries Feedback, Compliments & Complaints Covid Testing Queries HealthCheck Medical Records Request Data Protection Enquiries Nursing Careers Careers\n\nMessage\n\nTerms *\n\nAgree to the event Terms & Conditions and GDPR\n\nContact Directory:\n\nBeacon for Kids\n\n01 650 4665\n\nClick here\n\n01 293 7563\n\nBeacon HealthCheck\n\n01 293 6090\n\nClick here\n\nBeacon Limerick\n\n061 233 000\n\nBlood Tests (Phlebotomy)\n\n01 293 7513\n\nBreast Centre\n\n01 293 8686\n\n01 293 8641\n\nCareers (Nursing)\n\n01 293 6094\n\nClick here\n\nCareers (Other/Non-Nursing)\n\n01 293 4632\n\nClick here\n\nCentre for Orthopaedics\n\n01 293 7575\n\nClick here\n\nCompliments & Complaints (Feedback)\n\nClick here\n\nDiabetes Centre\n\n087 612 9958\n\nClick here\n\n01 293 6617\n\nDirect Access Endoscopy\n\n01 650 4717\n\n01 293 7552\n\nEmergency Department\n\n01 293 9999\n\nGP Relations Manager\n\n087 952 0507\n\nClick here\n\nMain Switchboard\n\n01 293 6600\n\nMullingar Satellite Clinic\n\n044 933 0449\n\n01 293 8629\n\nOncology Day Unit\n\n01 293 8676\n\nOncology Ward\n\n01 293 7530\n\nOutpatients Department\n\n01 293 8669\n\nClick here\n\n01 293 8654\n\nPhysiotherapy\n\n01 293 6692\n\nClick here\n\nPR / Media Requests\n\nClick here\n\nRadiology Scheduling\n\n01 293 6028\n\nClick here\n\n01 293 8623\n\nRadiation Oncology\n\n01 293 6691\n\n01 293 6657\n\nRapid Access Cardiology Clinic (RACC)\n\n01 293 6694\n\n01 293 6653\n\nSports Lab / Medicine\n\n01 293 7575\n\nClick here\n\nWomen's Centre\n\n01 293 8684\n\nClick here\n\n01 293 8641\n\nMedia Enquiries: All Media or PR enquiries should be directed to Lorna, [email protected] .\n\nOur Location\n\nBeacon Hospital\n\nSandyford\n\nDublin 18\n\nD18 AK68\n\nIreland\n\nGet directions\n\nClick For Satellite Clinic Details.\n\nEmergency Department\n\nBeacon Hospital's Emergency Department is consultant-led and over 90% of private health insurance plans cover the ED.\n\nGetting Here & Parking\n\nHelping you to get to Beacon Hospital via car, LUAS or bus.\n\nPatient Information\n\nUseful information for patients and visitors on everything from how we are keeping you safe to visiting hours and more.\n\nPay a Bill\n\nUse your invoice number to pay a bill or portion of a bill hassle-free online from the comfort of your own home.\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n2026 Beacon Hospital\n\nACCREDITED BY\n\nJoint Commission\nInternational\n\nProud Club\nSponsors",
+        "jsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebPage",
+                "@id": "https://www.beaconhospital.ie/contact/",
+                "url": "https://www.beaconhospital.ie/contact/",
+                "name": "Contact - Beacon Hospital",
+                "isPartOf": {
+                  "@id": "https://www.beaconhospital.ie/#website"
+                },
+                "datePublished": "2020-09-21T06:16:38+00:00",
+                "dateModified": "2026-07-07T08:28:49+00:00",
+                "description": "Need more help? Use our contact form to request any additional information which you may require about Beacon Hospital.",
+                "breadcrumb": {
+                  "@id": "https://www.beaconhospital.ie/contact/#breadcrumb"
+                },
+                "inLanguage": "en-GB",
+                "potentialAction": [
+                  {
+                    "@type": "ReadAction",
+                    "target": [
+                      "https://www.beaconhospital.ie/contact/"
+                    ]
+                  }
+                ]
+              },
+              {
+                "@type": "BreadcrumbList",
+                "@id": "https://www.beaconhospital.ie/contact/#breadcrumb",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Home",
+                    "item": "https://www.beaconhospital.ie/"
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Contact"
+                  }
+                ]
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://www.beaconhospital.ie/#website",
+                "url": "https://www.beaconhospital.ie/",
+                "name": "Beacon Hospital",
+                "description": "This is Modern Medicine",
+                "publisher": {
+                  "@id": "https://www.beaconhospital.ie/#organization"
+                },
+                "potentialAction": [
+                  {
+                    "@type": "SearchAction",
+                    "target": {
+                      "@type": "EntryPoint",
+                      "urlTemplate": "https://www.beaconhospital.ie/?s={search_term_string}"
+                    },
+                    "query-input": {
+                      "@type": "PropertyValueSpecification",
+                      "valueRequired": true,
+                      "valueName": "search_term_string"
+                    }
+                  }
+                ],
+                "inLanguage": "en-GB"
+              },
+              {
+                "@type": "Organization",
+                "@id": "https://www.beaconhospital.ie/#organization",
+                "name": "Beacon Hospital",
+                "url": "https://www.beaconhospital.ie/",
+                "logo": {
+                  "@type": "ImageObject",
+                  "inLanguage": "en-GB",
+                  "@id": "https://www.beaconhospital.ie/#/schema/logo/image/",
+                  "url": "https://www.beaconhospital.ie/wp-content/uploads/2021/05/Beacon-Computer-Screen-Orb-and-Logo-scaled.jpg",
+                  "contentUrl": "https://www.beaconhospital.ie/wp-content/uploads/2021/05/Beacon-Computer-Screen-Orb-and-Logo-scaled.jpg",
+                  "width": 2560,
+                  "height": 1459,
+                  "caption": "Beacon Hospital"
+                },
+                "image": {
+                  "@id": "https://www.beaconhospital.ie/#/schema/logo/image/"
+                }
+              }
+            ]
+          }
+        ],
+        "ogSiteName": "Beacon Hospital"
+      }
+    ],
+    "footerText": "es\n\nExplore our services to find the care you’re looking for, the consultants involved, a step-by-step guide and contact details.\n\nBlood Tests (Phlebotomy)\n\nRadiotherapy (Radiation Oncology)\n\nDiabetes Centre\n\nNeurosurgery\n\nBeacon for Kids: Surgical Services\n\nBeacon for Kids: Outpatient Clinics\n\nHand Surgery\n\nMedical Oncology\n\nLaboratory\n\nView All Services\n\nKeeping You Safe\n\nAll of our departments remain open and we will continue to treat patients with enhanced health and safety standards in place to keep you safe.\n\nBeacon Hospital\n\nLocated in Sandyford, Dublin 18, Beacon Hospital is one of the most technologically advanced private hospital’s in all of Europe.\n\nPatient Information\n\nUseful information for patients and visitors on everything from how we are keeping you safe to visiting hours and more.\n\nEmergency Department\n\nBeacon Hospital's Emergency Department is consultant-led and over 90% of private health insurance plans cover the ED.\n\nGrateful and thankful to all the staff at the Rapid Access Cardiology Clinic. Thank you for the wonderful care and your personal attention. You have gone above and beyond on several occasions. You are much appreciated. I feel I chose the best place and best doctor possible. Thank you.\n\nMark\n\nFEATURED CONSULTANTS\n\nMs Tafadzwa Mandiwanza\n\nConsultant Neurosurgeon\n\nNeurosurgery\n\nBeacon Brain Institute\n\nDr Barry Hennigan\n\nConsultant Interventional Cardiologist\n\nCardiology\n\nNon-Invasive Cardiology\n\nDr Saboohi Tariq\n\nConsultant Gynaecologist\n\nWomen's Centre\n\nMs Phoebe Roche\n\nConsultant Otolaryngologist\n\nEar, Nose & Throat ( ENT )\n\nView All Consultants\n\nLatest News\n\nJuly 16 th 2026\n\nNEW! Official Opening of Ireland’s First Neurovascular Hybrid Theatre in a Private Hospital\n\nBeacon Hospital Opens Ireland’s First Neurovascular Hybrid Theatre in a Private Hospital. Beacon Hospital...\n\nJune 25 th 2026\n\nBeacon Hospital Celebrates Pride!\n\nToday we celebrated Pride 💙💜🩷💛💚❤️🧡🩶🩵🖤🤍🤎 At Beacon Hospital, we are proud to be...\n\nApril 22 nd 2026\n\n2026 Spring GP Study Day with Beacon Hospital – 18th April\n\n2026 Spring GP Study Day Our 2026 Spring GP Study Day took place on Saturday 18th April in UCD O’Reilly...\n\nView All News\n\nBeacon Hospital\n\nLocated in Sandyford, Dublin 18, Beacon Hospital is one of the most technologically advanced private hospital’s in all of Europe.\n\nBeacon Limerick\n\nLimerick’s most advanced private diagnostic imaging & health screening centre, located on the prestigious Barrington Street is now open.\n\nBeacon Dublin 8\n\nInformation on consultants available and appointments at our D8 Clinic located on the South Circular Road.\n\nBeacon Mullingar\n\nSee a full list of Consultants offering clinics in Mullingar or contact the clinic for an appointment.\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n© 2026 Beacon Hospital\n\nPrivacy Policy\n\nDisclaimer and Terms of Use\n\nCookie Policy\n\nSite by Friday\n\n2026 Beacon Hospital\n\nACCREDITED BY\n\nJoint Commission\nInternational\n\nProud Club\nSponsors"
+  },
+  "registers": {}
+}

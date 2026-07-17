@@ -1,0 +1,28 @@
+{
+  "id": "p1-sector-register-contradiction",
+  "class": "known-bad",
+  "module": "facts/sector.js",
+  "description": "Register cross-check: the visible text two-cue evidence says healthcare, but an SRA register row is present (implying law-firms). A contradicted sector must never ship: the door must DOWNGRADE to abstain and record a register-contradiction. A build that ships either sector on this input is broken.",
+  "bundle": {
+    "domain": "harbourview-hospital.example",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://harbourview-hospital.example/",
+          "title": "Harbourview Hospital",
+          "text": "Welcome to Harbourview Hospital, a leading private hospital and medical centre. Our general practice team offers same day GP appointments, and our oncology department provides cancer care to patients across the region. The clinic is CQC registered and our consultants publish their outcomes every year.",
+          "jsonLd": []
+        }
+      ]
+    },
+    "registers": {
+      "sra": { "matched": true, "name": "Harbourview Legal Services", "note": "pseudonymised fixture row, not a real firm" }
+    }
+  },
+  "options": {},
+  "expect": {
+    "abstain": true,
+    "sector": null,
+    "contradiction_kinds": ["register-contradiction"]
+  }
+}

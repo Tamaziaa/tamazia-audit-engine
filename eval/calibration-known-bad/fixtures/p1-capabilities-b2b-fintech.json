@@ -1,0 +1,39 @@
+{
+  "_header": "KNOWN-BAD FIXTURE (P1 capabilities). Disease: consumer-law gates firing on ubiquitous business language ('book a consultation', 'our customers') re-attached consumer law to B2B firms, including a real B2B fintech (caution.md C-058). This bundle is a B2B fintech with ZERO consumer transaction signals plus the exact trap phrases. Gate that must hold: facts/capabilities.js deriveCapabilities() must NEVER emit b2c present=true here; b2b_only must be present=true with verbatim evidence. Exercised on every run by facts/capabilities.test.js (fixture-driven tests). All names and domains are pseudonymous.",
+  "_module": "facts/capabilities.js",
+  "_expectations": {
+    "predicates": {
+      "b2c": { "present_one_of": [false, "unknown"], "never": true },
+      "b2b_only": { "present_one_of": [true] },
+      "ecommerce": { "present_one_of": ["unknown", false], "never": true }
+    }
+  },
+  "bundle": {
+    "domain": "example-ledger.co.uk",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://www.example-ledger.co.uk/",
+          "title": "Example Ledger | Treasury automation",
+          "text": "Example Ledger builds treasury automation software. Built for businesses that move money at scale. We work exclusively with companies and finance teams. Book a consultation with our team today. Our customers include mid-market finance departments across the UK.",
+          "jsonLd": []
+        },
+        {
+          "url": "https://www.example-ledger.co.uk/platform",
+          "title": "Platform",
+          "text": "The platform reconciles accounts payable and receivable in real time. Request a demo. Pricing is tailored to your organisation and agreed by annual contract.",
+          "jsonLd": []
+        },
+        {
+          "url": "https://www.example-ledger.co.uk/about",
+          "title": "About",
+          "text": "We are a B2B payments infrastructure company serving finance teams. Our customers value straight-through processing. Book a consultation to learn more.",
+          "jsonLd": []
+        }
+      ],
+      "footerText": "Example Ledger Ltd. Registered in England and Wales. Business customers only."
+    },
+    "registers": {},
+    "expectedNeverTrue": ["b2c"]
+  }
+}

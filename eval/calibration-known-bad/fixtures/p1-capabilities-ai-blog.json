@@ -1,0 +1,37 @@
+{
+  "_header": "KNOWN-BAD FIXTURE (P1 capabilities). Disease: capability-scoped law attached on ambient prose, the 'EU AI Act attached to a dentist' class: the word 'AI' in a blog post treated as a real AI product signal (caution.md C-047/C-060 concept applied to uses_ai). This bundle is a management consultancy whose only AI language lives in a blog post (including phrases like 'AI-powered' that WOULD match the product signal if the blog exclusion ever regressed) plus a bare 'AI' mention on a service page. Gate that must hold: facts/capabilities.js deriveCapabilities() must NEVER emit uses_ai present=true here. Exercised on every run by facts/capabilities.test.js (fixture-driven tests). All names and domains are pseudonymous.",
+  "_module": "facts/capabilities.js",
+  "_expectations": {
+    "predicates": {
+      "uses_ai": { "present_one_of": ["unknown", false], "never": true }
+    }
+  },
+  "bundle": {
+    "domain": "example-consultancy.co.uk",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://www.example-consultancy.co.uk/blog/why-ai-matters-for-retail",
+          "title": "Why AI matters for retail",
+          "text": "AI is changing every industry. Artificial intelligence and machine learning are reshaping how retailers forecast demand. AI-powered tools are everywhere, and generative AI is the topic of every boardroom conversation. Powered by AI or not, the winners will be the operators who understand their data.",
+          "jsonLd": []
+        },
+        {
+          "url": "https://www.example-consultancy.co.uk/services",
+          "title": "Services",
+          "text": "We provide management consultancy for retail operators: supply chain reviews, store operations and demand planning. Read our blog about AI. Sign up to our AI insights newsletter.",
+          "jsonLd": []
+        },
+        {
+          "url": "https://www.example-consultancy.co.uk/contact",
+          "title": "Contact",
+          "text": "Get in touch with the team to discuss your operations. We respond within two working days.",
+          "jsonLd": []
+        }
+      ],
+      "footerText": "Example Consultancy LLP. All rights reserved."
+    },
+    "registers": {},
+    "expectedNeverTrue": ["uses_ai"]
+  }
+}
