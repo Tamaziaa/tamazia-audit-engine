@@ -56,7 +56,11 @@ function runSelfTestsOrAbort() {
   step('0. self-tests (earn the zero)');
   const oneDoor = require(path.join(ROOT, 'tools', 'one-door', 'check.js'));
   const swallow = require(path.join(ROOT, 'tools', 'swallow-gate', 'check.js'));
-  for (const [name, mod] of [['one-door', oneDoor], ['swallow-gate', swallow]]) {
+  // The workflow parser is mandatory BEFORE collection (caution.md C-202): a broken or missing
+  // workflow makes required checks vanish, and its self-test also fails closed when python3/PyYAML
+  // never ran, so it cannot silently be skipped here.
+  const workflows = require(path.join(ROOT, 'tools', 'sweep', 'collect-workflows.js'));
+  for (const [name, mod] of [['one-door', oneDoor], ['swallow-gate', swallow], ['workflow-parse', workflows]]) {
     const st = mod.selfTest();
     console.log('  ' + name + ' self-test: ' + (st.pass ? 'PASS' : 'FAIL') + ' (' + st.detail + ')');
     if (!st.pass) {
@@ -64,6 +68,16 @@ function runSelfTestsOrAbort() {
       process.exit(2);
     }
   }
+}
+
+// cleanSarif() -> wipe any SARIF artefacts a previous (possibly interrupted, or since-removed or
+// renamed) sweep left in the sweep's private out/sarif dir, then recreate it empty. mkdirSync alone
+// preserves stale files, and the normaliser reads the directory wholesale, so a removed collector's
+// old findings would leak into the current ledger. The GATE LOOP reruns every tool from a clean
+// state; this is that clean state for the collectors' outputs.
+function cleanSarif() {
+  fs.rmSync(SARIF, { recursive: true, force: true });
+  fs.mkdirSync(SARIF, { recursive: true });
 }
 
 // runCollectorLanes() -> step 1, the lane-runner loop. A gate exiting 1 means it FOUND things;
@@ -126,8 +140,8 @@ function evaluateGate(gateFailures) {
 }
 
 function main() {
-  fs.mkdirSync(SARIF, { recursive: true });
   runSelfTestsOrAbort();
+  cleanSarif();
   const gateFailures = runCollectorLanes();
   runCalibrationOrAbort();
   runNormaliseAndLedger();

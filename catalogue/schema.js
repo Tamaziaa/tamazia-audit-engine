@@ -87,6 +87,11 @@ function isNonEmptyArray(x) {
 function isBoolean(x) {
   return typeof x === 'boolean';
 }
+
+// Semantic date validation lives in its own single-door module (catalogue/valid-date.js): a regex
+// proves shape only, so "2026-02-30" must still be rejected. Re-exported below so schema stays the
+// facade its callers already import.
+const { isRealDate, isRealTimestamp } = require('./valid-date.js');
 function isNullOrFiniteNonNegative(x) {
   return x === null || (typeof x === 'number' && Number.isFinite(x) && x >= 0);
 }
@@ -351,24 +356,38 @@ function validateIntel(record) {
   return v;
 }
 
-// provenance {sources, seed_status, verified_date} (Constitution Rule 14: provenance-mandatory
-// catalogue rows)
+// validateProvenanceDate(v, prov, field) -> pushes a violation when prov[field] is not a real
+// YYYY-MM-DD calendar date (required + shape + semantic). Shared by verified_date and last_synced so
+// both are policed identically (one door for provenance-date semantics).
+function validateProvenanceDate(v, prov, field) {
+  if (!isNonEmptyString(prov[field])) {
+    v.push('provenance.' + field + ': required non-empty string');
+  } else if (!DATE_RX.test(prov[field])) {
+    v.push('provenance.' + field + ': ' + JSON.stringify(prov[field]) + ' must match YYYY-MM-DD');
+  } else if (!isRealDate(prov[field])) {
+    v.push('provenance.' + field + ': ' + JSON.stringify(prov[field]) + ' is not a real calendar date');
+  }
+}
+
+// provenance {sources, seed_status, verified_date, last_synced} (Constitution Rule 14:
+// provenance-mandatory catalogue rows; last_synced is mandatory - "Every row must carry provenance
+// (source, last_synced)").
 function validateProvenance(record) {
   const v = [];
   if (!isPlainObject(record.provenance)) {
-    v.push('provenance: required object {sources, seed_status, verified_date}');
-  } else {
-    if (!isNonEmptyArray(record.provenance.sources)) {
-      v.push('provenance.sources: required non-empty array');
-    } else {
-      for (const s of record.provenance.sources) {
-        if (!isNonEmptyString(s)) v.push('provenance.sources: every entry must be a non-empty string');
-      }
-    }
-    if (!isNonEmptyString(record.provenance.seed_status)) v.push('provenance.seed_status: required non-empty string');
-    if (!isNonEmptyString(record.provenance.verified_date)) v.push('provenance.verified_date: required non-empty string');
-    else if (!DATE_RX.test(record.provenance.verified_date)) v.push('provenance.verified_date: ' + JSON.stringify(record.provenance.verified_date) + ' must match YYYY-MM-DD');
+    v.push('provenance: required object {sources, seed_status, verified_date, last_synced}');
+    return v;
   }
+  if (!isNonEmptyArray(record.provenance.sources)) {
+    v.push('provenance.sources: required non-empty array');
+  } else {
+    for (const s of record.provenance.sources) {
+      if (!isNonEmptyString(s)) v.push('provenance.sources: every entry must be a non-empty string');
+    }
+  }
+  if (!isNonEmptyString(record.provenance.seed_status)) v.push('provenance.seed_status: required non-empty string');
+  validateProvenanceDate(v, record.provenance, 'verified_date');
+  validateProvenanceDate(v, record.provenance, 'last_synced');
   return v;
 }
 
@@ -408,48 +427,59 @@ function validateRecord(record) {
 }
 
 // ---------------------------------------------------------------------------------
-// validatePack(pack) -> string[]
+// validatePack(pack) -> string[]  (decomposed so no single function exceeds the health caps)
 // ---------------------------------------------------------------------------------
-function validatePack(pack) {
+
+// validatePackHeader(pack) -> violations for the pack's own scalar fields (cell, jurisdiction, and
+// a real-calendar-date generated stamp).
+function validatePackHeader(pack) {
   const v = [];
-  const fail = (msg) => v.push(msg);
+  if (!isNonEmptyString(pack.cell)) v.push('cell: required non-empty string');
+  else if (!CELL_RX.test(pack.cell)) v.push('cell: ' + JSON.stringify(pack.cell) + ' must be a lowercase-hyphen slug');
 
-  if (!isPlainObject(pack)) return ['pack is not a plain object'];
-
-  if (!isNonEmptyString(pack.cell)) fail('cell: required non-empty string');
-  else if (!CELL_RX.test(pack.cell)) fail('cell: ' + JSON.stringify(pack.cell) + ' must be a lowercase-hyphen slug');
-
-  if (!isNonEmptyString(pack.jurisdiction)) fail('jurisdiction: required non-empty string');
+  if (!isNonEmptyString(pack.jurisdiction)) v.push('jurisdiction: required non-empty string');
   else if (!vocabulary.isJurisdiction(pack.jurisdiction)) {
-    fail('jurisdiction: ' + JSON.stringify(pack.jurisdiction) + ' is not a known facts/vocabulary.js jurisdiction code');
+    v.push('jurisdiction: ' + JSON.stringify(pack.jurisdiction) + ' is not a known facts/vocabulary.js jurisdiction code');
   }
 
-  if (!isNonEmptyString(pack.generated)) fail('generated: required non-empty string');
-  else if (!DATE_RX.test(pack.generated)) fail('generated: ' + JSON.stringify(pack.generated) + ' must match YYYY-MM-DD');
+  if (!isNonEmptyString(pack.generated)) v.push('generated: required non-empty string');
+  else if (!DATE_RX.test(pack.generated)) v.push('generated: ' + JSON.stringify(pack.generated) + ' must match YYYY-MM-DD');
+  else if (!isRealDate(pack.generated)) v.push('generated: ' + JSON.stringify(pack.generated) + ' is not a real calendar date');
+  return v;
+}
+
+// validatePackRecord(record, i, pack, seenIds) -> violations for one record: its own field-group
+// validation, plus duplicate-id and jurisdiction-consistency checks against the pack. seenIds is
+// threaded so duplicate detection spans the whole records array.
+function validatePackRecord(record, i, pack, seenIds) {
+  const v = validateRecord(record).map((rv) => 'records[' + i + '] ' + rv);
+
+  if (isPlainObject(record) && isNonEmptyString(record.id)) {
+    if (seenIds.has(record.id)) {
+      v.push('records[' + i + '] id: ' + JSON.stringify(record.id) + ' duplicates records[' + seenIds.get(record.id) + ']');
+    } else {
+      seenIds.set(record.id, i);
+    }
+  }
+
+  if (isPlainObject(record) && isNonEmptyString(pack.jurisdiction) && record.jurisdiction !== pack.jurisdiction) {
+    v.push('records[' + i + '] jurisdiction: ' + JSON.stringify(record.jurisdiction) + ' does not match pack jurisdiction ' + JSON.stringify(pack.jurisdiction));
+  }
+  return v;
+}
+
+function validatePack(pack) {
+  if (!isPlainObject(pack)) return ['pack is not a plain object'];
+
+  const v = validatePackHeader(pack);
 
   if (!isNonEmptyArray(pack.records)) {
-    fail('records: required non-empty array');
+    v.push('records: required non-empty array');
     return v;
   }
 
   const seenIds = new Map();
-  pack.records.forEach((record, i) => {
-    const recordViolations = validateRecord(record);
-    for (const rv of recordViolations) fail('records[' + i + '] ' + rv);
-
-    if (isPlainObject(record) && isNonEmptyString(record.id)) {
-      if (seenIds.has(record.id)) {
-        fail('records[' + i + '] id: ' + JSON.stringify(record.id) + ' duplicates records[' + seenIds.get(record.id) + ']');
-      } else {
-        seenIds.set(record.id, i);
-      }
-    }
-
-    if (isPlainObject(record) && isNonEmptyString(pack.jurisdiction) && record.jurisdiction !== pack.jurisdiction) {
-      fail('records[' + i + '] jurisdiction: ' + JSON.stringify(record.jurisdiction) + ' does not match pack jurisdiction ' + JSON.stringify(pack.jurisdiction));
-    }
-  });
-
+  pack.records.forEach((record, i) => v.push(...validatePackRecord(record, i, pack, seenIds)));
   return v;
 }
 
@@ -460,6 +490,8 @@ module.exports = {
   SECTOR_UNIVERSAL,
   isValidSector,
   isValidSubJurisdiction,
+  isRealDate,
+  isRealTimestamp,
   validateRecord,
   validatePack,
 };

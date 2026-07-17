@@ -260,8 +260,10 @@ function verifySector(payload, exp) {
   return { contradictions, abstentions, matches };
 }
 
-// 4. jurisdictions_bound: asserting a jurisdiction outside the verified list is a contradiction.
-//    (jurisdictions_serves is marketing reach and also acceptable for a claimed nexus.)
+// 4. jurisdictions_bound: asserting a BINDING jurisdiction outside the verified bound list is a
+//    contradiction. jurisdictions_serves is marketing reach (Constitution Rule 13: serving a market
+//    is not being bound by its law) and MUST NOT widen the allowed-binding set - an engine that
+//    binds a jurisdiction the reference set records only as served is emitting a false nexus.
 function verifyJurisdictions(payload, exp) {
   const contradictions = [];
   const abstentions = [];
@@ -269,11 +271,7 @@ function verifyJurisdictions(payload, exp) {
 
   if (!Array.isArray(exp.jurisdictions_bound)) return { contradictions, abstentions, matches };
 
-  const allowed = new Set(
-    exp.jurisdictions_bound
-      .concat(Array.isArray(exp.jurisdictions_serves) ? exp.jurisdictions_serves : [])
-      .map(toJurisdictionCode)
-  );
+  const allowed = new Set(exp.jurisdictions_bound.map(toJurisdictionCode));
   const got = extractBound(payload);
   if (got.length === 0) {
     say(abstentions, 'jurisdictions_bound', `expected [${exp.jurisdictions_bound.join(', ')}], engine abstained`);

@@ -454,6 +454,8 @@ Every pointer below is a real failure recorded in the old estate (tamazia-cowork
 
 **C-206** (2026-07-17, P2) A CodeScene multi-entry web form silently dropped batched entries (UI race) and a prior agent's staged entries were lost because the final submit never happened -> UI configuration work must re-read the persisted state after EVERY submit and verify each entry individually; staged-but-unsubmitted state counts as not done.
 
+**C-207** (2026-07-17, P2) New tooling landed inside an open PR reset its review cycle twice (each new gate/tool the reviewers had never seen drew a fresh round of findings on the same PR, so it never converged) -> tooling/enabler code ships through its OWN gate-loop PR; an open feature PR only ever SHRINKS (fixes to what is already there), never grows new tooling surface. A feature PR that keeps adding gates re-opens its own review indefinitely.
+
 ---
 
 ## How this file is used

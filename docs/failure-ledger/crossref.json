@@ -10,8 +10,8 @@
   "totals": {
     "defects": 267,
     "classes": 43,
-    "guarded_classes": 27,
-    "gap_classes": 16,
+    "guarded_classes": 26,
+    "gap_classes": 17,
     "act": 17
   },
   "classification_note": "Sweep defects are triaged category->class with a message-keyword refinement for the \"other\" bucket (see build-crossref.js). This is best-effort triage of tool output; the load-bearing contract is the class->gate mapping, enforced by check.js.",
@@ -228,10 +228,10 @@
     },
     {
       "class": "host-substring",
-      "description": "Host/URL compared by substring or token without parsing (sharesTokenWithDomain one-sided, hasLinkedin persisted-socials bypass, ACT F-0004).",
-      "catching_gate": "tools/lib/safe-path.js",
-      "status": "guarded",
-      "phase": null,
+      "description": "Host/URL compared by substring or token without parsing (sharesTokenWithDomain one-sided, hasLinkedin persisted-socials bypass, ACT F-0004). tools/lib/safe-path.js guards FILESYSTEM paths, not URL-host comparison, so it cannot catch this class; there is no parsed-host comparison gate in facts/ yet. Marked as an HONEST GAP (see GAPS.md) rather than falsely claimed guarded - a wrong guard is worse than an owned hole.",
+      "catching_gate": "tools/domain-gates/host-parse.js",
+      "status": "gap",
+      "phase": "P3",
       "past_severity": "P0",
       "shipped_to_client": false,
       "caution_pointers": [
@@ -2337,8 +2337,8 @@
     {
       "class": "host-substring",
       "caution_pointer": "C-057",
-      "catching_gate": "tools/lib/safe-path.js",
-      "status": "guarded",
+      "catching_gate": "tools/domain-gates/host-parse.js",
+      "status": "gap",
       "id": "SW-0090",
       "source": "sweep",
       "act": true,
@@ -5440,8 +5440,8 @@
     {
       "class": "host-substring",
       "caution_pointer": "C-057",
-      "catching_gate": "tools/lib/safe-path.js",
-      "status": "guarded",
+      "catching_gate": "tools/domain-gates/host-parse.js",
+      "status": "gap",
       "id": "F-0004",
       "source": "act",
       "act": true,
@@ -5464,8 +5464,8 @@
     {
       "class": "host-substring",
       "caution_pointer": "C-057",
-      "catching_gate": "tools/lib/safe-path.js",
-      "status": "guarded",
+      "catching_gate": "tools/domain-gates/host-parse.js",
+      "status": "gap",
       "id": "F-0090",
       "source": "act",
       "act": true,

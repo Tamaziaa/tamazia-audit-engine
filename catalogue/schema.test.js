@@ -80,6 +80,7 @@ function goodRecord() {
       sources: ['FAKE-SOURCE-01 (synthetic test fixture, not a real source)'],
       seed_status: 'confirmed',
       verified_date: '2026-07-16',
+      last_synced: '2026-07-16',
     },
   };
 }
@@ -262,6 +263,34 @@ test('validateRecord: provenance.sources must be non-empty and verified_date mus
   const badDate = goodRecord();
   badDate.provenance.verified_date = '16-07-2026';
   assert.ok(schema.validateRecord(badDate).some((m) => m.includes('provenance.verified_date:')));
+});
+
+test('validateRecord: provenance.last_synced is mandatory and semantically validated (Rule 14)', () => {
+  const noSync = goodRecord();
+  delete noSync.provenance.last_synced;
+  assert.ok(schema.validateRecord(noSync).some((m) => m.includes('provenance.last_synced:')));
+
+  // ISO-shaped but impossible calendar dates are rejected on BOTH provenance dates.
+  const impossible = goodRecord();
+  impossible.provenance.last_synced = '2026-02-30';
+  assert.ok(schema.validateRecord(impossible).some((m) => m.includes('provenance.last_synced:') && m.includes('not a real calendar date')));
+
+  const impossibleVerified = goodRecord();
+  impossibleVerified.provenance.verified_date = '2026-13-01';
+  assert.ok(schema.validateRecord(impossibleVerified).some((m) => m.includes('provenance.verified_date:') && m.includes('not a real calendar date')));
+});
+
+test('isRealDate / isRealTimestamp: shape passes but impossible calendar values are rejected', () => {
+  assert.equal(schema.isRealDate('2026-07-16'), true);
+  assert.equal(schema.isRealDate('2028-02-29'), true); // real leap day
+  assert.equal(schema.isRealDate('2026-02-30'), false);
+  assert.equal(schema.isRealDate('2026-13-01'), false);
+  assert.equal(schema.isRealDate('2026-00-10'), false);
+  assert.equal(schema.isRealTimestamp('2026-07-16T00:00:00Z'), true);
+  assert.equal(schema.isRealTimestamp('2026-07-16T23:59:59.999Z'), true);
+  assert.equal(schema.isRealTimestamp('2026-02-30T00:00:00Z'), false);
+  assert.equal(schema.isRealTimestamp('2026-07-16T24:00:00Z'), false);
+  assert.equal(schema.isRealTimestamp('2026-07-16T00:60:00Z'), false);
 });
 
 test('validateRecord: advisory is optional but must be boolean when present', () => {

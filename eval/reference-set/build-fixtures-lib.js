@@ -182,6 +182,54 @@ function looksLikeSpaShell(bodyHtml, visibleText) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// URL-safety single door: every fetch target (the homepage attempts AND every redirect hop) is
+// parsed through here. Hosts are PARSED via new URL, never substring-matched, so localhost,
+// loopback, link-local and RFC1918 / CGNAT / ULA private ranges cannot be reached even via a
+// crafted redirect (an offline dev tool must not become an SSRF pivot). This is the ONE place host
+// safety is decided; both isFetchableDomain and the network layer route through it.
+// ---------------------------------------------------------------------------
+
+// Blocked IPv4 ranges as [firstOctet, secondOctetLow, secondOctetHigh]: "this network", loopback,
+// the three RFC1918 blocks, link-local, and CGNAT. A /8 block uses the full 0..255 second-octet span.
+const BLOCKED_IPV4_RANGES = [
+  [0, 0, 255], [127, 0, 255], [10, 0, 255], [172, 16, 31],
+  [192, 168, 168], [169, 254, 254], [100, 64, 127],
+];
+
+// isPrivateIPv4(host) -> true for a loopback/private/link-local/CGNAT IPv4 literal or a malformed
+// one (an octet > 255). A non-IPv4-literal host returns false here (the caller handles those).
+function isPrivateIPv4(host) {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!m) return false;
+  const o = m.slice(1).map(Number);
+  if (o.some((n) => n > 255)) return true; // malformed octet: refuse
+  const [a, b] = o;
+  return BLOCKED_IPV4_RANGES.some((r) => a === r[0] && b >= r[1] && b <= r[2]);
+}
+
+// isBlockedHost(host) -> true for any host this tool must never fetch: localhost, loopback, private
+// or link-local literals, IPv6 ULA/link-local, and bare dot-less names (not a public DNS target).
+function isBlockedHost(host) {
+  const h = String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!h) return true;
+  if (h === 'localhost' || h.endsWith('.localhost')) return true;
+  if (h === '0.0.0.0' || h === '::' || h === '::1') return true;
+  if (/^f[cd][0-9a-f]{2}:/.test(h)) return true; // fc00::/7 ULA
+  if (/^fe[89ab][0-9a-f]:/.test(h)) return true; // fe80::/10 link-local
+  if (isPrivateIPv4(h)) return true;
+  return !h.includes('.'); // a dot-less name is an internal/unqualified host, not fetchable
+}
+
+// parseSafeFetchTarget(rawUrl) -> a parsed URL when it is a public http(s) target, else null.
+function parseSafeFetchTarget(rawUrl) {
+  let u;
+  try { u = new URL(rawUrl); } catch (e) { return null; /* malformed URL: refuse (return null; caller rejects) */ }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (isBlockedHost(u.hostname)) return null;
+  return u;
+}
+
 // Trim a fixture object under the byte budget without fabricating anything.
 function trimToBudget(fixture, maxBytes) {
   const size = (o) => Buffer.byteLength(JSON.stringify(o), 'utf8');
@@ -199,8 +247,10 @@ function trimToBudget(fixture, maxBytes) {
     step();
     if (size(f) <= maxBytes) { f.trimmed = true; return f; }
   }
-  f.trimmed = true;
-  return f;
+  // Fail closed: after exhausting every deterministic trim step the fixture is STILL over budget
+  // (an unusually large title or other untrimmed field). Never return an oversized fixture marked
+  // "trimmed" - that would be a budget behaving as anything but a hard cap (Constitution Rule 8).
+  throw new Error('fixture exceeds byte budget after trimming: ' + size(f) + ' > ' + maxBytes + ' bytes');
 }
 
 function pagesOf(f) {
@@ -231,4 +281,6 @@ module.exports = {
   buildBundlePage,
   stripControlChars,
   logSafe,
+  isBlockedHost,
+  parseSafeFetchTarget,
 };

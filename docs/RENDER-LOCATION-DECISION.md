@@ -207,9 +207,12 @@ font/logo files — see finding (d)), deployed via its own CI to a Workers Route
     coded, not configured.
   - **Two Cloudflare dashboards/pipelines to reason about** during any incident — an
     on-call person checking "is tamazia.co.uk healthy" now has to know rendering moved.
-  - **Secrets duplication**: Neon pooler connection string and R2 credentials now live as
-    secrets in two repos' CI instead of one, doubling the leak surface (mitigated by using
-    least-privilege, separately-rotatable tokens per repo).
+  - **Secrets duplication**: the Neon pooler connection string now lives as a secret in two
+    repos' CI instead of one, widening the leak surface (mitigated by using least-privilege,
+    separately rotatable tokens per repo). The `AUDITS` R2 bucket is NOT a duplicated secret:
+    the Worker reaches it at runtime through a binding (no credentials in code), and CI needs
+    only the scoped Cloudflare API token for the wrangler deploy, alongside the Neon secret.
+    This is a binding/configuration concern, not an R2 credential copied into both repos.
 - **Rollback**: re-point the Workers Route deletion (or disable it) and restore
   `functions/audit/` + `public/audit/` from git history in the website repo; redeploy
   website. Because Cloudflare Routes are additive/removable independently of Pages, deleting

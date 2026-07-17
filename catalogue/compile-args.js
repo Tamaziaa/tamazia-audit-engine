@@ -19,6 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const safePath = require('../tools/lib/safe-path.js');
+const { isRealTimestamp } = require('./valid-date.js');
 
 const ISO_RX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
@@ -88,6 +89,11 @@ function assertValidStamp(stamp, ErrorClass) {
   }
   if (!ISO_RX.test(stamp)) {
     throw new ErrorClass('--stamp ' + JSON.stringify(stamp) + ' does not match YYYY-MM-DDTHH:MM:SS(.sss)Z');
+  }
+  // Shape is not enough: reject an ISO-shaped string that names no real UTC instant (2026-02-30,
+  // month 13, hour 25). The compiler's "generated" value must be an instant that actually existed.
+  if (!isRealTimestamp(stamp)) {
+    throw new ErrorClass('--stamp ' + JSON.stringify(stamp) + ' is ISO-shaped but names no real UTC instant (impossible calendar date or time)');
   }
 }
 

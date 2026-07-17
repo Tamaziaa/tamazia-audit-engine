@@ -23,7 +23,7 @@ const lib = require('./lib');
 //
 // CR-13: the currency alternatives deliberately do NOT lead with \b before a non-word symbol
 // (£/$). \b only fires at a transition between a word char and a non-word char; a currency symbol
-// preceded by whitespace (the overwhelmingly common real case: "turnover of £36m") is a
+// preceded by whitespace (the overwhelmingly common real case: "turnover of £99m") is a
 // non-word-to-non-word transition, so a LEADING \b before £ never matches at all - proven dead by
 // this file's own selfTest below. GBP keeps its leading \b (GBP is word characters, the boundary is
 // real); £ and $ do not need one, since \d immediately after already anchors the match precisely
@@ -37,7 +37,7 @@ const THRESHOLD_RX = /\bturnover\b|\brevenue\b|\bemployee(?:s)?\s+(?:count|numbe
 // BELOW_THRESHOLD_RX (CR threshold-guard.js:62): the below/under/exempt SENSE a genuine
 // excluded_when carve-out must carry. A threshold KEYWORD alone in excluded_when is not enough to
 // prove a sub-threshold exemption is modelled - an entry that merely RE-STATES the same ABOVE-
-// threshold trigger ("organisation with annual turnover of GBP 36 million or more") matches
+// threshold trigger ("organisation with annual turnover of GBP 99 million or more") matches
 // THRESHOLD_RX yet models no carve-out at all. hasNonEmptyExcludedWhen therefore now requires BOTH
 // a threshold token AND one of these below/under/less-than/exemption senses in the SAME entry, so a
 // same-threshold-but-not-below excluded_when still leaves the record flagged.
@@ -60,10 +60,10 @@ function textMentionsThreshold(record) {
 // and not merely one that re-states the SAME above-threshold trigger. A single excluded_when entry
 // must carry BOTH:
 //   1. a threshold TOKEN (THRESHOLD_RX - the SAME vocabulary that triggered this check: "turnover",
-//      "revenue", "employees", "SME", "GBP 36 million", "£36m", ...), so a vocabulary change can
+//      "revenue", "employees", "SME", "GBP 99 million", "£99m", ...), so a vocabulary change can
 //      never silently drift the trigger and the carve-out apart; AND
 //   2. a below/under/exemption SENSE (BELOW_THRESHOLD_RX) that expresses the sub-threshold carve-out
-//      itself. THRESHOLD_RX alone is not enough: "organisation with annual turnover of GBP 36 million
+//      itself. THRESHOLD_RX alone is not enough: "organisation with annual turnover of GBP 99 million
 //      or more" matches THRESHOLD_RX but is the ABOVE-threshold trigger restated, not an exemption -
 //      requiring the below/exempt sense too keeps such a same-threshold-but-not-below entry from
 //      wrongly clearing the record (CR threshold-guard.js:62).
@@ -129,16 +129,16 @@ function selfTestFixtures() {
   return {
     missingExcluded: {
       id: 'CAL_SELFTEST_THRESHOLD',
-      name: 'Modern Slavery Act 2015 (transparency statement)',
-      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+      name: 'FAKE_ACT_2099 (synthetic transparency duty)',
+      applies_when: ['organisation with annual turnover of GBP 99 million or more'],
       excluded_when: [],
       penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
     },
     good: {
       id: 'CAL_SELFTEST_THRESHOLD_GOOD',
-      name: 'Modern Slavery Act 2015 (transparency statement)',
-      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
-      excluded_when: ['annual turnover below GBP 36 million'],
+      name: 'FAKE_ACT_2099 (synthetic transparency duty)',
+      applies_when: ['organisation with annual turnover of GBP 99 million or more'],
+      excluded_when: ['annual turnover below GBP 99 million'],
       penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
     },
     bandMissing: {
@@ -146,7 +146,7 @@ function selfTestFixtures() {
       name: 'Some statutory regime',
       applies_when: ['processes personal data'],
       excluded_when: [],
-      penalty: { typical_low: null, typical_high: null, statutory_max: 17500000, currency: 'GBP', basis: 'statutory maximum', max_is_rare: true },
+      penalty: { typical_low: null, typical_high: null, statutory_max: 99000000, currency: 'GBP', basis: 'statutory maximum', max_is_rare: true },
     },
     noThreshold: {
       id: 'CAL_SELFTEST_NOTHRESH',
@@ -159,8 +159,8 @@ function selfTestFixtures() {
     // exclusion reason) must NOT satisfy hasNonEmptyExcludedWhen - the record stays flagged.
     unrelatedExcluded: {
       id: 'CAL_SELFTEST_UNRELATED_EXCLUDED',
-      name: 'Modern Slavery Act 2015 (transparency statement)',
-      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+      name: 'FAKE_ACT_2099 (synthetic transparency duty)',
+      applies_when: ['organisation with annual turnover of GBP 99 million or more'],
       excluded_when: ['B2B-only firms are out of scope'],
       penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
     },
@@ -169,14 +169,14 @@ function selfTestFixtures() {
     // hasNonEmptyExcludedWhen - it models no sub-threshold carve-out at all, so the record stays flagged.
     sameThresholdNotBelow: {
       id: 'CAL_SELFTEST_SAME_THRESHOLD_NOT_BELOW',
-      name: 'Modern Slavery Act 2015 (transparency statement)',
-      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
-      excluded_when: ['organisation with annual turnover of GBP 36 million or more'],
+      name: 'FAKE_ACT_2099 (synthetic transparency duty)',
+      applies_when: ['organisation with annual turnover of GBP 99 million or more'],
+      excluded_when: ['organisation with annual turnover of GBP 99 million or more'],
       penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
     },
     // CR-13: a bare currency-symbol threshold mention at the very START of a string (no preceding
     // word-boundary transition to anchor a leading \b) must still be recognised.
-    currencyTokenStart: { name: '£36m', applies_when: [], excluded_when: [] },
+    currencyTokenStart: { name: '£99m', applies_when: [], excluded_when: [] },
     dollarTokenStart: { name: '$10m', applies_when: [], excluded_when: [] },
   };
 }

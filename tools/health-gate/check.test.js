@@ -1,10 +1,11 @@
 'use strict';
 // tools/health-gate/check.test.js - node:test suite for the complexity-caps gate (caution.md C-163:
-// "a gate that cannot fire is theatre"). Run: node --test tools/health-gate/check.js
+// "a gate that cannot fire is theatre"). Run: node --test tools/health-gate/check.test.js
 //
-// Runs the whole suite against BOTH engines (acorn and the heuristic fallback) via HEALTH_GATE_ENGINE,
-// the same discipline tools/swallow-gate/check.js uses for SWALLOW_GATE_ENGINE=regex: a fallback that
-// is never exercised in CI is a fallback that silently rots.
+// The cap-detection tests run under acorn (mandatory). The heuristic fallback no longer approximates:
+// it REFUSES (throws) so it can never under-report, and HEALTH_GATE_ENGINE=heuristic exercises that
+// fail-closed refusal here so the fallback path cannot silently rot (mirrors SWALLOW_GATE_ENGINE=regex,
+// but where that fallback still scans, this one deliberately refuses - under-reporting is an unearned zero).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -29,11 +30,26 @@ function loadGate(engine) {
   return gate;
 }
 
-for (const engine of ['acorn', 'heuristic']) {
-  test(`[${engine}] selfTest passes`, () => {
+// ── the heuristic fallback must REFUSE (fail closed), never approximate ──────────────────────────────────────
+test('[heuristic] selfTest reports a correct refusal (the fallback fails closed, never under-reports)', () => {
+  const gate = loadGate('heuristic');
+  const st = gate.selfTest();
+  assert.equal(st.pass, true, st.detail);
+  assert.match(st.detail, /REFUSES/);
+});
+
+test('[heuristic] scanContent throws (refuses) on clean AND malformed input rather than returning zero', () => {
+  const gate = loadGate('heuristic');
+  assert.throws(() => gate.scanContent('clean.js', 'function ok(a) { return a; }\n'), /REFUSES/);
+  assert.throws(() => gate.scanContent('broken.js', 'function ( { ) not js'), /REFUSES/);
+});
+
+for (const engine of ['acorn']) {
+  test(`[${engine}] selfTest passes (all five caps, including large-file)`, () => {
     const gate = loadGate(engine);
     const st = gate.selfTest();
     assert.equal(st.pass, true, st.detail);
+    assert.match(st.detail, /large-file/);
   });
 
   test(`[${engine}] scanContent: a long function trips the long-function cap only`, () => {

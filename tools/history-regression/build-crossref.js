@@ -48,15 +48,19 @@ const CATEGORY_CLASS = {
 
 // Message-keyword refinement for the "other" bucket, first match wins. Ordered most-specific
 // first so a message mentioning both "version" and "cache" lands on cache-version, etc.
+// A keyword is only a signal WITH semantic context (caution.md C-203): "out of scope" is not
+// evidence of module-scope state, and a bare "market" wrongly matched "marketing", so those were
+// tightened (\bmarkets?\b is the whole word, never the "marketing" prefix). Negative calibration
+// cases in build-crossref.test.js lock both directions.
 const KEYWORD_CLASS = [
   [/two doors|multiple producer|\bproducers\b|single producer|keep .* aligned|_n2c aligned/i, 'two-doors'],
   [/fail\s*closed|fail-open|before persist|before.*r2|persist.*payload|preflight|marked\s+`?ran`?|gates? (?:before|fail)|fail closed on neon/i, 'fail-open-gate'],
-  [/module[- ]scope|singleton|_warn|_swarn|per-invocation|per-scan|reset between|scoped to one|out of scope/i, 'module-scope-state'],
+  [/module[- ]scope|singleton|_warn|_swarn|per-invocation|per-scan|reset between|scoped to one/i, 'module-scope-state'],
   [/bypass.*catalogue|truncated-code fallback|framework in rule identit|regulator|law name|law title|framework name|fw_name|placeholder string/i, 'law-fact-literal'],
   [/browser observation|presence rule type|prioritise browser|observed[- ]fact/i, 'absence-vs-observation'],
   [/persisted socials|bypass anchor|sharestoken|host anchoring|parse inputs before comparing|anchor.*scheme|url-substring/i, 'host-substring'],
   [/engine[- ]version|required_engine_version|scanner_cache|idem[_ ]key|replay|stale scan/i, 'cache-version'],
-  [/jurisdicti|nexus|detectmarkets|\bbound\b|incorporated|established in|market/i, 'jurisdiction-nexus'],
+  [/jurisdicti|nexus|detectmarkets|\bbound\b|incorporated|established in|\bmarkets?\b/i, 'jurisdiction-nexus'],
   [/\bsector\b|classif/i, 'sector-misclassification'],
   [/fine|penalty|exposure|turnover|statutory (?:cap|max)|currency|\bband\b/i, 'exposure-error'],
   [/citation|provenance|official[- ]url|legislation\.gov|fetch.*200|repealed|duaa cap/i, 'provenance-fabrication'],
@@ -108,14 +112,29 @@ function entryFor(cls, extra) {
   }, extra);
 }
 
-function build(sweepPath) {
-  const sweep = JSON.parse(fs.readFileSync(sweepPath, 'utf8'));
-  const defects = [];
+// assertSweepConsistent(sweep) -> throws when the sweep JSON is truncated or its metadata disagrees
+// with its findings. A truncated findings array must never silently produce a crossref that still
+// claims the original cluster count (CR: reject inconsistent input before emitting the cross-ref).
+function assertSweepConsistent(sweep) {
+  if (!sweep || typeof sweep !== 'object') {
+    throw new Error('build-crossref: sweep JSON is not an object.');
+  }
+  if (!Array.isArray(sweep.findings)) {
+    throw new Error('build-crossref: sweep.findings is not an array; refusing to build a crossref from malformed sweep output.');
+  }
+  if (typeof sweep.clusters === 'number' && sweep.findings.length !== sweep.clusters) {
+    throw new Error('build-crossref: sweep metadata is inconsistent - findings.length=' + sweep.findings.length
+      + ' but metadata claims clusters=' + sweep.clusters + '. A truncated findings array must not produce a crossref asserting the original cluster count.');
+  }
+}
 
-  // 1. the 256 deduped sweep clusters (each already a distinct defect), classified.
+// collectDefects(sweep) -> the full defect list: the classified sweep clusters, the 5 domain-gate
+// classes (engine-semantic defects no marketplace tool found), and the 6 ACT items (>=2 tools agree,
+// recorded as their own entries so the ledger names them directly).
+function collectDefects(sweep) {
+  const defects = [];
   sweep.findings.forEach((f, i) => {
-    const cls = classForSweep(f);
-    defects.push(entryFor(cls, {
+    defects.push(entryFor(classForSweep(f), {
       id: 'SW-' + String(i + 1).padStart(4, '0'),
       source: 'sweep',
       act: (f.corroboration || 0) >= 2,
@@ -128,38 +147,27 @@ function build(sweepPath) {
       fingerprint: f.fingerprint,
     }));
   });
-
-  // 2. the 5 domain-gate classes (engine-semantic defects no marketplace tool found).
   for (const dg of DOMAIN_GATES) {
     defects.push(entryFor(dg.class, {
-      id: dg.id,
-      source: 'domain-gate',
-      act: true, // a domain gate is a confirmed engine defect, not a lead
-      severity: dg.past_severity,
-      path: 'digest-findings-bible.md §12',
-      message: dg.name + ': ' + dg.note,
+      id: dg.id, source: 'domain-gate', act: true, severity: dg.past_severity,
+      path: 'digest-findings-bible.md §12', message: dg.name + ': ' + dg.note,
     }));
   }
-
-  // 3. the 6 ACT items explicitly (>=2 tools agree). These overlap sweep clusters but are named
-  //    facts in the digest; recorded as their own entries so the ledger names them directly.
   for (const a of ACT) {
     defects.push(entryFor(a.class, {
-      id: a.id,
-      source: 'act',
-      act: true,
-      severity: a.past_severity,
-      path: a.path,
-      message: a.note,
+      id: a.id, source: 'act', act: true, severity: a.past_severity, path: a.path, message: a.note,
     }));
   }
+  return defects;
+}
 
-  // 4. the taxonomy rollup: one row per class, carrying the caution pointers it distils. This is
-  //    the structure check.js validates ("if any class has catching_gate MISSING or names a file
-  //    that does not exist").
+// buildTaxonomyRollup(defects) -> one row per class carrying the caution pointers it distils and its
+// defect count. This is the structure check.js validates (catching_gate present and pointing at a
+// real or phase-owned file).
+function buildTaxonomyRollup(defects) {
   const counts = {};
   for (const d of defects) counts[d.class] = (counts[d.class] || 0) + 1;
-  const taxonomy = TAXONOMY.map((t) => ({
+  return TAXONOMY.map((t) => ({
     class: t.class,
     description: t.description,
     catching_gate: t.catching_gate,
@@ -170,9 +178,14 @@ function build(sweepPath) {
     caution_pointers: t.caution,
     defect_count: counts[t.class] || 0,
   }));
+}
 
-  const guarded = taxonomy.filter((t) => t.status === 'guarded').length;
-  const gap = taxonomy.filter((t) => t.status === 'gap').length;
+function build(sweepPath) {
+  const sweep = JSON.parse(fs.readFileSync(sweepPath, 'utf8'));
+  assertSweepConsistent(sweep);
+
+  const defects = collectDefects(sweep);
+  const taxonomy = buildTaxonomyRollup(defects);
 
   return {
     _README: 'The historical-failure crossref. Every distinct defect from the old estate mapped to a failure class, the caution.md pointer it distils, the gate in THIS repo that catches its class, and whether that gate is live (guarded) or planned (gap). Regenerate with: npm run history:build. Validated by: npm run history.',
@@ -186,8 +199,8 @@ function build(sweepPath) {
     totals: {
       defects: defects.length,
       classes: taxonomy.length,
-      guarded_classes: guarded,
-      gap_classes: gap,
+      guarded_classes: taxonomy.filter((t) => t.status === 'guarded').length,
+      gap_classes: taxonomy.filter((t) => t.status === 'gap').length,
       act: defects.filter((d) => d.act).length,
     },
     classification_note: 'Sweep defects are triaged category->class with a message-keyword refinement for the "other" bucket (see build-crossref.js). This is best-effort triage of tool output; the load-bearing contract is the class->gate mapping, enforced by check.js.',
@@ -236,4 +249,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { build, classForSweep, classifyOther };
+module.exports = { build, classForSweep, classifyOther, assertSweepConsistent };

@@ -16,20 +16,32 @@ const { spawnSync, execFileSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const WF_DIR = path.join(ROOT, '.github', 'workflows');
 
-function main() {
-  let files = [];
-  try {
-    files = fs.readdirSync(WF_DIR).filter((f) => /\.ya?ml$/.test(f)).sort();
-  } catch (e) {
-    // FAIL-OPEN: an absent .github/workflows directory means there is genuinely nothing to parse, so a clean
-    // zero is correct; the parser gate below still refuses to report an unearned zero when a parser is missing.
-    console.log('collect-workflows: no .github/workflows directory (' + e.code + ') - nothing to check.');
-    return 0;
+// discoverWorkflowFiles(dir) -> { ok: true, files } when the directory exists and holds at least one
+// YAML workflow, otherwise { ok: false, message }. Both failure branches are the SAME protected
+// class: deleting every workflow (or the whole directory) makes the required checks VANISH from
+// GitHub rather than fail (caution.md C-202), so an empty/missing set is broken configuration, never
+// a clean zero. Kept pure and exported so the fail-closed contract is unit-testable.
+function discoverWorkflowFiles(dir) {
+  // A missing directory is checked explicitly (no catch): an absent .github/workflows is the vanished-
+  // check failure, not "nothing to do". If the directory exists but is unreadable, readdirSync throws
+  // and the tool aborts with a non-zero exit - still fail closed, never a false pass.
+  if (!fs.existsSync(dir)) {
+    return { ok: false, message: '.github/workflows is missing - deleting workflows makes required checks vanish from GitHub rather than fail. Exit 1 (broken configuration).' };
   }
+  const files = fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort();
   if (files.length === 0) {
-    console.log('collect-workflows: 0 workflow files - nothing to check.');
-    return 0;
+    return { ok: false, message: '0 workflow files under .github/workflows - the required-check set is empty, the vanished-check failure this gate exists to catch. Exit 1.' };
   }
+  return { ok: true, files };
+}
+
+function main() {
+  const discovered = discoverWorkflowFiles(WF_DIR);
+  if (!discovered.ok) {
+    console.error('collect-workflows: ' + discovered.message);
+    return 1;
+  }
+  const files = discovered.files;
 
   try {
     execFileSync('python3', ['-c', 'import yaml'], { stdio: 'ignore' });
@@ -67,6 +79,12 @@ function selfTest() {
   fs.writeFileSync(badFile, 'name: broken: because: unquoted\non: push\n');
   const r = spawnSync('python3', ['-c', 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))', badFile], { encoding: 'utf8' });
   fs.rmSync(tmp, { recursive: true, force: true });
+  // Fail closed on a parser that never ran: spawnSync sets r.error (and r.status === null) when
+  // python3/PyYAML is absent, and r.status !== 0 would treat that ENOENT as a "rejection" - an
+  // unearned pass. Only a real non-zero exit on the seeded broken YAML counts.
+  if (r.error || r.status === null) {
+    return { pass: false, detail: 'python3+PyYAML unavailable (' + (r.error ? r.error.code : 'no exit status') + ') - parser never ran, cannot earn a zero' };
+  }
   return { pass: r.status !== 0, detail: r.status !== 0 ? 'seeded broken YAML correctly rejected' : 'seeded broken YAML was ACCEPTED - parser cannot see the class' };
 }
 
@@ -78,4 +96,4 @@ if (require.main === module) {
   }
   process.exit(main());
 }
-module.exports = { main, selfTest };
+module.exports = { main, selfTest, discoverWorkflowFiles };

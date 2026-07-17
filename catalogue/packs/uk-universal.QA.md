@@ -1,4 +1,4 @@
-<!-- qa-approval pack_sha256=5705ec13ea88ae37c8278ead34b5a2fc44c6fc8419c588875b4ecf155ab0a89f verdict=approved reviewed=2026-07-17 -->
+<!-- qa-approval pack_sha256=c317905b8acc935b5263b06812ff45476f3e08a17e0b1b8835386c8c9adeb6bd verdict=approved reviewed=2026-07-17 -->
 Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
 
 # uk-universal — QA verification (2026-07-17)

@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const crypto = require('crypto');
+const { isRealDate } = require('./valid-date.js');
 
 function sha256Hex(s) {
   return crypto.createHash('sha256').update(s, 'utf8').digest('hex');
@@ -47,6 +48,10 @@ const QA_APPROVAL_RX = /^\s*<!--\s*qa-approval\s+pack_sha256=([0-9a-f]{64})\s+ve
 function parseQaApprovalHeader(sidecarText) {
   const m = QA_APPROVAL_RX.exec(String(sidecarText == null ? '' : sidecarText));
   if (!m) return null;
+  // Shape is not enough: a header whose reviewed date is ISO-shaped but impossible (2026-02-30) is
+  // not a verifiable sign-off. Treat it exactly like a missing header (return null) so the caller
+  // refuses the pack rather than trusting a nonsense review date.
+  if (!isRealDate(m[2])) return null;
   return { pack_sha256: m[1], verdict: 'approved', reviewed: m[2] };
 }
 

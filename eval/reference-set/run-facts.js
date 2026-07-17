@@ -15,7 +15,9 @@
 //
 //     MATCH        a door asserts a value and it agrees with the verified expectation
 //     ABSTAIN      a door omits or marks needs-review a value the set expects       (allowed, logged)
-//     UNREACHABLE  no fixture on disk for a verified firm                            (allowed, logged)
+//     OK*          a door's expectations are met by abstention because the CAPTURED bundle is an
+//                  explicit unreachable (bot-walled / SPA shell)                     (allowed, logged)
+//     MISSING      no fixture on disk for a verified firm - an uncovered gap         (FAIL, exit 2)
 //     CONTRADICT   a door asserts a value that disagrees with a verified expectation (FAIL, exit 1)
 //
 // Canonicalisation is via facts/vocabulary.js (the single vocabulary door): the engine's sector
@@ -126,23 +128,33 @@ function capsSummary(caps) {
   return { present, total };
 }
 
-// hasReadableCorpus(bundle) -> true when the bundle carries at least one crawled page. An
-// unreadable/bot-walled/SPA-shell bundle (no corpus) is a legitimate, allowed category - split out
-// of runFirm purely so its own four-clause boolean does not inflate runFirm's decision count.
+// hasReadableCorpus(bundle) -> true when the bundle carries OBSERVED VISIBLE TEXT: at least one page
+// with non-empty text, or a non-empty footerText. Readability is a property of observed text, never
+// of page COUNT: a bundle of blank page objects is NOT readable, and footer-only evidence with no
+// pages IS. This mirrors facts/capabilities.js buildSurfaces, which scans exactly these surfaces, so
+// the harness and the capabilities door agree on what "readable" means. Absence of readable text and
+// presence of unreadable evidence must never be conflated (CR: absence != observation).
 function hasReadableCorpus(bundle) {
-  return Boolean(bundle && bundle.corpus && typeof bundle.corpus === 'object'
-    && Array.isArray(bundle.corpus.pages) && bundle.corpus.pages.length > 0);
+  const corpus = bundle && bundle.corpus;
+  if (!corpus || typeof corpus !== 'object') return false;
+  const pages = Array.isArray(corpus.pages) ? corpus.pages : [];
+  const hasPageText = pages.some((p) => p && typeof p.text === 'string' && p.text.trim() !== '');
+  const hasFooterText = typeof corpus.footerText === 'string' && corpus.footerText.trim() !== '';
+  return hasPageText || hasFooterText;
 }
 
 // deriveFactsForBundle(bundle, hasCorpus) -> the four facts doors' output for one bundle.
-// deriveCapabilities requires a corpus by contract, so on a corpus-less bundle capabilities is
-// simply not applicable (null) rather than invoked - it is NOT an error.
+// deriveCapabilities requires a scannable pages array by contract, so on a bundle with no pages to
+// scan (footer-only, or an unreadable bundle) capabilities is simply not applicable (null) rather
+// than invoked - it is NOT an error.
 function deriveFactsForBundle(bundle, hasCorpus) {
+  const pages = bundle && bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
+  const canDeriveCaps = hasCorpus && pages.length > 0;
   return {
     identity: identity.resolveIdentity(bundle),
     jurisdiction: jurisdiction.resolveJurisdiction(bundle),
     sector: sector.resolveSector(bundle),
-    capabilities: hasCorpus ? capabilities.deriveCapabilities(bundle) : null,
+    capabilities: canDeriveCaps ? capabilities.deriveCapabilities(bundle) : null,
   };
 }
 
@@ -180,7 +192,11 @@ function runFirm(firm, fixturesDir) {
   }
   const fixturePath = path.join(fixturesDir, firm.domain + '.json');
   if (!fs.existsSync(fixturePath)) {
-    return { domain: firm.domain, role: firm.role, status: 'UNREACHABLE', detail: 'no fixture on disk', report: null };
+    // A verified firm with NO captured artefact on disk is an uncovered gap, not an abstention. Only
+    // an explicitly captured unreachable bundle (a fixture that exists and is bot-walled / a SPA
+    // shell) may abstain; a missing file evaluated nothing and must fail closed (CR: missing files
+    // must fail; absence of a check is never a clean result).
+    return { domain: firm.domain, role: firm.role, status: 'MISSING', detail: 'no fixture on disk - a verified firm with no captured artefact is an uncovered gap, not an abstention', report: null };
   }
 
   let bundle;
@@ -235,8 +251,8 @@ function printTable(rows) {
       console.log([pad(r.domain, W[0]), pad(r.role, W[1]), pad('-', W[2]), pad('-', W[3]), pad('-', W[4]), pad('-', W[5]), pad('UNREACHABLE', W[6])].join(' '));
       continue;
     }
-    if (r.status === 'ERROR') {
-      console.log([pad(r.domain, W[0]), pad(r.role, W[1]), pad('-', W[2]), pad('-', W[3]), pad('-', W[4]), pad('-', W[5]), pad('ERROR', W[6])].join(' '));
+    if (r.status === 'ERROR' || r.status === 'MISSING') {
+      console.log([pad(r.domain, W[0]), pad(r.role, W[1]), pad('-', W[2]), pad('-', W[3]), pad('-', W[4]), pad('-', W[5]), pad(r.status, W[6])].join(' '));
       continue;
     }
     const sec = statusOf(r.report, 'sector');
@@ -270,6 +286,7 @@ function summarise(rows) {
     ok: rows.filter((r) => r.status === 'OK').length,
     contradicting: rows.filter((r) => r.status === 'CONTRADICT').length,
     unreachable: rows.filter((r) => r.status === 'UNREACHABLE').length,
+    missing: rows.filter((r) => r.status === 'MISSING').length,
     errored: rows.filter((r) => r.status === 'ERROR').length,
     matches,
     abstentions,
@@ -309,6 +326,14 @@ function loadRefSetAndFixtures(opts) {
     console.error('Fixtures directory not found: ' + opts.fixtures);
     return { exitCode: 2 };
   }
+  // Fail closed on an existing-but-empty fixtures directory: it would otherwise produce only MISSING
+  // rows and, before this guard, a misleading clean exit. A gate that evaluated no artefacts has not
+  // run (CR: never report a clean result for a check that never ran).
+  const fixtureFiles = fs.readdirSync(opts.fixtures).filter((f) => f.endsWith('.json'));
+  if (fixtureFiles.length === 0) {
+    console.error('Fixtures directory is empty (no .json bundles): ' + opts.fixtures + ' - nothing to evaluate, so the run cannot report a clean result.');
+    return { exitCode: 2 };
+  }
   return { refSet };
 }
 
@@ -316,6 +341,11 @@ function loadRefSetAndFixtures(opts) {
 // in the reference set.
 function selectFirms(refSet, opts) {
   let firms = refSet.firms || [];
+  // Fail closed on an empty firm set: a reference-set gate with nobody to check evaluated nothing.
+  if (firms.length === 0) {
+    console.error('Reference set has an empty firms[] array - nothing to check, so the run cannot report a clean result.');
+    return { exitCode: 2 };
+  }
   if (opts.domain) {
     const found = findFirm(refSet, opts.domain);
     if (!found) {
@@ -339,7 +369,7 @@ function printHumanReport(rows, summary, errored) {
   console.log('legend: match/abstain per the reference law; OK* = reachable-firm expectations met by '
     + 'abstention because the fixture bundle is unreachable (bot-walled / SPA shell); caps n/a = no corpus to derive from');
   console.log('summary: ' + summary.firms + ' firms | ' + summary.ok + ' ok (' + unreachableBundles + ' on unreachable bundles) | '
-    + summary.contradicting + ' contradicting | ' + summary.unreachable + ' no-fixture | ' + summary.errored + ' errored');
+    + summary.contradicting + ' contradicting | ' + summary.missing + ' missing-fixture | ' + summary.errored + ' errored');
   console.log('         ' + summary.matches + ' matches, ' + summary.abstentions + ' abstentions (allowed), '
     + summary.contradictions + ' contradictions');
   if (summary.contradictions > 0) {
@@ -353,8 +383,8 @@ function printHumanReport(rows, summary, errored) {
   }
   for (const r of errored) console.log('\nERROR  ' + r.domain + ': ' + r.detail);
   console.log('');
-  console.log(summary.errored > 0
-    ? 'RESULT: ERROR - a facts door threw or a fixture was unreadable'
+  console.log((summary.errored > 0 || summary.missing > 0)
+    ? 'RESULT: ERROR - a facts door threw, a fixture was unreadable, or a verified firm had no captured fixture (uncovered gap)'
     : (summary.contradictions > 0
       ? 'RESULT: CONTRADICTION - the facts layer contradicted hand-verified ground truth'
       : 'RESULT: OK (no contradictions; abstentions and unreachable fixtures allowed)'));
@@ -383,7 +413,9 @@ function main(argv) {
     printHumanReport(rows, summary, errored);
   }
 
-  if (summary.errored > 0) return 2;
+  // Fail closed: a door throwing or an unreadable fixture (ERROR) or a verified firm with no captured
+  // artefact (MISSING) both mean the gate did not fully run. A contradiction is the substantive fail.
+  if (summary.errored > 0 || summary.missing > 0) return 2;
   return summary.contradictions > 0 ? 1 : 0;
 }
 
@@ -391,4 +423,4 @@ if (require.main === module) {
   process.exit(main(process.argv));
 }
 
-module.exports = { factsToPayload, canonicaliseFirm, subSectorNote, runFirm, summarise };
+module.exports = { factsToPayload, canonicaliseFirm, subSectorNote, runFirm, summarise, hasReadableCorpus, loadRefSetAndFixtures, selectFirms };

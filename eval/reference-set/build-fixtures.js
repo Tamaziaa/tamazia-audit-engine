@@ -66,6 +66,8 @@ const {
   buildBundlePage,
   stripControlChars,
   logSafe,
+  isBlockedHost,
+  parseSafeFetchTarget,
 } = require('./build-fixtures-lib.js');
 
 // ---------------------------------------------------------------------------
@@ -74,8 +76,11 @@ const {
 
 function fetchOnce(url) {
   return new Promise((resolve, reject) => {
-    let u;
-    try { u = new URL(url); } catch (e) { return reject(new Error(`bad url: ${url}`)); }
+    // Single door: every hop (initial attempt AND every redirect, since redirects re-enter here)
+    // is re-parsed and re-validated for host safety before a socket is opened. A hostname-shaped
+    // string is never trusted; localhost/loopback/private/link-local targets are refused (CR#21).
+    const u = parseSafeFetchTarget(url);
+    if (!u) return reject(new Error(`refused unsafe or malformed fetch target: ${url}`));
     const lib = u.protocol === 'http:' ? http : https;
     const req = lib.request(
       u,
@@ -162,10 +167,13 @@ async function fetchHomepage(domain) {
   throw lastErr || new Error('unreachable');
 }
 
-// isFetchableDomain(domain) -> true for a plain hostname shape this offline dev tool may fetch.
+// isFetchableDomain(domain) -> true for a plain PUBLIC hostname shape this offline dev tool may
+// fetch. The shape gate rejects non-hostname characters; the host-safety single door (isBlockedHost)
+// then rejects localhost/loopback/private/link-local literals so this never duplicates host logic.
 // By design: it fetches only the reference-set domains, never in the mint path.
 function isFetchableDomain(domain) {
-  return /^[a-z0-9][a-z0-9.-]{1,251}[a-z0-9]$/.test(domain);
+  if (!/^[a-z0-9][a-z0-9.-]{1,251}[a-z0-9]$/.test(domain)) return false;
+  return !isBlockedHost(domain.toLowerCase());
 }
 
 // fetchHomeOrAbstain(domain, fetchedAt) -> {home} on success, or {abstain: <unreachable fixture>}
@@ -370,6 +378,9 @@ module.exports = {
   trimToBudget,
   buildBundlePage,
   buildFixtureForDomain,
+  isFetchableDomain,
+  isBlockedHost,
+  parseSafeFetchTarget,
   stripControlChars,
   logSafe,
   deepStripControlChars,

@@ -1,11 +1,11 @@
-<!-- qa-approval pack_sha256=d83a4358bdd40651ee084355c70b5659f95440c089d170c552604c7b93f9da4f verdict=approved reviewed=2026-07-17 -->
+<!-- qa-approval pack_sha256=40f9155c9273c709e2f919c7c3754b8574550e3f22b96eee5d44debefcc37fb9 verdict=approved reviewed=2026-07-17 -->
 Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
 
 # QA Report — us-healthcare.json
 
 **QA date:** 2026-07-17
 **Records:** 17 total. By **seed provenance** (where the row came from): seed-confirmed 5, seed-corrected 1, gap_filled 11, not_in_seed 0. This is a different axis from the **QA-verdict** counts below (whether the row survived this review) — the two "confirmed" numbers measure different things and are labelled here to keep them distinct (CR-23).
-**Verdict:** PASS. No fabrications, no polarity errors, no records downgraded.
+**Verdict:** PASS. No fabrications, no polarity errors. Two records (US_MEDBOARD_ADV_TX, US_MEDBOARD_ADV_IL) were conservatively downgraded to needs_verification and excluded from the compiled artifact (retained in the source pack) - see the counts below.
 
 ## Counts (QA verdict — did the row survive review)
 - **Checked:** 17 records; 12 citations/enforcement facts fetched or searched to source.

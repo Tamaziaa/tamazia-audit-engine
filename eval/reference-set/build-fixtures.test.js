@@ -20,6 +20,9 @@ const {
   stripControlChars,
   logSafe,
   MAX_FIXTURE_BYTES,
+  isFetchableDomain,
+  isBlockedHost,
+  parseSafeFetchTarget,
 } = require('./build-fixtures.js');
 
 test('stripHtml removes script/style/head noise and keeps visible prose (C-012)', () => {
@@ -131,6 +134,39 @@ test('trimToBudget brings an oversized fixture under 150KB without inventing fie
   // An already-small fixture passes through untouched (no spurious trimmed flag).
   const small = { domain: 'a', corpus: { pages: [], footerText: '' }, registers: {} };
   assert.equal(trimToBudget(small, MAX_FIXTURE_BYTES).trimmed, undefined);
+  // Budgets are caps, never floors: a fixture whose UNTRIMMED field (a giant footerText that no step
+  // reduces) stays over budget must fail closed, never return oversized-but-"trimmed" (CR).
+  const untrimmable = {
+    domain: 'acme.co.uk',
+    corpus: { pages: [], footerText: 'f'.repeat(MAX_FIXTURE_BYTES * 2) },
+    registers: {},
+  };
+  assert.throws(() => trimToBudget(untrimmable, MAX_FIXTURE_BYTES), /exceeds byte budget after trimming/);
+});
+
+test('URL-safety single door refuses localhost, loopback, private and malformed fetch targets (CR#21)', () => {
+  // Blocked hosts: loopback, RFC1918, CGNAT, link-local, IPv6 ULA/link-local, dot-less names.
+  for (const h of ['localhost', 'app.localhost', '127.0.0.1', '127.9.9.9', '10.0.0.5', '172.16.0.1',
+    '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fc00::1', 'fe80::1', 'internalbox']) {
+    assert.equal(isBlockedHost(h), true, `${h} should be blocked`);
+  }
+  // A malformed octet is refused, not silently allowed.
+  assert.equal(isBlockedHost('999.1.1.1'), true);
+  // Public hosts pass the host gate.
+  for (const h of ['example.com', 'dermexpert.co.uk', '8.8.8.8', 'sub.example.org']) {
+    assert.equal(isBlockedHost(h), false, `${h} should be allowed`);
+  }
+  // parseSafeFetchTarget refuses non-http(s), malformed URLs and blocked hosts, and parses good ones.
+  assert.equal(parseSafeFetchTarget('http://127.0.0.1/x'), null);
+  assert.equal(parseSafeFetchTarget('file:///etc/passwd'), null);
+  assert.equal(parseSafeFetchTarget('ftp://example.com/'), null);
+  assert.equal(parseSafeFetchTarget('not a url'), null);
+  assert.ok(parseSafeFetchTarget('https://example.com/'));
+  assert.equal(parseSafeFetchTarget('https://example.com/path').hostname, 'example.com');
+  // isFetchableDomain routes the reference-set domain through the SAME host door (single door).
+  assert.equal(isFetchableDomain('dermexpert.co.uk'), true);
+  assert.equal(isFetchableDomain('127.0.0.1'), false);
+  assert.equal(isFetchableDomain('localhost'), false);
 });
 
 test('looksLikeSpaShell flags a 200 HTML shell with near-zero visible text (C-032)', () => {

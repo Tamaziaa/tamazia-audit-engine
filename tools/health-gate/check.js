@@ -17,10 +17,14 @@
  *   - formal parameters     > 5
  *   - file length           > 500 lines
  *
- * Engine: AST walk via acorn when it is installed (same posture as tools/swallow-gate/check.js: acorn
- * ships today only as a transitive devDependency of eslint, so this gate treats it as optional).
- * HEALTH_GATE_ENGINE=heuristic forces tools/health-gate/heuristic.js (a brace/indent approximation)
- * even when acorn is present, so that fallback can never rot unnoticed (mirrors SWALLOW_GATE_ENGINE=regex).
+ * Engine: an AST walk via acorn. acorn is MANDATORY (it always ships as a transitive devDependency of
+ * eslint). The old brace/indent fallback was removed in PR #3 because it under-reported template ${}
+ * code, regex-literal braces and braceless nesting - all confident zeros. HEALTH_GATE_ENGINE=heuristic
+ * now forces tools/health-gate/heuristic.js's EXPLICIT REFUSAL (it throws, check.js exits 2), so the
+ * fail-closed fallback is exercised in CI (mirrors SWALLOW_GATE_ENGINE=regex, but this fallback refuses
+ * rather than approximates - under-reporting is an unearned zero, Constitution Rule 4).
+ *
+ * Tests: node --test tools/health-gate/check.test.js
  *
  * Modes:
  *   node tools/health-gate/check.js                  scan the repo source tree, exit 1 on any violation
@@ -33,7 +37,7 @@ const path = require('path');
 
 const { runGateCli, ROOT } = require('../lib/gate-cli');
 const { listJsFiles } = require('../lib/fswalk');
-const { scanContentHeuristic } = require('./heuristic');
+const { refuseHeuristicScan } = require('./heuristic');
 
 // facts, catalogue (minus packs/dist), tools, eval, payload, evidence, breach, llm, mint - the
 // repo's source dirs. catalogue/packs is data (compiled law rows, not builder-authored logic) and is
@@ -51,8 +55,10 @@ const FUNCTION_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'Ar
 
 let acorn = null;
 try { acorn = require('acorn'); }
-catch (e) { acorn = null; /* FAIL-OPEN: acorn is an optional devDependency (pulled in transitively by eslint); tools/health-gate/heuristic.js is the guaranteed engine and its own self-test proves it works. */ }
-if (process.env.HEALTH_GATE_ENGINE === 'heuristic') acorn = null;
+catch (e) { acorn = null; /* FAIL-OPEN: require() may throw if acorn is genuinely absent; we swallow that to null HERE (acorn=null is the typed failure state) rather than crash on load, but scanContent() then REFUSES (exit 2) when acorn is null, so the SYSTEM fails closed. acorn ships as a transitive devDependency of eslint, so this branch does not fire in a normal install. */ }
+// HEALTH_GATE_ENGINE=heuristic forces the refusal path so the fail-closed fallback is exercised in CI.
+const FORCE_HEURISTIC = process.env.HEALTH_GATE_ENGINE === 'heuristic';
+const useAcorn = Boolean(acorn) && !FORCE_HEURISTIC;
 
 // ── naming: best-effort label for a function node, for readable violation messages only (never gates on it) ──
 
@@ -229,14 +235,13 @@ function judgeFunction(relPath, fn) {
 }
 
 function scanContent(relPath, src) {
-  const engine = acorn ? 'acorn' : 'heuristic';
+  // acorn is mandatory. Without it (or under a forced heuristic), REFUSE rather than approximate:
+  // refuseHeuristicScan throws, which the CLI turns into exit 2 (a broken tool), never a zero.
+  if (!useAcorn) refuseHeuristicScan(relPath);
   let fns;
-  if (acorn) {
-    try { fns = scanContentAcorn(src); }
-    catch (e) { throw new Error(relPath + ': acorn cannot parse this file: ' + e.message + ' (a parse failure is NOT zero violations)'); }
-  } else {
-    fns = scanContentHeuristic(src);
-  }
+  try { fns = scanContentAcorn(src); }
+  catch (e) { throw new Error(relPath + ': acorn cannot parse this file: ' + e.message + ' (a parse failure is NOT zero violations)'); }
+  const engine = 'acorn';
   const violations = fns.flatMap((fn) => judgeFunction(relPath, fn));
   const totalLines = src.split('\n').length;
   if (totalLines > MAX_FILE_LINES) {
@@ -263,9 +268,31 @@ function scanTree(dirs) {
   return { violations, scanned, functions };
 }
 
-// Self-test: prove the active engine can see every one of the five caps this gate exists to catch.
-// If this fails, every zero this tool has ever reported is unearned (Constitution Rule 4).
+// didThrow(fn) -> true when fn() throws. An expected-throw probe: the throw IS the signal being
+// measured, deliberately captured, never an error to surface.
+function didThrow(fn) {
+  try { fn(); return false; }
+  catch (e) { return true; /* FAIL-OPEN: the throw is the measured signal here (an expected-refusal probe), captured on purpose, not swallowed in error. */ }
+}
+
+// selfTestRefusal() -> prove the heuristic fallback FAILS CLOSED: it must throw (refuse) on ANY input,
+// clean or malformed, never return zero violations. Exercised via HEALTH_GATE_ENGINE=heuristic.
+function selfTestRefusal() {
+  for (const [label, src] of [['clean', 'function ok(a) { return a; }\n'], ['malformed', 'function ( { ) not js']]) {
+    if (!didThrow(() => scanContent('selftest-' + label + '.js', src))) {
+      return { pass: false, detail: 'heuristic fallback did NOT refuse ' + label + ' input - it must never under-report (acorn is mandatory)' };
+    }
+  }
+  return { pass: true, detail: 'heuristic fallback correctly REFUSES all input (acorn mandatory; under-reporting is an unearned zero)' };
+}
+
+// Self-test: prove the acorn engine can see every one of the FIVE caps this gate exists to catch,
+// including large-file (a synthetic 501-line source, in memory). If this fails, every zero this tool
+// has ever reported is unearned (Constitution Rule 4). Under a forced/absent heuristic, prove instead
+// that the fallback refuses (selfTestRefusal).
 function selfTest() {
+  if (!useAcorn) return selfTestRefusal();
+
   const nested = 'if (a) { if (b) { if (c) { if (d) { if (e) { x(); } } } } }'; // 5 deep
   const manyDecisions = Array.from({ length: 13 }, (_, i) => `if (a${i}) { y(); }`).join(' ');
   const longBody = Array.from({ length: 65 }, (_, i) => `  const v${i} = ${i};`).join('\n');
@@ -282,14 +309,21 @@ function selfTest() {
 
   const r = scanContent('selftest.js', src);
   const kinds = new Set(r.violations.map((v) => v.kind));
-  const wantAll = ['long-function', 'deep-nesting', 'high-branching', 'too-many-params'].every((k) => kinds.has(k));
+  const functionCaps = ['long-function', 'deep-nesting', 'high-branching', 'too-many-params'];
+  const wantFunctionCaps = functionCaps.every((k) => kinds.has(k));
+
+  // The fifth cap (large-file) is file-length, not function-shape: exercise it with a synthetic
+  // 501-line source so a regression disabling the file-length check fails the self-test.
+  const bigSrc = Array.from({ length: 501 }, (_, i) => `const v${i} = ${i};`).join('\n') + '\n';
+  const hasLargeFile = scanContent('selftest-big.js', bigSrc).violations.some((v) => v.kind === 'large-file');
+
   const cleanScan = scanContent('selftest-clean.js', 'const clean = (x) => x + 1;\nfunction ok(a) { return a; }\n');
-  const pass = wantAll && cleanScan.violations.length === 0;
+  const pass = wantFunctionCaps && hasLargeFile && cleanScan.violations.length === 0;
   return {
     pass,
     detail: pass
-      ? `all 5 caps demonstrably reachable (engine: ${acorn ? 'acorn' : 'heuristic'}); clean code scores 0`
-      : `expected {long-function, deep-nesting, high-branching, too-many-params}, got {${[...kinds].join(', ')}} (engine: ${acorn ? 'acorn' : 'heuristic'})`,
+      ? 'all 5 caps demonstrably reachable (engine: acorn), including large-file; clean code scores 0'
+      : `expected {${functionCaps.join(', ')}, large-file}, got {${[...kinds].join(', ')}${hasLargeFile ? ', large-file' : ''}} (engine: acorn)`,
   };
 }
 
@@ -313,7 +347,7 @@ function main() {
     scan: scanTree,
     toFindings,
     scanDirs: SCAN_DIRS,
-    summary: (r) => r.scanned + ' files, ' + r.functions + ' functions, ' + r.violations.length + ' violations (engine: ' + (acorn ? 'acorn' : 'heuristic') + ')',
+    summary: (r) => r.scanned + ' files, ' + r.functions + ' functions, ' + r.violations.length + ' violations (engine: ' + (useAcorn ? 'acorn' : 'heuristic-refuse') + ')',
     calibrateSummary: (r) => r.scanned + ' fixture files, ' + r.functions + ' functions, ' + r.violations.length + ' seeded violations found',
     violationLine: (v) => 'HEALTH [' + v.kind + '] ' + v.file + ':' + v.line + '  ' + v.message,
   });

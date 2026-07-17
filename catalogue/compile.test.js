@@ -65,6 +65,7 @@ function makeRecord(overrides) {
       sources: ['test seed'],
       seed_status: 'seed',
       verified_date: '2026-07-17',
+      last_synced: '2026-07-17',
     },
   };
   return Object.assign({}, base, overrides);
@@ -533,6 +534,16 @@ test('assertValidStamp: throws CompileError on a non-ISO stamp', () => {
 test('assertValidStamp: accepts a well-formed ISO 8601 UTC stamp', () => {
   assert.doesNotThrow(() => compile.assertValidStamp('2026-01-01T00:00:00Z'));
   assert.doesNotThrow(() => compile.assertValidStamp('2026-01-01T00:00:00.123Z'));
+});
+
+test('assertValidStamp: rejects ISO-shaped but impossible calendar dates/times (2026-02-30 class)', () => {
+  // Shape passes ISO_RX yet the instant does not exist - the semantic date validator must reject it.
+  assert.throws(() => compile.assertValidStamp('2026-02-30T00:00:00Z'), compile.CompileError);
+  assert.throws(() => compile.assertValidStamp('2026-13-01T00:00:00Z'), compile.CompileError);
+  assert.throws(() => compile.assertValidStamp('2026-01-01T25:00:00Z'), compile.CompileError);
+  assert.throws(() => compile.assertValidStamp('2026-01-01T00:60:00Z'), compile.CompileError);
+  // A real leap day still passes (2028 is a leap year).
+  assert.doesNotThrow(() => compile.assertValidStamp('2028-02-29T12:00:00Z'));
 });
 
 test('parseArgs: reads --stamp-file and --packs', () => {

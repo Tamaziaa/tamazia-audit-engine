@@ -16,11 +16,14 @@
 // Usage:
 //   node eval/golden/run.js [--fresh <dir>] [--goldens <dir>] [--accept [cell ...]] [--json]
 //
-// No goldens exist yet (P3 fills them): the runner prints a WARNING and exits 0 when the
-// goldens directory is empty or missing, so P0 CI stays green without pretending coverage.
+// The harness FAILS CLOSED: an empty or missing goldens directory is not a pass, it is a gate that
+// exercised no oracle, and a confident zero from a gate that compared nothing is worse than no gate
+// (Constitution Rule 4). --accept is the single explicit bootstrap that pins the first goldens.
+// Both filename sets are compared: a fresh cell with no pinned golden is unreviewed truth and fails
+// until it is accepted deliberately (a golden changes only via --accept).
 //
-// Exit codes: 0 = no goldens yet, or all cells identical, or --accept completed;
-//             1 = at least one diff (or a golden with no fresh counterpart);
+// Exit codes: 0 = every golden matches its fresh counterpart and no fresh cell is unpinned, or --accept completed;
+//             1 = at least one diff, a golden with no fresh counterpart, an unpinned fresh cell, or no goldens at all;
 //             2 = usage error.
 
 const fs = require('fs');
@@ -214,17 +217,33 @@ function main(argv) {
   if (parsed.exitCode) return parsed.exitCode;
   const { opts } = parsed;
 
-  const goldenFiles = listGoldens(opts.goldens);
-
-  // --accept: copy fresh outputs over goldens (all cells, or the named ones).
+  // --accept: copy fresh outputs over goldens (all cells, or the named ones). This is the only path
+  // that may proceed with an empty goldens set - it is how the first goldens are pinned.
   if (opts.accept) return runAccept(opts);
 
+  const goldenFiles = listGoldens(opts.goldens);
+  const freshFiles = listGoldens(opts.fresh);
+
+  // Fail closed: no goldens means the oracle was never exercised. This is a broken gate, not a pass.
   if (goldenFiles.length === 0) {
-    console.log(`WARNING: no goldens in ${opts.goldens} - the golden harness has nothing to pin yet (P3 fills them). Exiting 0.`);
-    return 0;
+    console.error(`RESULT: FAIL - no goldens in ${opts.goldens}; the golden harness pinned nothing to compare (Constitution Rule 4: a gate that exercises no oracle is broken). Pin the fresh outputs deliberately: node eval/golden/run.js --accept [cell ...].`);
+    return 1;
   }
 
   const report = buildReport(goldenFiles, opts);
+
+  // Compare BOTH filename sets: a fresh cell with no pinned golden is a new truth that must be
+  // accepted deliberately (goldens change only via --accept), never silently ignored.
+  const goldenSet = new Set(goldenFiles);
+  for (const f of freshFiles) {
+    if (goldenSet.has(f)) continue;
+    report.cells.push({
+      cell: f.replace(/\.payload\.json$/, ''), diffs: [], byClass: {},
+      error: 'fresh output has no pinned golden - accept it deliberately (node eval/golden/run.js --accept) before it can pass',
+    });
+    report.failed++;
+  }
+
   printReport(report, opts.json);
   return report.failed === 0 ? 0 : 1;
 }
@@ -233,4 +252,4 @@ if (require.main === module) {
   process.exit(main(process.argv));
 }
 
-module.exports = { deepDiff, classify };
+module.exports = { deepDiff, classify, listGoldens, parseArgs, buildReport, main };

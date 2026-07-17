@@ -1,5 +1,11 @@
 # Directive-Compliance Audit — tamazia-audit-engine
 
+> **SUPERSEDED (2026-07-17, PR #3).** This audit was taken at HEAD `94da3b9`. Commit `61cac12` and
+> later resolved the findings it reports as current: the invalid `ci.yml` YAML (finding D1) was fixed,
+> and the 11 test failures it records were resolved (the fleet is green). Read this document as a
+> point-in-time record of the `94da3b9` state, not the live state - it is retained, not rewritten, so
+> the history is honest. For current state, run the fleet from a fresh clone of HEAD.
+
 Date: 2026-07-17. Auditor: read-only pass over the current repo state (HEAD `94da3b9` on branch `p2-catalogue`, working tree dirty in the parallel-workflow zone). No files changed except this one. No commits.
 
 Repo phase: **end of P2 (catalogue)**. P0 and P1 (facts, PR #1) merged to `main`; P2 (catalogue, PR #3) open with review changes requested; P3-P6 are `.gitkeep`-only scaffolds. This audit grades directives against that reality: a directive whose home is P3+ is graded on its design and enforcement wiring, not on shipped behaviour.

@@ -15,7 +15,7 @@ const { packsDirOrFail } = require('./test-helpers.js');
 // ---------------------------------------------------------------------------------
 
 test('textMentionsThreshold: detects turnover, revenue, employee-count and SME language across name/applies_when/excluded_when', () => {
-  assert.equal(linter.textMentionsThreshold({ name: 'Act (applies above GBP 36 million turnover)' }), true);
+  assert.equal(linter.textMentionsThreshold({ name: 'Act (applies above GBP 99 million turnover)' }), true);
   assert.equal(linter.textMentionsThreshold({ applies_when: ['annual revenue over USD 10 million'] }), true);
   assert.equal(linter.textMentionsThreshold({ applies_when: ['employer with 250 or more employees'] }), true);
   assert.equal(linter.textMentionsThreshold({ excluded_when: ['small and medium-sized enterprises are excluded'] }), true);
@@ -32,12 +32,12 @@ test('textMentionsThreshold (CR-13): a currency-shaped threshold fires at the ve
 });
 
 test('hasNonEmptyExcludedWhen (CR-12 + CR threshold-guard.js:62): true only when an entry carries BOTH a threshold token AND a below/under/exempt sense, never merely any non-blank string and never a same-threshold restatement', () => {
-  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['annual turnover below GBP 36 million'] }), true);
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['annual turnover below GBP 99 million'] }), true);
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['fewer than 250 employees'] }), true);
-  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['turnover not exceeding GBP 36 million'] }), true);
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['turnover not exceeding GBP 99 million'] }), true);
   // CR threshold-guard.js:62: an entry that RE-STATES the same ABOVE-threshold trigger matches
   // THRESHOLD_RX but carries no below/exempt sense - it models no carve-out and must NOT satisfy.
-  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['organisation with annual turnover of GBP 36 million or more'] }), false);
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['organisation with annual turnover of GBP 99 million or more'] }), false);
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['employer with 250 or more employees'] }), false);
   // an unrelated, non-size exclusion reason must NOT satisfy this - the "2" inside "B2B" is
   // deliberately not enough (the bare-digit heuristic this replaced false-positived on exactly this).
@@ -57,8 +57,8 @@ test('hasNonEmptyExcludedWhen (CR-12 + CR threshold-guard.js:62): true only when
 test('checkRecord: a threshold-mentioning record with an empty excluded_when is flagged threshold-excluded-when-missing at BLOCKING "error" severity, explicitly (CR-11/CR-12; the Modern Slavery Act-on-an-SME class)', () => {
   const r = {
     id: 'CAL_TEST_THRESHOLD_BAD',
-    name: 'Modern Slavery Act 2015 transparency statement',
-    applies_when: ['annual turnover of GBP 36 million or more'],
+    name: 'FAKE_ACT_2099 synthetic transparency duty',
+    applies_when: ['annual turnover of GBP 99 million or more'],
     excluded_when: [],
     penalty: { typical_low: null, typical_high: null, statutory_max: null },
   };
@@ -71,8 +71,8 @@ test('checkRecord: a threshold-mentioning record with an empty excluded_when is 
 test('checkRecord (CR-12): a threshold-mentioning record whose excluded_when carries only an UNRELATED, non-size exclusion reason is still flagged threshold-excluded-when-missing', () => {
   const r = {
     id: 'CAL_TEST_THRESHOLD_UNRELATED_EXCLUDED',
-    name: 'Modern Slavery Act 2015 transparency statement',
-    applies_when: ['annual turnover of GBP 36 million or more'],
+    name: 'FAKE_ACT_2099 synthetic transparency duty',
+    applies_when: ['annual turnover of GBP 99 million or more'],
     excluded_when: ['B2B-only firms are out of scope'],
     penalty: { typical_low: null, typical_high: null, statutory_max: null },
   };
@@ -83,9 +83,9 @@ test('checkRecord (CR-12): a threshold-mentioning record whose excluded_when car
 test('checkRecord (CR threshold-guard.js:62): a threshold-mentioning record whose excluded_when merely RE-STATES the same above-threshold trigger (no below/exempt sense) is still flagged threshold-excluded-when-missing', () => {
   const r = {
     id: 'CAL_TEST_THRESHOLD_SAME_NOT_BELOW',
-    name: 'Modern Slavery Act 2015 transparency statement',
-    applies_when: ['annual turnover of GBP 36 million or more'],
-    excluded_when: ['organisation with annual turnover of GBP 36 million or more'],
+    name: 'FAKE_ACT_2099 synthetic transparency duty',
+    applies_when: ['annual turnover of GBP 99 million or more'],
+    excluded_when: ['organisation with annual turnover of GBP 99 million or more'],
     penalty: { typical_low: null, typical_high: null, statutory_max: null },
   };
   const v = linter.checkRecord(r, 'test');
@@ -95,9 +95,9 @@ test('checkRecord (CR threshold-guard.js:62): a threshold-mentioning record whos
 test('checkRecord: the same threshold-mentioning record clears once excluded_when is populated', () => {
   const r = {
     id: 'CAL_TEST_THRESHOLD_GOOD',
-    name: 'Modern Slavery Act 2015 transparency statement',
-    applies_when: ['annual turnover of GBP 36 million or more'],
-    excluded_when: ['turnover below GBP 36 million'],
+    name: 'FAKE_ACT_2099 synthetic transparency duty',
+    applies_when: ['annual turnover of GBP 99 million or more'],
+    excluded_when: ['turnover below GBP 99 million'],
     penalty: { typical_low: null, typical_high: null, statutory_max: null },
   };
   assert.deepEqual(linter.checkRecord(r, 'test'), []);
@@ -180,10 +180,10 @@ test('scan: real committed packs produce EXACTLY the documented known (file, id,
     ['catalogue/packs/uk-tech-media-industrial.json', 'UK_GREEN_CLAIMS', 'typical-band-missing'],
     ['catalogue/packs/uk-tech-media-industrial.json', 'UK_TRUSTMARK_ACCREDITATION_CLAIMS', 'typical-band-missing'],
     ['catalogue/packs/uk-universal.json', 'UK_DUAA_2025', 'typical-band-missing'],
-    // us-healthcare's NY medical-board advertising duty carries a statutory_max (USD 10,000 fine
-    // under N.Y. Public Health Law 230-a) with no modelled typical enforcement band yet - an honest
-    // cap-only state the WARNING exists to surface every run until a typical band is gathered
-    // (caution.md C-096/C-104), not a schema defect. Documented here so the exact-set stays honest.
+    // us-healthcare's US_MEDBOARD_ADV_NY record carries a statutory_max with no modelled typical
+    // enforcement band yet (the exact figure and its statutory citation live in the catalogue record,
+    // not here) - an honest cap-only state the WARNING exists to surface every run until a typical
+    // band is gathered (caution.md C-096/C-104), not a schema defect. Documented so the exact-set stays honest.
     ['catalogue/packs/us-healthcare.json', 'US_MEDBOARD_ADV_NY', 'typical-band-missing'],
     // RESOLVED (PR #3 gate loop): US_FTC_REVIEWS_ENDORSEMENTS previously appeared here because
     // THRESHOLD_RX's bare `employee` alternative treated "endorsement by an employee" (authorship,

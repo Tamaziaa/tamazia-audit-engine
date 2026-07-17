@@ -159,6 +159,7 @@ function findChecker(candidates) {
 function runExternalChecker(checkerPath) {
   const jsonOut = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'calibrate-')), 'findings.json');
   let stdout = '';
+  let status = 0;
   try {
     stdout = execFileSync(process.execPath, [checkerPath, '--calibrate', '--json', jsonOut], {
       cwd: REPO_ROOT,
@@ -169,6 +170,18 @@ function runExternalChecker(checkerPath) {
     // gate-cli exits 1 on zero calibration findings and 2 on a failed self-test. Keep the
     // stdout we got; if the checker wrote no JSON file either, the throw below reports it.
     stdout = (e.stdout || '') + '';
+    status = (typeof e.status === 'number') ? e.status : 2;
+  }
+  // The --calibrate contract has exactly two runner-judged statuses: 0 (checker found violations) and
+  // 1 (checker found ZERO on its fixtures - this runner then FAILs that calibration from the empty
+  // findings list). Exit 2 means the checker's OWN self-test failed: it is a broken tool and can
+  // NEVER earn a PASS, no matter what findings it managed to write. A broken self-test masked by
+  // parsed findings is the unearned-zero disease (Constitution Rule 4), so reject it unconditionally.
+  if (status === 2) {
+    throw new Error('checker self-test FAILED (exit 2): it cannot see the class it exists to catch, so its calibration result is void and cannot be masked by any parsed findings');
+  }
+  if (status !== 0 && status !== 1) {
+    throw new Error('checker exited with undocumented --calibrate status ' + status + ' (expected 0 = findings, 1 = zero-findings, 2 = broken self-test)');
   }
   if (fs.existsSync(jsonOut)) {
     const parsed = JSON.parse(fs.readFileSync(jsonOut, 'utf8'));
@@ -331,4 +344,4 @@ if (require.main === module) {
   process.exit(main(process.argv));
 }
 
-module.exports = { CALIBRATIONS };
+module.exports = { CALIBRATIONS, runExternalChecker };

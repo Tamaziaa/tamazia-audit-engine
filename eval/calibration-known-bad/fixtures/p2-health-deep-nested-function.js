@@ -2,12 +2,16 @@
 // eval/calibration-known-bad/fixtures/p2-health-deep-nested-function.js
 //
 // Seeded known-bad input for tools/health-gate/check.js. This single function is deliberately shaped
-// to trip every one of the gate's five caps at once (Constitution Rule 4: a gate must demonstrably
+// to trip the gate's FOUR function-level caps at once (Constitution Rule 4: a gate must demonstrably
 // fail on a seeded bad fixture on every run):
-//   - > 60 lines            (80 lines in the body below)
-//   - nesting depth > 4      (five nested "if" levels)
-//   - > 12 decision points   (if/for/while/case/&&/||/ternary, more than a dozen)
-//   - > 5 parameters         (seven formal parameters)
+//   - > 60 lines            (80 lines in the body below)          -> long-function
+//   - nesting depth > 4      (five nested "if" levels)             -> deep-nesting
+//   - > 12 decision points   (if/for/while/case/&&/||/ternary)     -> high-branching
+//   - > 5 parameters         (seven formal parameters)             -> too-many-params
+// The fifth cap (large-file, > 500 lines) is a FILE-LENGTH property, not a function shape, so it
+// cannot be exercised by an 87-line fixture. It is proven instead by check.js's selfTest(), which
+// scans a synthetic 501-line source in memory every run (and by a scanContent large-file test in
+// tools/health-gate/check.test.js). This fixture exercises the four it can, honestly.
 // It is intentionally never called or exported for real use: it exists only to be caught.
 
 function processEverythingAtOnce(alpha, bravo, charlie, delta, echo, foxtrot, golf) {

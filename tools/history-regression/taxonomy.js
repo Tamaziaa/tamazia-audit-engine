@@ -124,9 +124,9 @@ const TAXONOMY = [
   },
   {
     class: 'host-substring',
-    description: 'Host/URL compared by substring or token without parsing (sharesTokenWithDomain one-sided, hasLinkedin persisted-socials bypass, ACT F-0004).',
-    catching_gate: 'tools/lib/safe-path.js',
-    status: 'guarded', phase: null, past_severity: 'P0', shipped: false,
+    description: 'Host/URL compared by substring or token without parsing (sharesTokenWithDomain one-sided, hasLinkedin persisted-socials bypass, ACT F-0004). tools/lib/safe-path.js guards FILESYSTEM paths, not URL-host comparison, so it cannot catch this class; there is no parsed-host comparison gate in facts/ yet. Marked as an HONEST GAP (see GAPS.md) rather than falsely claimed guarded - a wrong guard is worse than an owned hole.',
+    catching_gate: 'tools/domain-gates/host-parse.js',
+    status: 'gap', phase: 'P3', past_severity: 'P0', shipped: false,
     caution: ['C-057'],
   },
   {
