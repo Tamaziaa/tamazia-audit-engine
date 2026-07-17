@@ -61,7 +61,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 const schema = require('./schema.js');
 const citationCompleteness = require('./linters/citation-completeness.js');
@@ -69,13 +68,15 @@ const polarity = require('./linters/polarity.js');
 const regexHealth = require('./linters/regex-health.js');
 const thresholdGuard = require('./linters/threshold-guard.js');
 const safePath = require('../tools/lib/safe-path.js');
+const qaApproval = require('./qa-approval.js');
+const { sha256Hex, computePackSha, QA_APPROVAL_RX, parseQaApprovalHeader } = qaApproval;
+const compileArgs = require('./compile-args.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PACKS_DIR = path.join(REPO_ROOT, 'catalogue', 'packs');
 const DEFAULT_OUT = path.join(REPO_ROOT, 'catalogue', 'dist', 'catalogue.v1.json');
 const CATALOGUE_VERSION = 'v1.0.0-p2';
 const EXCLUDED_STATUSES = ['rejected_qa', 'needs_verification'];
-const ISO_RX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 // Every linter in the fleet, run in a fixed order so console output and the findings list are
 // deterministic across runs (Constitution Rule 4: a gate map is not theatre if it always fires the
@@ -101,72 +102,21 @@ function isPlainObject(x) {
   return x !== null && typeof x === 'object' && !Array.isArray(x);
 }
 
-// parseArgs: --stamp <ISO8601> and --stamp-file <path> are two ways to supply the SAME thing (the
-// artifact's "generated" value); at most one may be given (resolveStamp below throws on a
-// conflicting pair). --print-hashes is a separate utility mode (see listPackFiles/computePackSha)
-// that needs neither: it exists to produce the sha256 a human embeds in a .QA.md approval header,
-// which by definition happens BEFORE that header exists.
+// parseArgs/resolveStamp/assertValidStamp: thin wrappers over catalogue/compile-args.js, binding
+// in this file's own DEFAULT_OUT, REPO_ROOT and CompileError so every external caller (the CLI in
+// main() below, and catalogue/compile.test.js via `compile.parseArgs` etc.) keeps the exact same
+// call signature it always had - see compile-args.js for the actual argument-parsing/stamp-
+// resolution logic and its own doc comments.
 function parseArgs(argv) {
-  const args = argv.slice(2);
-  let stamp = null;
-  let stampFile = null;
-  let out = DEFAULT_OUT;
-  let packsDir = null;
-  let printHashes = false;
-  const unknown = [];
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--stamp') { stamp = args[i + 1]; i += 1; }
-    else if (args[i] === '--stamp-file') {
-      stampFile = safePath.assertSafeRelativePath(args[i + 1] || '', { label: '--stamp-file', ErrorClass: CompileError });
-      i += 1;
-    } else if (args[i] === '--out') {
-      const raw = safePath.assertSafeRelativePath(args[i + 1] || '', { label: '--out', ErrorClass: CompileError });
-      out = path.resolve(process.cwd(), raw);
-      i += 1;
-    } else if (args[i] === '--packs') {
-      const raw = safePath.assertSafeRelativePath(args[i + 1] || '', { label: '--packs', ErrorClass: CompileError });
-      packsDir = path.resolve(process.cwd(), raw);
-      i += 1;
-    } else if (args[i] === '--print-hashes') { printHashes = true; }
-    else unknown.push(args[i]);
-  }
-  return { stamp, stampFile, out, packsDir, printHashes, unknown };
+  return compileArgs.parseArgs(argv, DEFAULT_OUT, CompileError);
 }
 
-// resolveStamp(stamp, stampFile) -> the ISO8601 string to use as the artifact's "generated" value.
-// --stamp-file names a COMMITTED file (RELEASE_STAMP at the repo root, by convention) whose trimmed
-// contents are the stamp - this is how CI derives a deterministic, reviewable "generated" value
-// without falling back to Date.now() (Constitution Rule 15's doctrine applied to a build artifact,
-// same as assertValidStamp's own header comment) while still letting a human bump it in one place
-// as catalogue inputs change, rather than hand-editing a workflow file. Supplying both --stamp and
-// --stamp-file with DIFFERENT values is refused rather than silently preferring one (Rule 4: no
-// silently-resolved ambiguity).
 function resolveStamp(stamp, stampFile) {
-  if (!stampFile) return stamp;
-  const abs = path.resolve(REPO_ROOT, stampFile);
-  let content;
-  try {
-    content = fs.readFileSync(abs, 'utf8');
-  } catch (e) {
-    throw new CompileError('--stamp-file ' + JSON.stringify(stampFile) + ' could not be read: ' + e.message);
-  }
-  const trimmed = content.trim();
-  if (stamp && stamp !== trimmed) {
-    throw new CompileError(
-      '--stamp ' + JSON.stringify(stamp) + ' conflicts with --stamp-file ' + JSON.stringify(stampFile)
-      + ' (contains ' + JSON.stringify(trimmed) + ') - supply only one'
-    );
-  }
-  return trimmed;
+  return compileArgs.resolveStamp(stamp, stampFile, REPO_ROOT, CompileError);
 }
 
 function assertValidStamp(stamp) {
-  if (!stamp) {
-    throw new CompileError('--stamp <ISO8601> or --stamp-file <path> is required (e.g. --stamp 2026-01-01T00:00:00Z, or --stamp-file RELEASE_STAMP). This compiler never falls back to Date.now(): a shipped artifact\'s "generated" field must be exactly reproducible from the same inputs, every time, forever.');
-  }
-  if (!ISO_RX.test(stamp)) {
-    throw new CompileError('--stamp ' + JSON.stringify(stamp) + ' does not match YYYY-MM-DDTHH:MM:SS(.sss)Z');
-  }
+  return compileArgs.assertValidStamp(stamp, CompileError);
 }
 
 // canonicalStringify(value) -> string
@@ -180,36 +130,6 @@ function canonicalStringify(value) {
   if (Array.isArray(value)) return '[' + value.map(canonicalStringify).join(',') + ']';
   const keys = Object.keys(value).sort();
   return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalStringify(value[k])).join(',') + '}';
-}
-
-function sha256Hex(s) {
-  return crypto.createHash('sha256').update(s, 'utf8').digest('hex');
-}
-
-// computePackSha(absPath) -> sha256 hex digest of a pack file's exact committed bytes. THE one
-// function that decides what "the pack's hash" means, so the QA-approval check below, the
-// --print-hashes utility mode, and any future stamping tool all agree with each other by
-// construction (Constitution Rule 1 applied to a build-tooling concept, not just a client fact).
-function computePackSha(absPath) {
-  return sha256Hex(fs.readFileSync(absPath, 'utf8'));
-}
-
-// QA_APPROVAL_RX: the machine-readable sign-off header CR-2 requires every .QA.md sidecar to START
-// with, verbatim: <!-- qa-approval pack_sha256=<hex> verdict=approved reviewed=<date> -->. Binding
-// the literal token "verdict=approved" into the pattern itself (rather than capturing any verdict
-// value) means a sidecar that has been authored but not yet actually signed off (or one whose
-// verdict was downgraded) simply does not match - it is treated exactly like a missing header, not
-// specially parsed and then rejected on a second check.
-const QA_APPROVAL_RX = /^\s*<!--\s*qa-approval\s+pack_sha256=([0-9a-f]{64})\s+verdict=approved\s+reviewed=(\d{4}-\d{2}-\d{2})\s*-->/;
-
-// parseQaApprovalHeader(sidecarText) -> {pack_sha256, verdict: 'approved', reviewed} | null. Pure;
-// never throws. A sidecar that does not start with the block, or whose hash is not a lowercase-hex
-// sha256, simply fails to match and this returns null - the caller (discoverPacks) decides what a
-// null means (a CompileError, since a sidecar exists but claims no verifiable sign-off).
-function parseQaApprovalHeader(sidecarText) {
-  const m = QA_APPROVAL_RX.exec(String(sidecarText == null ? '' : sidecarText));
-  if (!m) return null;
-  return { pack_sha256: m[1], verdict: 'approved', reviewed: m[2] };
 }
 
 // listPackFiles(packsDir = PACKS_DIR) -> [{cellName, absPath, relPath}] for every catalogue/packs/*.json
@@ -230,14 +150,43 @@ function listPackFiles(packsDir) {
     });
 }
 
+// readAndValidatePackFile(absPath, relPath, cellName) -> the parsed pack object, or throws
+// CompileError on an unreadable file, invalid JSON, wrong shape, or a cell mismatch (CR-3: a pack
+// signed off under one identity must never compile under another). Split out of discoverPacks so
+// each stage of "read this pack file" stays a small, independently readable unit.
+function readAndValidatePackFile(absPath, relPath, cellName) {
+  let raw;
+  try {
+    raw = fs.readFileSync(absPath, 'utf8');
+  } catch (e) {
+    throw new CompileError(relPath + ': failed to read: ' + e.message);
+  }
+  let pack;
+  try {
+    pack = JSON.parse(raw);
+  } catch (e) {
+    throw new CompileError(relPath + ': invalid JSON: ' + e.message);
+  }
+  if (!isPlainObject(pack) || !Array.isArray(pack.records)) {
+    throw new CompileError(relPath + ': pack has a legal-QA sidecar but is not a valid {cell, jurisdiction, generated, records:[]} pack shape');
+  }
+  if (pack.cell !== cellName) {
+    throw new CompileError(
+      relPath + ': pack.cell ' + JSON.stringify(pack.cell) + ' must match its filename-derived cell '
+      + JSON.stringify(cellName) + ' - a pack signed off under one identity must never compile under another (CR-3)'
+    );
+  }
+  return pack;
+}
+
 // discoverPacks(packsDir = PACKS_DIR) -> { included: [{cellName, absPath, relPath, pack}], excluded: [{cell, source, reason}] }
 // packsDir is injectable so node:test can point this at an isolated fixture directory instead of
 // the real catalogue/packs/ (compile.test.js never writes into the real packs directory).
 // A missing sidecar is the modelled EXCLUDED state (recorded, loud, never thrown). A pack that
 // HAS a sidecar but cannot be read or parsed as JSON, or whose sidecar does not carry a valid,
-// CURRENT machine-readable QA-approval header (CR-2/CR-3 below), is a worse state than "no sidecar
-// yet" - it claims legal QA sign-off over content that cannot even be verified - so that throws
-// CompileError.
+// CURRENT machine-readable QA-approval header (CR-2/CR-3, verified by catalogue/qa-approval.js's
+// verifyQaApproval), is a worse state than "no sidecar yet" - it claims legal QA sign-off over
+// content that cannot even be verified - so that throws CompileError.
 function discoverPacks(packsDir) {
   const dir = packsDir || PACKS_DIR;
   if (!fs.existsSync(dir)) throw new CompileError(path.relative(REPO_ROOT, dir) + ' does not exist');
@@ -265,54 +214,8 @@ function discoverPacks(packsDir) {
       continue;
     }
 
-    let raw;
-    try {
-      raw = fs.readFileSync(absPath, 'utf8');
-    } catch (e) {
-      throw new CompileError(relPath + ': failed to read: ' + e.message);
-    }
-    let pack;
-    try {
-      pack = JSON.parse(raw);
-    } catch (e) {
-      throw new CompileError(relPath + ': invalid JSON: ' + e.message);
-    }
-    if (!isPlainObject(pack) || !Array.isArray(pack.records)) {
-      throw new CompileError(relPath + ': pack has a legal-QA sidecar but is not a valid {cell, jurisdiction, generated, records:[]} pack shape');
-    }
-    if (pack.cell !== cellName) {
-      throw new CompileError(
-        relPath + ': pack.cell ' + JSON.stringify(pack.cell) + ' must match its filename-derived cell '
-        + JSON.stringify(cellName) + ' - a pack signed off under one identity must never compile under another (CR-3)'
-      );
-    }
-
-    // CR-2: the sidecar must START with a machine-readable qa-approval header binding it to the
-    // EXACT pack bytes it approved. A sidecar with no such header at all (every sidecar committed
-    // before this gate landed, deliberately - see catalogue/README.md) is refused exactly like an
-    // unreadable pack: it claims sign-off but carries nothing this compiler can verify.
-    let qaRaw;
-    try {
-      qaRaw = fs.readFileSync(qaSidecarAbs, 'utf8');
-    } catch (e) {
-      throw new CompileError(relQaPath + ': failed to read QA sidecar: ' + e.message);
-    }
-    const approval = parseQaApprovalHeader(qaRaw);
-    if (!approval) {
-      throw new CompileError(
-        relQaPath + ': QA sidecar does not START with the required machine-readable approval block '
-        + '<!-- qa-approval pack_sha256=<hex> verdict=approved reviewed=<date> --> (see catalogue/README.md). '
-        + 'Run `node catalogue/compile.js --print-hashes` for the current sha256 and stamp the sidecar.'
-      );
-    }
-    const actualSha = computePackSha(absPath);
-    if (approval.pack_sha256 !== actualSha) {
-      throw new CompileError(
-        relPath + ': QA approval stale: pack changed since sign-off (sidecar ' + relQaPath
-        + ' approved pack_sha256=' + approval.pack_sha256 + ' but the pack now hashes to ' + actualSha
-        + ') - re-review the pack and re-stamp its approval header'
-      );
-    }
+    const pack = readAndValidatePackFile(absPath, relPath, cellName);
+    qaApproval.verifyQaApproval(absPath, qaSidecarAbs, relPath, relQaPath, CompileError);
 
     included.push({ cellName, absPath, relPath, pack });
   }
@@ -391,10 +294,11 @@ function collectFindings(included) {
   return findings;
 }
 
-// assembleArtifact(included, excluded, stamp) -> the full artifact object (content_hash computed
-// and included). Caller (main() or a test) is responsible for having already confirmed zero
-// error-severity findings - this function does not itself re-check that, it only assembles.
-function assembleArtifact(included, excluded, stamp) {
+// collectRecords(included) -> {records, cells, recordsTotal, recordsExcluded, excludedByStatus}
+// Walks every included pack's records exactly once, splitting shipped records from excluded ones
+// and building the per-cell summary rows in the same pass. Extracted out of assembleArtifact so
+// the "one pass over every record" logic is a single, independently readable unit.
+function collectRecords(included) {
   const records = [];
   const cells = [];
   let recordsTotal = 0;
@@ -427,10 +331,34 @@ function assembleArtifact(included, excluded, stamp) {
     });
   }
 
-  // deterministic ordering: cells by cell name, records by id (id is unique across the whole
-  // artifact - crossPackDuplicateIds() is checked before this function runs - so this is a total order).
-  cells.sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
-  records.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return { records, cells, recordsTotal, recordsExcluded, excludedByStatus };
+}
+
+// sortRecords/buildCells: deterministic ordering (records by id, cells by cell name). id is
+// unique across the whole artifact - crossPackDuplicateIds() is checked before assembleArtifact
+// runs - so records is a total order.
+function sortRecords(records) {
+  return [...records].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+function buildCells(cells) {
+  return [...cells].sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
+}
+
+// computeContentHash(artifactCore) -> sha256 hex of the artifact's own canonical JSON. THE one
+// function that decides what goes into the hash, so assembleArtifact's callers never need to know
+// canonicalStringify/sha256Hex are involved at all.
+function computeContentHash(artifactCore) {
+  return sha256Hex(canonicalStringify(artifactCore));
+}
+
+// assembleArtifact(included, excluded, stamp) -> the full artifact object (content_hash computed
+// and included). Caller (main() or a test) is responsible for having already confirmed zero
+// error-severity findings - this function does not itself re-check that, it only assembles.
+function assembleArtifact(included, excluded, stamp) {
+  const { records, cells, recordsTotal, recordsExcluded, excludedByStatus } = collectRecords(included);
+  const sortedCells = buildCells(cells);
+  const sortedRecords = sortRecords(records);
 
   const counts = {
     packs_scanned: included.length + excluded.length,
@@ -438,7 +366,7 @@ function assembleArtifact(included, excluded, stamp) {
     packs_excluded: excluded.length,
     packs_excluded_detail: excluded,
     records_scanned: recordsTotal,
-    records_included: records.length,
+    records_included: sortedRecords.length,
     records_excluded: recordsExcluded,
     records_excluded_by_status: excludedByStatus,
   };
@@ -446,11 +374,11 @@ function assembleArtifact(included, excluded, stamp) {
   const artifactCore = {
     catalogue_version: CATALOGUE_VERSION,
     generated: stamp,
-    cells,
+    cells: sortedCells,
     counts,
-    records,
+    records: sortedRecords,
   };
-  const content_hash = sha256Hex(canonicalStringify(artifactCore));
+  const content_hash = computeContentHash(artifactCore);
   return {
     catalogue_version: artifactCore.catalogue_version,
     generated: artifactCore.generated,
@@ -461,21 +389,49 @@ function assembleArtifact(included, excluded, stamp) {
   };
 }
 
+// runPrintHashesMode(packsDir) -> prints every pack's current sha256 so a human can stamp (or
+// re-stamp) its .QA.md approval header, then returns. Deliberately independent of
+// --stamp/discoverPacks() - it must work on a pack that does not yet have a valid approval (that
+// is the whole point of the mode). Split out of main() purely to keep main()'s own body short.
+function runPrintHashesMode(packsDir) {
+  const files = listPackFiles(packsDir || undefined);
+  console.log('catalogue/compile.js --print-hashes: sha256 of each catalogue/packs/*.json file');
+  console.log('(embed as pack_sha256 in the matching .QA.md sidecar\'s leading <!-- qa-approval ... --> block)');
+  for (const f of files) {
+    console.log(f.cellName + '  ' + computePackSha(f.absPath) + '  ' + f.relPath);
+  }
+}
+
+// reportFindings(included, excluded, findings) -> prints the summary/warning/error lines and
+// throws CompileError if any error-severity finding is present; returns (void) otherwise. This is
+// the exact reporting behaviour main() used to inline, now callable and testable on its own.
+function reportFindings(included, excluded, findings) {
+  const errors = findings.filter((f) => f.level === 'error');
+  const warnings = findings.filter((f) => f.level !== 'error');
+
+  console.log(
+    'catalogue/compile.js: ' + included.length + ' pack(s) compilable ('
+    + included.map((p) => p.cellName).join(', ') + '), ' + excluded.length + ' excluded, '
+    + findings.length + ' finding(s): ' + errors.length + ' error, ' + warnings.length + ' warning'
+  );
+  for (const w of warnings) {
+    console.warn('  WARNING [' + w.tool + '/' + w.ruleId + '] ' + w.file + ': ' + w.message);
+  }
+  if (errors.length === 0) return;
+  for (const e of errors) console.error('  ERROR [' + e.tool + '/' + e.ruleId + '] ' + e.file + ': ' + e.message);
+  throw new CompileError(
+    errors.length + ' error-severity finding(s) above; compilation refused (fail closed, Constitution Rule 4 + Rule 14). '
+    + 'This compiler never waters down a schema rule or a linter to make a real finding disappear - fix the source pack, or the pack\'s legal-QA sign-off, then re-run.'
+  );
+}
+
 function main() {
   try {
     const { stamp, stampFile, out, packsDir, printHashes, unknown } = parseArgs(process.argv);
     if (unknown.length) throw new CompileError('unknown argument(s): ' + unknown.join(', '));
 
     if (printHashes) {
-      // Utility mode: print every pack's current sha256 so a human can stamp (or re-stamp) its
-      // .QA.md approval header. Deliberately independent of --stamp/discoverPacks() - it must work
-      // on a pack that does not yet have a valid approval (that is the whole point of the mode).
-      const files = listPackFiles(packsDir || undefined);
-      console.log('catalogue/compile.js --print-hashes: sha256 of each catalogue/packs/*.json file');
-      console.log('(embed as pack_sha256 in the matching .QA.md sidecar\'s leading <!-- qa-approval ... --> block)');
-      for (const f of files) {
-        console.log(f.cellName + '  ' + computePackSha(f.absPath) + '  ' + f.relPath);
-      }
+      runPrintHashesMode(packsDir);
       process.exit(0);
     }
 
@@ -488,24 +444,7 @@ function main() {
     }
 
     const findings = collectFindings(included);
-    const errors = findings.filter((f) => f.level === 'error');
-    const warnings = findings.filter((f) => f.level !== 'error');
-
-    console.log(
-      'catalogue/compile.js: ' + included.length + ' pack(s) compilable ('
-      + included.map((p) => p.cellName).join(', ') + '), ' + excluded.length + ' excluded, '
-      + findings.length + ' finding(s): ' + errors.length + ' error, ' + warnings.length + ' warning'
-    );
-    for (const w of warnings) {
-      console.warn('  WARNING [' + w.tool + '/' + w.ruleId + '] ' + w.file + ': ' + w.message);
-    }
-    if (errors.length > 0) {
-      for (const e of errors) console.error('  ERROR [' + e.tool + '/' + e.ruleId + '] ' + e.file + ': ' + e.message);
-      throw new CompileError(
-        errors.length + ' error-severity finding(s) above; compilation refused (fail closed, Constitution Rule 4 + Rule 14). '
-        + 'This compiler never waters down a schema rule or a linter to make a real finding disappear - fix the source pack, or the pack\'s legal-QA sign-off, then re-run.'
-      );
-    }
+    reportFindings(included, excluded, findings);
 
     const artifact = assembleArtifact(included, excluded, resolvedStamp);
     fs.mkdirSync(path.dirname(out), { recursive: true });

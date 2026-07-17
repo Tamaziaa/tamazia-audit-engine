@@ -79,48 +79,69 @@ const SELF_DECLARATION_RX = /\bwe (?:do not|don't|never)\b|\bself[- ]?declar|\bs
 // breach signal (the rule-polarity-inverted.json class).
 const LEGACY_COMPLIANT_CONSENT_RX = /\b(?:ask(?:s|ed)? for|obtain(?:s|ed)?)\b.{0,40}\bconsent\b.{0,40}\b(?:before|prior to)\b/i;
 
-function checkComRecord(record, locator) {
+// checkObligationPolarityMismatch(duty, evidenceType, tag) -> finding[] (Lint 1: prohibition/
+// requirement language vs evidence_type). 'behavioural' is deliberately exempt (see the SEMANTIC
+// DOCTRINE header): an observed-action duty can legitimately carry prohibition OR requirement
+// prose depending on what the observed action actually is, so duty-text polarity language does
+// not determine evidence_type validity for behavioural duties the way it does for presence/absence.
+function checkObligationPolarityMismatch(duty, evidenceType, tag) {
   const findings = [];
+  if (evidenceType === 'behavioural') return findings;
+
+  if (PROHIBITION_RX.test(duty) && evidenceType !== 'absence') {
+    findings.push({
+      rule: 'polarity-prohibition-mismatch',
+      message: tag + ' contains prohibition language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence"): ' + JSON.stringify(duty),
+    });
+  } else if (BREACH_PRESENT_RX.test(duty) && evidenceType !== 'absence' && evidenceType !== 'register') {
+    findings.push({
+      rule: 'polarity-prohibition-mismatch',
+      message: tag + ' contains "breach ... being/is present" prohibition wording but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence", or "register" for a register-verified claim-authenticity check): ' + JSON.stringify(duty),
+    });
+  }
+  if (REQUIREMENT_RX.test(duty) && evidenceType !== 'presence' && evidenceType !== 'register') {
+    findings.push({
+      rule: 'polarity-requirement-mismatch',
+      message: tag + ' contains requirement language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "presence" or "register"): ' + JSON.stringify(duty),
+    });
+  }
+  return findings;
+}
+
+// checkNegationGuard(duty, evidenceType, tag) -> finding[] (Lint 2: the Botox U18 class -
+// caution.md C-048/C-060). An 'absence' obligation whose duty text also carries self-declaration/
+// compliance-claim wording is a WARNING, not a hard mismatch (see the SEMANTIC DOCTRINE header).
+function checkNegationGuard(duty, evidenceType, tag) {
+  if (evidenceType !== 'absence' || !SELF_DECLARATION_RX.test(duty)) return [];
+  return [{
+    rule: 'negation-guard-needed', severity: 'warning',
+    message: tag + ' is typed "absence" but its duty carries self-declaration/compliance wording; a bare text-presence check risks matching the site\'s OWN compliant self-declaration (the Botox U18 class): ' + JSON.stringify(duty),
+  }];
+}
+
+// checkObligationPolarity(w, i) -> finding[] (each finding still needs locator/id stamped on by
+// the caller). One website_obligations[] entry's polarity + negation-guard checks: a small
+// aggregator over the two checks above, named and extracted out of checkComRecord's own forEach
+// callback (Constitution Rule 4/tools/health-gate/check.js caps: the former anonymous callback
+// carried 13 decision points on its own).
+function checkObligationPolarity(w, i) {
+  if (!w || typeof w.duty !== 'string') return [];
+  const tag = 'website_obligations[' + i + ']';
+  const duty = w.duty;
+  const evidenceType = w.evidence_type;
+  return [
+    ...checkObligationPolarityMismatch(duty, evidenceType, tag),
+    ...checkNegationGuard(duty, evidenceType, tag),
+  ];
+}
+
+function checkComRecord(record, locator) {
   const id = typeof record.id === 'string' ? record.id : '<no id>';
   const obligations = Array.isArray(record.website_obligations) ? record.website_obligations : [];
-
+  const findings = [];
   obligations.forEach((w, i) => {
-    if (!w || typeof w.duty !== 'string') return;
-    const tag = 'website_obligations[' + i + ']';
-    const duty = w.duty;
-    const evidenceType = w.evidence_type;
-
-    // 'behavioural' is deliberately exempt from both checks below (see the SEMANTIC DOCTRINE
-    // header): an observed-action duty can legitimately carry prohibition OR requirement prose
-    // depending on what the observed action actually is, so duty-text polarity language does not
-    // determine evidence_type validity for behavioural duties the way it does for presence/absence.
-    if (evidenceType !== 'behavioural') {
-      if (PROHIBITION_RX.test(duty) && evidenceType !== 'absence') {
-        findings.push({
-          locator, id, rule: 'polarity-prohibition-mismatch',
-          message: tag + ' contains prohibition language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence"): ' + JSON.stringify(duty),
-        });
-      } else if (BREACH_PRESENT_RX.test(duty) && evidenceType !== 'absence' && evidenceType !== 'register') {
-        findings.push({
-          locator, id, rule: 'polarity-prohibition-mismatch',
-          message: tag + ' contains "breach ... being/is present" prohibition wording but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "absence", or "register" for a register-verified claim-authenticity check): ' + JSON.stringify(duty),
-        });
-      }
-      if (REQUIREMENT_RX.test(duty) && evidenceType !== 'presence' && evidenceType !== 'register') {
-        findings.push({
-          locator, id, rule: 'polarity-requirement-mismatch',
-          message: tag + ' contains requirement language but evidence_type is ' + JSON.stringify(evidenceType) + ' (must be "presence" or "register"): ' + JSON.stringify(duty),
-        });
-      }
-    }
-    if (evidenceType === 'absence' && SELF_DECLARATION_RX.test(duty)) {
-      findings.push({
-        locator, id, rule: 'negation-guard-needed', severity: 'warning',
-        message: tag + ' is typed "absence" but its duty carries self-declaration/compliance wording; a bare text-presence check risks matching the site\'s OWN compliant self-declaration (the Botox U18 class): ' + JSON.stringify(duty),
-      });
-    }
+    for (const f of checkObligationPolarity(w, i)) findings.push({ locator, id, ...f });
   });
-
   return findings;
 }
 

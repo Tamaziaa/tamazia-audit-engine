@@ -1,5 +1,5 @@
 <!-- qa-approval pack_sha256=aaa98ae654c5538b49210f8fc453205502c04fa3488b09b7d678d7f7119e7c9a verdict=approved reviewed=2026-07-17 -->
-Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
 
 # QA Report — us-legal law pack
 

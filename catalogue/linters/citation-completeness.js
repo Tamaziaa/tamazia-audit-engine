@@ -88,12 +88,15 @@ function citationHostOfficial(url) {
   return lib.hostMatchesAllowlist(host, OFFICIAL_HOSTS);
 }
 
-// checkRecord(record, locator) -> finding[] (never throws)
-function checkRecord(record, locator) {
-  const findings = [];
-  const id = typeof record.id === 'string' ? record.id : '<no id>';
-  const add = (rule, message) => findings.push({ locator, id, rule, message });
+// Every check below has the exact same shape: (record, locator, id) -> finding[]. checkRecord
+// (the aggregator, at the foot of this section) just concatenates them. Split out of the former
+// single checkRecord (Constitution Rule 4/tools/health-gate/check.js caps): each check reads
+// independently and none of the underlying rule/message logic changed, only where it lives.
 
+// 1. candidate rows require an official-host citation.url (Constitution Rule 14 / caution.md C-104)
+function checkCitation(record, locator, id) {
+  const findings = [];
+  const add = (rule, message) => findings.push({ locator, id, rule, message });
   if (record.status === 'candidate') {
     const url = record.citation && record.citation.url;
     if (typeof url !== 'string' || url.trim().length === 0) {
@@ -103,12 +106,24 @@ function checkRecord(record, locator) {
       add('citation-host-unofficial', 'candidate record citation.url host ' + JSON.stringify(host || url) + ' is not on OFFICIAL_HOSTS: ' + url);
     }
   }
+  return findings;
+}
 
+// 2. provenance.sources non-empty (every row, any status: Rule 14 binds unconditionally)
+function checkProvenance(record, locator, id) {
+  const findings = [];
+  const add = (rule, message) => findings.push({ locator, id, rule, message });
   const sources = record.provenance && record.provenance.sources;
   if (!Array.isArray(sources) || sources.length === 0) {
     add('provenance-sources-empty', 'provenance.sources is missing or empty');
   }
+  return findings;
+}
 
+// 3. penalty.currency + penalty.basis present (every row)
+function checkPenaltyFields(record, locator, id) {
+  const findings = [];
+  const add = (rule, message) => findings.push({ locator, id, rule, message });
   const penalty = record.penalty || {};
   if (typeof penalty.currency !== 'string' || penalty.currency.trim().length === 0) {
     add('penalty-currency-missing', 'penalty.currency is missing');
@@ -116,7 +131,14 @@ function checkRecord(record, locator) {
   if (typeof penalty.basis !== 'string' || penalty.basis.trim().length === 0) {
     add('penalty-basis-missing', 'penalty.basis is missing');
   }
+  return findings;
+}
 
+// 4. enforcement[] entries each carry url + date (every row); url is also checked against
+// OFFICIAL_HOSTS as a secondary/informational finding (reported honestly, never silently allowed).
+function checkEnforcementEntries(record, locator, id) {
+  const findings = [];
+  const add = (rule, message) => findings.push({ locator, id, rule, message });
   const enforcement = Array.isArray(record.enforcement) ? record.enforcement : [];
   enforcement.forEach((e, i) => {
     const tag = 'enforcement[' + i + ']';
@@ -131,14 +153,32 @@ function checkRecord(record, locator) {
       add('enforcement-date-missing', tag + ' has no date');
     }
   });
+  return findings;
+}
 
+// SECONDARY (informational): regulator.register_url is also checked against OFFICIAL_HOSTS.
+function checkRegisterUrl(record, locator, id) {
+  const findings = [];
+  const add = (rule, message) => findings.push({ locator, id, rule, message });
   const registerUrl = record.regulator && record.regulator.register_url;
   if (typeof registerUrl === 'string' && registerUrl.trim().length > 0 && !citationHostOfficial(registerUrl)) {
     const host = lib.urlHost(registerUrl);
     add('register-host-unofficial', 'regulator.register_url host ' + JSON.stringify(host || registerUrl) + ' is not on OFFICIAL_HOSTS: ' + registerUrl);
   }
-
   return findings;
+}
+
+// checkRecord(record, locator) -> finding[] (never throws). A small aggregator over the checks
+// above - it invents no rule of its own.
+function checkRecord(record, locator) {
+  const id = typeof record.id === 'string' ? record.id : '<no id>';
+  return [
+    ...checkCitation(record, locator, id),
+    ...checkProvenance(record, locator, id),
+    ...checkPenaltyFields(record, locator, id),
+    ...checkEnforcementEntries(record, locator, id),
+    ...checkRegisterUrl(record, locator, id),
+  ];
 }
 
 function scan(dirsOrPatterns) {

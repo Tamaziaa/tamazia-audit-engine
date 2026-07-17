@@ -126,6 +126,49 @@ function capsSummary(caps) {
   return { present, total };
 }
 
+// hasReadableCorpus(bundle) -> true when the bundle carries at least one crawled page. An
+// unreadable/bot-walled/SPA-shell bundle (no corpus) is a legitimate, allowed category - split out
+// of runFirm purely so its own four-clause boolean does not inflate runFirm's decision count.
+function hasReadableCorpus(bundle) {
+  return Boolean(bundle && bundle.corpus && typeof bundle.corpus === 'object'
+    && Array.isArray(bundle.corpus.pages) && bundle.corpus.pages.length > 0);
+}
+
+// deriveFactsForBundle(bundle, hasCorpus) -> the four facts doors' output for one bundle.
+// deriveCapabilities requires a corpus by contract, so on a corpus-less bundle capabilities is
+// simply not applicable (null) rather than invoked - it is NOT an error.
+function deriveFactsForBundle(bundle, hasCorpus) {
+  return {
+    identity: identity.resolveIdentity(bundle),
+    jurisdiction: jurisdiction.resolveJurisdiction(bundle),
+    sector: sector.resolveSector(bundle),
+    capabilities: hasCorpus ? capabilities.deriveCapabilities(bundle) : null,
+  };
+}
+
+// buildFirmResultRow(firm, facts, payload, report, bundleUnreachable) -> the final per-firm row,
+// once facts have been derived and verified. Split out of runFirm so the row-assembly reads
+// separately from the fixture-loading/door-invocation plumbing above it.
+function buildFirmResultRow(firm, facts, payload, report, bundleUnreachable) {
+  const emitted = facts.sector && facts.sector.value;
+  const emittedFamily = payload.meta.sector;
+  const sub = subSectorNote(emitted, firm.expected && firm.expected.sub_sector);
+  const caps = facts.capabilities ? capsSummary(facts.capabilities) : null;
+
+  return {
+    domain: firm.domain,
+    role: firm.role,
+    status: report.ok ? 'OK' : 'CONTRADICT',
+    report,
+    bundle_unreachable: bundleUnreachable,
+    sector_family: emittedFamily,
+    sector_node: emitted ? emitted.sector : null,
+    sub_sector_note: sub,
+    bound: payload.jurisdiction.bound,
+    caps,
+  };
+}
+
 // -------------------------------------------------------------------------------------------------
 // Per-firm run. Returns a row; throws only escape to the caller which records them as ERROR rows.
 // -------------------------------------------------------------------------------------------------
@@ -147,23 +190,15 @@ function runFirm(firm, fixturesDir) {
     return { domain: firm.domain, role: firm.role, status: 'ERROR', detail: 'fixture unreadable: ' + e.message, report: null };
   }
 
-  // An unreachable bundle (bot-walled or SPA shell: no readable corpus) is a legitimate, allowed
-  // category. The tolerant doors (identity/jurisdiction/sector) abstain across the board on it;
-  // deriveCapabilities requires a corpus by contract, so on a corpus-less bundle capabilities is
-  // simply not applicable and reads as abstained - it is NOT an error. A door throwing on a bundle
-  // that DOES carry a corpus is a real integration breakage and surfaces as ERROR below.
-  const hasCorpus = bundle && bundle.corpus && typeof bundle.corpus === 'object'
-    && Array.isArray(bundle.corpus.pages) && bundle.corpus.pages.length > 0;
+  // A door throwing on a bundle that DOES carry a corpus is a real integration breakage and
+  // surfaces as ERROR below; the tolerant doors (identity/jurisdiction/sector) abstain across the
+  // board on a corpus-less bundle instead.
+  const hasCorpus = hasReadableCorpus(bundle);
   const bundleUnreachable = !hasCorpus || bundle.unreachable === true;
 
   let facts;
   try {
-    facts = {
-      identity: identity.resolveIdentity(bundle),
-      jurisdiction: jurisdiction.resolveJurisdiction(bundle),
-      sector: sector.resolveSector(bundle),
-      capabilities: hasCorpus ? capabilities.deriveCapabilities(bundle) : null,
-    };
+    facts = deriveFactsForBundle(bundle, hasCorpus);
   } catch (e) {
     return { domain: firm.domain, role: firm.role, status: 'ERROR', detail: 'a facts door threw: ' + e.message, report: null };
   }
@@ -171,23 +206,7 @@ function runFirm(firm, fixturesDir) {
   const payload = factsToPayload(firm.domain, facts);
   const report = verifyPayload(payload, canonicaliseFirm(firm));
 
-  const emitted = facts.sector && facts.sector.value;
-  const emittedFamily = payload.meta.sector;
-  const sub = subSectorNote(emitted, firm.expected && firm.expected.sub_sector);
-  const caps = facts.capabilities ? capsSummary(facts.capabilities) : null;
-
-  return {
-    domain: firm.domain,
-    role: firm.role,
-    status: report.ok ? 'OK' : 'CONTRADICT',
-    report,
-    bundle_unreachable: bundleUnreachable,
-    sector_family: emittedFamily,
-    sector_node: emitted ? emitted.sector : null,
-    sub_sector_note: sub,
-    bound: payload.jurisdiction.bound,
-    caps,
-  };
+  return buildFirmResultRow(firm, facts, payload, report, bundleUnreachable);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -261,7 +280,8 @@ function summarise(rows) {
 // -------------------------------------------------------------------------------------------------
 // CLI.
 // -------------------------------------------------------------------------------------------------
-function main(argv) {
+// parseRunFactsArgs(argv) -> {opts} on success, or {exitCode} on an unrecognised argument.
+function parseRunFactsArgs(argv) {
   const args = argv.slice(2);
   const opts = { json: false, set: DEFAULT_SET, fixtures: DEFAULT_FIXTURES, domain: null };
   for (let i = 0; i < args.length; i++) {
@@ -270,27 +290,88 @@ function main(argv) {
     else if (a === '--set') opts.set = args[++i];
     else if (a === '--fixtures') opts.fixtures = args[++i];
     else if (a === '--domain') opts.domain = args[++i];
-    else { console.error('Unknown argument: ' + a); return 2; }
+    else { console.error('Unknown argument: ' + a); return { exitCode: 2 }; }
   }
+  return { opts };
+}
 
+// loadRefSetAndFixtures(opts) -> {refSet} on success, or {exitCode} when the reference set cannot
+// be read or the fixtures directory does not exist.
+function loadRefSetAndFixtures(opts) {
   let refSet;
   try {
     refSet = loadReferenceSet(opts.set);
   } catch (e) {
     console.error('Cannot read reference set ' + opts.set + ': ' + e.message);
-    return 2;
+    return { exitCode: 2 };
   }
   if (!fs.existsSync(opts.fixtures)) {
     console.error('Fixtures directory not found: ' + opts.fixtures);
-    return 2;
+    return { exitCode: 2 };
   }
+  return { refSet };
+}
 
+// selectFirms(refSet, opts) -> {firms} on success, or {exitCode} when --domain names a firm not
+// in the reference set.
+function selectFirms(refSet, opts) {
   let firms = refSet.firms || [];
   if (opts.domain) {
     const found = findFirm(refSet, opts.domain);
-    if (!found) { console.error('Domain "' + opts.domain + '" is not in the reference set.'); return 2; }
+    if (!found) {
+      console.error('Domain "' + opts.domain + '" is not in the reference set.');
+      return { exitCode: 2 };
+    }
     firms = [found];
   }
+  return { firms };
+}
+
+// printHumanReport(rows, summary, errored) -> the full non-JSON report: header, table, legend,
+// summary counts, contradiction detail and error detail, unchanged from the original inline else
+// block in main().
+function printHumanReport(rows, summary, errored) {
+  console.log('reference-set run-facts: the four facts doors vs hand-verified ground truth');
+  console.log('law: match or abstain, never contradict (canonicalised through facts/vocabulary.js)\n');
+  printTable(rows);
+  const unreachableBundles = rows.filter((r) => r.status === 'OK' && r.bundle_unreachable).length;
+  console.log('');
+  console.log('legend: match/abstain per the reference law; OK* = reachable-firm expectations met by '
+    + 'abstention because the fixture bundle is unreachable (bot-walled / SPA shell); caps n/a = no corpus to derive from');
+  console.log('summary: ' + summary.firms + ' firms | ' + summary.ok + ' ok (' + unreachableBundles + ' on unreachable bundles) | '
+    + summary.contradicting + ' contradicting | ' + summary.unreachable + ' no-fixture | ' + summary.errored + ' errored');
+  console.log('         ' + summary.matches + ' matches, ' + summary.abstentions + ' abstentions (allowed), '
+    + summary.contradictions + ' contradictions');
+  if (summary.contradictions > 0) {
+    console.log('\ncontradictions (each fails the gate):');
+    for (const r of rows) {
+      if (!r.report) continue;
+      for (const c of r.report.contradictions) {
+        console.log('  FAIL  ' + r.domain + '  [' + c.check + ']  ' + c.detail);
+      }
+    }
+  }
+  for (const r of errored) console.log('\nERROR  ' + r.domain + ': ' + r.detail);
+  console.log('');
+  console.log(summary.errored > 0
+    ? 'RESULT: ERROR - a facts door threw or a fixture was unreadable'
+    : (summary.contradictions > 0
+      ? 'RESULT: CONTRADICTION - the facts layer contradicted hand-verified ground truth'
+      : 'RESULT: OK (no contradictions; abstentions and unreachable fixtures allowed)'));
+}
+
+function main(argv) {
+  const parsed = parseRunFactsArgs(argv);
+  if (parsed.exitCode) return parsed.exitCode;
+  const { opts } = parsed;
+
+  const loaded = loadRefSetAndFixtures(opts);
+  if (loaded.exitCode) return loaded.exitCode;
+  const { refSet } = loaded;
+
+  const selected = selectFirms(refSet, opts);
+  if (selected.exitCode) return selected.exitCode;
+  const { firms } = selected;
 
   const rows = firms.map((f) => runFirm(f, opts.fixtures));
   const summary = summarise(rows);
@@ -299,33 +380,7 @@ function main(argv) {
   if (opts.json) {
     console.log(JSON.stringify({ summary, rows }, null, 2));
   } else {
-    console.log('reference-set run-facts: the four facts doors vs hand-verified ground truth');
-    console.log('law: match or abstain, never contradict (canonicalised through facts/vocabulary.js)\n');
-    printTable(rows);
-    const unreachableBundles = rows.filter((r) => r.status === 'OK' && r.bundle_unreachable).length;
-    console.log('');
-    console.log('legend: match/abstain per the reference law; OK* = reachable-firm expectations met by '
-      + 'abstention because the fixture bundle is unreachable (bot-walled / SPA shell); caps n/a = no corpus to derive from');
-    console.log('summary: ' + summary.firms + ' firms | ' + summary.ok + ' ok (' + unreachableBundles + ' on unreachable bundles) | '
-      + summary.contradicting + ' contradicting | ' + summary.unreachable + ' no-fixture | ' + summary.errored + ' errored');
-    console.log('         ' + summary.matches + ' matches, ' + summary.abstentions + ' abstentions (allowed), '
-      + summary.contradictions + ' contradictions');
-    if (summary.contradictions > 0) {
-      console.log('\ncontradictions (each fails the gate):');
-      for (const r of rows) {
-        if (!r.report) continue;
-        for (const c of r.report.contradictions) {
-          console.log('  FAIL  ' + r.domain + '  [' + c.check + ']  ' + c.detail);
-        }
-      }
-    }
-    for (const r of errored) console.log('\nERROR  ' + r.domain + ': ' + r.detail);
-    console.log('');
-    console.log(summary.errored > 0
-      ? 'RESULT: ERROR - a facts door threw or a fixture was unreadable'
-      : (summary.contradictions > 0
-        ? 'RESULT: CONTRADICTION - the facts layer contradicted hand-verified ground truth'
-        : 'RESULT: OK (no contradictions; abstentions and unreachable fixtures allowed)'));
+    printHumanReport(rows, summary, errored);
   }
 
   if (summary.errored > 0) return 2;

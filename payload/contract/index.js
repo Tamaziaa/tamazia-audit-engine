@@ -118,10 +118,15 @@ function schemaNodeFor(dotPath) {
   return node;
 }
 
-function selftest() {
-  const errors = [];
+// Every assertion group below has the exact same shape: () -> string[] of selftest errors.
+// selftest (the aggregator, at the foot of this section) just concatenates them. Split out of the
+// former single 22-branch selftest (Constitution Rule 4/tools/health-gate/check.js caps): each
+// group reads independently and none of the underlying assertion logic changed, only where it
+// lives.
 
-  // 1. Every REQUIRED path must exist in the schema and be in a `required` chain.
+// 1. Every REQUIRED path must exist in the schema and be in a `required` chain.
+function checkRequiredPathsAgainstSchema() {
+  const errors = [];
   for (const p of REQUIRED) {
     if (!schemaNodeFor(p)) errors.push(`REQUIRED path not described by schema: ${p}`);
     const segs = p.split('.');
@@ -135,34 +140,59 @@ function selftest() {
       if (!node) break;
     }
   }
+  return errors;
+}
 
-  // 2. Every NONEMPTY path must exist and carry minItems >= 1.
+// 2. Every NONEMPTY path must exist and carry minItems >= 1.
+function checkNonEmptyPathsAgainstSchema() {
+  const errors = [];
   for (const p of NONEMPTY) {
     const node = schemaNodeFor(p);
     if (!node) { errors.push(`NONEMPTY path not described by schema: ${p}`); continue; }
     const minItems = node.minItems != null ? node.minItems : (node.$ref === '#/$defs/nonEmptyArray' ? 1 : null);
     if (minItems == null || minItems < 1) errors.push(`schema does not enforce non-empty on ${p}`);
   }
+  return errors;
+}
 
-  // 3. Exact counts must be encoded as minItems == maxItems == count.
+// 3. Exact counts must be encoded as minItems == maxItems == count.
+function checkExactCountsAgainstSchema() {
+  const errors = [];
   for (const { path, count } of EXACT_COUNTS) {
     const node = schemaNodeFor(path);
     if (!node || node.minItems !== count || node.maxItems !== count) {
       errors.push(`schema does not pin ${path} to exactly ${count} items`);
     }
   }
+  return errors;
+}
 
-  // 4. catalogueSize must NOT be required (deliberately nullable).
+// 4. catalogueSize must NOT be required (deliberately nullable).
+function checkCatalogueSizeNotRequired() {
+  const errors = [];
   if ((schema.required || []).includes('catalogueSize') || REQUIRED.includes('catalogueSize')) {
     errors.push('catalogueSize must stay nullable and non-required');
   }
+  return errors;
+}
 
-  // 5. The validator must reject an empty payload and accept the minimal valid one.
+// 5. The validator must reject an empty payload and accept the minimal valid one.
+function checkValidatorBehaviour() {
+  const errors = [];
   if (validatePayload({}).length === 0) errors.push('validatePayload({}) returned no missing paths - validator broken');
   const minimalMissing = validatePayload(buildMinimalValidPayload());
   if (minimalMissing.length !== 0) errors.push(`minimal valid payload flagged: ${minimalMissing.join(', ')}`);
-
   return errors;
+}
+
+function selftest() {
+  return [
+    ...checkRequiredPathsAgainstSchema(),
+    ...checkNonEmptyPathsAgainstSchema(),
+    ...checkExactCountsAgainstSchema(),
+    ...checkCatalogueSizeNotRequired(),
+    ...checkValidatorBehaviour(),
+  ];
 }
 
 if (require.main === module) {

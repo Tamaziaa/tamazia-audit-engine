@@ -61,7 +61,7 @@ jobs:
             echo "::warning title=swallow-gate absent::tools/swallow-gate/check.js does not exist yet - gate SKIPPED. This is only acceptable during P0 Foundation."
           fi
 
-      - name: Known-bad calibration corpus (--strict: a missing checker fails the build, not just a checker that misses its fixture)
+      - name: "Known-bad calibration corpus (--strict mode - a missing checker fails the build, not just a checker that misses its fixture)"
         run: |
           if [ -f eval/calibration-known-bad/run.js ]; then
             node eval/calibration-known-bad/run.js --strict

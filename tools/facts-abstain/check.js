@@ -154,7 +154,12 @@ function scan(pathsOrDirs) {
   for (const p of inputs) {
     let abs;
     try {
-      safePath.assertSafeRelativePath(p, { label: 'facts-abstain scan path' });
+      // A scan target is a READ path an operator/caller names for this gate to read: it legitimately
+      // arrives ABSOLUTE (an operator naming a bundle anywhere on disk, or a test's temp fixture) and
+      // is used directly, not path.resolve(base, p)'d against a base it could discard. assertSafeScanPath
+      // accepts absolute and traversal-guards a relative one; path.resolve(ROOT, abs) is a no-op for an
+      // absolute p and roots a relative one (CR safe-path.js:43 consumer audit).
+      safePath.assertSafeScanPath(p, { label: 'facts-abstain scan path' });
       abs = path.resolve(ROOT, p);
     } catch (e) {
       recordScanError(violations, String(p), e.message);
@@ -210,33 +215,49 @@ function toFindings(violations) {
 // still have the bug". The REAL modules are exercised separately and unconditionally by the
 // eval/calibration-known-bad/fixtures/p1-reference-fixtures-unreachable-bundle.json calibration run
 // (wired in eval/calibration-known-bad/run.js) and by check.test.js's own "real-module" test.
-function selfTest() {
-  const unreachableBundle = {
+// selfTestUnreachableBundle() -> the one synthetic bundle every checkBundle() case below runs
+// against.
+function selfTestUnreachableBundle() {
+  return {
     domain: 'selftest-unreachable.example',
     unreachable: true,
     corpus: { pages: [{ url: 'https://selftest-unreachable.example/', title: 'Attention Required!', text: 'Checking your browser before accessing.', jsonLd: [] }], footerText: '' },
     registers: {},
   };
+}
 
-  const faultyNonAbstainResolvers = {
-    resolveIdentity: () => ({ display_name: { value: 'Faulty Stub Co', confidence: 'weak' } }),
-    resolveJurisdiction: () => ({ abstained: false, bound: [{ jurisdiction: 'UK' }] }),
-    resolveSector: () => ({ value: 'law-firms', confidence: 'weak' }),
+// selfTestResolverStubs() -> the three DELIBERATELY FAULTY/correct stub resolver triples CR-42
+// requires (see the file-level comment above selfTest): never REAL_RESOLVERS.
+function selfTestResolverStubs() {
+  return {
+    faultyNonAbstain: {
+      resolveIdentity: () => ({ display_name: { value: 'Faulty Stub Co', confidence: 'weak' } }),
+      resolveJurisdiction: () => ({ abstained: false, bound: [{ jurisdiction: 'UK' }] }),
+      resolveSector: () => ({ value: 'law-firms', confidence: 'weak' }),
+    },
+    faultyThrowing: {
+      resolveIdentity: () => { throw new Error('synthetic injected failure'); },
+      resolveJurisdiction: () => { throw new Error('synthetic injected failure'); },
+      resolveSector: () => { throw new Error('synthetic injected failure'); },
+    },
+    correctlyAbstaining: {
+      resolveIdentity: () => ({ display_name: { value: null, confidence: 'abstain' } }),
+      resolveJurisdiction: () => ({ abstained: true, bound: [] }),
+      resolveSector: () => ({ value: null, confidence: 'abstain' }),
+    },
   };
-  const faultyThrowingResolvers = {
-    resolveIdentity: () => { throw new Error('synthetic injected failure'); },
-    resolveJurisdiction: () => { throw new Error('synthetic injected failure'); },
-    resolveSector: () => { throw new Error('synthetic injected failure'); },
-  };
-  const correctlyAbstainingResolvers = {
-    resolveIdentity: () => ({ display_name: { value: null, confidence: 'abstain' } }),
-    resolveJurisdiction: () => ({ abstained: true, bound: [] }),
-    resolveSector: () => ({ value: null, confidence: 'abstain' }),
-  };
+}
 
-  const nonAbstainF = checkBundle(unreachableBundle, 'selftest', faultyNonAbstainResolvers);
-  const throwF = checkBundle(unreachableBundle, 'selftest', faultyThrowingResolvers);
-  const abstainingF = checkBundle(unreachableBundle, 'selftest', correctlyAbstainingResolvers);
+// runSelfTestCases() -> the raw per-case results selfTest evaluates. Pulled out of selfTest as its
+// own step (Constitution Rule 4/tools/health-gate/check.js caps: the former inline selfTest body
+// was 61 lines).
+function runSelfTestCases() {
+  const unreachableBundle = selfTestUnreachableBundle();
+  const stubs = selfTestResolverStubs();
+
+  const nonAbstainF = checkBundle(unreachableBundle, 'selftest', stubs.faultyNonAbstain);
+  const throwF = checkBundle(unreachableBundle, 'selftest', stubs.faultyThrowing);
+  const abstainingF = checkBundle(unreachableBundle, 'selftest', stubs.correctlyAbstaining);
 
   const ordinaryIsNotUnreachable = looksUnreachable({
     domain: 'ordinary.example',
@@ -253,22 +274,33 @@ function selfTest() {
   // CR-41: an empty scan input must itself be a failure, never a clean pass.
   const emptyScanFailsClosed = scan([]).violations.some((v) => v.rule === 'facts-abstain/scan-error');
 
-  const pass = nonAbstainF.some((f) => f.rule === 'facts-abstain/identity-non-abstain')
-    && nonAbstainF.some((f) => f.rule === 'facts-abstain/jurisdiction-non-abstain')
-    && nonAbstainF.some((f) => f.rule === 'facts-abstain/sector-non-abstain')
-    && throwF.some((f) => f.rule === 'facts-abstain/identity-threw')
-    && throwF.some((f) => f.rule === 'facts-abstain/jurisdiction-threw')
-    && throwF.some((f) => f.rule === 'facts-abstain/sector-threw')
-    && abstainingF.length === 0
-    && ordinaryIsNotUnreachable
-    && footerTextIsReachable
-    && emptyScanFailsClosed;
+  return { nonAbstainF, throwF, abstainingF, ordinaryIsNotUnreachable, footerTextIsReachable, emptyScanFailsClosed };
+}
+
+// evaluateSelfTestCases(r) -> boolean pass; every individual expectation the original selfTest
+// asserted, unchanged.
+function evaluateSelfTestCases(r) {
+  return r.nonAbstainF.some((f) => f.rule === 'facts-abstain/identity-non-abstain')
+    && r.nonAbstainF.some((f) => f.rule === 'facts-abstain/jurisdiction-non-abstain')
+    && r.nonAbstainF.some((f) => f.rule === 'facts-abstain/sector-non-abstain')
+    && r.throwF.some((f) => f.rule === 'facts-abstain/identity-threw')
+    && r.throwF.some((f) => f.rule === 'facts-abstain/jurisdiction-threw')
+    && r.throwF.some((f) => f.rule === 'facts-abstain/sector-threw')
+    && r.abstainingF.length === 0
+    && r.ordinaryIsNotUnreachable
+    && r.footerTextIsReachable
+    && r.emptyScanFailsClosed;
+}
+
+function selfTest() {
+  const r = runSelfTestCases();
+  const pass = evaluateSelfTestCases(r);
 
   return {
     pass,
     detail: pass
       ? 'catches an injected non-abstain emission, an injected thrown error, and clears a genuinely abstaining response, against injected FAULTY stub resolvers (never the real facts modules); correctly does not misclassify an ordinary reachable bundle or a footer-only bundle as unreachable; and an empty scan input fails closed rather than passing clean'
-      : 'FAILED: ' + JSON.stringify({ nonAbstainF, throwF, abstainingF, ordinaryIsNotUnreachable, footerTextIsReachable, emptyScanFailsClosed }),
+      : 'FAILED: ' + JSON.stringify(r),
   };
 }
 

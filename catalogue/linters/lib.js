@@ -50,11 +50,15 @@ function resolveJsonFiles(patternOrDir) {
   } else {
     dir = raw;
   }
-  // dir/raw are caller-supplied (a CLI positional, DEFAULT_PACK_GLOB, or CALIBRATE_DIR) - allowlist
-  // them as safe RELATIVE paths (no ".." traversal segment) before they ever reach path.resolve.
-  // An empty string is a legitimate "no directory named" case (falls through to the empty [] return
-  // below) so it is exempted from the check rather than treated as unsafe.
-  if (dir) safePath.assertSafeRelativePath(dir, { label: 'catalogue linter scan directory' });
+  // dir/raw are caller-supplied SCAN targets: a CLI positional, DEFAULT_PACK_GLOB, CALIBRATE_DIR,
+  // OR the ABSOLUTE per-pack paths catalogue/compile.js hands its linter fleet (already safeJoin-
+  // validated from PACKS_DIR). Allowlist them as safe SCAN paths (absolute is accepted and used
+  // directly; a relative one is traversal-guarded and resolved against REPO_ROOT) before they ever
+  // reach path.resolve - CR safe-path.js:43 consumer audit: a read-scan target legitimately arrives
+  // absolute and must not be rejected the way a base-relative WRITE arg is. An empty string is a
+  // legitimate "no directory named" case (falls through to the empty [] return below) so it is
+  // exempted from the check rather than treated as unsafe.
+  if (dir) safePath.assertSafeScanPath(dir, { label: 'catalogue linter scan directory' });
   const absDir = path.resolve(REPO_ROOT, dir);
   if (fs.existsSync(absDir) && fs.statSync(absDir).isDirectory()) {
     return fs.readdirSync(absDir)
@@ -63,7 +67,7 @@ function resolveJsonFiles(patternOrDir) {
       .sort()
       .map((f) => safePath.safeJoin(absDir, [f], { label: 'catalogue linter input file' }));
   }
-  if (raw) safePath.assertSafeRelativePath(raw, { label: 'catalogue linter scan file' });
+  if (raw) safePath.assertSafeScanPath(raw, { label: 'catalogue linter scan file' });
   const absFile = path.resolve(REPO_ROOT, raw);
   if (fs.existsSync(absFile) && fs.statSync(absFile).isFile()) return [absFile];
   return [];

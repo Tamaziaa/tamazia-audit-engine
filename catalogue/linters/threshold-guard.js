@@ -34,6 +34,15 @@ const lib = require('./lib');
 // leading numeral ("250 or more employees").
 const THRESHOLD_RX = /\bturnover\b|\brevenue\b|\bemployee(?:s)?\s+(?:count|number|threshold)\b|\bnumber of employees\b|\b\d[\d,]*\s*(?:or more\s+)?employees\b|\bcompany size\b|\bsize of (?:the )?(?:company|business|firm)\b|\bsmall (?:and medium-sized )?(?:business(?:es)?|enterprises?)\b|\bSMEs?\b|\bstaff (?:count|number|headcount)\b|\bheadcount\b|\bfewer than \d|\bmore than \d+\s*(?:employees|staff)\b|\bGBP\s?\d[\d,]*\s*(?:m|million|k)\b|£\s?\d[\d,]*\s*(?:m|million|k)\b|\$\s?\d[\d,]*\s*(?:m|million|k)\b/i;
 
+// BELOW_THRESHOLD_RX (CR threshold-guard.js:62): the below/under/exempt SENSE a genuine
+// excluded_when carve-out must carry. A threshold KEYWORD alone in excluded_when is not enough to
+// prove a sub-threshold exemption is modelled - an entry that merely RE-STATES the same ABOVE-
+// threshold trigger ("organisation with annual turnover of GBP 36 million or more") matches
+// THRESHOLD_RX yet models no carve-out at all. hasNonEmptyExcludedWhen therefore now requires BOTH
+// a threshold token AND one of these below/under/less-than/exemption senses in the SAME entry, so a
+// same-threshold-but-not-below excluded_when still leaves the record flagged.
+const BELOW_THRESHOLD_RX = /\bbelow\b|\bunder\b|\bbeneath\b|\bless than\b|\bfewer than\b|\bsmaller than\b|\bup to\b|\bnot exceeding\b|\bdoes not exceed\b|\bdo(?:es)? not (?:apply|meet|reach)\b|\bat or below\b|\bunderneath\b|\bexempt\b|\bexemption\b|\bde minimis\b/i;
+
 function textMentionsThreshold(record) {
   const haystacks = [];
   if (typeof record.name === 'string') haystacks.push(record.name);
@@ -47,19 +56,24 @@ function textMentionsThreshold(record) {
 }
 
 // hasNonEmptyExcludedWhen(record) -> true only when excluded_when carries a GENUINE "below the
-// threshold, excluded" entry (CR-12) - not merely any non-empty string. An unrelated exclusion
-// reason (e.g. "B2B-only firms are out of scope" on a size-gated record, with no size language
-// anywhere in it) must never satisfy this check while the actual sub-threshold carve-out stays
-// unmodelled: a genuine entry re-uses THRESHOLD_RX itself - the SAME vocabulary that triggered this
-// check in the first place - which already mixes both a threshold KEYWORD class ("turnover",
-// "revenue", "employees", "SME", ...) and a NUMERIC/currency-amount class ("GBP 36 million", "£36m",
-// "$10m", "fewer than 250"). Re-using one regex for both directions means a threshold-mention
-// vocabulary change can never silently drift the two checks apart. A bare digit test (e.g. "\d")
-// was deliberately rejected here: it false-positived on "B2B-only" (the "2" in "B2B"), which is
-// exactly the unrelated-entry class this tightening exists to reject.
+// threshold, excluded" entry (CR-12 + CR threshold-guard.js:62) - not merely any non-empty string,
+// and not merely one that re-states the SAME above-threshold trigger. A single excluded_when entry
+// must carry BOTH:
+//   1. a threshold TOKEN (THRESHOLD_RX - the SAME vocabulary that triggered this check: "turnover",
+//      "revenue", "employees", "SME", "GBP 36 million", "£36m", ...), so a vocabulary change can
+//      never silently drift the trigger and the carve-out apart; AND
+//   2. a below/under/exemption SENSE (BELOW_THRESHOLD_RX) that expresses the sub-threshold carve-out
+//      itself. THRESHOLD_RX alone is not enough: "organisation with annual turnover of GBP 36 million
+//      or more" matches THRESHOLD_RX but is the ABOVE-threshold trigger restated, not an exemption -
+//      requiring the below/exempt sense too keeps such a same-threshold-but-not-below entry from
+//      wrongly clearing the record (CR threshold-guard.js:62).
+// An unrelated exclusion reason (e.g. "B2B-only firms are out of scope") carries neither and so
+// never satisfies this check either. A bare digit test (e.g. "\d") was deliberately rejected for the
+// threshold token: it false-positived on "B2B-only" (the "2" in "B2B").
 function hasNonEmptyExcludedWhen(record) {
   if (!Array.isArray(record.excluded_when)) return false;
-  return record.excluded_when.some((e) => typeof e === 'string' && e.trim().length > 0 && THRESHOLD_RX.test(e));
+  return record.excluded_when.some((e) =>
+    typeof e === 'string' && e.trim().length > 0 && THRESHOLD_RX.test(e) && BELOW_THRESHOLD_RX.test(e));
 }
 
 function isFiniteNumber(x) {
@@ -108,71 +122,106 @@ function scan(dirsOrPatterns) {
   return { violations, scanned: entries.length, parseErrors };
 }
 
-function selfTest() {
-  const missingExcluded = {
-    id: 'CAL_SELFTEST_THRESHOLD',
-    name: 'Modern Slavery Act 2015 (transparency statement)',
-    applies_when: ['organisation with annual turnover of GBP 36 million or more'],
-    excluded_when: [],
-    penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
+// selfTestFixtures() -> the named COM-record fixtures every selfTest case below is run against.
+// Pulled out of selfTest as a pure data table (Constitution Rule 4/tools/health-gate/check.js
+// caps: the former inline selfTest body was 79 lines).
+function selfTestFixtures() {
+  return {
+    missingExcluded: {
+      id: 'CAL_SELFTEST_THRESHOLD',
+      name: 'Modern Slavery Act 2015 (transparency statement)',
+      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+      excluded_when: [],
+      penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
+    },
+    good: {
+      id: 'CAL_SELFTEST_THRESHOLD_GOOD',
+      name: 'Modern Slavery Act 2015 (transparency statement)',
+      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+      excluded_when: ['annual turnover below GBP 36 million'],
+      penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
+    },
+    bandMissing: {
+      id: 'CAL_SELFTEST_BAND',
+      name: 'Some statutory regime',
+      applies_when: ['processes personal data'],
+      excluded_when: [],
+      penalty: { typical_low: null, typical_high: null, statutory_max: 17500000, currency: 'GBP', basis: 'statutory maximum', max_is_rare: true },
+    },
+    noThreshold: {
+      id: 'CAL_SELFTEST_NOTHRESH',
+      name: 'A universal privacy notice duty',
+      applies_when: ['processes personal data of UK residents'],
+      excluded_when: [],
+      penalty: { typical_low: 1000, typical_high: 2000, statutory_max: 5000, currency: 'GBP', basis: 'x', max_is_rare: false },
+    },
+    // CR-12: an excluded_when entry that carries NO threshold keyword or number (an unrelated
+    // exclusion reason) must NOT satisfy hasNonEmptyExcludedWhen - the record stays flagged.
+    unrelatedExcluded: {
+      id: 'CAL_SELFTEST_UNRELATED_EXCLUDED',
+      name: 'Modern Slavery Act 2015 (transparency statement)',
+      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+      excluded_when: ['B2B-only firms are out of scope'],
+      penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
+    },
+    // CR threshold-guard.js:62: an excluded_when entry that merely RE-STATES the same ABOVE-threshold
+    // trigger (matches THRESHOLD_RX but carries no below/under/exempt SENSE) must NOT satisfy
+    // hasNonEmptyExcludedWhen - it models no sub-threshold carve-out at all, so the record stays flagged.
+    sameThresholdNotBelow: {
+      id: 'CAL_SELFTEST_SAME_THRESHOLD_NOT_BELOW',
+      name: 'Modern Slavery Act 2015 (transparency statement)',
+      applies_when: ['organisation with annual turnover of GBP 36 million or more'],
+      excluded_when: ['organisation with annual turnover of GBP 36 million or more'],
+      penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
+    },
+    // CR-13: a bare currency-symbol threshold mention at the very START of a string (no preceding
+    // word-boundary transition to anchor a leading \b) must still be recognised.
+    currencyTokenStart: { name: '£36m', applies_when: [], excluded_when: [] },
+    dollarTokenStart: { name: '$10m', applies_when: [], excluded_when: [] },
   };
-  const good = {
-    id: 'CAL_SELFTEST_THRESHOLD_GOOD',
-    name: 'Modern Slavery Act 2015 (transparency statement)',
-    applies_when: ['organisation with annual turnover of GBP 36 million or more'],
-    excluded_when: ['annual turnover below GBP 36 million'],
-    penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
-  };
-  const bandMissing = {
-    id: 'CAL_SELFTEST_BAND',
-    name: 'Some statutory regime',
-    applies_when: ['processes personal data'],
-    excluded_when: [],
-    penalty: { typical_low: null, typical_high: null, statutory_max: 17500000, currency: 'GBP', basis: 'statutory maximum', max_is_rare: true },
-  };
-  const noThreshold = {
-    id: 'CAL_SELFTEST_NOTHRESH',
-    name: 'A universal privacy notice duty',
-    applies_when: ['processes personal data of UK residents'],
-    excluded_when: [],
-    penalty: { typical_low: 1000, typical_high: 2000, statutory_max: 5000, currency: 'GBP', basis: 'x', max_is_rare: false },
-  };
-  // CR-12: an excluded_when entry that carries NO threshold keyword or number (an unrelated
-  // exclusion reason) must NOT satisfy hasNonEmptyExcludedWhen - the record stays flagged.
-  const unrelatedExcluded = {
-    id: 'CAL_SELFTEST_UNRELATED_EXCLUDED',
-    name: 'Modern Slavery Act 2015 (transparency statement)',
-    applies_when: ['organisation with annual turnover of GBP 36 million or more'],
-    excluded_when: ['B2B-only firms are out of scope'],
-    penalty: { typical_low: null, typical_high: null, statutory_max: null, currency: 'GBP', basis: 'no financial penalty', max_is_rare: false },
-  };
-  // CR-13: a bare currency-symbol threshold mention at the very START of a string (no preceding
-  // word-boundary transition to anchor a leading \b) must still be recognised.
-  const currencyTokenStart = { name: '£36m', applies_when: [], excluded_when: [] };
-  const dollarTokenStart = { name: '$10m', applies_when: [], excluded_when: [] };
+}
 
-  const missingF = checkRecord(missingExcluded, 'selftest');
-  const goodF = checkRecord(good, 'selftest');
-  const bandF = checkRecord(bandMissing, 'selftest');
-  const noThreshF = checkRecord(noThreshold, 'selftest');
-  const unrelatedExcludedF = checkRecord(unrelatedExcluded, 'selftest');
+// runSelfTestCases(fx) -> checkRecord() run once per fixture above.
+function runSelfTestCases(fx) {
+  return {
+    missingF: checkRecord(fx.missingExcluded, 'selftest'),
+    goodF: checkRecord(fx.good, 'selftest'),
+    bandF: checkRecord(fx.bandMissing, 'selftest'),
+    noThreshF: checkRecord(fx.noThreshold, 'selftest'),
+    unrelatedExcludedF: checkRecord(fx.unrelatedExcluded, 'selftest'),
+    sameThresholdNotBelowF: checkRecord(fx.sameThresholdNotBelow, 'selftest'),
+  };
+}
 
-  const missingIsBlockingError = missingF.some((f) => f.rule === 'threshold-excluded-when-missing' && f.severity === 'error');
-
-  const pass = missingF.some((f) => f.rule === 'threshold-excluded-when-missing')
+// evaluateSelfTestCases(fx, r) -> {pass, missingIsBlockingError}. Every individual expectation the
+// original selfTest asserted, unchanged.
+function evaluateSelfTestCases(fx, r) {
+  const missingIsBlockingError = r.missingF.some((f) => f.rule === 'threshold-excluded-when-missing' && f.severity === 'error');
+  const pass = r.missingF.some((f) => f.rule === 'threshold-excluded-when-missing')
     && missingIsBlockingError
-    && unrelatedExcludedF.some((f) => f.rule === 'threshold-excluded-when-missing')
-    && textMentionsThreshold(currencyTokenStart)
-    && textMentionsThreshold(dollarTokenStart)
-    && goodF.filter((f) => f.rule === 'threshold-excluded-when-missing').length === 0
-    && bandF.some((f) => f.rule === 'typical-band-missing')
-    && noThreshF.length === 0;
+    && r.unrelatedExcludedF.some((f) => f.rule === 'threshold-excluded-when-missing')
+    && r.sameThresholdNotBelowF.some((f) => f.rule === 'threshold-excluded-when-missing')
+    && textMentionsThreshold(fx.currencyTokenStart)
+    && textMentionsThreshold(fx.dollarTokenStart)
+    && r.goodF.filter((f) => f.rule === 'threshold-excluded-when-missing').length === 0
+    && r.bandF.some((f) => f.rule === 'typical-band-missing')
+    && r.noThreshF.length === 0;
+  return { pass, missingIsBlockingError };
+}
+
+function selfTest() {
+  const fx = selfTestFixtures();
+  const r = runSelfTestCases(fx);
+  const { pass, missingIsBlockingError } = evaluateSelfTestCases(fx, r);
 
   return {
     pass,
     detail: pass
-      ? 'catches a threshold mention with empty excluded_when (as a blocking error), an unrelated non-size excluded_when entry, £/$ threshold mentions at token start, clears a genuine below-threshold excluded_when, catches a statutory_max with no typical band, and stays silent on a record with no threshold and a full penalty band'
-      : 'FAILED one or more self-test cases: ' + JSON.stringify({ missingF, goodF, bandF, noThreshF, unrelatedExcludedF, missingIsBlockingError }),
+      ? 'catches a threshold mention with empty excluded_when (as a blocking error), an unrelated non-size excluded_when entry, a same-threshold-but-not-below excluded_when, £/$ threshold mentions at token start, clears a genuine below-threshold excluded_when, catches a statutory_max with no typical band, and stays silent on a record with no threshold and a full penalty band'
+      : 'FAILED one or more self-test cases: ' + JSON.stringify({
+        missingF: r.missingF, goodF: r.goodF, bandF: r.bandF, noThreshF: r.noThreshF,
+        unrelatedExcludedF: r.unrelatedExcludedF, sameThresholdNotBelowF: r.sameThresholdNotBelowF, missingIsBlockingError,
+      }),
   };
 }
 
@@ -184,4 +233,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { THRESHOLD_RX, textMentionsThreshold, hasNonEmptyExcludedWhen, checkRecord, scan, selfTest, toFindings };
+module.exports = { THRESHOLD_RX, BELOW_THRESHOLD_RX, textMentionsThreshold, hasNonEmptyExcludedWhen, checkRecord, scan, selfTest, toFindings };

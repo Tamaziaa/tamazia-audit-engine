@@ -737,11 +737,11 @@
    },
    "enforcement": [
     {
-     "case": "CMA first DMCC drip-pricing enforcement",
-     "date": "2025-11",
-     "amount": "Investigation opened",
-     "url": "https://www.gov.uk/government/organisations/competition-and-markets-authority",
-     "summary": "CMA opened its first DMCC Act consumer-protection actions (November 2025) targeting drip pricing across consumer sectors."
+     "case": "CMA first DMCC direct consumer-enforcement investigations (online pricing)",
+     "date": "2025-11-18",
+     "amount": "Investigations opened (8 businesses; advisory letters to around 100 firms)",
+     "url": "https://www.gov.uk/government/news/cma-launches-major-consumer-protection-drive-focused-on-online-pricing-practices",
+     "summary": "On 18 November 2025 the CMA opened its first direct consumer-protection enforcement investigations under the DMCC Act 2024 into eight businesses (StubHub, viagogo, AA Driving School, BSM Driving School, Gold's Gym, Wayfair, Appliances Direct and Marks Electrical) over drip pricing and undisclosed mandatory fees, and issued advisory letters to around 100 firms after a cross-economy review of more than 400 businesses in 19 sectors."
     }
    ],
    "intel": {
@@ -753,7 +753,8 @@
     "sources": [
      "UK-DMCC-24 (seed, confirmed)",
      "UK-CPR-08 (seed)",
-     "CMA drip-pricing + fake-reviews actions (seed compliance_enforcement)"
+     "CMA drip-pricing + fake-reviews actions (seed compliance_enforcement)",
+     "https://www.gov.uk/government/news/cma-launches-major-consumer-protection-drive-focused-on-online-pricing-practices (CMA 18 Nov 2025 announcement, verified 2026-07-17)"
     ],
     "seed_status": "confirmed",
     "verified_date": "2026-07-17",

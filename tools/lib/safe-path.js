@@ -14,14 +14,26 @@
 // slightly different traversal guards (the clone class jscpd exists to catch elsewhere in this
 // repo).
 //
-// Two distinct shapes are validated, because they have different legitimate semantics:
+// Three distinct shapes are validated, because they have different legitimate semantics:
 //   - a PATH COMPONENT (one segment: a bare filename or "name.ext", e.g. "uk-legal.json",
 //     "uk-legal.QA.md") - used for entries that come from fs.readdirSync() output. These must never
 //     contain a path separator, "." or ".." alone, or a null byte.
 //   - a RELATIVE PATH (one or more segments, e.g. "catalogue/packs" or "out/catalogue.v1.json") -
-//     used for CLI-supplied path arguments (--out, --stamp-file) that legitimately name a nested
-//     location chosen by the trusted operator. These may contain separators, but no segment may be
-//     ".." (the actual traversal vector) and no null byte is ever permitted.
+//     used for CLI-supplied WRITE/config path arguments (compile.js's --out, --stamp-file, --packs)
+//     that legitimately name a nested location chosen by the trusted operator, RESOLVED AGAINST A
+//     FIXED BASE. These may contain separators, but must be genuinely RELATIVE: no segment may be
+//     ".." (the traversal vector), the path may not be ABSOLUTE (an absolute path discards the base
+//     under path.resolve and so escapes just as surely as "..", CR safe-path.js:43), and no null
+//     byte is ever permitted.
+//   - a SCAN PATH (a READ target: a file or directory an operator/caller names for a gate to READ,
+//     e.g. facts-abstain/check.js's scan argv and the catalogue linters' scan dirs) - CONSUMER
+//     AUDIT (CR safe-path.js:43): unlike a base-relative WRITE arg, a scan target is used DIRECTLY,
+//     not path.resolve(base, p)'d against a base it could discard, and it legitimately arrives
+//     ABSOLUTE (an already-safeJoin-validated internal path the compiler hands its linters, or an
+//     operator naming a bundle/pack anywhere on disk). So a scan path accepts EITHER an absolute
+//     path OR a genuinely-relative one with no ".." segment; a relative one is still resolved
+//     against the base and its traversal guarded. Null bytes are never permitted. Directory ENTRIES
+//     discovered under a scan path are still routed through safeJoin regardless.
 const path = require('path');
 
 const SAFE_COMPONENT_RX = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -37,9 +49,31 @@ function isSafePathComponent(component) {
 function isSafeRelativePath(p) {
   if (typeof p !== 'string' || p.length === 0) return false;
   if (p.includes('\0')) return false;
+  // CR (safe-path.js:43): a "relative" path must actually BE relative. An ABSOLUTE path
+  // (/etc/passwd, C:\Windows) carries no ".." segment yet still escapes the intended base
+  // entirely: path.resolve(base, absolute) discards base and resolves to the absolute location.
+  // Rejecting it here closes that hole for every consumer at once, so the whole shared contract
+  // rejects absolute AND traversal consistently (compile.js CLI args, catalogue linters,
+  // facts-abstain scan paths), not just the "../" vector.
+  if (path.isAbsolute(p)) return false;
   const segments = p.split(/[\\/]+/).filter((s) => s.length > 0);
   if (segments.length === 0) return false;
   return segments.every((seg) => seg !== '.' && seg !== '..');
+}
+
+// isSafeScanPath(p) -> true for a READ-scan target (see file header, third shape). Accepts an
+// ABSOLUTE path (used directly, so there is no base for it to escape - the compiler's own
+// already-validated linter paths and operator-named read targets both arrive this way), OR a
+// genuinely-relative path with no ".." traversal segment. Never a null byte, never empty. This is
+// the READ-side counterpart to isSafeRelativePath (the WRITE/config-arg side, which resolves against
+// a base and so MUST keep rejecting absolute). One door for the read-scan shape so lib.js and
+// facts-abstain do not grow two subtly-different absolute-path branches (CR safe-path.js:43 consumer
+// audit).
+function isSafeScanPath(p) {
+  if (typeof p !== 'string' || p.length === 0) return false;
+  if (p.includes('\0')) return false;
+  if (path.isAbsolute(p)) return true;
+  return isSafeRelativePath(p);
 }
 
 // assertSafePathComponent(component, opts) -> component. THROWS (opts.ErrorClass, default Error) on
@@ -57,14 +91,29 @@ function assertSafePathComponent(component, opts) {
   return component;
 }
 
-// assertSafeRelativePath(p, opts) -> p. THROWS on a null byte or any ".."/"." traversal segment.
+// assertSafeRelativePath(p, opts) -> p. THROWS on an absolute path, a null byte, or any
+// ".."/"." traversal segment.
 function assertSafeRelativePath(p, opts) {
   const o = opts || {};
   if (!isSafeRelativePath(p)) {
     const ErrorClass = o.ErrorClass || Error;
     throw new ErrorClass(
       (o.label || 'path') + ': ' + JSON.stringify(p)
-      + ' is not a safe relative path (no ".."/"." traversal segments, no null byte, non-empty)'
+      + ' is not a safe relative path (must be relative, not absolute; no ".."/"." traversal segments; no null byte; non-empty)'
+    );
+  }
+  return p;
+}
+
+// assertSafeScanPath(p, opts) -> p. THROWS on a null byte, an empty/non-string, or a RELATIVE path
+// carrying a ".."/"." traversal segment. An absolute path is accepted (see isSafeScanPath).
+function assertSafeScanPath(p, opts) {
+  const o = opts || {};
+  if (!isSafeScanPath(p)) {
+    const ErrorClass = o.ErrorClass || Error;
+    throw new ErrorClass(
+      (o.label || 'scan path') + ': ' + JSON.stringify(p)
+      + ' is not a safe scan path (absolute is allowed; a relative one must carry no ".."/"." traversal segments; no null byte; non-empty)'
     );
   }
   return p;
@@ -95,7 +144,9 @@ module.exports = {
   SAFE_COMPONENT_RX,
   isSafePathComponent,
   isSafeRelativePath,
+  isSafeScanPath,
   assertSafePathComponent,
   assertSafeRelativePath,
+  assertSafeScanPath,
   safeJoin,
 };

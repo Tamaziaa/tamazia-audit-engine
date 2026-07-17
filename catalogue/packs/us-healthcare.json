@@ -838,9 +838,9 @@
       "penalty": {
         "typical_low": null,
         "typical_high": null,
-        "statutory_max": null,
+        "statutory_max": 10000,
         "currency": "USD",
-        "basis": "New York State Board for Professional Medical Conduct disciplinary action for professional misconduct (false, deceptive or misleading advertising under Educ. Law 6530(27) / 8 NYCRR 29.1): censure or reprimand, licence suspension or revocation, and monetary penalties set by the board; no fixed website-specific tariff",
+        "basis": "New York State Board for Professional Medical Conduct disciplinary action for professional misconduct (false, deceptive or misleading advertising under N.Y. Educ. Law 6530(27) / 8 NYCRR 29.1(b)(12)). Penalties under N.Y. Public Health Law 230-a: censure and reprimand, licence suspension, limitation, revocation or annulment, and a fine not exceeding USD 10,000 upon each specification of charges of which the licensee is found guilty; no fixed website-specific tariff. Verified on N.Y. Public Health Law 230-a (official) 2026-07-17.",
         "max_is_rare": true
       },
       "regulator": {
@@ -856,7 +856,8 @@
       "provenance": {
         "sources": [
           "https://www.op.nysed.gov/professions/physicians/laws-rules-regulations/article-131a",
-          "https://www.health.ny.gov/professionals/doctors/conduct/"
+          "https://www.health.ny.gov/professionals/doctors/conduct/",
+          "https://www.nysenate.gov/legislation/laws/PBH/230-A (N.Y. Pub. Health Law 230-a penalties: fine not exceeding USD 10,000 upon each specification of charges, plus censure, suspension, revocation; content-verified on the official source 2026-07-17)"
         ],
         "seed_status": "gap_filled",
         "verified_date": "2026-07-17",
@@ -871,7 +872,7 @@
       "citation": {
         "act": "Texas Occupations Code; Texas Administrative Code (Texas Medical Board rules)",
         "section": "Tex. Occ. Code 164.052(a)(6) (false, misleading or deceptive advertising); 22 TAC Chapter 164 (Physician Advertising)",
-        "url": "https://www.tmb.texas.gov/page/laws-rules"
+        "url": "https://statutes.capitol.texas.gov/Docs/OC/htm/OC.164.htm"
       },
       "jurisdiction": "US",
       "sub_jurisdiction": "TX",
@@ -935,7 +936,8 @@
         "verified_date": "2026-07-17",
         "last_synced": "2026-07-17"
       },
-      "status": "candidate",
+      "qa_note": "Downgraded to needs_verification (PR #3 round-2, 2026-07-17): the disciplinary ground Tex. Occ. Code 164.052(a)(6) (false, misleading or deceptive advertising) is corroborated only on secondary sources, and the board's penalty authority (Tex. Occ. Code 164.001 methods of discipline; Ch. 165 administrative penalties) was NOT content-verified because the official Texas Statutes site (statutes.capitol.texas.gov) returns a client-rendered navigation shell rather than the section text to automated fetching. Excluded from the compiled artifact until the penalty consequence is confirmed on the official Texas Statutes / Texas Medical Board source. No fabricated figure shipped (amounts null).",
+      "status": "needs_verification",
       "client_useful": true
     },
     {
@@ -943,7 +945,7 @@
       "name": "State Medical Board Advertising Rules - Florida",
       "citation": {
         "act": "Florida Statutes; Florida Administrative Code (Board of Medicine)",
-        "section": "Fla. Stat. 458.331 (disciplinary grounds) and 456.062 (advertising of free or discounted services); Rule 64B8-11 F.A.C. (advertising)",
+        "section": "Fla. Stat. 458.331 (disciplinary grounds for physicians) and 456.062 (advertising of free or discounted services); penalties under Fla. Stat. 456.072(2); Rule 64B8-11 F.A.C. (advertising)",
         "url": "https://www.flsenate.gov/Laws/Statutes/2024/458.331"
       },
       "jurisdiction": "US",
@@ -986,7 +988,7 @@
         "typical_high": null,
         "statutory_max": null,
         "currency": "USD",
-        "basis": "Florida Board of Medicine disciplinary action under Fla. Stat. 458.331 / 456.072: administrative fines, reprimand, and licence suspension or revocation; amounts are set by the board",
+        "basis": "Florida Board of Medicine disciplinary action for false, deceptive or misleading advertising under Fla. Stat. 458.331. Penalties under Fla. Stat. 456.072(2): an administrative fine not to exceed USD 10,000 for each count or separate offence, plus reprimand or letter of concern, probation, practice restriction, licence suspension or permanent revocation; amounts are set by the board and there is no fixed website-specific tariff. Content-verified on Fla. Stat. 456.072 (official) 2026-07-17.",
         "max_is_rare": true
       },
       "regulator": {
@@ -1002,6 +1004,7 @@
       "provenance": {
         "sources": [
           "https://www.flsenate.gov/Laws/Statutes/2024/458.331",
+          "https://www.flsenate.gov/Laws/Statutes/2024/456.072 (Fla. Stat. 456.072(2) penalties: administrative fine up to USD 10,000 per count or offence, reprimand, probation, suspension, revocation; content-verified on the official source 2026-07-17)",
           "https://flboardofmedicine.gov/"
         ],
         "seed_status": "gap_filled",
@@ -1081,7 +1084,8 @@
         "verified_date": "2026-07-17",
         "last_synced": "2026-07-17"
       },
-      "status": "candidate",
+      "qa_note": "Downgraded to needs_verification (PR #3 round-2, 2026-07-17): the ground 225 ILCS 60/22 (false or misleading statements about skill or the efficacy or value of treatment) and the IDFPR / Medical Disciplinary Board penalty authority were NOT content-verified because the official Illinois General Assembly source (ilga.gov) refused the connection from the verification environment (ECONNREFUSED) and no alternative official host serves the Illinois Compiled Statutes. An unreachable source is not disproof, but the per-state penalty consequence must not ship as candidate unverified. Excluded from the compiled artifact until 225 ILCS 60/22 and the board's penalty are confirmed on ilga.gov / IDFPR. No fabricated figure shipped (amounts null).",
+      "status": "needs_verification",
       "client_useful": true
     },
     {

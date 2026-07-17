@@ -1,5 +1,5 @@
 <!-- qa-approval pack_sha256=796c4441de1455a5bd7edee36814c3a8bb0744de0e88e148a67586a277b19fe7 verdict=approved reviewed=2026-07-17 -->
-Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
 
 # UK Healthcare Law Pack — QA
 

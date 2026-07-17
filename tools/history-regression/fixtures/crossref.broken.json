@@ -1,0 +1,33 @@
+{
+  "_README": "CALIBRATION FIXTURE - deliberately broken. This is NOT the real ledger. It seeds one fabricated-missing-gate violation so `check.js --calibrate` can prove the checker still fires. The first class claims status=guarded while pointing at a gate file that does not exist in the tree; the checker MUST catch it (guarded-gate-missing). If a future refactor makes the checker blind to this, --calibrate exits 1. See tools/swallow-gate/check.js for the same earn-your-zero contract.",
+  "taxonomy": [
+    {
+      "class": "fabricated-guarded-class",
+      "description": "A class that claims live protection from a gate that was never written. This is the exact disease history-regression exists to catch: a false 'we cover this'.",
+      "catching_gate": "tools/does-not-exist/phantom-gate.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "caution_pointers": ["C-163"]
+    },
+    {
+      "class": "honest-live-class",
+      "description": "A control: a genuinely guarded class pointing at a file that really exists, so the fixture proves the checker does not merely flag everything.",
+      "catching_gate": "tools/history-regression/check.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "caution_pointers": []
+    }
+  ],
+  "defects": [
+    {
+      "id": "FIX-0001",
+      "source": "fixture",
+      "class": "fabricated-guarded-class",
+      "caution_pointer": "C-163",
+      "catching_gate": "tools/does-not-exist/phantom-gate.js",
+      "status": "guarded"
+    }
+  ]
+}

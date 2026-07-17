@@ -1,5 +1,5 @@
-<!-- qa-approval pack_sha256=71503675e2c18ef7ad81e5d091cfb48304c01f990e09b5ff2e02bf36d8256ca1 verdict=approved reviewed=2026-07-17 -->
-Post-QA edits: PR #3 gate-loop corrections (official-source verifications + conservative removals), attested by Rob 2026-07-17.
+<!-- qa-approval pack_sha256=d83a4358bdd40651ee084355c70b5659f95440c089d170c552604c7b93f9da4f verdict=approved reviewed=2026-07-17 -->
+Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
 
 # QA Report — us-healthcare.json
 
@@ -9,8 +9,9 @@ Post-QA edits: PR #3 gate-loop corrections (official-source verifications + cons
 
 ## Counts (QA verdict — did the row survive review)
 - **Checked:** 17 records; 12 citations/enforcement facts fetched or searched to source.
-- **Confirmed:** 17 (all records survive QA)
+- **Confirmed (candidate):** 15 (was 17; two per-state medical-board records were downgraded in the PR #3 round-2 wave, see below)
 - **Corrected:** 0 at original QA (a later P2 verification wave, 2026-07-17, applied targeted edits — see the P2 wave section at the foot)
+- **Downgraded to needs_verification:** 2 (US_MEDBOARD_ADV_TX, US_MEDBOARD_ADV_IL — per-state penalty consequence not content-verifiable on an official source this pass; excluded from the compiled artifact, retained in the source pack)
 - **Downgraded to rejected_qa:** 0
 - **CRITICAL:** 0
 
@@ -54,7 +55,19 @@ Every figure below was re-verified on an official source of record before editin
 - **US_ADA3:** DOJ Title III maxima → **$118,225 first / $236,451 subsequent** (28 CFR 85.5, eff. 3 Jul 2025); `max_is_rare` true.
 - **US_CURES_INFOBLOCK:** $1M CMP confirmed on the HHS-OIG final rule; official sources added.
 - **US_MEDBOARD_ADV_CA:** §651 (misdemeanor) / §2271 (discipline) characterisation corrected.
-- **US_MEDBOARD_ADV_NY / TX / FL / IL:** California-specific misdemeanor line removed; jurisdiction-correct disciplinary consequences written, amounts null (not independently verified per-state; generic board-discipline is the honest floor).
+- **US_MEDBOARD_ADV_NY / TX / FL / IL:** California-specific misdemeanor line removed; jurisdiction-correct disciplinary consequences written. **Superseded by the PR #3 round-2 per-state verification wave (2026-07-17, see foot):** each state's penalty consequence was then either content-verified on that state's official legislature source (NY, FL — kept `candidate`) or downgraded to `needs_verification` where the official source was not content-verifiable this pass (TX, IL — excluded from the artifact). The earlier "not independently verified per-state" caveat no longer applies to any record shipped as `candidate`.
 - **US_TELEHEALTH_LICENSURE:** `advisory: true` added (multi-state licensure is an obligation-to-confirm, not a hard breach).
 - **US_HIPAA_TRACKING:** ">$100m" attributed to the pixel-litigation wave.
 - **All 17 records:** `provenance.last_synced: "2026-07-17"` added.
+
+## PR #3 round-2 per-state medical-board verification (2026-07-17)
+CodeRabbit flagged that the earlier wave shipped the NY/TX/FL/IL per-state penalty consequences as `candidate` without independent per-state verification. Each was re-checked against that state's own official source; the consequence was either content-verified and cited, or the record was downgraded to `needs_verification` (which the compiler excludes from `catalogue.v1.json`, keeping it visible and logged in the source pack). No unverified per-state legal consequence remains as `candidate`.
+
+| Record | Official source fetched | Outcome | Basis now shipped |
+|---|---|---|---|
+| US_MEDBOARD_ADV_NY | nysenate.gov — N.Y. Pub. Health Law 230-a; op.nysed.gov — Educ. Law 6530(27) | **Verified, kept `candidate`** | Fine not exceeding USD 10,000 upon each specification of charges, plus censure, suspension, revocation. `statutory_max` 10,000. |
+| US_MEDBOARD_ADV_FL | flsenate.gov — Fla. Stat. 456.072(2) | **Verified, kept `candidate`** | Administrative fine up to USD 10,000 per count or offence, plus reprimand, probation, suspension, revocation. `statutory_max` set 10,000 (was null). Penalty authority corrected from a bare 458.331 reference to 456.072(2). |
+| US_MEDBOARD_ADV_TX | statutes.capitol.texas.gov — Tex. Occ. Code 164 | **Downgraded to `needs_verification`** | Official Texas Statutes site returns a client-rendered navigation shell to automated fetching, so 164.052(a)(6) and the board's penalty authority (164.001 / Ch. 165) could not be content-verified. Ground corroborated only on secondary sources. Amounts null; excluded from artifact. |
+| US_MEDBOARD_ADV_IL | ilga.gov — 225 ILCS 60/22 | **Downgraded to `needs_verification`** | Official Illinois General Assembly host refused the connection (ECONNREFUSED) from the verification environment and no alternative official host serves the ILCS. Unreachable is not disproof, but the consequence must not ship unverified. Amounts null; excluded from artifact. |
+
+Re-verification of the two downgraded records (a reachable fetch of the TX statute text and the IL ILCS section on ilga.gov) is the single open item to restore them to `candidate`.

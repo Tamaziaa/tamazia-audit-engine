@@ -191,6 +191,117 @@ function runInternalPayloadContract(fixtureAbs) {
   return missing.map((m) => ({ file: fixtureAbs, rule: 'payload-contract', message: `missing: ${m}` }));
 }
 
+// checkMissingFixtures(cal, fixtureAbs) -> {entries, failed, skipped: 0}. entries is non-empty
+// only when at least one of this calibration's fixture files does not exist on disk.
+function checkMissingFixtures(cal, fixtureAbs) {
+  const entries = [];
+  let failed = 0;
+  for (const f of fixtureAbs) {
+    if (!fs.existsSync(f)) {
+      entries.push({ name: cal.name, status: 'FAIL', detail: `fixture missing: ${f}` });
+      failed++;
+    }
+  }
+  return { entries, failed, skipped: 0 };
+}
+
+// runInternalCalibration(cal, fixtureAbs) -> {entries, failed, skipped: 0}. The "internal": true
+// calibration (payload-contract) runs payload/contract's validatePayload() directly rather than
+// spawning an external checker.
+function runInternalCalibration(cal, fixtureAbs) {
+  const entries = [];
+  let failed = 0;
+  try {
+    const findings = runInternalPayloadContract(fixtureAbs[0]);
+    if (findings.length > 0) {
+      entries.push({ name: cal.name, status: 'PASS', detail: `${findings.length} finding(s) on the fixture (e.g. ${findings[0].message})` });
+    } else {
+      entries.push({ name: cal.name, status: 'FAIL', detail: 'validatePayload() returned an EMPTY missing list on a deliberately incomplete payload - the contract gate is broken' });
+      failed++;
+    }
+  } catch (e) {
+    entries.push({ name: cal.name, status: 'FAIL', detail: `internal check errored: ${e.message}` });
+    failed++;
+  }
+  return { entries, failed, skipped: 0 };
+}
+
+// runExternalCalibration(cal, strict) -> {entries, failed, skipped}. Locates the checker under
+// tools/ via findChecker(), reports SKIPPED (or FAIL in --strict mode) if none is found yet, and
+// otherwise runs its --calibrate contract via runExternalChecker() and checks every listed
+// fixture was caught (CR-38: EVERY fixture listed for this calibration must be caught, not just
+// ANY one of them - a multi-fixture calibration previously passed as long as ONE fixture produced
+// a finding, so a checker could keep catching an old fixture while missing a new one).
+function runExternalCalibration(cal, strict) {
+  const entries = [];
+  let failed = 0;
+  let skipped = 0;
+
+  const checker = findChecker(cal.checkerCandidates);
+  if (!checker) {
+    const detail = `no checker found (looked at: ${cal.checkerCandidates.join(', ')})`;
+    if (strict) {
+      entries.push({ name: cal.name, status: 'FAIL', detail: `${detail} - strict mode: a fixture without a live checker is an unearned zero` });
+      failed++;
+    } else {
+      entries.push({ name: cal.name, status: 'SKIPPED', detail: `${detail} - tools/ agent has not landed this gate yet; CI must flip to --strict when it does` });
+      skipped++;
+    }
+    return { entries, failed, skipped };
+  }
+
+  try {
+    const findings = runExternalChecker(checker);
+    const missingFixtures = cal.fixtures.filter((fx) => !findings.some((fd) => String(fd.file || '').includes(fx)));
+    const fixtureHits = findings.filter((fd) => cal.fixtures.some((fx) => String(fd.file || '').includes(fx)));
+    if (missingFixtures.length === 0) {
+      entries.push({ name: cal.name, status: 'PASS', detail: `${fixtureHits.length} finding(s) across all ${cal.fixtures.length} fixture(s) via ${path.relative(REPO_ROOT, checker)}` });
+    } else {
+      entries.push({ name: cal.name, status: 'FAIL', detail: `${path.relative(REPO_ROOT, checker)} reported ZERO findings on: ${missingFixtures.join(', ')} - it has not earned its zero on every seeded fixture (${cal.description})` });
+      failed++;
+    }
+  } catch (e) {
+    entries.push({ name: cal.name, status: 'FAIL', detail: `checker errored or broke the --calibrate contract: ${e.message}` });
+    failed++;
+  }
+  return { entries, failed, skipped };
+}
+
+// runOneCalibration(cal, strict) -> {entries: [...], failed: N, skipped: N} for one CALIBRATIONS
+// entry. Semantics are UNCHANGED from the original inline loop body (do not change the
+// CALIBRATIONS registry semantics or --strict behaviour): missing fixture files short-circuit
+// straight to a FAIL entry per file; otherwise an "internal" calibration runs payload/contract
+// directly and everything else runs its checker's --calibrate contract. The original loop tested
+// `results.some((r) => r.name === cal.name && r.status === 'FAIL')` against the GLOBAL results
+// list; since every entry pushed for earlier calibrations carries a DIFFERENT cal.name, that was
+// already equivalent to testing only the entries just pushed for THIS calibration, which is what
+// checkMissingFixtures's own (per-calibration) entries list does directly.
+function runOneCalibration(cal, strict) {
+  const fixtureAbs = cal.fixtures.map((f) => path.join(FIXTURES_DIR, f));
+  const missing = checkMissingFixtures(cal, fixtureAbs);
+  if (missing.entries.length > 0) return missing;
+  if (cal.internal) return runInternalCalibration(cal, fixtureAbs);
+  return runExternalCalibration(cal, strict);
+}
+
+// report(strict, results, failed, skipped, asJson) -> prints the run's summary in --json or
+// human form, unchanged from the original inline block in main().
+function report(strict, results, failed, skipped, asJson) {
+  if (asJson) {
+    console.log(JSON.stringify({ strict, results, failed, skipped }, null, 2));
+    return;
+  }
+  console.log('calibration-known-bad: the earn-your-zero gate');
+  for (const r of results) console.log(`  ${r.status.padEnd(7)} ${r.name}: ${r.detail}`);
+  if (failed > 0) {
+    console.log(`RESULT: FAIL - ${failed} gate(s) did not catch their seeded known-bad fixture. A gate that misses planted disease is reporting worthless greens.`);
+  } else if (skipped > 0) {
+    console.log(`RESULT: OK with ${skipped} SKIPPED - external checkers not landed yet. Flip CI to --strict once tools/ lands.`);
+  } else {
+    console.log('RESULT: OK - every gate caught its fixture.');
+  }
+}
+
 function main(argv) {
   const args = argv.slice(2);
   const strict = args.includes('--strict');
@@ -206,79 +317,13 @@ function main(argv) {
   let skipped = 0;
 
   for (const cal of CALIBRATIONS) {
-    const fixtureAbs = cal.fixtures.map((f) => path.join(FIXTURES_DIR, f));
-    for (const f of fixtureAbs) {
-      if (!fs.existsSync(f)) {
-        results.push({ name: cal.name, status: 'FAIL', detail: `fixture missing: ${f}` });
-        failed++;
-      }
-    }
-    if (results.some((r) => r.name === cal.name && r.status === 'FAIL')) continue;
-
-    if (cal.internal) {
-      try {
-        const findings = runInternalPayloadContract(fixtureAbs[0]);
-        if (findings.length > 0) {
-          results.push({ name: cal.name, status: 'PASS', detail: `${findings.length} finding(s) on the fixture (e.g. ${findings[0].message})` });
-        } else {
-          results.push({ name: cal.name, status: 'FAIL', detail: 'validatePayload() returned an EMPTY missing list on a deliberately incomplete payload - the contract gate is broken' });
-          failed++;
-        }
-      } catch (e) {
-        results.push({ name: cal.name, status: 'FAIL', detail: `internal check errored: ${e.message}` });
-        failed++;
-      }
-      continue;
-    }
-
-    const checker = findChecker(cal.checkerCandidates);
-    if (!checker) {
-      const detail = `no checker found (looked at: ${cal.checkerCandidates.join(', ')})`;
-      if (strict) {
-        results.push({ name: cal.name, status: 'FAIL', detail: `${detail} - strict mode: a fixture without a live checker is an unearned zero` });
-        failed++;
-      } else {
-        results.push({ name: cal.name, status: 'SKIPPED', detail: `${detail} - tools/ agent has not landed this gate yet; CI must flip to --strict when it does` });
-        skipped++;
-      }
-      continue;
-    }
-
-    try {
-      const findings = runExternalChecker(checker);
-      // CR-38: EVERY fixture listed for this calibration must be caught, not just ANY one of them.
-      // A multi-fixture calibration (e.g. the legacy + p2 pair on regex-health/polarity) previously
-      // passed as long as ONE fixture produced a finding, so a checker could keep catching the old
-      // fixture while completely missing a newly-added one and still report green.
-      const missingFixtures = cal.fixtures.filter((fx) => !findings.some((fd) => String(fd.file || '').includes(fx)));
-      const fixtureHits = findings.filter((fd) =>
-        cal.fixtures.some((fx) => String(fd.file || '').includes(fx))
-      );
-      if (missingFixtures.length === 0) {
-        results.push({ name: cal.name, status: 'PASS', detail: `${fixtureHits.length} finding(s) across all ${cal.fixtures.length} fixture(s) via ${path.relative(REPO_ROOT, checker)}` });
-      } else {
-        results.push({ name: cal.name, status: 'FAIL', detail: `${path.relative(REPO_ROOT, checker)} reported ZERO findings on: ${missingFixtures.join(', ')} - it has not earned its zero on every seeded fixture (${cal.description})` });
-        failed++;
-      }
-    } catch (e) {
-      results.push({ name: cal.name, status: 'FAIL', detail: `checker errored or broke the --calibrate contract: ${e.message}` });
-      failed++;
-    }
+    const r = runOneCalibration(cal, strict);
+    results.push(...r.entries);
+    failed += r.failed;
+    skipped += r.skipped;
   }
 
-  if (asJson) {
-    console.log(JSON.stringify({ strict, results, failed, skipped }, null, 2));
-  } else {
-    console.log('calibration-known-bad: the earn-your-zero gate');
-    for (const r of results) console.log(`  ${r.status.padEnd(7)} ${r.name}: ${r.detail}`);
-    if (failed > 0) {
-      console.log(`RESULT: FAIL - ${failed} gate(s) did not catch their seeded known-bad fixture. A gate that misses planted disease is reporting worthless greens.`);
-    } else if (skipped > 0) {
-      console.log(`RESULT: OK with ${skipped} SKIPPED - external checkers not landed yet. Flip CI to --strict once tools/ lands.`);
-    } else {
-      console.log('RESULT: OK - every gate caught its fixture.');
-    }
-  }
+  report(strict, results, failed, skipped, asJson);
   return failed > 0 ? 1 : 0;
 }
 

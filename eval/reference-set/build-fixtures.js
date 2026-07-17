@@ -39,7 +39,6 @@ const FETCH_DEADLINE_MS = 10000; // hard cap per fetch (never a floor)
 const MAX_REDIRECTS = 5;
 const MAX_BODY_BYTES = 3 * 1024 * 1024;
 const MAX_PAGES_PER_DOMAIN = 3;
-const MAX_TEXT_CHARS = 20000;
 const FOOTER_CHARS = 3000;
 const MAX_FIXTURE_BYTES = 150 * 1024;
 const INTER_FETCH_PAUSE_MS = 400; // politeness pause between fetches
@@ -48,211 +47,26 @@ const REF_SET = path.join(__dirname, 'reference-set.json');
 const OUT_DIR = path.join(__dirname, 'fixtures');
 
 // ---------------------------------------------------------------------------
-// Pure helpers (unit-tested in build-fixtures.test.js)
+// Pure helpers (unit-tested in build-fixtures.test.js) - moved to build-fixtures-lib.js purely
+// to keep this file under the health-gate file-length cap; required back in and re-exported
+// below under the exact same names build-fixtures.test.js already imports.
 // ---------------------------------------------------------------------------
 
-const NAMED_ENTITIES = {
-  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
-  ndash: '-', mdash: '-', hellip: '...', copy: '(c)', reg: '(R)', trade: '(TM)',
-  pound: '£', euro: '€', dollar: '$', middot: '·', bull: '•',
-  rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
-};
-
-function decodeEntities(s) {
-  return String(s)
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => safeFromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => safeFromCodePoint(parseInt(d, 10)))
-    .replace(/&([a-zA-Z]+);/g, (m, name) =>
-      Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, name.toLowerCase())
-        ? NAMED_ENTITIES[name.toLowerCase()]
-        : m
-    );
-}
-
-function safeFromCodePoint(cp) {
-  try {
-    if (!Number.isFinite(cp) || cp < 9 || cp > 0x10ffff) return ' ';
-    return String.fromCodePoint(cp);
-  } catch (e) {
-    return ' '; // invalid code point in source HTML; a space is the honest substitute
-  }
-}
-
-// Strip Unicode bidi control characters (LRE/RLE/PDF/LRO/RLO U+202A-U+202E, LRI/RLI/FSI/PDI
-// U+2066-U+2069, LRM/RLM U+200E/U+200F - used live on abspartners.ae to wrap a phone number
-// and on knightsbridge.ae) plus C0/C1 control bytes, EXCEPT \n and \t. Scraped HTML can carry
-// these from copy-pasted rich text; they are never printable content and must never reach a
-// fixture, a log line or a rendered page. Printable text (letters, punctuation, currency signs,
-// curly quotes) is never touched.
-const BIDI_CONTROL_RX = /[\u202A-\u202E\u2066-\u2069\u200E\u200F]/g;
-const C0_C1_CONTROL_RX = /[\x00-\x08\x0B-\x1F\x7F-\x9F]/g;
-function stripControlChars(s) {
-  return String(s == null ? '' : s)
-    .replace(BIDI_CONTROL_RX, '')
-    .replace(C0_C1_CONTROL_RX, '');
-}
-
-// Wrap a possibly remote-derived value (a fetched title, a redirect URL, an error message
-// carrying response text) before it reaches console output: collapse newlines/carriage
-// returns/spaces/hyphens to a single space and cap the length, so a hostile title or redirect
-// target can never forge extra log lines or flood the terminal (CodeQL log-injection class).
-function logSafe(s) {
-  return String(s).replace(/[\r\n -]/g, ' ').slice(0, 300);
-}
-
-// Visible text only (caution.md C-012: never classify on <script>/<style> noise).
-function stripHtml(html) {
-  let s = String(html);
-  s = s.replace(/<!--[\s\S]*?-->/g, ' ');
-  s = s.replace(/<(script|style|noscript|template|svg|iframe|head)\b[\s\S]*?<\/\1\s*>/gi, ' ');
-  // Block-level closers become newlines so footer lines survive as lines.
-  s = s.replace(/<\/(p|div|li|ul|ol|h[1-6]|tr|td|th|section|article|footer|header|nav|br)\s*>/gi, '\n');
-  s = s.replace(/<br\s*\/?>/gi, '\n');
-  s = s.replace(/<[^>]+>/g, ' ');
-  s = decodeEntities(s);
-  s = s.replace(/[ \t\r\f\v]+/g, ' ');
-  s = s.replace(/ ?\n ?/g, '\n');
-  s = s.replace(/\n{3,}/g, '\n\n');
-  s = stripControlChars(s);
-  return s.trim();
-}
-
-function extractTitle(html) {
-  const m = /<title[^>]*>([\s\S]*?)<\/title\s*>/i.exec(String(html));
-  return m ? stripControlChars(decodeEntities(m[1]).replace(/\s+/g, ' ').trim()) : '';
-}
-
-function extractOgSiteName(html) {
-  const s = String(html);
-  const re = /<meta\b[^>]*>/gi;
-  let m;
-  while ((m = re.exec(s)) !== null) {
-    const tag = m[0];
-    if (!/property\s*=\s*["']og:site_name["']/i.test(tag)) continue;
-    const c = /content\s*=\s*["']([^"']*)["']/i.exec(tag);
-    if (c) return stripControlChars(decodeEntities(c[1]).trim());
-  }
-  return undefined;
-}
-
-function extractJsonLd(html) {
-  const out = [];
-  const re = /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script\s*>/gi;
-  let m;
-  while ((m = re.exec(String(html))) !== null) {
-    const raw = m[1].trim();
-    if (!raw) continue;
-    try {
-      out.push(JSON.parse(raw));
-    } catch (e) {
-      // Invalid JSON-LD on the live site is a fact about the site; record nothing,
-      // fabricate nothing. (Fail-closed: no partial parse guesses.)
-    }
-  }
-  return out;
-}
-
-// Discover cheap secondary pages: about / contact / legal / privacy / terms on the
-// same registrable host. Query-string URLs are permitted (caution.md C-027).
-const SECONDARY_PATH_RE = /(about|contact|who-we-are|our-(team|firm|practice|clinic|company)|legal|imprint|privacy|terms)/i;
-
-function discoverSecondaryLinks(html, baseUrl, max) {
-  const cap = typeof max === 'number' ? max : 2;
-  const found = [];
-  const seen = new Set();
-  let base;
-  try { base = new URL(baseUrl); } catch (e) { return found; }
-  const re = /<a\b[^>]*href\s*=\s*["']([^"'#]+)["'][^>]*>/gi;
-  let m;
-  while ((m = re.exec(String(html))) !== null && found.length < cap) {
-    const href = decodeEntities(m[1]).trim();
-    if (!href || /^(mailto:|tel:|javascript:)/i.test(href)) continue;
-    let u;
-    try { u = new URL(href, base); } catch (e) { continue; }
-    if (!/^https?:$/.test(u.protocol)) continue;
-    if (stripWww(u.hostname) !== stripWww(base.hostname)) continue;
-    if (!SECONDARY_PATH_RE.test(u.pathname + u.search)) continue;
-    if (/\.(pdf|jpg|jpeg|png|gif|webp|svg|zip|doc|docx|mp4)$/i.test(u.pathname)) continue;
-    const key = u.origin + u.pathname + u.search;
-    if (seen.has(key)) continue;
-    if (key === base.origin + base.pathname + base.search) continue;
-    seen.add(key);
-    found.push(u.href);
-  }
-  return found;
-}
-
-function stripWww(host) {
-  return String(host).toLowerCase().replace(/^www\./, '');
-}
-
-// Honest bot-wall / challenge detection. A 200 that is a Cloudflare interstitial is
-// NOT content (caution.md C-031: reachable is guarded by classification, not bytes).
-const CHALLENGE_MARKERS = [
-  'just a moment', 'attention required', 'checking your browser',
-  'verify you are human', 'access denied', 'ddos protection', 'cf-challenge',
-  'enable javascript and cookies to continue', 'captcha', 'request unsuccessful',
-  'incapsula', 'perimeterx', 'are you a robot',
-];
-
-function looksLikeChallengePage(status, text, title) {
-  if (status === 403 || status === 429 || status === 503 || status === 401) return true;
-  const hay = `${title || ''}\n${(text || '').slice(0, 2500)}`.toLowerCase();
-  if (!hay.trim()) return false;
-  const marked = CHALLENGE_MARKERS.some((mk) => hay.includes(mk));
-  // A real page can mention 'captcha' in prose; only call it a wall when the visible
-  // text is also very thin.
-  return marked && (text || '').length < 4000;
-}
-
-// Unrendered SPA shell: HTTP 200, an HTML document, but near-zero visible text.
-// The old estate fabricated 22 cookie findings on exactly this shape (caution.md
-// C-032, royalparkpartners.com); the fixture must record it honestly instead.
-function looksLikeSpaShell(bodyHtml, visibleText) {
-  const body = String(bodyHtml || '');
-  if ((visibleText || '').length >= 200) return false;
-  if (!/<html[\s>]/i.test(body)) return false;
-  return (
-    /<div[^>]*id\s*=\s*["'](root|app|__next|___gatsby)["']/i.test(body) ||
-    /data-vite-theme|src="\/assets\/index-|type="module"/i.test(body) ||
-    /<script/i.test(body)
-  );
-}
-
-// Trim a fixture object under the byte budget without fabricating anything.
-function trimToBudget(fixture, maxBytes) {
-  const size = (o) => Buffer.byteLength(JSON.stringify(o), 'utf8');
-  if (size(fixture) <= maxBytes) return fixture;
-  const f = JSON.parse(JSON.stringify(fixture));
-  const steps = [
-    () => { for (const p of pagesOf(f)) if (p.jsonLd && size(p.jsonLd) > 20000) p.jsonLd = []; },
-    () => { for (const p of pagesOf(f)) p.text = (p.text || '').slice(0, 12000); },
-    () => { for (const p of pagesOf(f)) p.jsonLd = []; },
-    () => { const pp = pagesOf(f); if (pp.length > 2) pp.length = 2; },
-    () => { for (const p of pagesOf(f)) p.text = (p.text || '').slice(0, 6000); },
-    () => { const pp = pagesOf(f); if (pp.length > 1) pp.length = 1; },
-  ];
-  for (const step of steps) {
-    step();
-    if (size(f) <= maxBytes) { f.trimmed = true; return f; }
-  }
-  f.trimmed = true;
-  return f;
-}
-
-function pagesOf(f) {
-  return (f.corpus && Array.isArray(f.corpus.pages)) ? f.corpus.pages : [];
-}
-
-function buildBundlePage(url, html) {
-  return {
-    url,
-    title: extractTitle(html),
-    text: stripHtml(html).slice(0, MAX_TEXT_CHARS),
-    jsonLd: extractJsonLd(html),
-    ogSiteName: extractOgSiteName(html),
-  };
-}
+const {
+  MAX_TEXT_CHARS,
+  decodeEntities,
+  stripHtml,
+  extractTitle,
+  extractOgSiteName,
+  extractJsonLd,
+  discoverSecondaryLinks,
+  looksLikeChallengePage,
+  looksLikeSpaShell,
+  trimToBudget,
+  buildBundlePage,
+  stripControlChars,
+  logSafe,
+} = require('./build-fixtures-lib.js');
 
 // ---------------------------------------------------------------------------
 // Network layer (deadline-wrapped; never used by facts modules)
@@ -348,21 +162,26 @@ async function fetchHomepage(domain) {
   throw lastErr || new Error('unreachable');
 }
 
-async function buildFixtureForDomain(domain) {
-  const fetchedAt = new Date().toISOString();
-  // By design: this offline dev tool fetches the reference-set domains (never in the mint
-  // path). Domain validated above.
-  if (!/^[a-z0-9][a-z0-9.-]{1,251}[a-z0-9]$/.test(domain)) {
-    return { domain, fetched_at: fetchedAt, unreachable: true, note: 'invalid domain, refused' };
-  }
-  let home;
-  try {
-    home = await fetchHomepage(domain);
-  } catch (e) {
-    return { domain, fetched_at: fetchedAt, unreachable: true, note: `fetch failed: ${e.message}` };
-  }
+// isFetchableDomain(domain) -> true for a plain hostname shape this offline dev tool may fetch.
+// By design: it fetches only the reference-set domains, never in the mint path.
+function isFetchableDomain(domain) {
+  return /^[a-z0-9][a-z0-9.-]{1,251}[a-z0-9]$/.test(domain);
+}
 
-  const homePage = buildBundlePage(home.finalUrl, home.body);
+// fetchHomeOrAbstain(domain, fetchedAt) -> {home} on success, or {abstain: <unreachable fixture>}
+// when the homepage could not be fetched at all (every attempt in fetchHomepage failed/threw).
+async function fetchHomeOrAbstain(domain, fetchedAt) {
+  try {
+    return { home: await fetchHomepage(domain) };
+  } catch (e) {
+    return { abstain: { domain, fetched_at: fetchedAt, unreachable: true, note: `fetch failed: ${e.message}` } };
+  }
+}
+
+// classifyHomepage(domain, fetchedAt, home, homePage) -> an honest unreachable-fixture object
+// when the homepage is a bot wall/challenge page, an unrendered SPA shell, or otherwise not
+// usable content; null when the homepage is genuinely usable and the build may proceed.
+function classifyHomepage(domain, fetchedAt, home, homePage) {
   if (looksLikeChallengePage(home.status, homePage.text, homePage.title)) {
     return {
       domain,
@@ -388,8 +207,13 @@ async function buildFixtureForDomain(domain) {
       note: `no usable content: HTTP ${home.status}, visible text ${homePage.text.length} chars`,
     };
   }
+  return null;
+}
 
-  const fullHomeText = stripHtml(home.body);
+// collectSecondaryPages(homePage, home) -> [homePage, ...secondary pages actually fetched], up to
+// MAX_PAGES_PER_DOMAIN total. A missing/blocked secondary page never fabricates anything; the
+// homepage always stands alone as pages[0].
+async function collectSecondaryPages(homePage, home) {
   const pages = [homePage];
   const secondaries = discoverSecondaryLinks(home.body, home.finalUrl, MAX_PAGES_PER_DOMAIN - 1);
   for (const link of secondaries) {
@@ -405,6 +229,25 @@ async function buildFixtureForDomain(domain) {
       // A missing secondary page never fabricates anything; the homepage stands alone.
     }
   }
+  return pages;
+}
+
+async function buildFixtureForDomain(domain) {
+  const fetchedAt = new Date().toISOString();
+  if (!isFetchableDomain(domain)) {
+    return { domain, fetched_at: fetchedAt, unreachable: true, note: 'invalid domain, refused' };
+  }
+
+  const fetched = await fetchHomeOrAbstain(domain, fetchedAt);
+  if (fetched.abstain) return fetched.abstain;
+  const home = fetched.home;
+
+  const homePage = buildBundlePage(home.finalUrl, home.body);
+  const abstained = classifyHomepage(domain, fetchedAt, home, homePage);
+  if (abstained) return abstained;
+
+  const fullHomeText = stripHtml(home.body);
+  const pages = await collectSecondaryPages(homePage, home);
 
   const fixture = {
     domain,

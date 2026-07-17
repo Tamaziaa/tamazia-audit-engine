@@ -111,6 +111,24 @@ function rmDir(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
+// mkTempWorkWithPacks(files) -> { workdir, packsRel }. Builds an isolated temp WORKING directory
+// with a `packs/` subdirectory populated by the given { filename: content } pairs. The CLI smoke
+// tests below run the real binary with `cwd: workdir` and pass RELATIVE --packs/--out arguments,
+// because the shared path-traversal gate (tools/lib/safe-path.js) now rejects ABSOLUTE path
+// arguments as well as "../" traversal (CR safe-path.js:43): the CLI contract is genuinely
+// relative-to-cwd, so the tests exercise exactly that. Caller must rm workdir in a `finally`.
+function mkTempWorkWithPacks(files) {
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), 'catalogue-compile-test-work-'));
+  const packsRel = 'packs';
+  const packsDir = path.join(workdir, packsRel);
+  fs.mkdirSync(packsDir);
+  for (const [name, content] of Object.entries(files)) {
+    const text = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+    fs.writeFileSync(path.join(packsDir, name), text);
+  }
+  return { workdir, packsRel };
+}
+
 // ---------------------------------------------------------------------------------
 // discoverPacks
 // ---------------------------------------------------------------------------------
@@ -535,6 +553,12 @@ test('parseArgs (SCAN path-traversal): --out/--stamp-file/--packs each reject a 
   assert.throws(() => compile.parseArgs(['node', 'compile.js', '--packs', '../../etc']), compile.CompileError);
 });
 
+test('parseArgs (SCAN path-traversal): --out/--stamp-file/--packs each reject an ABSOLUTE path via CompileError (CR safe-path.js:43 - the shared contract is relative-to-cwd only)', () => {
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--out', '/etc/cron.d/x']), compile.CompileError);
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--stamp-file', '/etc/passwd']), compile.CompileError);
+  assert.throws(() => compile.parseArgs(['node', 'compile.js', '--packs', '/etc']), compile.CompileError);
+});
+
 // ---------------------------------------------------------------------------------
 // CR-1: resolveStamp - --stamp-file reads a COMMITTED file's trimmed contents as the stamp
 // ---------------------------------------------------------------------------------
@@ -591,17 +615,16 @@ test('resolveStamp: the committed repo-root RELEASE_STAMP file resolves to a val
 test('CLI smoke test: a clean fixture pack compiles end-to-end to a deterministic artifact via the real CLI (--packs injectable)', () => {
   const { execFileSync } = require('child_process');
   const clean = makePackAndSidecar(makePack({ cell: 'clean', records: [makeRecord({ id: 'CAL_E2E_CLEAN' })] }));
-  const fixtureDir = mkTempPacksDir({ 'clean.json': clean.text, 'clean.QA.md': clean.sidecar });
-  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'catalogue-compile-test-out-'));
-  const outPath = path.join(outDir, 'catalogue.v1.json');
+  const { workdir, packsRel } = mkTempWorkWithPacks({ 'clean.json': clean.text, 'clean.QA.md': clean.sidecar });
+  const outRel = path.join('out', 'catalogue.v1.json');
   try {
     execFileSync(process.execPath, [
       path.join(__dirname, 'compile.js'),
       '--stamp', '2026-01-01T00:00:00Z',
-      '--packs', fixtureDir,
-      '--out', outPath,
-    ], { encoding: 'utf8' });
-    const written = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+      '--packs', packsRel,
+      '--out', outRel,
+    ], { encoding: 'utf8', cwd: workdir });
+    const written = JSON.parse(fs.readFileSync(path.join(workdir, outRel), 'utf8'));
     assert.equal(written.catalogue_version, compile.CATALOGUE_VERSION);
     assert.equal(written.generated, '2026-01-01T00:00:00Z');
     assert.equal(written.records.length, 1);
@@ -609,8 +632,7 @@ test('CLI smoke test: a clean fixture pack compiles end-to-end to a deterministi
     assert.equal(typeof written.content_hash, 'string');
     assert.equal(written.content_hash.length, 64);
   } finally {
-    rmDir(fixtureDir);
-    rmDir(outDir);
+    rmDir(workdir);
   }
 });
 
@@ -632,7 +654,7 @@ test('CLI smoke test: the real binary reports an EXACT, deterministic finding co
     }],
   });
   const defects = makePackAndSidecar(makePack({ cell: 'defects', records: [badRecord] }));
-  const fixtureDir = mkTempPacksDir({ 'defects.json': defects.text, 'defects.QA.md': defects.sidecar });
+  const { workdir, packsRel } = mkTempWorkWithPacks({ 'defects.json': defects.text, 'defects.QA.md': defects.sidecar });
   try {
     // assert.throws' validator callback receives the thrown error directly, so this needs no
     // manual try/catch of its own (and nothing to swallow): a run that does NOT throw fails this
@@ -642,8 +664,8 @@ test('CLI smoke test: the real binary reports an EXACT, deterministic finding co
       () => execFileSync(process.execPath, [
         path.join(__dirname, 'compile.js'),
         '--stamp', '2026-01-01T00:00:00Z',
-        '--packs', fixtureDir,
-      ], { encoding: 'utf8', stdio: 'pipe' }),
+        '--packs', packsRel,
+      ], { encoding: 'utf8', stdio: 'pipe', cwd: workdir }),
       (e) => {
         const stderr = String(e.stderr || '');
         const errorLines = stderr.split('\n').filter((l) => l.includes('  ERROR ['));
@@ -654,14 +676,14 @@ test('CLI smoke test: the real binary reports an EXACT, deterministic finding co
       'expected the CLI to refuse compilation (exit 1) on a seeded polarity defect'
     );
   } finally {
-    rmDir(fixtureDir);
+    rmDir(workdir);
   }
 });
 
 test('CLI smoke test: --print-hashes against a fixture directory prints one deterministic sha256 line per pack file, independent of any QA-approval state', () => {
   const { execFileSync } = require('child_process');
   const clean = makePackAndSidecar(makePack({ cell: 'clean', records: [makeRecord({ id: 'CAL_HASH_PRINT' })] }));
-  const fixtureDir = mkTempPacksDir({
+  const { workdir, packsRel } = mkTempWorkWithPacks({
     'clean.json': clean.text,
     'clean.QA.md': clean.sidecar,
     'unstamped.json': makePack({ cell: 'unstamped' }), // no sidecar at all - must still be hashed
@@ -670,12 +692,12 @@ test('CLI smoke test: --print-hashes against a fixture directory prints one dete
     const stdout = execFileSync(process.execPath, [
       path.join(__dirname, 'compile.js'),
       '--print-hashes',
-      '--packs', fixtureDir,
-    ], { encoding: 'utf8' });
+      '--packs', packsRel,
+    ], { encoding: 'utf8', cwd: workdir });
     assert.ok(stdout.includes('clean  ' + clean.sha), 'expected the printed hash to match the exact sha256 of the fixture pack bytes; got:\n' + stdout);
     assert.ok(stdout.includes('unstamped  '), 'expected --print-hashes to hash a pack with no sidecar too - it exists precisely to produce a hash BEFORE a sidecar exists');
   } finally {
-    rmDir(fixtureDir);
+    rmDir(workdir);
   }
 });
 

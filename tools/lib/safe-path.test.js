@@ -43,11 +43,15 @@ test('assertSafePathComponent: throws Error by default, and a caller-supplied Er
 // isSafeRelativePath / assertSafeRelativePath
 // ---------------------------------------------------------------------------------
 
-test('isSafeRelativePath: accepts nested relative and absolute paths with no traversal segment', () => {
+test('isSafeRelativePath: accepts nested relative paths with no traversal segment', () => {
   assert.equal(safePath.isSafeRelativePath('catalogue/packs'), true);
   assert.equal(safePath.isSafeRelativePath('out/catalogue.v1.json'), true);
   assert.equal(safePath.isSafeRelativePath('RELEASE_STAMP'), true);
-  assert.equal(safePath.isSafeRelativePath('/tmp/some/abs/path.json'), true);
+});
+
+test('isSafeRelativePath: rejects an ABSOLUTE path (it escapes the base under path.resolve even with no ".." segment) (CR safe-path.js:43)', () => {
+  assert.equal(safePath.isSafeRelativePath('/tmp/some/abs/path.json'), false);
+  assert.equal(safePath.isSafeRelativePath('/etc/passwd'), false);
 });
 
 test('isSafeRelativePath: rejects any ".." segment, a null byte, or an empty string', () => {
@@ -58,9 +62,42 @@ test('isSafeRelativePath: rejects any ".." segment, a null byte, or an empty str
   assert.equal(safePath.isSafeRelativePath(null), false);
 });
 
+test('assertSafeRelativePath: throws on an absolute path (CR safe-path.js:43)', () => {
+  assert.throws(() => safePath.assertSafeRelativePath('/etc/passwd', { label: '--out' }), /--out/);
+});
+
 test('assertSafeRelativePath: throws on a traversal path and returns the value unchanged otherwise', () => {
   assert.throws(() => safePath.assertSafeRelativePath('../x', { label: '--out' }), /--out/);
   assert.equal(safePath.assertSafeRelativePath('out/x.json'), 'out/x.json');
+});
+
+// ---------------------------------------------------------------------------------
+// isSafeScanPath / assertSafeScanPath (CR safe-path.js:43 consumer audit): a READ-scan target
+// accepts an ABSOLUTE path (used directly, no base to escape) OR a genuinely-relative one with no
+// ".." segment - the read-side counterpart to the strictly-relative WRITE/config-arg contract.
+// ---------------------------------------------------------------------------------
+
+test('isSafeScanPath: accepts an ABSOLUTE read target (unlike isSafeRelativePath) and a clean relative one', () => {
+  assert.equal(safePath.isSafeScanPath('/tmp/some/bundle.json'), true);
+  assert.equal(safePath.isSafeScanPath(path.resolve('/var/folders/xyz')), true);
+  assert.equal(safePath.isSafeScanPath('catalogue/packs'), true);
+  assert.equal(safePath.isSafeScanPath('eval/calibration-known-bad/fixtures'), true);
+  // and, unlike isSafeRelativePath, the absolute case is exactly the difference:
+  assert.equal(safePath.isSafeRelativePath('/tmp/some/bundle.json'), false);
+});
+
+test('isSafeScanPath: still rejects a relative ".." traversal, a null byte, and empty/non-string', () => {
+  assert.equal(safePath.isSafeScanPath('../../../etc/passwd'), false);
+  assert.equal(safePath.isSafeScanPath('catalogue/../../etc'), false);
+  assert.equal(safePath.isSafeScanPath('a/b\0c'), false);
+  assert.equal(safePath.isSafeScanPath(''), false);
+  assert.equal(safePath.isSafeScanPath(null), false);
+});
+
+test('assertSafeScanPath: returns an absolute path unchanged, but throws on relative traversal', () => {
+  assert.equal(safePath.assertSafeScanPath('/tmp/x/bundle.json'), '/tmp/x/bundle.json');
+  assert.equal(safePath.assertSafeScanPath('catalogue/packs'), 'catalogue/packs');
+  assert.throws(() => safePath.assertSafeScanPath('../x', { label: 'scan dir' }), /scan dir/);
 });
 
 // ---------------------------------------------------------------------------------

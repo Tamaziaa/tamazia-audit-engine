@@ -122,214 +122,289 @@ function isValidSubJurisdiction(jurisdiction, sub) {
 
 // ---------------------------------------------------------------------------------
 // validateRecord(record) -> string[]
+//
+// Decomposed into one validator per field group, each pure and independently
+// under the health-gate caps (tools/health-gate/check.js): validateRecord itself
+// is a flat aggregator that concatenates every group's violations, then prefixes
+// the whole list with the record's id tag. Message strings are unchanged from the
+// pre-refactor monolith (tests assert on them verbatim).
 // ---------------------------------------------------------------------------------
-function validateRecord(record) {
+
+// id, name
+function validateIdentity(record) {
   const v = [];
-  const fail = (msg) => v.push(msg);
+  if (!isNonEmptyString(record.id)) v.push('id: required non-empty string');
+  else if (!ID_RX.test(record.id)) v.push('id: ' + JSON.stringify(record.id) + ' must match ' + ID_RX + ' (upper-snake identifier)');
+  if (!isNonEmptyString(record.name)) v.push('name: required non-empty string');
+  return v;
+}
 
-  if (!isPlainObject(record)) {
-    return ['record is not a plain object'];
-  }
-
-  // id
-  if (!isNonEmptyString(record.id)) fail('id: required non-empty string');
-  else if (!ID_RX.test(record.id)) fail('id: ' + JSON.stringify(record.id) + ' must match ' + ID_RX + ' (upper-snake identifier)');
-
-  const idTag = isNonEmptyString(record.id) ? record.id : '<no id>';
-
-  // name
-  if (!isNonEmptyString(record.name)) fail('name: required non-empty string');
-
-  // citation
+// citation {act, section, url}
+function validateCitation(record) {
+  const v = [];
   if (!isPlainObject(record.citation)) {
-    fail('citation: required object {act, section, url}');
+    v.push('citation: required object {act, section, url}');
   } else {
-    if (!isNonEmptyString(record.citation.act)) fail('citation.act: required non-empty string');
-    if (!isNonEmptyString(record.citation.section)) fail('citation.section: required non-empty string');
-    if (!isNonEmptyString(record.citation.url)) fail('citation.url: required non-empty string');
-    else if (!isHttpUrl(record.citation.url)) fail('citation.url: ' + JSON.stringify(record.citation.url) + ' is not a valid http(s) URL');
+    if (!isNonEmptyString(record.citation.act)) v.push('citation.act: required non-empty string');
+    if (!isNonEmptyString(record.citation.section)) v.push('citation.section: required non-empty string');
+    if (!isNonEmptyString(record.citation.url)) v.push('citation.url: required non-empty string');
+    else if (!isHttpUrl(record.citation.url)) v.push('citation.url: ' + JSON.stringify(record.citation.url) + ' is not a valid http(s) URL');
   }
+  return v;
+}
 
-  // jurisdiction (required_nexus/applicability layer; the record's OWN jurisdiction, per Rule 13)
-  if (!isNonEmptyString(record.jurisdiction)) fail('jurisdiction: required non-empty string');
+// jurisdiction (required_nexus/applicability layer; the record's OWN jurisdiction, per Rule 13)
+// + sub_jurisdiction: null, 'multi', or a code modelled for this jurisdiction
+function validateJurisdictionFields(record) {
+  const v = [];
+  if (!isNonEmptyString(record.jurisdiction)) v.push('jurisdiction: required non-empty string');
   else if (!vocabulary.isJurisdiction(record.jurisdiction)) {
-    fail('jurisdiction: ' + JSON.stringify(record.jurisdiction) + ' is not a known facts/vocabulary.js jurisdiction code');
+    v.push('jurisdiction: ' + JSON.stringify(record.jurisdiction) + ' is not a known facts/vocabulary.js jurisdiction code');
   }
-
-  // sub_jurisdiction: null, 'multi', or a code modelled for this jurisdiction
   if (!isValidSubJurisdiction(record.jurisdiction, record.sub_jurisdiction)) {
-    fail('sub_jurisdiction: ' + JSON.stringify(record.sub_jurisdiction) + ' is not null, "multi", or a facts/vocabulary.js SUB_JURISDICTIONS code for jurisdiction ' + JSON.stringify(record.jurisdiction));
+    v.push('sub_jurisdiction: ' + JSON.stringify(record.sub_jurisdiction) + ' is not null, "multi", or a facts/vocabulary.js SUB_JURISDICTIONS code for jurisdiction ' + JSON.stringify(record.jurisdiction));
   }
+  return v;
+}
 
-  // status
-  if (!STATUSES.includes(record.status)) {
-    fail('status: ' + JSON.stringify(record.status) + ' must be one of ' + STATUSES.join('|'));
-  }
-
-  // client_useful
-  if (!isBoolean(record.client_useful)) fail('client_useful: required boolean');
-
-  // sector[]
+// sector[]
+function validateSectorField(record) {
+  const v = [];
   if (!isNonEmptyArray(record.sector)) {
-    fail('sector: required non-empty array');
+    v.push('sector: required non-empty array');
   } else {
     for (const s of record.sector) {
       if (typeof s !== 'string' || !isValidSector(s)) {
-        fail('sector: ' + JSON.stringify(s) + ' does not resolve via facts/vocabulary.js canonicalSector and is not the "universal" sentinel');
+        v.push('sector: ' + JSON.stringify(s) + ' does not resolve via facts/vocabulary.js canonicalSector and is not the "universal" sentinel');
       }
     }
   }
+  return v;
+}
 
-  // sub_sector[] - format AND enum-checked against facts/vocabulary.js CANONICAL_SUB_SECTORS
-  // (see file header, scope decision 2, and CR-36)
+// sub_sector[] - format AND enum-checked against facts/vocabulary.js CANONICAL_SUB_SECTORS
+// (see file header, scope decision 2, and CR-36)
+function validateSubSectorField(record) {
+  const v = [];
   if (!isArray(record.sub_sector)) {
-    fail('sub_sector: required array (may be empty)');
+    v.push('sub_sector: required array (may be empty)');
   } else {
     for (const s of record.sub_sector) {
       if (typeof s !== 'string' || !isNonEmptyString(s) || !SLUG_RX.test(s)) {
-        fail('sub_sector: ' + JSON.stringify(s) + ' must be a non-empty lowercase-hyphen slug');
+        v.push('sub_sector: ' + JSON.stringify(s) + ' must be a non-empty lowercase-hyphen slug');
       } else if (!vocabulary.isCanonicalSubSector(s)) {
-        fail('sub_sector: ' + JSON.stringify(s) + ' is not a facts/vocabulary.js CANONICAL_SUB_SECTORS member');
+        v.push('sub_sector: ' + JSON.stringify(s) + ' is not a facts/vocabulary.js CANONICAL_SUB_SECTORS member');
       }
     }
   }
+  return v;
+}
 
-  // activity_tags[] - enum-checked via facts/vocabulary.js ACTIVITY_TAGS
+// activity_tags[] - enum-checked via facts/vocabulary.js ACTIVITY_TAGS
+function validateActivityTagsField(record) {
+  const v = [];
   if (!isArray(record.activity_tags)) {
-    fail('activity_tags: required array (may be empty)');
+    v.push('activity_tags: required array (may be empty)');
   } else {
     for (const t of record.activity_tags) {
       if (!vocabulary.isActivityTag(t)) {
-        fail('activity_tags: ' + JSON.stringify(t) + ' is not a facts/vocabulary.js ACTIVITY_TAGS member');
+        v.push('activity_tags: ' + JSON.stringify(t) + ' is not a facts/vocabulary.js ACTIVITY_TAGS member');
       }
     }
   }
+  return v;
+}
 
-  // required_nexus[] - enum-checked via facts/vocabulary.js NEXUS_TYPES; a law binds through at
-  // least one nexus relation, so this must be non-empty (Rule 13: serving is not being bound).
+// jurisdiction, sub_jurisdiction, sector, sub_sector, activity_tags - the record's
+// vocabulary-controlled classification tags (facts/vocabulary.js is their one door).
+function validateTags(record) {
+  return [
+    ...validateJurisdictionFields(record),
+    ...validateSectorField(record),
+    ...validateSubSectorField(record),
+    ...validateActivityTagsField(record),
+  ];
+}
+
+// required_nexus[], applies_when[], excluded_when[] - the attachment/exclusion conditions.
+// required_nexus is enum-checked via facts/vocabulary.js NEXUS_TYPES; a law binds through at
+// least one nexus relation, so it must be non-empty (Rule 13: serving is not being bound).
+// excluded_when may be empty at schema level (the threshold-guard linter enforces non-empty
+// for the specific class of threshold-bearing records, caution.md C-071).
+function validateNexusAndConditions(record) {
+  const v = [];
   if (!isNonEmptyArray(record.required_nexus)) {
-    fail('required_nexus: required non-empty array');
+    v.push('required_nexus: required non-empty array');
   } else {
     for (const n of record.required_nexus) {
       if (!vocabulary.isNexusType(n)) {
-        fail('required_nexus: ' + JSON.stringify(n) + ' is not a facts/vocabulary.js NEXUS_TYPES member');
+        v.push('required_nexus: ' + JSON.stringify(n) + ' is not a facts/vocabulary.js NEXUS_TYPES member');
       }
     }
   }
-
-  // applies_when[]
   if (!isNonEmptyArray(record.applies_when)) {
-    fail('applies_when: required non-empty array of strings');
+    v.push('applies_when: required non-empty array of strings');
   } else {
     for (const a of record.applies_when) {
-      if (!isNonEmptyString(a)) fail('applies_when: every entry must be a non-empty string');
+      if (!isNonEmptyString(a)) v.push('applies_when: every entry must be a non-empty string');
     }
   }
-
-  // excluded_when[] - array required (may be empty at schema level; the threshold-guard linter
-  // enforces non-empty for the specific class of threshold-bearing records, caution.md C-071)
   if (!isArray(record.excluded_when)) {
-    fail('excluded_when: required array (may be empty)');
+    v.push('excluded_when: required array (may be empty)');
   } else {
     for (const e of record.excluded_when) {
-      if (!isNonEmptyString(e)) fail('excluded_when: every entry must be a non-empty string');
+      if (!isNonEmptyString(e)) v.push('excluded_when: every entry must be a non-empty string');
     }
   }
+  return v;
+}
 
-  // website_obligations[]
+// website_obligations[]
+function validateObligations(record) {
+  const v = [];
   if (!isNonEmptyArray(record.website_obligations)) {
-    fail('website_obligations: required non-empty array');
+    v.push('website_obligations: required non-empty array');
   } else {
     record.website_obligations.forEach((w, i) => {
       const tag = 'website_obligations[' + i + ']';
-      if (!isPlainObject(w)) { fail(tag + ': must be an object'); return; }
-      if (!isNonEmptyString(w.duty)) fail(tag + '.duty: required non-empty string');
+      if (!isPlainObject(w)) { v.push(tag + ': must be an object'); return; }
+      if (!isNonEmptyString(w.duty)) v.push(tag + '.duty: required non-empty string');
       if (!isNonEmptyArray(w.elements)) {
-        fail(tag + '.elements: required non-empty array of strings');
+        v.push(tag + '.elements: required non-empty array of strings');
       } else {
         for (const el of w.elements) {
-          if (!isNonEmptyString(el)) fail(tag + '.elements: every entry must be a non-empty string');
+          if (!isNonEmptyString(el)) v.push(tag + '.elements: every entry must be a non-empty string');
         }
       }
       if (!EVIDENCE_TYPES.includes(w.evidence_type)) {
-        fail(tag + '.evidence_type: ' + JSON.stringify(w.evidence_type) + ' must be one of ' + EVIDENCE_TYPES.join('|'));
+        v.push(tag + '.evidence_type: ' + JSON.stringify(w.evidence_type) + ' must be one of ' + EVIDENCE_TYPES.join('|'));
       }
     });
   }
+  return v;
+}
 
-  // penalty
+// penalty
+function validatePenalty(record) {
+  const v = [];
   if (!isPlainObject(record.penalty)) {
-    fail('penalty: required object');
+    v.push('penalty: required object');
   } else {
     const p = record.penalty;
-    if (!isNullOrFiniteNonNegative(p.typical_low)) fail('penalty.typical_low: must be null or a non-negative finite number');
-    if (!isNullOrFiniteNonNegative(p.typical_high)) fail('penalty.typical_high: must be null or a non-negative finite number');
-    if (!isNullOrFiniteNonNegative(p.statutory_max)) fail('penalty.statutory_max: must be null or a non-negative finite number');
+    if (!isNullOrFiniteNonNegative(p.typical_low)) v.push('penalty.typical_low: must be null or a non-negative finite number');
+    if (!isNullOrFiniteNonNegative(p.typical_high)) v.push('penalty.typical_high: must be null or a non-negative finite number');
+    if (!isNullOrFiniteNonNegative(p.statutory_max)) v.push('penalty.statutory_max: must be null or a non-negative finite number');
     if (typeof p.typical_low === 'number' && typeof p.typical_high === 'number' && p.typical_low > p.typical_high) {
-      fail('penalty: typical_low (' + p.typical_low + ') must not exceed typical_high (' + p.typical_high + ')');
+      v.push('penalty: typical_low (' + p.typical_low + ') must not exceed typical_high (' + p.typical_high + ')');
     }
-    if (!CURRENCIES.includes(p.currency)) fail('penalty.currency: ' + JSON.stringify(p.currency) + ' must be one of ' + CURRENCIES.join('|'));
-    if (!isNonEmptyString(p.basis)) fail('penalty.basis: required non-empty string');
-    if (!isBoolean(p.max_is_rare)) fail('penalty.max_is_rare: required boolean');
+    if (!CURRENCIES.includes(p.currency)) v.push('penalty.currency: ' + JSON.stringify(p.currency) + ' must be one of ' + CURRENCIES.join('|'));
+    if (!isNonEmptyString(p.basis)) v.push('penalty.basis: required non-empty string');
+    if (!isBoolean(p.max_is_rare)) v.push('penalty.max_is_rare: required boolean');
   }
+  return v;
+}
 
-  // regulator
+// regulator {name, register_url}
+function validateRegulator(record) {
+  const v = [];
   if (!isPlainObject(record.regulator)) {
-    fail('regulator: required object {name, register_url}');
+    v.push('regulator: required object {name, register_url}');
   } else {
-    if (!isNonEmptyString(record.regulator.name)) fail('regulator.name: required non-empty string');
+    if (!isNonEmptyString(record.regulator.name)) v.push('regulator.name: required non-empty string');
     if (record.regulator.register_url !== null && record.regulator.register_url !== undefined) {
-      if (!isHttpUrl(record.regulator.register_url)) fail('regulator.register_url: ' + JSON.stringify(record.regulator.register_url) + ' must be null or a valid http(s) URL');
+      if (!isHttpUrl(record.regulator.register_url)) v.push('regulator.register_url: ' + JSON.stringify(record.regulator.register_url) + ' must be null or a valid http(s) URL');
     }
   }
+  return v;
+}
 
-  // enforcement[] (may be empty)
+// enforcement[] (may be empty)
+function validateEnforcement(record) {
+  const v = [];
   if (!isArray(record.enforcement)) {
-    fail('enforcement: required array (may be empty)');
+    v.push('enforcement: required array (may be empty)');
   } else {
     record.enforcement.forEach((e, i) => {
       const tag = 'enforcement[' + i + ']';
-      if (!isPlainObject(e)) { fail(tag + ': must be an object'); return; }
-      if (!isNonEmptyString(e.case)) fail(tag + '.case: required non-empty string');
-      if (!isNonEmptyString(e.date)) fail(tag + '.date: required non-empty string');
-      if (!isNonEmptyString(e.amount)) fail(tag + '.amount: required non-empty string');
-      if (!isNonEmptyString(e.url)) fail(tag + '.url: required non-empty string');
-      else if (!isHttpUrl(e.url)) fail(tag + '.url: ' + JSON.stringify(e.url) + ' is not a valid http(s) URL');
-      if (!isNonEmptyString(e.summary)) fail(tag + '.summary: required non-empty string');
+      if (!isPlainObject(e)) { v.push(tag + ': must be an object'); return; }
+      if (!isNonEmptyString(e.case)) v.push(tag + '.case: required non-empty string');
+      if (!isNonEmptyString(e.date)) v.push(tag + '.date: required non-empty string');
+      if (!isNonEmptyString(e.amount)) v.push(tag + '.amount: required non-empty string');
+      if (!isNonEmptyString(e.url)) v.push(tag + '.url: required non-empty string');
+      else if (!isHttpUrl(e.url)) v.push(tag + '.url: ' + JSON.stringify(e.url) + ' is not a valid http(s) URL');
+      if (!isNonEmptyString(e.summary)) v.push(tag + '.summary: required non-empty string');
     });
   }
+  return v;
+}
 
-  // intel
+// intel {why_matters, regulator_asks_first, relevance_hook}
+function validateIntel(record) {
+  const v = [];
   if (!isPlainObject(record.intel)) {
-    fail('intel: required object {why_matters, regulator_asks_first, relevance_hook}');
+    v.push('intel: required object {why_matters, regulator_asks_first, relevance_hook}');
   } else {
-    if (!isNonEmptyString(record.intel.why_matters)) fail('intel.why_matters: required non-empty string');
-    if (!isNonEmptyString(record.intel.regulator_asks_first)) fail('intel.regulator_asks_first: required non-empty string');
-    if (!isNonEmptyString(record.intel.relevance_hook)) fail('intel.relevance_hook: required non-empty string');
+    if (!isNonEmptyString(record.intel.why_matters)) v.push('intel.why_matters: required non-empty string');
+    if (!isNonEmptyString(record.intel.regulator_asks_first)) v.push('intel.regulator_asks_first: required non-empty string');
+    if (!isNonEmptyString(record.intel.relevance_hook)) v.push('intel.relevance_hook: required non-empty string');
   }
+  return v;
+}
 
-  // provenance (Constitution Rule 14: provenance-mandatory catalogue rows)
+// provenance {sources, seed_status, verified_date} (Constitution Rule 14: provenance-mandatory
+// catalogue rows)
+function validateProvenance(record) {
+  const v = [];
   if (!isPlainObject(record.provenance)) {
-    fail('provenance: required object {sources, seed_status, verified_date}');
+    v.push('provenance: required object {sources, seed_status, verified_date}');
   } else {
     if (!isNonEmptyArray(record.provenance.sources)) {
-      fail('provenance.sources: required non-empty array');
+      v.push('provenance.sources: required non-empty array');
     } else {
       for (const s of record.provenance.sources) {
-        if (!isNonEmptyString(s)) fail('provenance.sources: every entry must be a non-empty string');
+        if (!isNonEmptyString(s)) v.push('provenance.sources: every entry must be a non-empty string');
       }
     }
-    if (!isNonEmptyString(record.provenance.seed_status)) fail('provenance.seed_status: required non-empty string');
-    if (!isNonEmptyString(record.provenance.verified_date)) fail('provenance.verified_date: required non-empty string');
-    else if (!DATE_RX.test(record.provenance.verified_date)) fail('provenance.verified_date: ' + JSON.stringify(record.provenance.verified_date) + ' must match YYYY-MM-DD');
+    if (!isNonEmptyString(record.provenance.seed_status)) v.push('provenance.seed_status: required non-empty string');
+    if (!isNonEmptyString(record.provenance.verified_date)) v.push('provenance.verified_date: required non-empty string');
+    else if (!DATE_RX.test(record.provenance.verified_date)) v.push('provenance.verified_date: ' + JSON.stringify(record.provenance.verified_date) + ' must match YYYY-MM-DD');
   }
+  return v;
+}
 
+// status, client_useful, advisory
+function validateStatus(record) {
+  const v = [];
+  if (!STATUSES.includes(record.status)) {
+    v.push('status: ' + JSON.stringify(record.status) + ' must be one of ' + STATUSES.join('|'));
+  }
+  if (!isBoolean(record.client_useful)) v.push('client_useful: required boolean');
   // advisory - optional, but if present must be boolean (caution.md C-055 advisory tier marker)
   if (record.advisory !== undefined && !isBoolean(record.advisory)) {
-    fail('advisory: if present must be a boolean');
+    v.push('advisory: if present must be a boolean');
   }
+  return v;
+}
 
-  return v.map((msg) => idTag + ': ' + msg);
+const FIELD_GROUP_VALIDATORS = [
+  validateIdentity,
+  validateCitation,
+  validateTags,
+  validateNexusAndConditions,
+  validateObligations,
+  validatePenalty,
+  validateRegulator,
+  validateEnforcement,
+  validateIntel,
+  validateProvenance,
+  validateStatus,
+];
+
+function validateRecord(record) {
+  if (!isPlainObject(record)) return ['record is not a plain object'];
+  const idTag = isNonEmptyString(record.id) ? record.id : '<no id>';
+  const violations = FIELD_GROUP_VALIDATORS.flatMap((validate) => validate(record));
+  return violations.map((msg) => idTag + ': ' + msg);
 }
 
 // ---------------------------------------------------------------------------------

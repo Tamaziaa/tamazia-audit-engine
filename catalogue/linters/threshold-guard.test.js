@@ -31,13 +31,20 @@ test('textMentionsThreshold (CR-13): a currency-shaped threshold fires at the ve
   assert.equal(linter.textMentionsThreshold({ applies_when: ['annual turnover of £36m or more'] }), true);
 });
 
-test('hasNonEmptyExcludedWhen (CR-12): true only when at least one entry carries a GENUINE below-threshold mention (a THRESHOLD_RX keyword or currency amount), never merely any non-blank string', () => {
+test('hasNonEmptyExcludedWhen (CR-12 + CR threshold-guard.js:62): true only when an entry carries BOTH a threshold token AND a below/under/exempt sense, never merely any non-blank string and never a same-threshold restatement', () => {
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['annual turnover below GBP 36 million'] }), true);
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['fewer than 250 employees'] }), true);
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['turnover not exceeding GBP 36 million'] }), true);
+  // CR threshold-guard.js:62: an entry that RE-STATES the same ABOVE-threshold trigger matches
+  // THRESHOLD_RX but carries no below/exempt sense - it models no carve-out and must NOT satisfy.
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['organisation with annual turnover of GBP 36 million or more'] }), false);
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['employer with 250 or more employees'] }), false);
   // an unrelated, non-size exclusion reason must NOT satisfy this - the "2" inside "B2B" is
   // deliberately not enough (the bare-digit heuristic this replaced false-positived on exactly this).
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['B2B-only firms are out of scope'] }), false);
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['a reason'] }), false);
+  // a below/exempt sense with NO threshold token (e.g. an unrelated "below" reason) is also not enough.
+  assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['operates below the radar of press attention'] }), false);
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: [] }), false);
   assert.equal(linter.hasNonEmptyExcludedWhen({ excluded_when: ['   '] }), false);
   assert.equal(linter.hasNonEmptyExcludedWhen({}), false);
@@ -71,6 +78,18 @@ test('checkRecord (CR-12): a threshold-mentioning record whose excluded_when car
   };
   const v = linter.checkRecord(r, 'test');
   assert.ok(v.some((f) => f.rule === 'threshold-excluded-when-missing'), 'an unrelated excluded_when entry must not satisfy a size-gated record');
+});
+
+test('checkRecord (CR threshold-guard.js:62): a threshold-mentioning record whose excluded_when merely RE-STATES the same above-threshold trigger (no below/exempt sense) is still flagged threshold-excluded-when-missing', () => {
+  const r = {
+    id: 'CAL_TEST_THRESHOLD_SAME_NOT_BELOW',
+    name: 'Modern Slavery Act 2015 transparency statement',
+    applies_when: ['annual turnover of GBP 36 million or more'],
+    excluded_when: ['organisation with annual turnover of GBP 36 million or more'],
+    penalty: { typical_low: null, typical_high: null, statutory_max: null },
+  };
+  const v = linter.checkRecord(r, 'test');
+  assert.ok(v.some((f) => f.rule === 'threshold-excluded-when-missing'), 'a same-threshold-but-not-below excluded_when models no sub-threshold carve-out and must not clear the record');
 });
 
 test('checkRecord: the same threshold-mentioning record clears once excluded_when is populated', () => {
@@ -161,6 +180,11 @@ test('scan: real committed packs produce EXACTLY the documented known (file, id,
     ['catalogue/packs/uk-tech-media-industrial.json', 'UK_GREEN_CLAIMS', 'typical-band-missing'],
     ['catalogue/packs/uk-tech-media-industrial.json', 'UK_TRUSTMARK_ACCREDITATION_CLAIMS', 'typical-band-missing'],
     ['catalogue/packs/uk-universal.json', 'UK_DUAA_2025', 'typical-band-missing'],
+    // us-healthcare's NY medical-board advertising duty carries a statutory_max (USD 10,000 fine
+    // under N.Y. Public Health Law 230-a) with no modelled typical enforcement band yet - an honest
+    // cap-only state the WARNING exists to surface every run until a typical band is gathered
+    // (caution.md C-096/C-104), not a schema defect. Documented here so the exact-set stays honest.
+    ['catalogue/packs/us-healthcare.json', 'US_MEDBOARD_ADV_NY', 'typical-band-missing'],
     // RESOLVED (PR #3 gate loop): US_FTC_REVIEWS_ENDORSEMENTS previously appeared here because
     // THRESHOLD_RX's bare `employee` alternative treated "endorsement by an employee" (authorship,
     // not headcount) as a size-threshold mention. Fixed via the narrower alternative this note

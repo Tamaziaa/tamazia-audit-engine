@@ -1,0 +1,5477 @@
+{
+  "_README": "The historical-failure crossref. Every distinct defect from the old estate mapped to a failure class, the caution.md pointer it distils, the gate in THIS repo that catches its class, and whether that gate is live (guarded) or planned (gap). Regenerate with: npm run history:build. Validated by: npm run history.",
+  "generated_at": "2026-07-17",
+  "sources": [
+    "sweep-findings.json (421 raw -> 334 deduped -> 256 clusters, 6 ACT)",
+    "docs/discovery/digest-findings-bible.md (§0 ACT, §12 domain gates, §13 dismissals)",
+    "caution.md (C-001..C-202)",
+    "CONSTITUTION.md (Part III gate map)"
+  ],
+  "totals": {
+    "defects": 267,
+    "classes": 43,
+    "guarded_classes": 27,
+    "gap_classes": 16,
+    "act": 17
+  },
+  "classification_note": "Sweep defects are triaged category->class with a message-keyword refinement for the \"other\" bucket (see build-crossref.js). This is best-effort triage of tool output; the load-bearing contract is the class->gate mapping, enforced by check.js.",
+  "taxonomy": [
+    {
+      "class": "two-doors",
+      "description": "One client-facing fact produced by multiple modules; the stale door is the one the client sees.",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-001",
+        "C-018",
+        "C-052",
+        "C-102",
+        "C-188"
+      ],
+      "defect_count": 27
+    },
+    {
+      "class": "resolution-error",
+      "description": "Firm identity/name/slug derived wrongly (domain stem, page heading, entity-leaking slug).",
+      "catching_gate": "facts/identity.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-001",
+        "C-002",
+        "C-003"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "jurisdiction-nexus",
+      "description": "A jurisdiction attached on no evidence, or serving a market conflated with being bound by its law (the ghost-jurisdiction / Mills & Reeve class, DG-05).",
+      "catching_gate": "facts/jurisdiction.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-006",
+        "C-007",
+        "C-008",
+        "C-009",
+        "C-010",
+        "C-011",
+        "C-020",
+        "C-021"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "sector-misclassification",
+      "description": "Sector decided on HTML/CSS noise, a stray keyword, or after attachment, so the wrong regulated pack is checked.",
+      "catching_gate": "facts/sector.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-012",
+        "C-013",
+        "C-014",
+        "C-015",
+        "C-016",
+        "C-017"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "abstain-unreachable",
+      "description": "A bot-walled or unrendered page asserted against instead of abstaining (jarir.com empty corpus, SPA shell).",
+      "catching_gate": "tools/facts-abstain/check.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-022",
+        "C-032",
+        "C-037",
+        "C-038"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "dead-regex",
+      "description": "Over-escaped / corrupted stored patterns that compile, run, and match nothing forever while reporting compliance (DG-01).",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-050"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "unanchored-regex",
+      "description": "Missing anchors / word boundaries so a pattern over-matches (/^EU/ matches EUROPEAN, unescaped . before co.uk, bare \"limited\").",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-019",
+        "C-057",
+        "C-059"
+      ],
+      "defect_count": 6
+    },
+    {
+      "class": "polarity",
+      "description": "A prohibition typed/tested as a requirement (or vice-versa), so clean firms are breached and non-compliant firms pass (DG-02/DG-03).",
+      "catching_gate": "catalogue/linters/polarity.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-046",
+        "C-047",
+        "C-048",
+        "C-060"
+      ],
+      "defect_count": 2
+    },
+    {
+      "class": "threshold-attachment",
+      "description": "Size/residency/volume-gated laws attached with no nexus (Modern Slavery Act on sub-GBP36m SMEs, CCPA on every US firm).",
+      "catching_gate": "catalogue/linters/threshold-guard.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-055",
+        "C-058",
+        "C-070",
+        "C-071",
+        "C-072"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "catalogue-integrity",
+      "description": "Catalogue rows mislabelled (trade body as statute, superseded twin alongside successor, citation-presence pseudo-rules, universal law dropped).",
+      "catching_gate": "catalogue/linters/citation-completeness.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-056",
+        "C-065",
+        "C-066",
+        "C-067",
+        "C-068",
+        "C-069",
+        "C-073",
+        "C-074",
+        "C-075"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "provenance-fabrication",
+      "description": "A catalogue row (law, fine, citation) with no fetched-and-content-verified official source; a bare number nobody can trace.",
+      "catching_gate": "catalogue/linters/citation-completeness.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-104"
+      ],
+      "defect_count": 2
+    },
+    {
+      "class": "fail-open-gate",
+      "description": "A mandatory gate that errors/times out/receives bad input and PASSES: gates after R2 persist, llmPreflight fail-open, stage marked ran unconditionally, safety floors env-zeroed.",
+      "catching_gate": "eval/calibration-known-bad/run.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-025",
+        "C-151",
+        "C-152"
+      ],
+      "defect_count": 2
+    },
+    {
+      "class": "silent-swallow",
+      "description": "A catch that swallows without rethrow/record/justification, so a failure reports success (55 silent catches an earlier regex reported as 0).",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-149",
+        "C-151"
+      ],
+      "defect_count": 6
+    },
+    {
+      "class": "host-substring",
+      "description": "Host/URL compared by substring or token without parsing (sharesTokenWithDomain one-sided, hasLinkedin persisted-socials bypass, ACT F-0004).",
+      "catching_gate": "tools/lib/safe-path.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-057"
+      ],
+      "defect_count": 3
+    },
+    {
+      "class": "injection",
+      "description": "An unescaped HTML/SQL sink, decode-after-strip re-introducing <>, XSS via var-in-href, or path traversal into path.join/resolve.",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-120"
+      ],
+      "defect_count": 31
+    },
+    {
+      "class": "secret-leak",
+      "description": "A credential-shaped string committed to the public repo (leaked webhook secret in a harvested snapshot; PII in golden fixtures).",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-160",
+        "C-196"
+      ],
+      "defect_count": 42
+    },
+    {
+      "class": "law-fact-literal",
+      "description": "A law name, fine amount or regulator string hardcoded in engine/renderer code instead of the catalogue (the frozen FW_NAME_CAT / three-copy £17.5M class).",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-102",
+        "C-112"
+      ],
+      "defect_count": 2
+    },
+    {
+      "class": "contract-drift",
+      "description": "Engine and renderer change-coupled with no shared schema; the payload contract lived in prose comments and defensive reads.",
+      "catching_gate": "payload/contract/index.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-107",
+        "C-108"
+      ],
+      "defect_count": 2
+    },
+    {
+      "class": "render-no-facts",
+      "description": "The renderer re-deriving a fact at render time (craftFix keyword substring, decodeDeep) instead of formatting a typed payload field.",
+      "catching_gate": "tools/fact-lineage/check.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-109",
+        "C-110"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "golden-regression",
+      "description": "A silent product change (finding counts, fines, firm names drifting) with no regression pin to catch it.",
+      "catching_gate": "eval/golden/run.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-164"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "reference-contradiction",
+      "description": "A resolved fact (jurisdiction, sector, identity) that contradicts a hand-verified reference firm.",
+      "catching_gate": "eval/reference-set/verify.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-006",
+        "C-158"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "duplication",
+      "description": "Textual clones of load-bearing logic (a fact re-derived per copy; the version-guard block repeated 7x).",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P2",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-188"
+      ],
+      "defect_count": 42
+    },
+    {
+      "class": "dead-code",
+      "description": "Modules/branches merged, tested and never called (citation-gate.js never executed once; 7 live orphans).",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-154",
+        "C-195"
+      ],
+      "defect_count": 34
+    },
+    {
+      "class": "ci-supply-chain",
+      "description": "CI/workflow hygiene: mutable action tags, ${{ }} shell injection in run:, missing minimum-release-age, curl-pipe-bash.",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P2",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-196"
+      ],
+      "defect_count": 6
+    },
+    {
+      "class": "corroboration-discipline",
+      "description": "A lone-tool finding treated as a fact, or a blanket dismissal defended in aggregate (160 SRI alerts in one sweep).",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-161",
+        "C-162"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "tree-divergence",
+      "description": "CI checked out a different tree than the one verified locally (untracked empty scaffold dirs), so the first CI run failed on divergence local never saw.",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P0",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-201"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "tooling-hygiene",
+      "description": "A defect in the sweep's own tooling, a test-file gap, or CI-config housekeeping (parser-aware counters, harvest error handling, next-line directive placement, node_modules noise).",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "phase": null,
+      "past_severity": "P1",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-148",
+        "C-163"
+      ],
+      "defect_count": 38
+    },
+    {
+      "class": "applicability-leak",
+      "description": "National law leaking via a supranational code or bare-token trigger; the single attachment authority (resolveLaws) was an orphan while a weaker connect() shipped.",
+      "catching_gate": "applicability/attach.js",
+      "status": "gap",
+      "phase": "P2",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-051",
+        "C-053",
+        "C-054",
+        "C-061",
+        "C-062",
+        "C-063",
+        "C-064",
+        "C-076",
+        "C-077"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "crawl-poverty",
+      "description": "Absence claimed on content that was never read: corpus cut before footers, unfetched policy pages, SPAs not rendered, PDFs never followed, archive snapshots sold as live.",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-024",
+        "C-026",
+        "C-027",
+        "C-028",
+        "C-029",
+        "C-030",
+        "C-031",
+        "C-033",
+        "C-034",
+        "C-035",
+        "C-036",
+        "C-039",
+        "C-042",
+        "C-044",
+        "C-045"
+      ],
+      "defect_count": 7
+    },
+    {
+      "class": "deadline-hang",
+      "description": "An external step with no hard outer deadline holding a mint hostage (752s stuck Chromium; 30s x 3 x 3 rate-limited chains).",
+      "catching_gate": "tools/domain-gates/deadline-audit.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-040",
+        "C-138"
+      ],
+      "defect_count": 3
+    },
+    {
+      "class": "evidence-lane-silent",
+      "description": "An evidence-lane dependency that throws and silently does nothing (require playwright fails; the cookie lane dead for whole versions).",
+      "catching_gate": "evidence/browser/observe.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-041",
+        "C-043"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "breach-artifact",
+      "description": "A breach with no deterministic artifact: an unreviewed regex match, a sub-25-char quote, a testimonial read as the firm's claim, a hacking accusation from body prose.",
+      "catching_gate": "breach/verifiers/quote-match.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-078",
+        "C-079",
+        "C-080",
+        "C-087",
+        "C-088",
+        "C-089",
+        "C-090",
+        "C-091"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "absence-vs-observation",
+      "description": "Evidence KIND conflated: _kindOf mapped every finding to absence so browser observations could never confirm; observed facts routed through text adjudication.",
+      "catching_gate": "breach/adjudicator/evidence-kind.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-084",
+        "C-085"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "adjudication-abstention",
+      "description": "Uncertainty shipped as a hard breach: ambiguous verdict stayed CONFIRMED, unadjudicated P0 reached the client, NO_BREACH accepted without disproof, verdict died at a whitelist seam.",
+      "catching_gate": "breach/adjudicator/verdict.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-081",
+        "C-082",
+        "C-083",
+        "C-086",
+        "C-092",
+        "C-093",
+        "C-200"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "llm-unverified",
+      "description": "The LLM authoring facts: invented statutes with fake URLs, correlated quorum, veto over the catalogue, prompt injection, temp-0 assumed deterministic, ungrounded geo-probe.",
+      "catching_gate": "llm/gate.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-127",
+        "C-128",
+        "C-129",
+        "C-130",
+        "C-131",
+        "C-132",
+        "C-133",
+        "C-134",
+        "C-135",
+        "C-136",
+        "C-137",
+        "C-141",
+        "C-142",
+        "C-143",
+        "C-144",
+        "C-145",
+        "C-146",
+        "C-147"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "module-scope-state",
+      "description": "Module-scope mutable singletons never reset between builds (_WARN/_SWARN), so warning counts were wrong for every audit after the first.",
+      "catching_gate": "tools/no-module-state/check.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-153"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "exposure-error",
+      "description": "Fine maths wrong: statutory maxima summed, cross-law cap borrow, wrong currency, hardcoded fine-rate regexes, £0 collapse after a field rename, voluntary code showing a statutory fine.",
+      "catching_gate": "render-proof/truth-pack.spec.js",
+      "status": "gap",
+      "phase": "P4",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-094",
+        "C-095",
+        "C-096",
+        "C-097",
+        "C-098",
+        "C-099",
+        "C-100",
+        "C-101",
+        "C-103",
+        "C-105",
+        "C-106"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "consistency-error",
+      "description": "The rendered page disagreeing with the payload: three different framework counts, headline number on no card, hollow cards, invented enforcement filler, jurisdiction claimed with 0 frameworks.",
+      "catching_gate": "render-proof/truth-pack.spec.js",
+      "status": "gap",
+      "phase": "P4",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-111",
+        "C-113",
+        "C-114",
+        "C-115",
+        "C-116",
+        "C-117",
+        "C-118",
+        "C-119",
+        "C-124",
+        "C-125"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "render-security-freshness",
+      "description": "Stale/insecure render surface: hand-maintained asset version served stale bundles, HMAC gated on an unbound secret, superseded pages served 200 as current.",
+      "catching_gate": "render-proof/truth-pack.spec.js",
+      "status": "gap",
+      "phase": "P4",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-121",
+        "C-122",
+        "C-123",
+        "C-126"
+      ],
+      "defect_count": 0
+    },
+    {
+      "class": "phantom-data",
+      "description": "A mint reported done that never produced a page: 1,004 phantom done rows, ON CONFLICT DO NOTHING adopting a stale row, a stub payload writable, queue/pages divergence.",
+      "catching_gate": "mint/post-write-assertions.js",
+      "status": "gap",
+      "phase": "P4",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-176",
+        "C-177",
+        "C-178",
+        "C-179",
+        "C-180",
+        "C-181",
+        "C-182",
+        "C-183",
+        "C-187",
+        "C-189",
+        "C-190"
+      ],
+      "defect_count": 4
+    },
+    {
+      "class": "cache-version",
+      "description": "Stale scans replayed as current: scanner_cache keyed on an unbumped ENGINE_VERSION, a partial catalogue cached process-wide, pg() returning null indistinguishable from no-rows.",
+      "catching_gate": ".github/workflows/engine-version-guard.yml",
+      "status": "gap",
+      "phase": "P4",
+      "past_severity": "P0",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-166",
+        "C-167",
+        "C-168",
+        "C-169",
+        "C-170",
+        "C-171",
+        "C-172",
+        "C-173",
+        "C-174",
+        "C-175",
+        "C-184",
+        "C-185",
+        "C-186"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "budget-floor",
+      "description": "A budget behaving as a floor not a cap: a 45s Math.max on the SPA-render tail made every mint slow regardless of the site (fix: 43s -> 6.9s, identical accuracy).",
+      "catching_gate": "tools/domain-gates/budget-caps.js",
+      "status": "gap",
+      "phase": "P3",
+      "past_severity": "P1",
+      "shipped_to_client": false,
+      "caution_pointers": [
+        "C-185"
+      ],
+      "defect_count": 1
+    },
+    {
+      "class": "coverage-truth",
+      "description": "Coverage claimed that was never computed: \"all 400+ frameworks screened\", a compliance_unassessed flag nothing read, a rule falling back to the whole corpus when its target page was unfetched.",
+      "catching_gate": "render-proof/truth-pack.spec.js",
+      "status": "gap",
+      "phase": "P4",
+      "past_severity": "P1",
+      "shipped_to_client": true,
+      "caution_pointers": [
+        "C-118",
+        "C-125"
+      ],
+      "defect_count": 0
+    }
+  ],
+  "defects": [
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0001",
+      "source": "sweep",
+      "act": true,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 3,
+      "tools": [
+        "CodeQL",
+        "coderabbitai",
+        "one-door"
+      ],
+      "path": "src/skills/S025-audit-page-builder/scripts/build.js",
+      "message": "Make mandatory audit gates fail closed.",
+      "fingerprint": "05c5781ce254e5a33fdb99f118addeb6df97b9f502846d07f26ed52d400b8591"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0002",
+      "source": "sweep",
+      "act": true,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 2,
+      "tools": [
+        "coderabbitai",
+        "one-door"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "Keep `_N2C` aligned with `detectMarkets().bound`.",
+      "fingerprint": "239f795cc8de74da7885df3939f07b0cf59f71e801ee66272348507d1c663acc"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0003",
+      "source": "sweep",
+      "act": true,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 2,
+      "tools": [
+        "coderabbitai",
+        "one-door"
+      ],
+      "path": "src/lib/audit/payload-schema.js",
+      "message": "Anchor the engine-version format.",
+      "fingerprint": "25ba423fae05105e328826166aaa9d3ed86fd873ab7ec729656ab5c1b0da2009"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0004",
+      "source": "sweep",
+      "act": true,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 2,
+      "tools": [
+        "coderabbitai",
+        "one-door"
+      ],
+      "path": "src/lib/util/url-safe.js",
+      "message": "Parse inputs before comparing hosts.",
+      "fingerprint": "30864732a4ff4e3edadc3d18f9f58073f0c1507a79d2f1c3a70b80b73e139314"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0005",
+      "source": "sweep",
+      "act": true,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 2,
+      "tools": [
+        "coderabbitai",
+        "one-door"
+      ],
+      "path": "src/lib/compliance/signals.js",
+      "message": "Protected compliance library change needs Aman sign-off",
+      "fingerprint": "3df5c9146b10013ea7af42a2ca87cba53b697517fe88166fe5041d2a836bdd59"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0006",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/util/prose.js",
+      "message": "Place each `next-line` directive immediately before the code it suppresses.",
+      "fingerprint": "00a28bd99bf8277654b775d1ba2c60a3c64bcf624c9306268ff5e0dfe11ff258"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0007",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/registry/framework-intel.js",
+      "message": "TWO DOORS: \"REGULATOR NAME\" has 5 producers (payload-schema.js, verify-payload.js, framework-intel.js, icp.js, build.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "01cd3bce48d0e2f7cfdb86bc37d13dc15d117f2c3133a50b6fa84feadd93654c"
+    },
+    {
+      "class": "ci-supply-chain",
+      "caution_pointer": "C-196",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0008",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/codescene-refactor.yml",
+      "message": "Pin `codescene-oss/pr-refactoring-agent` to a full commit SHA.",
+      "fingerprint": "03beb9a5d96554f28df0d7047060a6b99fef601ba5d01dec792bc31005001910"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0009",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/mint-now.yml",
+      "message": "Re-assert workflow credentials after importing `.env`.",
+      "fingerprint": "056f1811417471d1c331978f2e92601151ad628e2ed6f5f0e00f58810968365a"
+    },
+    {
+      "class": "provenance-fabrication",
+      "caution_pointer": "C-104",
+      "catching_gate": "catalogue/linters/citation-completeness.js",
+      "status": "guarded",
+      "id": "SW-0010",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/legal-provenance.test.js",
+      "message": "Assert the post-DUAA cap here.",
+      "fingerprint": "08c1d9634af89e0c4d8aede150aa50cb57e6816099b23cb10437c4d9cfb95eee"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0011",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/connect.js",
+      "message": "TWO DOORS: \"SECTOR normalisation\" has 6 producers (connect.js, jurisdiction-router.js, resolver.js, signals.js, rank-insight.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "08f5980d7d4e0e7ea59331b2320b963b65816684be00fc28c099c9760fde604b"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0012",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/code-coherence.yml",
+      "message": "Make the coherence counters parser-aware.",
+      "fingerprint": "0a0a8660f87c4b049d5b0113adf6e7861b4a28919f99e95d8ab6427b3a938edb"
+    },
+    {
+      "class": "provenance-fabrication",
+      "caution_pointer": "C-104",
+      "catching_gate": "catalogue/linters/citation-completeness.js",
+      "status": "guarded",
+      "id": "SW-0013",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/legal-provenance.test.js",
+      "message": "Make repealed-reference detection canonical or exhaustive.",
+      "fingerprint": "0a6e8c84b3b0c5bdd7cc4925f11fe5ac08915701aeaf95bc8fe3476764b24940"
+    },
+    {
+      "class": "contract-drift",
+      "caution_pointer": "C-107",
+      "catching_gate": "payload/contract/index.js",
+      "status": "guarded",
+      "id": "SW-0014",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/deliverability-guard.js",
+      "message": "Make the validated NEON contract match the error message.",
+      "fingerprint": "0ab3dbd24d4dfc247b01e6ad7f7b3a2cc390be096e542bace30a67a534be7c50"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0015",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "sarif/ai-reviewers.reviews.json",
+      "message": "Leaked webhook secret persisted verbatim in this harvested snapshot.",
+      "fingerprint": "0bee61f84b8d268e5c8472c98122d33eddf38b3c7d1fc12f975f5bd1fd7cda1c"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0016",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/touch0/rank-insight.js",
+      "message": "TWO DOORS: \"SECTOR normalisation\" has 6 producers (connect.js, jurisdiction-router.js, resolver.js, signals.js, rank-insight.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "10d333e8c95f0c0f272b6d571126a7810b9e53aafea9e90ca157e3d88b54840d"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0017",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/audit/llm-verify.js",
+      "message": "TWO DOORS: \"JURISDICTION NEXUS (established_in)\" has 5 producers (llm-verify.js, register-grounding.js, nexus.js, signals.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "1305ddaf20fc7790f21706184421fafa65692a08d344e740d677867959982d65"
+    },
+    {
+      "class": "silent-swallow",
+      "caution_pointer": "C-149",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "id": "SW-0018",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "error-handling",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/ahrefs-enrich.js",
+      "message": "Make the NEON guards fail open across all operational scripts.",
+      "fingerprint": "1499228eda840b908d087c731a8745233ddfbcd4558eda948aba922a4157b727"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0019",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/evidence/cookie-evidence.js",
+      "message": "TWO DOORS: \"FINE AMOUNT (the figure a client is quoted)\" has 3 producers (cookie-policy-diff.js, cookie-evidence.js, ico-register.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "1801ad3237b73f5fb01ea7fe81cae19807a08cf27859f4a5b8cc1ad789b53d25"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0020",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/evidence/ico-register.js",
+      "message": "TWO DOORS: \"FINE AMOUNT (the figure a client is quoted)\" has 3 producers (cookie-policy-diff.js, cookie-evidence.js, ico-register.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "18378dd7d20a771c50a5bd9a6568aac5d5d1e97a6a3985aa0a3b957cd7779814"
+    },
+    {
+      "class": "phantom-data",
+      "caution_pointer": "C-176",
+      "catching_gate": "mint/post-write-assertions.js",
+      "status": "gap",
+      "id": "SW-0021",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/enforcement-sync.js",
+      "message": "Do not block the cycle with a startup throw.",
+      "fingerprint": "1ca5ad731ebfcde82f477f5b6c12fc834b61864e319676983ac7faff10f10215"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0022",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "tools/sweep/normalise.js",
+      "message": "`start_line === 0` should not act as a blanket overlap signal.",
+      "fingerprint": "21c23c162e2bbaf65e8c30e9a40bb91671dbbe49e2cf47cacfb59436dda3653c"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0023",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/corpus-index.js",
+      "message": "Tighten the negation guard in `src/skills/S008-personalisation-engine/scanners/corpus-index.js:89`",
+      "fingerprint": "2a4c368c332c60505c35a9e3c507c6b2eacf0a30eabbce75da440043b82f85fc"
+    },
+    {
+      "class": "law-fact-literal",
+      "caution_pointer": "C-102",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0024",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/audit/citation-gate.js",
+      "message": "Include the framework in rule identities.",
+      "fingerprint": "2ce029c0ec5146a1b9d4ca33fa0d0a8a1f2c9666f2152b2da6c67e214ae8b54a"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0025",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/full-estate-sweep.yml",
+      "message": "Use a token that can access both repos, or narrow `SWEEP_REPOS`",
+      "fingerprint": "2e48ee9425c798b0b112ab3319f19f22b058fb704fbf694a98222893f7666e21"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0026",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/audit/preflight.js",
+      "message": "TWO DOORS: \"HOST anchoring\" has 8 producers (competitor-overlap.js, firm-profile.js, preflight.js, serp-engine.js, resolve-name.js, rank-insight.js, url-safe.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "30c58f4e1fcdce1ad5ec482077fd8f69d27d28c1645caf668b92cbf67370d45a"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0027",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/code-coherence.yml",
+      "message": "Do not report a successful scan after `jscpd` fails.",
+      "fingerprint": "3c6ef827d87ecc60a1480319825a90f43d15f550f7871756648f1e2a00e0d980"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0028",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/register-grounding.js",
+      "message": "TWO DOORS: \"JURISDICTION NEXUS (established_in)\" has 5 producers (llm-verify.js, register-grounding.js, nexus.js, signals.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "3d59908e35d0db5427bf2a2be41bd1daa8a8ecf5322d9d888d564b471af81a08"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0029",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "eslint"
+      ],
+      "path": "tools/sweep/collect-eslint.js",
+      "message": "Failed to parse JSON from 'produced nothing parseable': Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+      "fingerprint": "3d8f0d0bee86859a7de3f847b54fd086d6dd62a79108543d0f58613d13d31a8c"
+    },
+    {
+      "class": "deadline-hang",
+      "caution_pointer": "C-040",
+      "catching_gate": "tools/domain-gates/deadline-audit.js",
+      "status": "gap",
+      "id": "SW-0030",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/rebuild-env-b64.yml",
+      "message": "Add a timeout and propagate `PUT` failures.",
+      "fingerprint": "43be777678259a2dbff5204543f7b00a339e4b1c8e5404e2c6137e71ab2bdb6e"
+    },
+    {
+      "class": "ci-supply-chain",
+      "caution_pointer": "C-196",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0031",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "package.json",
+      "message": "Move Zod to `dependencies`",
+      "fingerprint": "446a35b493722145786349a5cff646cc8c8782c2842e87b78a1719f78a9dd7cc"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0032",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "sarif/codeql-alerts.sarif",
+      "message": "Duplicate findings across bundled build copies inflate counts.",
+      "fingerprint": "54091bbfa2e77baa3b97e242df4ab3a6b136529d0abe363283518d443bd12b5d"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0033",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/boundaries.test.js",
+      "message": "Exercise the exact acceptance boundaries.",
+      "fingerprint": "570f7ba9641628578df3c58ef466a3bef90810477d977ca917ff8901109d20d1"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0034",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/jurisdiction-router.js",
+      "message": "TWO DOORS: \"JURISDICTION -> FAMILY map\" has 5 producers (firm-profile.js, jurisdiction-router.js, jurisdiction.js, compliance.js, build.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "6011f2b3ac81d85b46a8ace586147b33aa12d86fe3c0a1a79d75de54f3e808b4"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0035",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/sourcing/icp.js",
+      "message": "TWO DOORS: \"REGULATOR NAME\" has 5 producers (payload-schema.js, verify-payload.js, framework-intel.js, icp.js, build.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "609f5b5c294a02036fa04d9706509dd4de8da7812b2655a0e058624094a7c29c"
+    },
+    {
+      "class": "absence-vs-observation",
+      "caution_pointer": "C-084",
+      "catching_gate": "breach/adjudicator/evidence-kind.js",
+      "status": "gap",
+      "id": "SW-0036",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/audit/finding-trust.js",
+      "message": "Prioritise browser observations over presence rule types.",
+      "fingerprint": "627ead970e21f9c9f6a584d11910afff39b3142254b96073b7a04a68f4374562"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0037",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/audit/competitor-overlap.js",
+      "message": "TWO DOORS: \"HOST anchoring\" has 8 producers (competitor-overlap.js, firm-profile.js, preflight.js, serp-engine.js, resolve-name.js, rank-insight.js, url-safe.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "6318071e6a6834089a64479eb41d378e5e2c046cb0ffed24c8e9e58b42dd35ef"
+    },
+    {
+      "class": "phantom-data",
+      "caution_pointer": "C-176",
+      "catching_gate": "mint/post-write-assertions.js",
+      "status": "gap",
+      "id": "SW-0038",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "async",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/regex-health.test.js",
+      "message": "Neon fetch lacks timeout and error-status handling; the initial data fetch can crash the script instead of failing gracefully.",
+      "fingerprint": "67492e6409c333afcae89a939783fc6fcd9503741772d4fc9341c798e511a5cf"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0039",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/audit/firm-profile.js",
+      "message": "TWO DOORS: \"JURISDICTION -> FAMILY map\" has 5 producers (firm-profile.js, jurisdiction-router.js, jurisdiction.js, compliance.js, build.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "691460a5025d1117a0d0a096a34ba0a2a8fc98667c73acf9dc9d4a598c2d7740"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0040",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/audit/citation-gate.js",
+      "message": "Do not modify protected audit or compliance modules.",
+      "fingerprint": "6e7a51eca7d62dee45e600895bf4bb54939ef99be42e6c7ce5fdc584725138ed"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0041",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "tools/sweep/collect-local.js",
+      "message": "Prefer `execFile` with an argument array over `execSync` shell strings.",
+      "fingerprint": "71bdacf91280cdffc02395a18a025ab86fe60f970c0c3cf8294f97a5672f0144"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0042",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/shadow-validate.yml",
+      "message": "Shadow-validate dead-letters will page the same channel as real production failures.",
+      "fingerprint": "7265f1ab4935a1adbb013bb5465b17b8e6ec74514b7e91605224a82e9a99b3b8"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0043",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/scraping/serp-engine.js",
+      "message": "TWO DOORS: \"HOST anchoring\" has 8 producers (competitor-overlap.js, firm-profile.js, preflight.js, serp-engine.js, resolve-name.js, rank-insight.js, url-safe.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "7973215ac15e1f4043c8f33d48b930d987df401b8e2de9c24b222a48a1725bdc"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0044",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/gates-executed.test.js",
+      "message": "Fail when the required database connection is absent.",
+      "fingerprint": "7e016fe9aa0d01cba9a74d71b60fa758d46e7b8985df9baaab9fed1e93b8eb1d"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0045",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/engine-cycle.yml",
+      "message": "Scope provider secrets to trusted execution steps.",
+      "fingerprint": "7e59975a44ac0f19daa0c833aabaf6cc7f8658316de7c58570930372d59f6f2b"
+    },
+    {
+      "class": "unanchored-regex",
+      "caution_pointer": "C-019",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "SW-0046",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "regex",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/rule-polarity.test.js",
+      "message": "Treat `regex_elements` as a valid pattern source.",
+      "fingerprint": "8223e8b9ca976f1570f0d02e72b60ccda0b9bf0a9818484dcddfe3881a57b6f7"
+    },
+    {
+      "class": "cache-version",
+      "caution_pointer": "C-166",
+      "catching_gate": ".github/workflows/engine-version-guard.yml",
+      "status": "gap",
+      "id": "SW-0047",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/v3-rerun.yml",
+      "message": "Extract the repeated engine-version guard into a single shared script.",
+      "fingerprint": "89b89fff12a192303d1cf8131b6f705c0bd4a481f0a1a70bed35ed10db7e961a"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0048",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/sourcing/resolve-name.js",
+      "message": "TWO DOORS: \"HOST anchoring\" has 8 producers (competitor-overlap.js, firm-profile.js, preflight.js, serp-engine.js, resolve-name.js, rank-insight.js, url-safe.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "8c4e7e2a47da92f0e871302b4bcd9ed4149f1ceb32cbf0048e0f5a1afe9b2abe"
+    },
+    {
+      "class": "exposure-error",
+      "caution_pointer": "C-094",
+      "catching_gate": "render-proof/truth-pack.spec.js",
+      "status": "gap",
+      "id": "SW-0049",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/legal-provenance.test.js",
+      "message": "Include low fine amounts in the source check.",
+      "fingerprint": "936c35cbe4a77b2bbe39bd2d1284da9a7492919a859cdd4a2f2fececc530c0f6"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0050",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/llm-chain-order.test.js",
+      "message": "Make these checks fail when wiring or ordering is wrong.",
+      "fingerprint": "953cbf6b439387f37ed8f6628cb4f9a306e988153870e3c112dceb242b620841"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0051",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/rule-polarity.test.js",
+      "message": "Keep the detector aligned with the documented prohibited tokens.",
+      "fingerprint": "954cbf013bed065d24983a18899084337356ea647c1c90a35bc83aac4b881bfa"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0052",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/full-estate-sweep.yml",
+      "message": "Unpinned action references and persisted credentials.",
+      "fingerprint": "96ae28442bd4a4ba5b6c3e6fa77fc1b21a848766e0d977b1edcc74f4b80520e2"
+    },
+    {
+      "class": "fail-open-gate",
+      "caution_pointer": "C-025",
+      "catching_gate": "eval/calibration-known-bad/run.js",
+      "status": "guarded",
+      "id": "SW-0053",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/legal-provenance.test.js",
+      "message": "Fail closed on Neon HTTP errors and bound the request.",
+      "fingerprint": "981cca5961ec61b35f09e3270c828e375f3aaceb9e69a07d7196f976cad45643"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0054",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/registry/jurisdiction.js",
+      "message": "TWO DOORS: \"JURISDICTION -> FAMILY map\" has 5 producers (firm-profile.js, jurisdiction-router.js, jurisdiction.js, compliance.js, build.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "9ba7ad4e3172c54741dbd1e13ce90662bec14b7cad768d4324ac49065ddde691"
+    },
+    {
+      "class": "contract-drift",
+      "caution_pointer": "C-107",
+      "catching_gate": "payload/contract/index.js",
+      "status": "guarded",
+      "id": "SW-0055",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/scorecard-nightly.js",
+      "message": "Standardise the NEON environment-variable contract.",
+      "fingerprint": "9d8f5d90fa4dee6c21ae4dbce25ca19d02423d2b049c233f84ca2407bef3a5ad"
+    },
+    {
+      "class": "law-fact-literal",
+      "caution_pointer": "C-102",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0056",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "website/functions/audit/_adapter.js",
+      "message": "Truncated-code fallback still bypasses the catalogue.",
+      "fingerprint": "a231e48e01183bbcdf8ee3c3a99ad7915e8ea91ad7f18c3430d739f69b6803c3"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0057",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/code-coherence.yml",
+      "message": "Run this on every push covered by the description.",
+      "fingerprint": "a51cbb571fc0fc8256e89b492caffe05f7d0cb6e98ff7055620b8442ce7ae583"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0058",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/post-write-assertion.test.js",
+      "message": "Test the behaviour, not only the source text.",
+      "fingerprint": "a59655b75713047caf847d2dc500ce397c84c84d9b71626cb6991e0fff392ff0"
+    },
+    {
+      "class": "silent-swallow",
+      "caution_pointer": "C-149",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "id": "SW-0059",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "error-handling",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/coherence-gate.test.js",
+      "message": "Make the silent-failure check structural, not formatting-specific.",
+      "fingerprint": "a5c0107b98704314ccf071eb010742401b32d7dafaeacd534083b4bd552669bd"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0060",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/audit/verify-payload.js",
+      "message": "TWO DOORS: \"REGULATOR NAME\" has 5 producers (payload-schema.js, verify-payload.js, framework-intel.js, icp.js, build.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "a6a04f40a737ce1b957b76ffbb812208913019f561f2855a0381edd5a9a5c190"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0061",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/update-env-secret.yml",
+      "message": "Flag this secret mutation for Aman before execution.",
+      "fingerprint": "aca69d5ccf6abadb006de7069a76d1fde3509fcde5aaa321f75731fe57745c46"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0062",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/coherence-gate.test.js",
+      "message": "Reject dynamic template-literal requires.",
+      "fingerprint": "aeceb7df12a8c6583a11149f6d497d76cb67cfb99d36eddafc3e86b60bade7f3"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0063",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "tools/sweep/collect-local.js",
+      "message": "Detected calls to child_process from a function argument `cmd`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed.",
+      "fingerprint": "afc2fceb1dfd970c8acc19958b02979a95731298200bd8e875cdc97fe0ba1438"
+    },
+    {
+      "class": "deadline-hang",
+      "caution_pointer": "C-040",
+      "catching_gate": "tools/domain-gates/deadline-audit.js",
+      "status": "gap",
+      "id": "SW-0064",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/audit/geo-probe.js",
+      "message": "Do not change protected audit and compliance components in this PR.",
+      "fingerprint": "b218fac0a3d9454db426c1d7f3b8d5e1d56e6d42f5226f2b8c29219f7a96e65f"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0065",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/rebuild-env-b64.yml",
+      "message": "Flag this secret mutation for Aman before execution.",
+      "fingerprint": "b740e2aedf43184611f0a703b83ec95976b53fd65b355ebc7e10f9f796ed9ab7"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0066",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/code-coherence.yml",
+      "message": "/node_modules/",
+      "fingerprint": "bd34e110c6e2460ea9bb461846f8f1a51c69d10eca438a70e862b08ebcc97242"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0067",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "tools/sweep/collect-reviews.js",
+      "message": "`prsSeen` undercounts total PRs — it only reflects PRs with at least one comment.",
+      "fingerprint": "bd6ad127e3f4d78e13ed4b3a2fce38320b9f92efe4c4894783cc1dce9af0126c"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0068",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/registry/nexus.js",
+      "message": "TWO DOORS: \"JURISDICTION NEXUS (established_in)\" has 5 producers (llm-verify.js, register-grounding.js, nexus.js, signals.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "c2223700ca2fcb6ce9c2f7e8d64199260f29ec80f13d9f99a7aa54c1e57f7cb3"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0069",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "tools/sweep/collect-reviews.js",
+      "message": "Any HTTP error mid-harvest discards all comments collected so far.",
+      "fingerprint": "c2f44575eb740c6d27dd56318e756dc8c3953415bc002f9ebf97b97e2d989c91"
+    },
+    {
+      "class": "silent-swallow",
+      "caution_pointer": "C-149",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "id": "SW-0070",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "error-handling",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/audit/site-scan.js",
+      "message": "`CORPUS_MAX_CHARS` misconfiguration silently zeroes the corpus and disables the truncation flag.",
+      "fingerprint": "c45c5689e3626bc3c75b11258cb3f424f7e41177ec52c59472f5962fd57919e1"
+    },
+    {
+      "class": "ci-supply-chain",
+      "caution_pointer": "C-196",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0071",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/quality-gates.yml",
+      "message": "Use `npm ci` here without a fallback.",
+      "fingerprint": "c4dcab7330ecc00566517a25bf23107db628bb88ace0ef6813c67f54dac1d2dd"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0072",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/reachability.test.js",
+      "message": "A `require()` edge does not prove the stage executes.",
+      "fingerprint": "c685809659f9bc0c4ce7c570e5d981dcb799b837e2903d67d0c228bfa3faf1e3"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0073",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".coderabbit.yaml",
+      "message": "Move `tools` under `reviews`.",
+      "fingerprint": "c8bd89aeac45ac594ee32cdfa228b1514077f255598fcda2591a276455f64c2c"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0074",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/boundaries.test.js",
+      "message": "Pin dangerous-scheme normalisation too.",
+      "fingerprint": "d2143211a2bbbecff7229e7ed4084f2f6865d8d18c28899bae80224de84f3989"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0075",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/corpus-index.js",
+      "message": "`declin` alternative in `NEGATION_RX` can never match — dead branch.",
+      "fingerprint": "d36cb9ec084636cda7a5b6b040feed1253a4c264a10d9222008b560de6ae595d"
+    },
+    {
+      "class": "ci-supply-chain",
+      "caution_pointer": "C-196",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0076",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/mint-worker.js",
+      "message": "Consider migrating off the legacy Sentry `/store/` endpoint.",
+      "fingerprint": "d7c60e3f7cc5d933966aa5642a83592c4df574c8c318a9f7da51f20e3a53bea7"
+    },
+    {
+      "class": "silent-swallow",
+      "caution_pointer": "C-149",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "id": "SW-0077",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "error-handling",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/full-estate-sweep.yml",
+      "message": "`|| true` on the Semgrep scan swallows failures silently.",
+      "fingerprint": "d7dd3995953a550056e797bc856a4eb7d7002e08b84fc4486d18d0aff41bda8d"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0078",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/compliance/resolver.js",
+      "message": "TWO DOORS: \"SECTOR normalisation\" has 6 producers (connect.js, jurisdiction-router.js, resolver.js, signals.js, rank-insight.js, compliance.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "d9c84ed324095aa7601b0a9de7b9a2f76d8e99e61297973aa5ed044f26c11b3e"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0079",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/mint-worker.js",
+      "message": "Keep the `http` diagnostics in the dead-letter message",
+      "fingerprint": "d9fa0d951ea78e5178c27f99bd04bb5da44233e29a2ff99bb1ff60987ae85dfd"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0080",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/reachability.test.js",
+      "message": "Parse only the dormant table as a declaration.",
+      "fingerprint": "de234b54948991a877d0dc9831b86f1fc873a41abb6905574ed934a1b237189f"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0081",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/eslint-pipeline.yml",
+      "message": "Disable checkout credential persistence.",
+      "fingerprint": "df357ab11e2e51510f31e8547b7e79f1f994ddb6782516849167e58e397626fa"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0082",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/mint-cycle.yml",
+      "message": "Prevent `ENV_B64` from overwriting the provider secrets.",
+      "fingerprint": "e4f943bd1fdc430376dab458f40d1ff23edcc2b85ca45894f2ee053eef569259"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0083",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/quality-gates.yml",
+      "message": "Run the gate for dependency and workflow-only PRs.",
+      "fingerprint": "e639c08586bd176932e19ad31b5347a9165016b5e3a379e27a4ebfdff146515f"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0084",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/eslint-pipeline.yml",
+      "message": "Include this workflow file in its own PR filter",
+      "fingerprint": "eabf5f43bfaef3369c8866cd1f6a5cd30e4b638130bbcbac654bab78ab07bd4b"
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "SW-0085",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "one-door"
+      ],
+      "path": "src/lib/audit/cookie-policy-diff.js",
+      "message": "TWO DOORS: \"FINE AMOUNT (the figure a client is quoted)\" has 3 producers (cookie-policy-diff.js, cookie-evidence.js, ico-register.js). The stale door is the one the client sees. This class has already shipped a P0 three times: the ghost jurisdiction, the \"Sector regulator\" label, and the GBP 17.5M fine that never reached the client.",
+      "fingerprint": "eaf3eee1208cb8e56a2425a81c9152cdddb316557a1d2597fc78dcc1b92da8a8"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0086",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/coherence-gate.test.js",
+      "message": "Exercise warning propagation instead of checking token presence.",
+      "fingerprint": "efcfe490c67a0fef13dbb5534578fea478e7ef9bd4e93e8f091c6e3b4700c075"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0087",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/code-coherence.yml",
+      "message": "Disable checkout credential persistence.",
+      "fingerprint": "f10f95bb1120cb51cbe7d06de4234bf76374b0611b32a5207ccbbdd8283bdfc6"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0088",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/backlog-burst.yml",
+      "message": "Keep `CRAWL_RENDER_URL` authoritative after `.env` import",
+      "fingerprint": "f2a6ee6215310f535057385a8d33a70efd2554d1a5bb792899c30090aaa0a85b"
+    },
+    {
+      "class": "phantom-data",
+      "caution_pointer": "C-176",
+      "catching_gate": "mint/post-write-assertions.js",
+      "status": "gap",
+      "id": "SW-0089",
+      "source": "sweep",
+      "act": false,
+      "severity": "P0",
+      "category": "async",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/mint-worker.js",
+      "message": "Await `verifyAuditUrl()` before checking `_res.ok`",
+      "fingerprint": "f3629bea4994f85fc11a94e75457e8af5adc59724b6bef636a4fbb7d4df276dd"
+    },
+    {
+      "class": "host-substring",
+      "caution_pointer": "C-057",
+      "catching_gate": "tools/lib/safe-path.js",
+      "status": "guarded",
+      "id": "SW-0090",
+      "source": "sweep",
+      "act": true,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 2,
+      "tools": [
+        "CodeQL",
+        "greptile-apps"
+      ],
+      "path": "src/lib/enrich/lead-quality.js",
+      "message": "Persisted socials bypass anchor",
+      "fingerprint": "15879654782452e9f1e76b4d2e414066e02461a04ed06494e7319346f0bb40e7"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0091",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/llm/router.js",
+      "message": "Do not log optional-provider absence as an error.",
+      "fingerprint": "05966e290f00cbe3de2b8d221c9b3900d5f27cbed95d8f454df541b4e38802d3"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0092",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S064-touch-cadence/scripts/render.js",
+      "message": "6-line clone shared with send-due.js",
+      "fingerprint": "08238f9856c125e3061506627be0ef431445a5bba1c887f9278284d018aa6a1d"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0093",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/refresh-enforcement-news.js",
+      "message": "RegExp() called with a `tag` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as htt",
+      "fingerprint": "0db522b38fce6e94a0705bb4da0c21b55d9228800783fdf4e551c4858943a4b5"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0094",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/scraping/residential-fetch.js",
+      "message": "Checks for any usage of http servers instead of https servers. Encourages the usage of https protocol instead of http, which does not have TLS and is therefore unencrypted. Using http can lead to man-in-the-middle attacks in which the attacker is able to read sensitive information.",
+      "fingerprint": "0e80b0da4d8893be8f500ccd7d157b94945dc7c322e9ec633e81ec6c93515029"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0095",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/materialise-client-emails.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "0f4a5cf8ba56582be705c7d9107674e4a4bb3834bb5976ca8939fbaae1317541"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0096",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "tools/sweep/collect-codescanning.js",
+      "message": "Page 10 cap can truncate alert counts",
+      "fingerprint": "0fca8ca13cf3929d00cab28869a5aa89646829ca5e305c969ed97f6f7305fade"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0097",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "node_modules/@aws-crypto/crc32c/build/main/aws_crc32c.js",
+      "message": "circular dependency via node_modules/@aws-crypto/crc32c/build/main/index.js",
+      "fingerprint": "13687e9fbc55900ccfc36130881a716d4c8e497d6f22b19810edc58040f1641d"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0098",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/build-golden.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "140c4d83ef4dca88d93d658e20e79055f65b53634f983b75d7261464646489af"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0099",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/one-door.test.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "fingerprint": "15cc7ef7bb6f83fb6502644567cb329bb2d407d80c9a1f0a6d49c2e475aa5b4b"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0100",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/feeds.test.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "17ec41e7cbacfa77b50a52018858263ed0810de10ea960763f4157aded4bc209"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0101",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/cqc-register.js",
+      "message": "6-line clone shared with fca-register.js",
+      "fingerprint": "186c9a42276fe1e84f7e9cf65424e31b702c34859cf70cb0d823dab598cecb88"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0102",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "compliance/engine-bridge.js",
+      "message": "6-line clone shared with statute-rag.js",
+      "fingerprint": "1af49583f0f8ef39ce7b7a581a1761229a5728d99ba149909a46489e712a951f"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0103",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "send-guards.js",
+      "message": "6-line clone shared with variant-selector.js",
+      "fingerprint": "1e30504c6a781c7a7e1e7d833515886a29d2b78b1fc825c6fb67fcf3684c7602"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0104",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/reachability.test.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "1e35125e6f69a6f2bcaaa7f7086eb245a229d15b9956d362a4a02fb67dd4d46a"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0105",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/linkedin.ts",
+      "message": "7-line clone shared with meta.ts",
+      "fingerprint": "1e4900d8f99dd9eaad475d4a29e2a075c2eec06d1d18a1fd4eb3e532a9976638"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0106",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "RegExp() called with a `rule` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "1f064bde7d34a590159ed1d49714c71989e3aac6c3fbeb785fe9bd0c117eb120"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0107",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S008-personalisation-engine/scripts/run.js",
+      "message": "8-line clone shared with 10-layer.test.js",
+      "fingerprint": "1fc17ff3983acc08cdb9ba10d3bfd000cafff0f7c6ce24a105939bcbb01632f9"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0108",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "src/lib/audit/llm.js",
+      "message": "File data in outbound network request",
+      "fingerprint": "1fe789596dd8cffe55652f256c3b08764d8bd808958920eed3b6365ae20cacda"
+    },
+    {
+      "class": "budget-floor",
+      "caution_pointer": "C-185",
+      "catching_gate": "tools/domain-gates/budget-caps.js",
+      "status": "gap",
+      "id": "SW-0109",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "performance",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/functions/audit/_adapter.js",
+      "message": "Superfluous trailing arguments",
+      "fingerprint": "1ffd31139ff2a85df7e4e3888a4683506efa4e47388b8b91884056796cbed891"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0110",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/sourcing/markets.js",
+      "message": "RegExp() called with a `rx` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as http",
+      "fingerprint": "208fc22c2a462701cec927bfdf6ddfbe2556e318e3c10f546eaa36a8ae2f6d7b"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0111",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/legal-provenance.test.js",
+      "message": "Prefer `process.exitCode` in both places.",
+      "fingerprint": "213993a0afbcd3611a04abaacb709a306b71ed3d83cf2e16385d9e4b3cd366f6"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0112",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/llm-rescue.js",
+      "message": "Depending on the context, user control data in `Object.assign` can cause web response to include data that it should not have or can lead to a mass assignment vulnerability.",
+      "fingerprint": "22a82d8cb86315b0f0778aba3d296efba3da335a8bdd3c5bd8189a1760df7c87"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0113",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/lib/extract.js",
+      "message": "RegExp() called with a `name` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "232ae5e991a560b15be1a89ca37c03afe6abc247d68c0edde0f7da65c0038838"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0114",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/firmographics.js",
+      "message": "10-line clone shared with social-find.js",
+      "fingerprint": "23a178da72705d7e480f327994a74824526b771662e688a5d87cf2449e9d6ade"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0115",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/compliance/connect.js",
+      "message": "RegExp() called with a `{ catalogue, jurisdictions, sector, signals, text, mode }` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or",
+      "fingerprint": "248485a41943f419d5fd931d2134e1caa5c8d108ac4b4641f261060b5b1ba830"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0116",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "intel/feeds/eurlex-cellar.js",
+      "message": "21-line clone shared with legislation-gov-uk.js",
+      "fingerprint": "24a678ab788e0556a3f2f853e2431e4c0c321b33ee8f84be4a340a798a71387b"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0117",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/materialise-client-emails.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "26d8e884688996ce20fd9e9463b70706a3d787d66acbc9d3dfd5bd2e0bd827f0"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0118",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "scripts/remint-audits.js",
+      "message": "Network data written to file",
+      "fingerprint": "2739a76e53459f00cf00d14bcefb9ef5b7153ccb79ca5a85ac435f4bdf25a559"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0119",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/compliance/signals.js",
+      "message": "RegExp() called with a `term` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "27c3b30d5e8ae2e4440067a9bb2b73c351c72fce0e754ccfb4d4bfe2fdde3343"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0120",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "mcp/tamazia-ops/server.py",
+      "message": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+      "fingerprint": "287ea0cb640493497ed722ca4d9e2b2cdbfd96de4743ce77751a1481589d1219"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0121",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/coherence-gate.test.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "fingerprint": "29d47c6b97336f4f9b57de0704b5fa8c3cb3e1fc95f0c410046f9bf59403d720"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0122",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S028-sourcing-orchestrator/scripts/run.js",
+      "message": "17-line clone shared with run.js",
+      "fingerprint": "2f817953471540490af445da359a250021cdce72af859353246660fe1586c7c6"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0123",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/guardrails.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "34a919317e4bc47f0805ec86a4aa93c9ea28ea063b87ea3d15f1491ef59bf288"
+    },
+    {
+      "class": "unanchored-regex",
+      "caution_pointer": "C-019",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "SW-0124",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "regex",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "fingerprint": "3519a9e4351fb219baa63130474a8d2cdf0fa614340befe4b43cc90fa55e50be"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0125",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "website/tests/framework-meta-ssot.test.mjs",
+      "message": "Add coverage for the raw `binding` field, not just `binding_label`.",
+      "fingerprint": "354a0b69f12c3167e8080f20171f6891800d0ad1d6151d14ddecad4d6da1a5f7"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0126",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "sarif/local.local.json",
+      "message": "`node_modules` circular-dependency findings are not actionable and inflate counts.",
+      "fingerprint": "36c396335abbb73fe0ad726febd0244b67b0630ed3e99786ef2a59e36f1c3c99"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0127",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/templates/email/footer.html",
+      "message": "Detected a template variable used in an anchor tag with the 'href' attribute. This allows a malicious actor to input the 'javascript:' URI and is subject to cross- site scripting (XSS) attacks. If using Flask, use 'url_for()' to safely generate a URL. If using Django, use the 'url' filter to safely generate a URL. If using Mustache, use a URL encoding library, or prepend a slash '/' to the variabl",
+      "fingerprint": "379959c5c7edfbcb880efb432f3cf4e44fc476a6625d5d4e62e32f01a43c694e"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0128",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/verify-attribution.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "37c447e6a59f14b2ec80569098b3d678de859cffe1b6657b8063454f41b25159"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0129",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/opencorporates.js",
+      "message": "6-line clone shared with sec-edgar.js",
+      "fingerprint": "3b25f3b3fc353a8fe74bcbdafae36227812f3ee3e999b2c7899aafcc378b364f"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0130",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "imap-poll-worker.js",
+      "message": "9-line clone shared with template-resolver.js",
+      "fingerprint": "3e0d49fd9907d399390740f5bca332881c395b3a38e74c8e140fd967b49c6e05"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0131",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/reddit.ts",
+      "message": "6-line clone shared with snapchat.ts",
+      "fingerprint": "3f1d29c3c8e61aef2a29c20fb63c3beab9bc4b201891033cdcc83f8adf9c1bda"
+    },
+    {
+      "class": "ci-supply-chain",
+      "caution_pointer": "C-196",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0132",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": ".github/dependabot.yml",
+      "message": "This Dependabot configuration does not set a cooldown period. Newly published packages can be malicious or unstable. Add a `cooldown` block with `default-days: 7` to each `package-ecosystem` entry under `updates` to wait 7 days before proposing updates to newly published package versions. Reference: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-option",
+      "fingerprint": "414be060b90f5e5ae764679a6879027f2cef75ffe3f2a84cf09c152e4e87e515"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0133",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/touch0/rank-insight.js",
+      "message": "RegExp() called with a `p` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https",
+      "fingerprint": "427944eedcdd4846fbd3982462f3f702a231c3e1521fb609cbc5445ffa2bdac5"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0134",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "feeds/feed-registry.js",
+      "message": "9-line clone shared with free-serp.js",
+      "fingerprint": "4351052b2841965833c4413b03e7dc49fb4fca419380bcbdfb72831f4e902bf8"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0135",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/reachability.test.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "fingerprint": "4424e9b011382f8a1b2bd234f029b6f7a7c062521a384e62d97e68a901c09db2"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0136",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "llm-factcheck.js",
+      "message": "23-line clone shared with llm-rescue.js",
+      "fingerprint": "454bb1ab278cdffbeabfcfd034e57ec5e9f6721027307b20a8822732929abd09"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0137",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "eslint"
+      ],
+      "path": "src/skills/S051-ssl-cert-monitor/scripts/check.js",
+      "message": "Unused eslint-disable directive (no problems were reported from 'no-unneeded-ternary').",
+      "fingerprint": "46c055a6973c6f6bd7bb7bfb3c22491c96b312fe378eea8c48442889ab7230db"
+    },
+    {
+      "class": "unanchored-regex",
+      "caution_pointer": "C-019",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "SW-0138",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "regex",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/sourcing/markets.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "fingerprint": "492bc2afbae61080ca3d423eb3dca76f7e7b7978ad19ff8bd9b2999e3fdaf77a"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0139",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/llm-rescue.js",
+      "message": "RegExp() called with a `needle` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ",
+      "fingerprint": "4a1451819a85f0c419d3c7ac51ebb16e25c2ecdb09c94b878919719a39554213"
+    },
+    {
+      "class": "ci-supply-chain",
+      "caution_pointer": "C-196",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0140",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "renovate.json",
+      "message": "Semgrep Finding: package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age",
+      "fingerprint": "4a610dbdbd80e84ee54fd94ec4c2de03a50ec886e2d5e895de0f5a99ef111307"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0141",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/no-hardcoded-fines.test.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+      "fingerprint": "4ae46f0f289754917f3bfee7451ad8f627a3d2ef23c02863e9f778bb6e1ee5dc"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0142",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/google-ads-transparency.ts",
+      "message": "7-line clone shared with linkedin.ts",
+      "fingerprint": "4c73814c37fc5d9f704a8c79c924dd96f0971b273a4d79e7d3f9089c4b9dca9c"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0143",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/sources/registers.js",
+      "message": "7-line clone shared with run.js",
+      "fingerprint": "4cf17dbc700918fd3c560f77c6709d809d369fb0b1ed18eae531fb79fa52270a"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0144",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "eval/build-golden.js",
+      "message": "RegExp() called with a `dom` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as htt",
+      "fingerprint": "4ed8b07616c38384a1c61d848a4c7c05b06f8225bc645d210d9ca6ac5f287d8b"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0145",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S008-personalisation-engine/scanners/accessibility.js",
+      "message": "9-line clone shared with content-depth.js",
+      "fingerprint": "513a29dd7bac24b6ac2f13faacb6c40ad2bc5424aa7b01f9bc219ee668ec4ceb"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0146",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".coderabbit.yaml",
+      "message": "/node_modules/",
+      "fingerprint": "51605b0b86182e136b48bfada73c467d941d81fc32ba31349ea16e97aaa07a5b"
+    },
+    {
+      "class": "unanchored-regex",
+      "caution_pointer": "C-019",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "SW-0147",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "regex",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "scripts/backtest-personalisation.js",
+      "message": "Missing regular expression anchor",
+      "fingerprint": "56d9b95872735e826c2a0b4a2350b839cb438bbd043b316fbde06ca4ad9bf1bb"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0148",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "send-pacing.js",
+      "message": "6-line clone shared with enrich.js",
+      "fingerprint": "5b00446f308572ba7d4017e5c8db1b378db8b7b52c5486a94268fb896e6d2bfe"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0149",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "src/lib/audit/geo-probe.js",
+      "message": "Network data written to file",
+      "fingerprint": "5f0dd9e6c2b6b8e897dc5123be6979e6e22e9b0777c1434fcf77c6a82dfa430f"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0150",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/patch-w8-s012.py",
+      "message": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+      "fingerprint": "62fa01e804b424e77b10a2840a539b14c3246f44f345c4cd5460d8921de36d9e"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0151",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "website/tests/catalogue-truth-e07-e09.test.mjs",
+      "message": "Widen E07 coverage to lock all 12 new exact titles, not just 3.",
+      "fingerprint": "66af5893978a848e4864b9090bc6b01909b18ae960df2d37f43960eb34d11e34"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0152",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S064-touch-cadence/scripts/render.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "686810833217be5d0e33b35457b0a14a3b813f77e21e9c895f41c3d35db314a5"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0153",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S008-personalisation-engine/scanners/security-headers.js",
+      "message": "6-line clone shared with seo.js",
+      "fingerprint": "686cfa53326c1b1217f9b8811e9e7fb6f1bfcefde4c3e0b5679f9b6431eb7073"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0154",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/reconcile.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "68ed5e92f10b0f2472117620ec308947f7a6be39941972452b8a625c5758d385"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0155",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "RegExp() called with a `rule` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "6a634bb68c0cd0e1837e52bc8e44d55d89c1a1f73fbb915d93e90ad7d135bf44"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0156",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "audit/authority-gap.js",
+      "message": "9-line clone shared with local-pack.js",
+      "fingerprint": "6d210390ab0174199e4ce62b7cde5503627933043b2315e5524cda498482b038"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0157",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/tiktok.ts",
+      "message": "8-line clone shared with x-ads.ts",
+      "fingerprint": "6dc87dac28bdd2509f0c506954ce0c79b1d801dadccff8ea38dcdf01394db2b1"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0158",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/llm-chain-order.test.js",
+      "message": "Validate actual secret mappings across all modified workflows.",
+      "fingerprint": "6f87bfbf8bf4fc1692b31feca89ea123bed74abc65aac46066c8a87183f08c27"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0159",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/full-estate-sweep.yml",
+      "message": "Ad-hoc, unpinned package installs hurt reproducibility.",
+      "fingerprint": "728bbcf25664abd22e5dd424f87606c672694125a8c88dc55ee35f976be2ac29"
+    },
+    {
+      "class": "unanchored-regex",
+      "caution_pointer": "C-019",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "SW-0160",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "regex",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "fingerprint": "732af145611b95f642ed30438ed99b465994f3901b2cab0b9c1fd77bb26e81ff"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0161",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "tools/sweep/collect-local.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "76227298d674aa73f9b3112e7cf0c07bfeac1cf95169f05525049e9d92e3602e"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0162",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S009-compliance-disclaimer-injector/scripts/inject.js",
+      "message": "RegExp() called with a `field` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as h",
+      "fingerprint": "76616e6029f1cc6249435fb126d6ad136ee2d97306e233c0a7af6ede82c8ac4c"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0163",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "greptile-apps"
+      ],
+      "path": "website/functions/audit/_adapter.js",
+      "message": "Guard passed names too",
+      "fingerprint": "7734063dbd624cc0249642f27405d9ce923a5c9264e449466f13553e53a355dc"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0164",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/touch0/rank-insight.js",
+      "message": "RegExp() called with a `city` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "776d6b4bef123fb4529ab0c6471d0d3fb4f8a880db1a8c330dbb25df162ea6b0"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0165",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S006-linkedin-drafter-v2/scripts/draft.js",
+      "message": "7-line clone shared with version.js",
+      "fingerprint": "77a5c5b724df6af89a517c556a9e742df121d4dabd0b67317fcdf73641f82fb7"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0166",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "ops/infra/hetzner-verify.js",
+      "message": "Detected string concatenation with a non-literal variable in a node-postgres JS SQL statement. This could lead to SQL injection if the variable is user-controlled and not properly sanitized. In order to prevent SQL injection, use parameterized queries or prepared statements instead. You can use parameterized statements like so: `client.query('SELECT $1 from table', [userinput])`",
+      "fingerprint": "7cf8aa6a25db79e070fe6de64f8ef753eac270d5e29f028d2b4af02d787609a3"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0167",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/lib/extract.js",
+      "message": "RegExp() called with a `patternList` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library suc",
+      "fingerprint": "7d75872035e0857621c61ae2b3816cf66e23dff0442f06f0981559e55130a565"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0168",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "mcp/tamazia-ops/server.py",
+      "message": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+      "fingerprint": "7ecd519cfc6fff9e82e948f7d357358b588fc2ea7afe7bf25800cdfdedf0658c"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0169",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "cloudflare/admin-worker.js",
+      "message": "RegExp() called with a `name` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "7f8af15c47373a538a633db71e062bf66dccde7d53146d41cfea20100c1415b1"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0170",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "_drv_mint.js",
+      "message": "Network data written to file",
+      "fingerprint": "802a89c8f645f486f94db952af4cfe0af39ff708df0a39241f5872af2f0de142"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0171",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/mint-cycle.yml",
+      "message": "Identical 10-line unset/echo block duplicated 7 times across 4 files (and likely more across the remaining 8 workflows in this cohort).",
+      "fingerprint": "80d535479470357ba22648e3100859384371585a1488be0dc6a5c12bfe9cf0ed"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0172",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "RegExp() called with a `re` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as http",
+      "fingerprint": "8232d37b852b2e8fe621fa989bd1bf33109f8d29401a88e917cbf34e0afaefc0"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0173",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/bulk-sourcer.js",
+      "message": "12-line clone shared with run.js",
+      "fingerprint": "82c605ce8198be3510e0b52ddc5cd70ec13f97da40c830c80be637510e6bc0fd"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0174",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/quality-gates.yml",
+      "message": "Flag this workflow rollout to Aman before enablement.",
+      "fingerprint": "839e3d5a31a9c408ad1f64be57656927fb0e164a846358c74054146ff373aff5"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0175",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "node_modules/@aws-crypto/crc32c/build/main/index.js",
+      "message": "circular dependency via node_modules/@aws-crypto/crc32c/build/main/aws_crc32c.js",
+      "fingerprint": "893ae7cfee13e2babf2ad66e0677e543092ebbb2a5d816405a56d1c97cebb302"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0176",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "node_modules/zod/v4/classic/iso.cjs",
+      "message": "circular dependency via node_modules/zod/v4/classic/schemas.cjs",
+      "fingerprint": "89d175a262690a708934d2645707b5738685bd8a8af878661c64210fc57789fb"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0177",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "RegExp() called with a `rule` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "8b1493181bcb5f3453a4872891a2096bbc40845847b58e3d0eda93f51bf07139"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0178",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "ops/infra/hetzner-verify.js",
+      "message": "RegExp() called with a `i` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https",
+      "fingerprint": "9085943d02ee0d13ad114f3269a2476d318e37f595b6fc38556fe1020ca81c07"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0179",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/W14-cron.js",
+      "message": "8-line clone shared with alias-rotator.js",
+      "fingerprint": "921af847736ceb64095b97e886175a3c858f9fce6d14732ce76e83fc4dfb26ee"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0180",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/touch0/rank-insight.js",
+      "message": "RegExp() called with a `{ query, company }` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization libr",
+      "fingerprint": "935e9b50604164699df30456d6f1784d953cb240119d6f8bebf31577568ca08a"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0181",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S057-pre-call-brief/scripts/build.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "9643daf1b170fd6234ba04333d80e129aafb6e4703f4fc13bdcefd96cf998365"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0182",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S008-personalisation-engine/lib/http.js",
+      "message": "13-line clone shared with pre-w2-cron.js",
+      "fingerprint": "981f94cdaa41d077963b4b4848e8006626b8d3962baad33f65d129d05e714b39"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0183",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "mcp/tamazia-ops/server.py",
+      "message": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+      "fingerprint": "9898205190dec99a31fffd8eab19f00ab08a1314be3b33567fbd7efe65d35848"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0184",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "ops/infra/setup.sh",
+      "message": "Data is being piped into `bash` from a `curl` command. An attacker with control of the server in the `curl` command could inject malicious code into the pipe, resulting in a system compromise. Avoid piping untrusted data into `bash` or any other shell if you can. If you must do this, consider checking the SHA sum of the content returned by the server to verify its integrity.",
+      "fingerprint": "9bc92158bfa0a2401f997f138bbf0f374ef34e1c21dc0823edb0530367c809b7"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0185",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/patch-w8-s012.py",
+      "message": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+      "fingerprint": "9df8ae9dc9dae14c62324c663ced17a37dbe1c216d2695d4e059da01e98880d2"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0186",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/sourcing/linkedin-finder.js",
+      "message": "RegExp() called with a `needle` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ",
+      "fingerprint": "9fc435602b4640990fbffa874dfefd4af2a60f28eaf92ffba5097ebdce709276"
+    },
+    {
+      "class": "threshold-attachment",
+      "caution_pointer": "C-055",
+      "catching_gate": "catalogue/linters/threshold-guard.js",
+      "status": "guarded",
+      "id": "SW-0187",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "stryker.config.json",
+      "message": "Update the stale `_comment` narrative to match the new thresholds.",
+      "fingerprint": "9fce0da6b7dcf3d0c7d9fd77df2263f22b4f8d64b461e3c09d60f0683a17a3ac"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0188",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/prohibition-calibration.test.js",
+      "message": "Use the Neon serverless driver instead of hand-rolling `/sql` requests.",
+      "fingerprint": "a27369c5b164aaa4e88ba1c37a2a5386aed4ed15583ca3504081cc3a35d906c2"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0189",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/corpus-index.js",
+      "message": "RegExp() called with a `re` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as http",
+      "fingerprint": "a311c6a25e2d1c2f7ce2422fcdde675eac62c45731f4ec7d73e0f8da7a7c9376"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0190",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "tools/sweep/collect-local.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "ab6aca6093f5f1c3a7b1eea7332fca7a3bfbb5ea6a9e192684a6ffd7967a2dcb"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0191",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/llm-chain-order.test.js",
+      "message": "Assert the exact runtime provider order.",
+      "fingerprint": "b26682d077411ee234e8ea69a8f150534f2419402f0ac266c52ba14fe0eeb715"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0192",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/eval-llm-rescue.js",
+      "message": "Depending on the context, user control data in `Object.assign` can cause web response to include data that it should not have or can lead to a mass assignment vulnerability.",
+      "fingerprint": "b3b535b28c635a8f173d049df78a1fb74ac17c8012ed6276e08595e65b201dc7"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0193",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/intel/feeds/eurlex-cellar.js",
+      "message": "RegExp() called with a `name` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "b5b289c9b4b5e528f8c88f500c52d9abb45348f0ae46f94cb503c6ee5cd574d0"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0194",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "node_modules/@aws-crypto/crc32/build/main/index.js",
+      "message": "circular dependency via node_modules/@aws-crypto/crc32/build/main/aws_crc32.js",
+      "fingerprint": "b99eecb5f5a1d9bf77a28af87a9b29b275a0cbf27dedcc0b8ebcedea218c5c54"
+    },
+    {
+      "class": "silent-swallow",
+      "caution_pointer": "C-149",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "id": "SW-0195",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "error-handling",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/skills/S025-audit-page-builder/scripts/build.js",
+      "message": "Glossary catch silently swallows — no `_warn()` call, contradicting the AI summary and sibling stages.",
+      "fingerprint": "bb657a017fd97962639379d62a88a6c39d19075e8c2c416d3f954d1940d29908"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0196",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "scraping/google-sponsored.js",
+      "message": "11-line clone shared with query-calendar.js",
+      "fingerprint": "c07aeed900625c00411c3f4775ff5121d0658d45ef082dadd15e9a53870e1a1d"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0197",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "RegExp() called with a `scope` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as h",
+      "fingerprint": "c4f2369fb114be6d3edc07000082e82ab86b24afac35301b1a6c894c68f3ad73"
+    },
+    {
+      "class": "deadline-hang",
+      "caution_pointer": "C-040",
+      "catching_gate": "tools/domain-gates/deadline-audit.js",
+      "status": "gap",
+      "id": "SW-0198",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/rule-polarity.test.js",
+      "message": "Add a timeout to the Neon request.",
+      "fingerprint": "c6be42e22d2c331de56181bed800dd7e6debedb28ced8104d8e60999a4a74def"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0199",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/verify-attribution.js",
+      "message": "RegExp() called with a `f` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https",
+      "fingerprint": "c79c188b7010ac22469fac6ee39f5ddfbdcd25bcb644fd79d940f8ddbecf76f2"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0200",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S064-touch-cadence/scripts/render.js",
+      "message": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability, where the attacker can access arbitrary files stored in the file system. Instead, be sure to sanitize or validate user input first.",
+      "fingerprint": "cf9fdf5f50f4227b29432a1fc4b22a1c2465f08a578960a4ca10269e00d24dcf"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0201",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/linkedin-finder.js",
+      "message": "9-line clone shared with research.js",
+      "fingerprint": "d2625b6ee96dcaca6b0694975f280b5f6f8c12a8c558fcd0624b134867aca30f"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0202",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "alias-rotator.js",
+      "message": "7-line clone shared with governor.js",
+      "fingerprint": "d3793d79e9004a60dbd8ac0a234e5dbdb1c2e2a70351f00fcc9dc21d4698a47e"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0203",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "greptile-apps"
+      ],
+      "path": ".github/workflows/env-rebuild-v5.yml",
+      "message": "Require rotated secret",
+      "fingerprint": "d49199d8e40246706baa7f7f77d4db06999d6e010094da6b863a470878a9ff74"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0204",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "compliance/jurisdiction-router.js",
+      "message": "7-line clone shared with jurisdiction.js",
+      "fingerprint": "d9d9f49822e6b3517bcef03fe47506b1ddf49ba5aa7e9aa34ffe55ba696e223a"
+    },
+    {
+      "class": "unanchored-regex",
+      "caution_pointer": "C-019",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "SW-0205",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "regex",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "Semgrep Finding: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "fingerprint": "db374c26d17f7a667a474912f1b822f6876fa3545685d0eefdfaf1b661dc60f2"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0206",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "src/lib/audit/firm-identity.js",
+      "message": "Useless assignment to local variable",
+      "fingerprint": "dc250704ccd604ffba82a3e4c97a6dda065d91bdc7393f13703ef237c1951768"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0207",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "sourcing/companies-house.js",
+      "message": "7-line clone shared with linkedin-finder.js",
+      "fingerprint": "e07a32b65a70276fb25631fd7faa1c880198db9ce54a51bbe68093aa289702f4"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0208",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/audit/site-scan.js",
+      "message": "RegExp() called with a `bot` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as htt",
+      "fingerprint": "e1c0b244b12e3ca933802c5c265c51c44095bf163561ed868adf976a6e28ba5f"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0209",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "compliance/register-grounding.js",
+      "message": "6-line clone shared with feed-registry.js",
+      "fingerprint": "e1edc94123f93bc447cf03e0e649430b06e3c51eaa3ffc2fdeb33fa017063568"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0210",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S036-regulator-watch/scripts/ingest.js",
+      "message": "11-line clone shared with enrich.js",
+      "fingerprint": "e2f359f39734e1d46dfc977c31aac568e88ef18fc2d06d3e03098fe13b81d1bd"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0211",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/content-depth.js",
+      "message": "Cannot determine what 'currentYear' is and it is used with a '<script>' tag. This could be susceptible to cross-site scripting (XSS). Ensure 'currentYear' is not externally controlled, or sanitize this data.",
+      "fingerprint": "e39b28b5cdb93c9b3136565cb605179647c7ef54a523cf7279f59fc544ec8e61"
+    },
+    {
+      "class": "sector-misclassification",
+      "caution_pointer": "C-012",
+      "catching_gate": "facts/sector.js",
+      "status": "guarded",
+      "id": "SW-0212",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/corpus-truncation.test.js",
+      "message": "Weak regression guard: `/pages_fetched:/` matches anywhere in the file, not specifically the `classifyAll` call.",
+      "fingerprint": "e4a12f536249854add556a21147726203d23e316f566bac370bb442a90dce547"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0213",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/pipeline-contract.test.js",
+      "message": "Good unit coverage, but no integration test exercises the `build.js` wiring.",
+      "fingerprint": "e7cf9b7cd6d670a503324427bf67a015fdd1562f5ab5b71f217d7bdc5a2f8819"
+    },
+    {
+      "class": "silent-swallow",
+      "caution_pointer": "C-149",
+      "catching_gate": "tools/swallow-gate/check.js",
+      "status": "guarded",
+      "id": "SW-0214",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "error-handling",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/skills/S025-audit-page-builder/scripts/build.js",
+      "message": "Glossary lookup still swallows its error silently — no `_warn`.",
+      "fingerprint": "ebbc15959acdce839bd16287504ef1af76e3bf63cdf548d461c6c6340a157b2c"
+    },
+    {
+      "class": "crawl-poverty",
+      "caution_pointer": "C-024",
+      "catching_gate": "evidence/crawler/coverage-contract.js",
+      "status": "gap",
+      "id": "SW-0215",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "src/lib/audit/finding-trust.js",
+      "message": "`MIN_PAGES_FOR_ABSENCE` can be forced to `0` via env misconfiguration, contradicting the \"never zero\" intent.",
+      "fingerprint": "f0c76d7768b7a170349ce7eba963a56d1e564e83d931af1e9915ed9329dda028"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0216",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "node_modules/zod/v4/classic/schemas.cjs",
+      "message": "circular dependency via node_modules/zod/v4/classic/iso.cjs",
+      "fingerprint": "f2c171d9e55da2f05879bde531c22d4fcb3332eef7dfb32700d09b0b46612e28"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0217",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/scraping/free-serp.js",
+      "message": "Checks for any usage of http servers instead of https servers. Encourages the usage of https protocol instead of http, which does not have TLS and is therefore unencrypted. Using http can lead to man-in-the-middle attacks in which the attacker is able to read sensitive information.",
+      "fingerprint": "f61c2be9a69911118e74c99a3038d9221c88b8945e016b7dd6ca96593ef324d7"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0218",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S028-sourcing-orchestrator/scripts/build-dashboard.js",
+      "message": "9-line clone shared with build.js",
+      "fingerprint": "f762f0f0fff369469571bcbb3e9d1a226544d9b5f4662f85c2e1a7086b666843"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0219",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "eval/mint-smoke.test.js",
+      "message": "Useless conditional",
+      "fingerprint": "f7a72c61b5ceb0cf056fcfdc0fadb78c4eb51712f8a2df6fb0d182ed5b621ce5"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0220",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "S008-personalisation-engine/scanners/ad-intel.js",
+      "message": "6-line clone shared with public-records.js",
+      "fingerprint": "f91a1040bff49cac2a46d00fb2052a1b2624c80946ad7193380a6f9fba2b3aab"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0221",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "node_modules/@aws-crypto/crc32/build/main/aws_crc32.js",
+      "message": "circular dependency via node_modules/@aws-crypto/crc32/build/main/index.js",
+      "fingerprint": "fab708a834e202ec13afbd181796d7ce621ece41514bf385597cbd050d1dfe44"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0222",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/intel/feeds/legislation-gov-uk.js",
+      "message": "RegExp() called with a `name` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "fd10c94b11a701070007968d2a9ff72fb8aa175cd88d1979769c75c0a5c4cb7b"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0223",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "RegExp() called with a `rule` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as ht",
+      "fingerprint": "fde14148cefbbee220cbaa5d8198b1984a850db104b569d0ff60d520b2631099"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0224",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/meta-ad-library.js",
+      "message": "10-line clone shared with bulk-sourcer.js",
+      "fingerprint": "fe637f3199a4010a3edf225ac7646397574f4b774e17f87b880ad422e3d6ab2b"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0225",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "src/lib/util/html-text.js",
+      "message": "RegExp() called with a `tag` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as htt",
+      "fingerprint": "ff29116cfcfea6d754be4f68a9263ac2c52b3bd10263700864eeeb5cdf814f27"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0226",
+      "source": "sweep",
+      "act": false,
+      "severity": "P1",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "jscpd"
+      ],
+      "path": "ad-intel/bucket-d-integrator.ts",
+      "message": "11-line clone shared with cross-platform-scorer.ts",
+      "fingerprint": "ff617e07c740bcbdc419da695cf2a5d12b7954dfa76ad7644f537dbc4df6c2c4"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0227",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "tools/sweep/collect-local.js",
+      "message": "`oneDoor()` re-reads every file once per fact instead of once total.",
+      "fingerprint": "0ace522bd4e3e2583548405ac6a711372c8058d2bd3c683f424ae875c0ac0fc8"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0228",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/backlog-burst.yml",
+      "message": "Same 10-line guard block duplicated four times in this file.",
+      "fingerprint": "16ce7371869ca9b90027792b5d415f0a9171b139aebb5a1ef60aec9de4f9fea4"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0229",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "src/lib/audit/source-gap.js",
+      "message": "Semicolon insertion",
+      "fingerprint": "2414ad1e83956e9b454cb1a69fdf6d5b1ee579990ad3e30dc3cae00310b75f3d"
+    },
+    {
+      "class": "phantom-data",
+      "caution_pointer": "C-176",
+      "catching_gate": "mint/post-write-assertions.js",
+      "status": "gap",
+      "id": "SW-0230",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "async",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/full-estate-sweep.yml",
+      "message": "No concurrency guard for overlapping runs.",
+      "fingerprint": "3056f8bdcf7181c00207859f178459bc33fb990960a5cb09de3b563bed2f935b"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0231",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/skills/S052-gdpr-request-handler/scripts/handle.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "325dd8e680fd21c5dd0256342bdc60dd3fa86b92b4aec9cf7961d3ce5b8dbbad"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0232",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/sourcing/safe-insert.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "3428ce4dae1b6340fccc8b06e0e763bc1c41e042208471e65342ee7e742d1176"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0233",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/dist/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "378ce897d37d0b5baaa0d11f23d32b6aa0898b892935bfefd50de71ba62a1210"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0234",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/dist/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "4403681fbd3a280eccc6bc8aed157a5c0246fcdc86afd315c5e41b60e139af7b"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0235",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/sourcing/conversion.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "4427f5dc4f71bd162b357c00d3597af3ee643f0450c985f67a25f5300ea31788"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0236",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/dist/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "49f4127c889ae57b30c49b7a442fe8350a8274621e6b64ec2f628e203054344a"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0237",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/dist/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "4d76a4f519b6f99371df576c0195399b740ec89f4b336b431ea01a452581c479"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0238",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/public/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "577b6f619b8e118401be0e8c5943ff23707f9967d1c0e911d3837d394f87ee61"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0239",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "eval/host-anchoring.test.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "5f8833701d4a47f115a03e84ba6f8b5f6c93aa92b2cc34aa668709918e4661fb"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0240",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/full-estate-sweep.yml",
+      "message": "New CI workflow — flag for Aman.",
+      "fingerprint": "769e5c8afb78089be98378ea905a8f282367c06ccd35dd6da201450b246d9c74"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0241",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/layer3-complete.yml",
+      "message": "Same duplicated guard block as backlog-burst.yml / nightly-workers.yml.",
+      "fingerprint": "7f523a03010200914808b54d9c5ee0f8f820122346c57068549ad7e41daea67b"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0242",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/dist/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "7f65b922d5a5091b04580cec1be08020fb78238cae64b9f9fba5deb224c09894"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0243",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/dist/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "834d9a2b7c119719164c902435837001bcc073d720ffd8e32cd6e09dc7ef6d12"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0244",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "eval/properties.test.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "857ab823f960f45dcee462e0f4c1ec50eb86b749a6a3b0bb48f90d5c69f3b707"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0245",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/waf-rescue.test.js",
+      "message": "Exercise all five workflow bindings.",
+      "fingerprint": "99b96963b69f7cd9efe8d3b053c27e4c1243cc20febee55bde7816b2769f59cd"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0246",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/compliance/applicability.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "aba3cc7b9e86ce488b5216f3115c8c29b6c22627aff991420d57f047b43962c1"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0247",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/public/audit/audit-app.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "ae453a3257e49432d231c734785e274505fdb65884b01069e0a59ef784d387ca"
+    },
+    {
+      "class": "duplication",
+      "caution_pointer": "C-188",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0248",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "duplication",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": ".github/workflows/nightly-workers.yml",
+      "message": "Same duplicated guard block, repeated four times in this file.",
+      "fingerprint": "b54052ab6f40591eb047764078da1a25f215b23285c32af692842d6032404552"
+    },
+    {
+      "class": "injection",
+      "caution_pointer": "C-120",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0249",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "injection",
+      "corroboration": 1,
+      "tools": [
+        "Semgrep OSS"
+      ],
+      "path": "scripts/backtest-phase2.mjs",
+      "message": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+      "fingerprint": "c12d0428b1d566e17031ffe4bbcdfb884926e2f271f25baa4a325901fceca148"
+    },
+    {
+      "class": "tooling-hygiene",
+      "caution_pointer": "C-148",
+      "catching_gate": "tools/sweep/run.js",
+      "status": "guarded",
+      "id": "SW-0250",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "other",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "scripts/mint-worker.js",
+      "message": "Flag the worker and Neon rollout to Aman.",
+      "fingerprint": "c5a4fb8b892d69892dd4d34d18281960cb2ec5c1bbb275bbc14bb6ed1a9ca46f"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0251",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "CodeQL"
+      ],
+      "path": "website/functions/audit/_adapter.js",
+      "message": "Unused variable, import, function or class",
+      "fingerprint": "c8d1e6b0521d1e46494ae3655bc048f317256b6e5842e2d353f18694ee7df176"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0252",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/mystrika/client.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "ca212e61730ec0b0e710d3c793cf850f0c1255daa9aaadc18b52edbff51e6d0d"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0253",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/calendar/timezone-router.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "e7e81a6eba2d188c294c4e18377df1efd359323651c4199b6f4d677f9a3601e3"
+    },
+    {
+      "class": "secret-leak",
+      "caution_pointer": "C-160",
+      "catching_gate": ".github/workflows/semgrep.yml",
+      "status": "guarded",
+      "id": "SW-0254",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "secret",
+      "corroboration": 1,
+      "tools": [
+        "coderabbitai"
+      ],
+      "path": "eval/gates-executed.test.js",
+      "message": "Provision the CI Neon secret before merging.",
+      "fingerprint": "eb72332db91cb6fca422f5f1716b97f3dc9aae171707510aa6bf0a3372a4807d"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0255",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/compliance/registry/obligations.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "f75afd316634eea6a299052b8c2e917dd5409e652a21a700afbf43df810ed752"
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "SW-0256",
+      "source": "sweep",
+      "act": false,
+      "severity": "P2",
+      "category": "dead-code",
+      "corroboration": 1,
+      "tools": [
+        "dependency-cruiser"
+      ],
+      "path": "src/lib/compliance/registry/subjurisdiction.js",
+      "message": "orphan module: nothing depends on it and it depends on nothing",
+      "fingerprint": "ff272e514b08cf4f743ce61e620439b83b60364fda819f53fb88aa33d1b521a4"
+    },
+    {
+      "class": "dead-regex",
+      "caution_pointer": "C-050",
+      "catching_gate": "catalogue/linters/regex-health.js",
+      "status": "guarded",
+      "id": "DG-01",
+      "source": "domain-gate",
+      "act": true,
+      "severity": "P0",
+      "path": "digest-findings-bible.md §12",
+      "message": "regex-health: dpo[@\\s], vat\\s*(no), \\bPOM\\b, FRN ?\\d{6}: over-escaped regexes that compile, run and match nothing forever while reporting compliance."
+    },
+    {
+      "class": "polarity",
+      "caution_pointer": "C-046",
+      "catching_gate": "catalogue/linters/polarity.js",
+      "status": "guarded",
+      "id": "DG-02",
+      "source": "domain-gate",
+      "act": true,
+      "severity": "P1",
+      "path": "digest-findings-bible.md §12",
+      "message": "rule-polarity: 5 rules breached firms for NOT advertising what the regulator prohibits; MED_CLAIMS fired on any page containing clinic/dental/treatment."
+    },
+    {
+      "class": "polarity",
+      "caution_pointer": "C-046",
+      "catching_gate": "catalogue/linters/polarity.js",
+      "status": "guarded",
+      "id": "DG-03",
+      "source": "domain-gate",
+      "act": true,
+      "severity": "P0",
+      "path": "digest-findings-bible.md §12",
+      "message": "prohibition-calibration: 6 prohibitions had no pattern and could never fire; UK_BOTOX_FILLERS_U18 (a criminal offence) among them."
+    },
+    {
+      "class": "dead-code",
+      "caution_pointer": "C-154",
+      "catching_gate": ".github/workflows/ci.yml",
+      "status": "guarded",
+      "id": "DG-04",
+      "source": "domain-gate",
+      "act": true,
+      "severity": "P1",
+      "path": "digest-findings-bible.md §12",
+      "message": "reachability: 13 modules / 691 lines of correct legal logic unreachable from the mint, including citation-gate.js which never executed once."
+    },
+    {
+      "class": "jurisdiction-nexus",
+      "caution_pointer": "C-006",
+      "catching_gate": "facts/jurisdiction.js",
+      "status": "guarded",
+      "id": "DG-05",
+      "source": "domain-gate",
+      "act": true,
+      "severity": "P0",
+      "path": "digest-findings-bible.md §12",
+      "message": "nexus-anchoring: /incorporated in/ anchored to no country; 6 of 7 real UK/EU/UAE footers judged \"established in the United States\"; Mills & Reeve served US ABA rules."
+    },
+    {
+      "class": "fail-open-gate",
+      "caution_pointer": "C-025",
+      "catching_gate": "eval/calibration-known-bad/run.js",
+      "status": "guarded",
+      "id": "F-0001",
+      "source": "act",
+      "act": true,
+      "severity": "P0",
+      "path": "src/skills/S025-audit-page-builder/scripts/build.js",
+      "message": "Mandatory audit gates run AFTER R2 persist; jurisdiction stage marked ran unconditionally; llmPreflight fails open; _WARN singleton never reset."
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "F-0002",
+      "source": "act",
+      "act": true,
+      "severity": "P0",
+      "path": "src/skills/S008-personalisation-engine/scanners/compliance.js",
+      "message": "Keep _N2C aligned with detectMarkets().bound; stale _ordered snapshot; _SWARN leak; jurisdiction/sector/host/element-checklist multiple producers."
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "F-0003",
+      "source": "act",
+      "act": true,
+      "severity": "P0",
+      "path": "src/lib/audit/payload-schema.js",
+      "message": "Anchor the engine-version format + enforce the draft gate; REGULATOR NAME has 5 producers."
+    },
+    {
+      "class": "host-substring",
+      "caution_pointer": "C-057",
+      "catching_gate": "tools/lib/safe-path.js",
+      "status": "guarded",
+      "id": "F-0004",
+      "source": "act",
+      "act": true,
+      "severity": "P0",
+      "path": "src/lib/util/url-safe.js",
+      "message": "Parse inputs before comparing hosts; keep ^ anchor on scheme strip; HOST anchoring has 8 producers."
+    },
+    {
+      "class": "two-doors",
+      "caution_pointer": "C-001",
+      "catching_gate": "tools/one-door/check.js",
+      "status": "guarded",
+      "id": "F-0005",
+      "source": "act",
+      "act": true,
+      "severity": "P0",
+      "path": "src/lib/compliance/signals.js",
+      "message": "Protected compliance library change needs sign-off; freeze NEXUS_PROFILE before export; jurisdiction-nexus + sector producers."
+    },
+    {
+      "class": "host-substring",
+      "caution_pointer": "C-057",
+      "catching_gate": "tools/lib/safe-path.js",
+      "status": "guarded",
+      "id": "F-0090",
+      "source": "act",
+      "act": true,
+      "severity": "P1",
+      "path": "src/lib/enrich/lead-quality.js",
+      "message": "Persisted socials bypass the host anchor (hasLinkedin still returns true from persisted socials)."
+    }
+  ]
+}
