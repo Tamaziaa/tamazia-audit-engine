@@ -1,0 +1,226 @@
+#!/usr/bin/env node
+'use strict';
+/**
+ * BUDGET-CAPS gate: budgets are caps, never floors (Constitution Rule 8, GAPS.md `budget-floor`).
+ *
+ * The old estate lost the "~45s any website" crawl because the SPA-render tail carried a 45-second FLOOR
+ * via `Math.max(45, ...)` / `Math.max(20000, Math.floor(deadlineMs*0.6))`, so a few shells always cost at
+ * least that long; E-236 restored a 43s crawl to 6.9s by deleting the floor. Separately, an unbounded
+ * browser step held a mint hostage for 752s. This gate fails CI (AST scan, evidence/ only) on:
+ *
+ *   1. A `Math.max(...)` FLOOR on a time/budget value: a Math.max with a numeric-literal argument that is
+ *      budget-associated - the value it initialises is named timeout/budget/deadline/wait/delay/ttl/...,
+ *      OR one of its arguments references such an identifier (e.g. Math.max(20000, f(deadlineMs))).
+ *   2. A setTimeout delay / AbortSignal.timeout / budget-named constant that is a numeric literal > 120s
+ *      (120000ms): a deadline longer than two minutes is a hang budget, not a cap.
+ *
+ * A Math.min cap, a setTimeout(fn, 5000), and a non-time numeric (a byte/char ceiling not bound to a
+ * budget name) are all spared. Engine: acorn is MANDATORY; without it the gate REFUSES (exit 2) rather
+ * than approximate (Constitution Rule 4). String literals are invisible to acorn, so no false hits.
+ *
+ * Modes (tools/lib/gate-cli.js dialect):
+ *   node tools/domain-gates/budget-caps.js               scan evidence/, exit 1 on any floor/oversize
+ *   node tools/domain-gates/budget-caps.js --json <path> also write findings JSON for the sweep normaliser
+ *   node tools/domain-gates/budget-caps.js --calibrate   scan eval/calibration-known-bad/fixtures/ and
+ *                                                         REQUIRE the seeded floor to be caught
+ */
+const fs = require('fs');
+const path = require('path');
+
+const { runGateCli, ROOT } = require('../lib/gate-cli');
+const { listJsFiles } = require('../lib/fswalk');
+
+// evidence/ is the fetch/crawl/browser code where a floor or an oversize deadline does the damage. The
+// gate lives in tools/, so scanning tools/ would flag the gate's own detection literals; evidence is scope.
+const SCAN_DIRS = ['evidence'];
+const SKIP_DIRS = /^(node_modules|\.git|out|packs|dist|fixtures)$/;
+
+const THRESHOLD_MS = 120000; // 120s. A time budget above this is a hang budget, not a cap.
+const BUDGET_NAME_RX = /(timeout|budget|deadline|delay|backoff|linger|wait|ttl|sleep)/i;
+
+let acorn = null;
+try { acorn = require('acorn'); }
+catch (e) { acorn = null; /* FAIL-OPEN: acorn=null is the typed failure captured HERE; scanContent() REFUSES (exit 2) so the SYSTEM fails closed. acorn ships transitively via eslint. */ }
+const FORCE_REFUSE = process.env.BUDGET_CAPS_ENGINE === 'refuse';
+const useAcorn = Boolean(acorn) && !FORCE_REFUSE;
+
+// ── small AST predicates ──────────────────────────────────────────────────────────────────────────
+function isMathMax(callee) {
+  return Boolean(callee) && callee.type === 'MemberExpression' && !callee.computed &&
+    callee.object && callee.object.type === 'Identifier' && callee.object.name === 'Math' &&
+    callee.property && callee.property.name === 'max';
+}
+function isSetTimeout(callee) {
+  if (!callee) return false;
+  if (callee.type === 'Identifier') return callee.name === 'setTimeout';
+  return callee.type === 'MemberExpression' && callee.property && callee.property.name === 'setTimeout';
+}
+function isAbortTimeout(callee) {
+  return Boolean(callee) && callee.type === 'MemberExpression' &&
+    callee.object && callee.object.type === 'Identifier' && callee.object.name === 'AbortSignal' &&
+    callee.property && callee.property.name === 'timeout';
+}
+function isNumericLiteral(node) {
+  return Boolean(node) && node.type === 'Literal' && typeof node.value === 'number';
+}
+function isOversizeLiteral(node) {
+  return isNumericLiteral(node) && node.value > THRESHOLD_MS;
+}
+
+// refsBudgetIdent(node) -> true when a budget-named identifier appears anywhere in this expression
+// subtree (so Math.max(20000, Math.floor(deadlineMs*0.6)) is recognised as a floor on deadlineMs).
+function refsBudgetIdent(node) {
+  if (!node || typeof node !== 'object') return false;
+  if (node.type === 'Identifier') return BUDGET_NAME_RX.test(node.name);
+  for (const k of Object.keys(node)) {
+    if (k === 'loc' || k === 'start' || k === 'end') continue;
+    const v = node[k];
+    if (Array.isArray(v)) { if (v.some(refsBudgetIdent)) return true; }
+    else if (v && typeof v === 'object' && refsBudgetIdent(v)) return true;
+  }
+  return false;
+}
+
+// isBudgetFloor(callNode, binding) -> the Math.max is a FLOOR on a budget: it has a numeric-literal arg
+// AND is budget-associated (its binding name, or a referenced identifier, is budget-named).
+function isBudgetFloor(callNode, binding) {
+  const args = callNode.arguments || [];
+  if (!args.some(isNumericLiteral)) return false;
+  if (binding && BUDGET_NAME_RX.test(binding)) return true;
+  return args.some(refsBudgetIdent);
+}
+
+// ── binding context: the name a value-carrying child initialises (for the two budget-name rules) ─────
+function targetName(node) {
+  if (!node) return null;
+  if (node.type === 'Identifier') return node.name;
+  if (node.type === 'MemberExpression' && node.property && node.property.type === 'Identifier') return node.property.name;
+  return null;
+}
+function keyName(key) {
+  if (!key) return null;
+  if (key.type === 'Identifier') return key.name;
+  if (key.type === 'Literal') return String(key.value);
+  return null;
+}
+// valueChildBinding(node, key) -> the binding name to pass to the value-carrying child (init/right/value),
+// else null. A value nested inside a CallExpression's arguments resets to null (it is not the binding).
+function valueChildBinding(node, key) {
+  if (node.type === 'VariableDeclarator' && key === 'init') return targetName(node.id);
+  if (node.type === 'AssignmentExpression' && key === 'right') return targetName(node.left);
+  if (node.type === 'Property' && key === 'value') return keyName(node.key);
+  return null;
+}
+
+// ── flaggers ────────────────────────────────────────────────────────────────────────────────────────
+function flagCall(node, binding, relPath, line) {
+  const out = [];
+  if (isMathMax(node.callee) && isBudgetFloor(node, binding)) {
+    out.push({ file: relPath, line, kind: 'budget-floor', message: 'Math.max() imposes a FLOOR on a time/budget value; a budget is a cap, never a minimum (Rule 8, E-236)' });
+  }
+  if (isSetTimeout(node.callee) && isOversizeLiteral(node.arguments && node.arguments[1])) {
+    out.push({ file: relPath, line, kind: 'oversize-deadline', message: 'setTimeout delay literal ' + node.arguments[1].value + 'ms exceeds the 120s hard-deadline cap (Rule 9)' });
+  }
+  if (isAbortTimeout(node.callee) && isOversizeLiteral(node.arguments && node.arguments[0])) {
+    out.push({ file: relPath, line, kind: 'oversize-deadline', message: 'AbortSignal.timeout literal ' + node.arguments[0].value + 'ms exceeds the 120s hard-deadline cap (Rule 9)' });
+  }
+  return out;
+}
+function flagLiteral(node, binding, relPath, line) {
+  if (!isOversizeLiteral(node)) return [];
+  if (!binding || !BUDGET_NAME_RX.test(binding)) return [];
+  return [{ file: relPath, line, kind: 'oversize-deadline', message: 'budget "' + binding + '" is set to a literal ' + node.value + 'ms, exceeding the 120s hard-deadline cap (Rule 9)' }];
+}
+
+// ── walk: carry the binding name to value-carrying children only ──────────────────────────────────────
+function walk(node, binding, relPath, violations) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { for (const n of node) walk(n, null, relPath, violations); return; }
+  if (typeof node.type !== 'string') return;
+  const line = (node.loc && node.loc.start.line) || 1;
+  if (node.type === 'CallExpression') violations.push(...flagCall(node, binding, relPath, line));
+  else if (node.type === 'Literal') violations.push(...flagLiteral(node, binding, relPath, line));
+  for (const k of Object.keys(node)) {
+    if (k === 'loc' || k === 'start' || k === 'end') continue;
+    walk(node[k], valueChildBinding(node, k), relPath, violations);
+  }
+}
+
+function scanContent(relPath, src) {
+  if (!useAcorn) throw new Error(relPath + ': acorn unavailable and BUDGET_CAPS refuses to approximate floor detection (an under-report is an unearned zero, Constitution Rule 4)');
+  let ast;
+  try { ast = acorn.parse(src, { ecmaVersion: 'latest', allowHashBang: true, allowReturnOutsideFunction: true, locations: true }); }
+  catch (e) { throw new Error(relPath + ': acorn cannot parse this file: ' + e.message + ' (a parse failure is NOT zero violations)'); }
+  const violations = [];
+  walk(ast, null, relPath, violations);
+  return { violations };
+}
+
+function scanTree(dirs) {
+  const violations = [];
+  let scanned = 0;
+  for (const dir of dirs) {
+    const absDir = path.isAbsolute(dir) ? dir : path.join(ROOT, dir);
+    for (const abs of listJsFiles(absDir, { skipDirs: SKIP_DIRS, skipTests: true })) {
+      scanned++;
+      const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
+      violations.push(...scanContent(rel, fs.readFileSync(abs, 'utf8')).violations);
+    }
+  }
+  return { violations, scanned };
+}
+
+function selfTest() {
+  if (!useAcorn) {
+    let refused = false;
+    try { scanContent('selftest.js', 'const timeoutMs = Math.max(5000, x);'); }
+    catch (e) { refused = true; /* FAIL-OPEN: the throw is the measured refusal signal (acorn mandatory), captured on purpose. */ }
+    return { pass: refused, detail: refused ? 'no-acorn engine correctly REFUSES (exit 2), never a zero' : 'no-acorn engine did not refuse - it must never approximate' };
+  }
+  const bad = [
+    'const timeoutMs = Math.max(5000, x);',                          // floor via binding name
+    'f(a, Math.max(20000, Math.floor(deadlineMs * 0.6)), b);',       // floor via referenced identifier
+    'setTimeout(fn, 130000);',                                       // oversize setTimeout
+    'AbortSignal.timeout(200000);',                                  // oversize abort deadline
+    'const DEADLINE_MS = 200000;',                                   // oversize budget constant
+  ];
+  const good = [
+    'const width = Math.min(12, concurrency);',   // a cap, not a floor
+    'const n = Math.max(0, count);',              // Math.max but not budget-associated
+    'setTimeout(fn, 5000);',                       // in-budget timeout
+    'const CORPUS_MAX_CHARS = 500000;',            // a char ceiling, not a time budget
+    'AbortSignal.timeout(12000);',                 // in-budget deadline
+  ];
+  const badOk = bad.every((s) => scanContent('t.js', s).violations.length === 1);
+  const goodOk = good.every((s) => scanContent('t.js', s).violations.length === 0);
+  return {
+    pass: badOk && goodOk,
+    detail: (badOk && goodOk)
+      ? 'catches Math.max floors on budget values (by binding name and by referenced identifier) and >120s setTimeout/AbortSignal/budget-constant literals; clears Math.min caps, in-budget timeouts and non-time ceilings (engine: acorn)'
+      : 'FAILED: badOk=' + badOk + ' goodOk=' + goodOk,
+  };
+}
+
+function toFindings(violations) {
+  return violations.map((v) => ({
+    tool: 'budget-caps', ruleId: 'budget-caps/' + v.kind, file: v.file,
+    startLine: v.line, endLine: v.line, level: 'error', message: v.message, snippet: v.kind,
+  }));
+}
+
+function main() {
+  runGateCli({
+    name: 'budget-caps',
+    selfTest,
+    scan: scanTree,
+    toFindings,
+    scanDirs: SCAN_DIRS,
+    summary: (r) => r.scanned + ' evidence files, ' + r.violations.length + ' budget-floor/oversize-deadline violation(s) (engine: ' + (useAcorn ? 'acorn' : 'refuse') + ')',
+    calibrateSummary: (r) => r.scanned + ' fixture files, ' + r.violations.length + ' seeded floor/oversize-deadline(s) found',
+    violationLine: (v) => 'BUDGET [' + v.kind + '] ' + v.file + ':' + v.line + '  ' + v.message,
+  });
+}
+
+if (require.main === module) main();
+
+module.exports = { scanContent, scanTree, selfTest, toFindings, isBudgetFloor, isMathMax, THRESHOLD_MS };
