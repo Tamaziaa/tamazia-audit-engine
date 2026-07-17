@@ -160,7 +160,12 @@ test('runRedTeamLane: an absent file is a whole-lane skip with zero rows', async
 });
 
 test('runRedTeamLane: runs every entry in a present file and returns one row each', async () => {
-  const f = tmpFile('lane.json', JSON.stringify({ entries: [{ id: 'a', bundle: {}, must_not: { match_any: ['X'] } }, { id: 'b', bundle: {}, must_not: { match_any: ['Y'] } }] }));
+  const f = tmpFile('lane.json', JSON.stringify({
+    entries: [
+      { id: 'a', bundle: {}, must_not: { match_any: ['forbidden-token-alpha'] } },
+      { id: 'b', bundle: {}, must_not: { match_any: ['forbidden-token-beta'] } },
+    ],
+  }));
   const lane = await runRedTeamLane(f.path, { stageTable: [], fixturesDir: f.dir, runPipelineForBundle: async () => fakePipelineResult([]) });
   assert.strictEqual(lane.present, true);
   assert.strictEqual(lane.rows.length, 2);

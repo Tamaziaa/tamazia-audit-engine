@@ -62,10 +62,13 @@ exports the real logic, self-test/behavioural check run by hand), never taken on
   correctly screens (`render_class: 'screened'`) and `applyCoverage()` correctly drops `miss` findings
   on a screened site (the crawl-poverty guard itself, C-029/C-037/C-038), and a fully-covered crawl
   correctly reports `assessable`. **Caveat, flagged honestly rather than papered over:**
-  `evidence/crawler/coverage-contract.test.js` does not exist yet (no `evidence/crawler/*.test.js`
-  files exist at all - a W1a session-limit casualty), so this verification was a one-off manual check,
-  not a standing regression lock; nothing in the automated fleet would currently catch a future
-  regression here. Flipped because the code is real, reachable and verified correct today; the missing
+  `evidence/crawler/coverage-contract.test.js` still does not exist (unlike its siblings -
+  `evidence/crawler/crawl.test.js` and `pool.test.js` landed mid-pass and both pass in full, including
+  `crawl.test.js`'s own use of the previously-orphaned `p3-crawl-querystring.json` and
+  `p3-crawl-login-reachable.json` fixtures - but `coverage-contract.js` itself has no dedicated suite
+  yet), so this verification was a one-off manual check, not a standing regression lock; nothing in the
+  automated fleet would currently catch a future regression in `classify()`/`computeCoverage()`
+  specifically. Flipped because the code is real, reachable and verified correct today; the missing
   test file is tracked separately as an open risk, not as a reason to leave this row marked `gap`.
 
 ## Also closed this phase (landed mid-run, beyond the original 4-item brief)

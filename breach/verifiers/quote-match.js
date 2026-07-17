@@ -142,6 +142,26 @@ const VERIFIERS_BY_TYPE = {
   coverage_proof: verifyCoverageProof,
 };
 
+// resolveQuoteArtifact(candidate, artifact) -> an effective quote artifact with real-proposer shape
+// variance absorbed. Confirmed by direct integration probing against the landed breach/proposers/
+// propose.js (evalPresenceBreach): it emits `artifact.text` rather than `artifact.quote`, and puts
+// `page_url` on the CANDIDATE rather than on the artifact (`candidate(detectionSpec,
+// KIND.PRESENCE_BREACH, {type:'quote', text, surface}, found.page_url, ...)` in propose.js). Both this
+// module's originally-specified field names (artifact.page_url, artifact.quote) and propose.js's
+// actual field names are accepted; an artifact-level field always wins when present, so nothing that
+// already worked stops working - this only widens what verifyQuote can read. Only 'quote' artifacts
+// are touched; every other type passes through unchanged. This is a narrow, additive compatibility
+// seam, not a redesign of the artifact contract: it does not relax WHAT is verified (the exact-match
+// check in verifyQuote is unchanged), only WHERE the same two facts (which page, what quote) may be
+// read from on the way in.
+function resolveQuoteArtifact(candidate, artifact) {
+  if (!artifact || artifact.type !== 'quote') return artifact;
+  const pageUrl = artifact.page_url == null ? (candidate && candidate.page_url) : artifact.page_url;
+  const quote = artifact.quote == null ? artifact.text : artifact.quote;
+  if (pageUrl === artifact.page_url && quote === artifact.quote) return artifact;
+  return Object.assign({}, artifact, { page_url: pageUrl, quote });
+}
+
 // verifyCandidate(candidate, bundle) -> {verified, code, reason}. The fail-closed dispatcher: an
 // unknown artifact.type is REJECTED, never passed through untested (Rule 4). Never mutates
 // `candidate`.
@@ -160,7 +180,7 @@ function verifyCandidate(candidate, bundle) {
       'unrecognised artifact.type ' + JSON.stringify(artifact.type) + '; unknown artifact types fail closed, never pass through'
     );
   }
-  return verify(artifact, bundle);
+  return verify(resolveQuoteArtifact(candidate, artifact), bundle);
 }
 
 // verifyAll(candidates, bundle) -> {verified:[{candidate,verified,code,reason}], rejected:[...]}.

@@ -27,7 +27,7 @@ const { withDeadline, runPool } = require('./pool.js');
 const extract = require('./extract.js');
 const discover = require('./discover.js');
 const coverage = require('./coverage-contract.js');
-const { collectDocuments } = require('../documents/documents.js');
+const { collectDocuments, isPdfLike } = require('../documents/documents.js');
 
 const CORPUS_CAP_FLOOR = 50000;      // below this, footer disclosures fall past the cut (russell-cooke, C-024)
 const CORPUS_CAP_DEFAULT = 500000;
@@ -69,9 +69,13 @@ function makeFetchXml(fetchFn, perPageMs, timers) {
 }
 
 // contentPageFrom(url, res, cap) -> a corpus page ({url,title,text,jsonLd,ogSiteName?}) when res is real,
-// readable CONTENT (not a login/challenge/error/shell, C-031/C-038); else null with the reason class.
+// readable CONTENT (not a login/challenge/error/shell, C-031/C-038); else null with the reason class. A
+// document asset (PDF/doc, by extension or content-type) is NOT an HTML corpus page: its binary bytes
+// would strip into pseudo-"content" and falsely cover a page-class, defeating the C-033 no-parser
+// interlock. It is deferred to the documents lane and marked 'document' here (never asserted from).
 function contentPageFrom(url, res, cap) {
   if (!res || !res.body) return { page: null, klass: res && res.status ? 'error' : 'unreachable' };
+  if (isPdfLike(url, res.contentType)) return { page: null, klass: 'document' };
   const klass = extract.pageContentClass(res.status, res.body);
   if (klass !== 'content') return { page: null, klass };
   const page = extract.buildPage(res.finalUrl || url, res.body);

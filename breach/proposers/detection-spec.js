@@ -247,6 +247,18 @@ function salientTokens(text) {
   return out;
 }
 
+// topDistinctive(tokens, n) -> up to n most distinctive tokens (>= 4 chars) by length descending, a
+// stable sort keeping first-seen order on ties (deterministic). The distinctiveness floor drops the
+// short common words a legal claim must never hinge on (C-059).
+function topDistinctive(tokens, n) {
+  return tokens
+    .filter((t) => t.length >= 4)
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => (b.t.length - a.t.length) || (a.i - b.i))
+    .slice(0, n)
+    .map((x) => x.t);
+}
+
 // patternsFromElement(elementText, evidenceType, pageClass) -> { patterns, unpatternable }.
 //
 // THE POLARITY OF STRICTNESS (the C-024-vs-C-078 balance, the single most important choice here).
@@ -286,11 +298,18 @@ function patternsFromElement(elementText, evidenceType, pageClass) {
 // stays within the health-gate function-length cap.
 function addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) {
   if (evidenceType === 'absence') {
-    if (!phrases.length && tokens.length) patterns.push({ kind: 'token-set', value: { tokens, mode: 'all' }, negation_guarded: true });
+    // A quoted prohibited phrase is the precise matcher; do not dilute it with a token-set. Without a
+    // quote, only a DISTINCTIVE multi-token set (matched later within ONE sentence) is safe enough to
+    // pattern a prohibition on; a single or generic token is refused (C-059/C-078). Recall is
+    // deliberately traded for precision here - a missed prohibition is recoverable, a false accusation
+    // is not.
+    if (phrases.length) return;
+    const distinctive = topDistinctive(tokens, 3);
+    if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: true });
     return;
   }
   if (evidenceType === 'presence') {
-    const distinctive = tokens.filter((t) => t.length >= 4).sort((a, b) => b.length - a.length).slice(0, 2);
+    const distinctive = topDistinctive(tokens, 2);
     if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: false });
     return;
   }

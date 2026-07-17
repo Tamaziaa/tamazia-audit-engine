@@ -33,10 +33,10 @@ sense that no `mint/` entry point exists yet to require them.
 
 | Module | Reason | Owner | Unblocks when |
 |---|---|---|---|
-| `evidence/crawler/crawl.js` | the crawl orchestrator (`crawl(domain, opts)`); no `mint/` entry point calls it yet | Aman | `mint/` requires `evidence/crawler/crawl.js` for the site-corpus evidence step |
+| `evidence/crawler/crawl.js` | the crawl orchestrator (`crawl(domain, opts)`); tested (`crawl.test.js`, landed mid-pass, consuming the previously-orphaned `p3-crawl-querystring.json`/`p3-crawl-login-reachable.json` fixtures directly), but no `mint/` entry point calls it yet | Aman | `mint/` requires `evidence/crawler/crawl.js` for the site-corpus evidence step |
 | `evidence/crawler/discover.js` | link + sitemap discovery, consumed only by `crawl.js` | Aman | same as above |
 | `evidence/crawler/extract.js` | page-content classification + footer text extraction, consumed only by `crawl.js` | Aman | same as above |
-| `evidence/crawler/pool.js` | the bounded-concurrency fetch pool, consumed only by `crawl.js` | Aman | same as above |
+| `evidence/crawler/pool.js` | the bounded-concurrency fetch pool; tested (`pool.test.js`, landed mid-pass), consumed only by `crawl.js` | Aman | same as above |
 | `evidence/crawler/coverage-contract.js` | coverage-as-blocking-data (C-029/C-044); real and load-bearing (`crawl.js` already requires and calls it in `buildCoverage()`), but the crawl path itself is unreached from any mint entry point; verified directly (see GAPS.md "Closed this phase") since it has no dedicated `.test.js` yet | Aman | same as above; `evidence/crawler/coverage-contract.test.js` should land regardless of mint timing (test-coverage gap, tracked in GAPS.md, not a reachability gap) |
 
 ## evidence/documents/ (footer-linked document lane, P3 Wave-1a)

@@ -107,16 +107,16 @@ function pagesOfClass(pages, pageClass) {
   if (!pageClass || pageClass === 'any') return pages;
   return pages.filter((p) => coverageContract.classify(p.url) === pageClass);
 }
-// surfaceTextForPresence(spec, pages, footer) -> the concatenated surface text a REQUIRED-content check
-// scans, plus the pages it covers. 'footer' reads the statutory footer block (C-034); 'visible_text'
-// reads the declared page-class's stripped text; 'raw_html' is unreadable in the stripped bundle (the
-// caller abstains before reaching here).
+// surfaceTextForPresence(spec, pages, footer) -> the surface text a REQUIRED-content check scans, plus
+// the pages it covers. The footer is ALWAYS included, never scanned exclusively: it is an ADDITIONAL
+// mandatory statutory-disclosure surface (C-034), so a disclosure in the body OR the footer counts as
+// present. Scanning the footer alone would read a body disclosure as "missing" (the false-positive this
+// fixes). 'raw_html' is unreadable in the stripped bundle; the interlock abstains before reaching here.
 function surfaceTextForPresence(detectionSpec, pages, footer) {
-  if (detectionSpec.surface === 'footer') {
-    return { text: footer, coveredPages: footer ? ['(footer)'] : [] };
-  }
   const scoped = pagesOfClass(pages, detectionSpec.page_class);
-  return { text: scoped.map((p) => p.text).join('\n'), coveredPages: scoped.map((p) => p.url) };
+  const text = scoped.map((p) => p.text).concat(footer ? [footer] : []).join('\n');
+  const coveredPages = scoped.map((p) => p.url).concat(footer ? ['(footer)'] : []);
+  return { text, coveredPages };
 }
 
 // ── pattern matching ───────────────────────────────────────────────────────────────────────────────

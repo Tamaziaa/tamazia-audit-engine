@@ -214,6 +214,72 @@ test('absence claim without coverage_proof REJECTED via the full verifyCandidate
   assert.equal(r.code, CODES.COVERAGE_PROOF_MISSING_FIELDS);
 });
 
+// ── real-proposer shape compatibility (breach/proposers/propose.js, confirmed by direct integration
+//    probing against the landed module): propose.js's evalPresenceBreach emits a quote artifact as
+//    {type:'quote', text, surface} with page_url on the CANDIDATE, not the artifact. This fixture is
+//    a hermetic, hand-built copy of that exact shape (it does not require breach/proposers/, so this
+//    test cannot break if that module's internals change; it locks the CONTRACT, not the dependency).
+const REAL_PROPOSER_SHAPED_CANDIDATE = {
+  record_id: 'TEST_PROHIBITED_CLAIM',
+  duty_idx: 0,
+  evidence_type: 'absence',
+  kind: 'presence-breach',
+  artifact: { type: 'quote', text: 'We offer guaranteed results for all treatments, every time.', surface: 'visible_text' },
+  page_url: 'https://example.com/results',
+  confidence_hint: 'strong',
+  suppressed_reason: null,
+};
+
+test('verifyCandidate accepts the real breach/proposers/propose.js quote shape: page_url on the candidate, quote text under artifact.text', () => {
+  const bundle = pageBundle([{
+    url: 'https://example.com/results',
+    title: 'Results',
+    text: 'Our patients love us. We offer guaranteed results for all treatments, every time.',
+    jsonLd: [],
+  }]);
+  const r = verifyCandidate(REAL_PROPOSER_SHAPED_CANDIDATE, bundle);
+  assert.equal(r.verified, true);
+  assert.equal(r.code, CODES.QUOTE_VERIFIED);
+});
+
+test('the real-proposer-shape fallback still rejects a drifted quote under artifact.text, exactly as it would under artifact.quote', () => {
+  const bundle = pageBundle([{
+    url: 'https://example.com/results',
+    title: 'Results',
+    text: 'Our patients love us. We offer guaranteed results for all treatments, every time.',
+    jsonLd: [],
+  }]);
+  const drifted = {
+    ...REAL_PROPOSER_SHAPED_CANDIDATE,
+    artifact: { type: 'quote', text: 'We offer guaranteed results for all treatments, every day.', surface: 'visible_text' },
+  };
+  const r = verifyCandidate(drifted, bundle);
+  assert.equal(r.verified, false);
+  assert.equal(r.code, CODES.QUOTE_MISMATCH);
+});
+
+test('an artifact-level page_url or quote, when present, always wins over the candidate/text fallback (the originally-specified shape still works unchanged)', () => {
+  const bundle = pageBundle([SRA_PAGE]);
+  const candidate = {
+    page_url: 'https://example.com/some-other-page', // a decoy the resolver must NOT use
+    artifact: {
+      type: 'quote',
+      page_url: SRA_PAGE.url,          // artifact-level page_url present -> must win
+      quote: 'SRA number 500046',       // artifact-level quote present -> must win
+      text: 'IGNORE ME - this is the fallback field and must not be read when quote is present',
+      surface: 'visible_text',
+    },
+  };
+  const r = verifyCandidate(candidate, bundle);
+  assert.equal(r.verified, true);
+  assert.equal(r.code, CODES.QUOTE_VERIFIED);
+});
+
+test('resolveQuoteArtifact leaves non-quote artifacts completely untouched', () => {
+  const untouched = { type: 'register_row', register: 'sra', row: { a: 1 } };
+  assert.equal(qm.resolveQuoteArtifact({ page_url: 'x' }, untouched), untouched);
+});
+
 // ── verifyAll: the pure-filter aggregation ───────────────────────────────────────────────────────
 
 test('verifyAll splits candidates into verified[] and rejected[], each entry carrying the original candidate, code and reason', () => {

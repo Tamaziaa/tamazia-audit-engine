@@ -26,7 +26,7 @@
 
 const { raceWithDeadline } = require('../../evidence/browser/deadline.js');
 const { classifyEvidenceKind } = require('./evidence-kind.js');
-const { parseVerdict } = require('./verdict.js');
+const { parseVerdict, LLM_VERDICTS, disproofMatches } = require('./verdict.js');
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -159,14 +159,12 @@ function scoreCompleteness(verdicts, briefs, defs) {
   return 0;
 }
 function scoreEnum(verdicts, defs) {
-  const { LLM_VERDICTS } = require('./verdict.js');
   const ok = verdicts.every((x) => LLM_VERDICTS.has(String((x && x.verdict) || '').toLowerCase()));
   if (ok) return 3;
   defs.push('every verdict must be exactly one of: breach, no_breach, insufficient');
   return 0;
 }
 function scoreAnchoring(verdicts, batch, defs) {
-  const { disproofMatches } = require('./verdict.js');
   let anchored = true;
   for (const x of verdicts) {
     if (String((x && x.verdict) || '').toLowerCase() !== 'no_breach') continue;
