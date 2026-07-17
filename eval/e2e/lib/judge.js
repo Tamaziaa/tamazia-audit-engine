@@ -25,6 +25,7 @@
 //                 clean verdict is true by construction rather than because a real check ran.
 
 const { verifyPayload } = require('../../reference-set/verify.js');
+const { canonicaliseFirm } = require('../../reference-set/run-facts.js');
 
 // knownBreachStatus(report, label, breachLaneComplete) -> 'reproduced' | 'missed' | 'skipped'.
 function knownBreachStatus(report, label, breachLaneComplete) {
@@ -69,16 +70,23 @@ function judgeKnownNonBreaches(exp, report, breachLaneComplete) {
  * fixture's equivalent (eval/e2e/lib/synthetic-fixtures.js). `contradiction` is true when
  * verifyPayload found ANY contradiction at all (identity/sector/jurisdiction/framework included, not
  * only known_non_breach), matching the P3 exit bar's "zero false accusations" reading literally.
+ *
+ * `firm.expected.sector` is canonicalised through eval/reference-set/run-facts.js's exported
+ * canonicaliseFirm() BEFORE comparison - the same call the facts-only harness makes and exactly why it
+ * exists: reference-set.json records a human alias ("legal"), the sector door emits a canonical family
+ * key ("law-firms"), and comparing the raw strings would report a false CONTRADICTION on every aliased
+ * sector rather than the vocabulary-equivalent match it actually is.
  */
 function judgeFirm(firm, pipelineResult) {
-  const report = verifyPayload(pipelineResult.payload, firm);
+  const canonicalFirm = canonicaliseFirm(firm);
+  const report = verifyPayload(pipelineResult.payload, canonicalFirm);
   const breachLaneComplete = pipelineResult.breachLaneComplete;
   return {
     domain: firm.domain,
     role: firm.role || null,
     report,
-    knownBreaches: judgeKnownBreaches(firm.expected, report, breachLaneComplete),
-    knownNonBreaches: judgeKnownNonBreaches(firm.expected, report, breachLaneComplete),
+    knownBreaches: judgeKnownBreaches(canonicalFirm.expected, report, breachLaneComplete),
+    knownNonBreaches: judgeKnownNonBreaches(canonicalFirm.expected, report, breachLaneComplete),
     contradiction: !report.ok,
   };
 }
