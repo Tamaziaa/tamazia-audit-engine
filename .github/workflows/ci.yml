@@ -74,15 +74,13 @@ jobs:
             echo "############################################################"
           fi
 
-      - name: Unit tests (node --test)
-        run: npm test
-
-      # Runs LAST and deliberately un-guarded: this step is EXPECTED to fail until every
-      # catalogue/packs/*.QA.md sidecar is hash-stamped with the CR-2 machine-readable
-      # qa-approval header (see catalogue/compile.js's own header and catalogue/README.md) - a
-      # human legal-QA action outside code review, owned by a separate workstream. Placed after
-      # every other gate so a red run here never hides a red result anywhere else; it is not
-      # softened, because shipping a compiled artifact without verified sign-off is exactly the
-      # class of defect Constitution Rule 14 exists to stop.
+      # Compile BEFORE the unit tests: catalogue/dist/catalogue.v1.json is gitignored, and the P3
+      # breach/e2e suites load the real compiled catalogue from disk (the fresh-clone rule C-201
+      # caught this order dependency - tests on a clean checkout fail without this step). The
+      # compile is not softened: shipping a compiled artifact without verified sign-off is exactly
+      # the class of defect Constitution Rule 14 exists to stop, so a red compile is a red build.
       - name: Catalogue compile (release stamp from the committed RELEASE_STAMP file, CR-1)
         run: npm run catalogue
+
+      - name: Unit tests (node --test)
+        run: npm test
