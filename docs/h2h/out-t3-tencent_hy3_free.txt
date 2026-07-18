@@ -1,3 +1,0 @@
-**C-256** (2026-07-18, P3) tools/lib/safe-path.js safeJoin's SAFE_COMPONENT_RX rejected leading-dot filenames, crashing the fs walker on real .gitkeep/.gitignore entries -> a filename validator for readdir output must accept every name a filesystem allows and gate only on separators/null bytes.
-
-**C-257** (2026-07-18, P3) one-door and swallow-gate scanTree was called with both single-segment dirs and a multi-segment calibrate dir; replacing its join with a single-segment-only validator broke --calibrate mode -> after editing a shared path helper, run EVERY caller mode (default + --calibrate + --json), not just the default scan.

@@ -1,6 +1,0 @@
-**out-t1-cohere_north-mini-code_free.txt** – Task 1 Cohere North Mini code free tier outputs  
-**out-t1-tencent_hy3_free.txt** – Task 1 Tencent HY3 free tier outputs  
-**out-t2-cohere_north-mini-code_free.txt** – Task 2 Cohere North Mini code free tier outputs  
-**out-t2-tencent_hy3_free.txt** – Task 2 Tencent HY3 free tier outputs  
-**out-t3-cohere_north-mini-code_free.txt** – Task 3 Cohere North Mini code free tier outputs  
-**out-t3-tencent_hy3_free.txt** – Task 3 Tencent HY3 free tier outputs
