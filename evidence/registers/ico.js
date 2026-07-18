@@ -16,7 +16,6 @@
 // not yet built in this estate). Until keys.ico is configured, this lookup degrades loudly — no
 // guess, no silent skip — exactly like the CQC/FCA founder-blocked keys elsewhere in this directory.
 const { runLookup } = require('./lib/lookup-runner');
-const { makeNote } = require('./lib/notes');
 
 function buildRequest(query, endpointBase) {
   const url = endpointBase.replace(/\/+$/, '') + '?name=' + encodeURIComponent(query.slice(0, 80));

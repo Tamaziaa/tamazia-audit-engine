@@ -139,7 +139,7 @@ function isProse(sentence) {
   if (s.length < 25) return false;                 // C-089 minimum evidence length
   const words = s.split(/\s+/);
   if (words.length < 4) return false;
-  const titleish = words.filter((w) => /^[A-Z][a-zA-Z'']+$/.test(w)).length;
+  const titleish = words.filter((w) => /^[A-Z][a-zA-Z']+$/.test(w)).length;
   if (titleish / words.length > 0.7) return false; // mostly Title-Case tokens => a menu/link run
   return /[a-z]/.test(s);
 }

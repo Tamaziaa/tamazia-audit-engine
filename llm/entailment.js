@@ -115,9 +115,14 @@ function verdictFromResponse(raw, pkg) {
 // its source_id cannot be verified, so it abstains WITHOUT calling the model. An empty hypothesis is
 // no proposition to entail, so a bare 'entailment' reply would be ok:true for nothing checked - that
 // escape is closed here (fail-closed, Rule 4).
+// claimUnverifiable(parts) -> true when a normalised claim lacks its hypothesis, source_id or premise
+// (any one absent means nothing can be entailed). Split out so checkOne carries no 3-term OR inline.
+function claimUnverifiable(hypothesis, sourceId, premise) {
+  return !hypothesis || !sourceId || !premise;
+}
 async function checkOne(claim, opts) {
   const { hypothesis, sourceId, premise } = normaliseClaim(claim);
-  if (!hypothesis || !sourceId || !premise) {
+  if (claimUnverifiable(hypothesis, sourceId, premise)) {
     return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, 'no hypothesis, cited premise span or source_id -> cannot verify, abstain (Rule 3/4)');
   }
   if (typeof opts.llmCall !== 'function') {

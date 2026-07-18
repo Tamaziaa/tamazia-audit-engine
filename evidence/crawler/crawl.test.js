@@ -137,7 +137,7 @@ test('a reachable site returns a corpus with stripped text, the footer surface, 
   assert.ok(bundle.corpus.pages.length >= 2);
   assert.ok(/registered in England/.test(bundle.corpus.footerText), 'the footer disclosure surface is captured (C-034)');
   const home = bundle.corpus.pages.find((p) => p.url === 'https://good.example/');
-  assert.ok(!/<script|<h1>/.test(home.text), 'corpus text is stripped visible text only (C-012)');
+  assert.ok(!/<script|<h1>/i.test(home.text), 'corpus text is stripped visible text only (C-012)');
   assert.ok(bundle.telemetry.content >= 2 && bundle.telemetry.pages_captured >= 2);
 });
 

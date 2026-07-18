@@ -372,17 +372,23 @@ function noteForRegister(notes, target) {
 function noMatchArtifact(target, note) {
   return { type: ARTIFACT_TYPES.REGISTER_ABSENCE, register: target, query: note.query || note.detail || null, lane: 'no_match', note };
 }
+// registerNoMatchOutcome(detectionSpec, target, note) -> a weak register_absence candidate when the lane
+// definitively RAN and returned no name-match (note.kind === 'no_match'), else a recorded suppression
+// (a no-match is required before any non-appearance claim, C-004). Split out so evalRegister carries no
+// note-classification branch of its own (the Complex Method cap).
+function registerNoMatchOutcome(detectionSpec, target, note) {
+  if (note && note.kind === 'no_match') {
+    return candidate({ detectionSpec, kind: KIND.REGISTER, artifact: noMatchArtifact(target, note), pageUrl: null, confidence: 'weak' });
+  }
+  return suppressed(detectionSpec, KIND.REGISTER, 'register "' + target + '" not definitively checked (' + ((note && note.kind) || 'no note') + '); a no-match is required before a non-appearance claim (C-004)');
+}
 function evalRegister(detectionSpec, bundle, record) {
   const registers = (bundle && bundle.registers) || {};
   const notes = registerNotesOf(registers);
   const target = registerTargetFor(record, allRegisterKeys(registers, notes));
   if (!target) return suppressed(detectionSpec, KIND.REGISTER, 'no register lane resolvable for this record (unregistered lane / no lookup)');
   if (registers[target]) return null; // a matched row is present -> compliant on this duty
-  const note = noteForRegister(notes, target);
-  if (note && note.kind === 'no_match') {
-    return candidate({ detectionSpec, kind: KIND.REGISTER, artifact: noMatchArtifact(target, note), pageUrl: null, confidence: 'weak' });
-  }
-  return suppressed(detectionSpec, KIND.REGISTER, 'register "' + target + '" not definitively checked (' + ((note && note.kind) || 'no note') + '); a no-match is required before a non-appearance claim (C-004)');
+  return registerNoMatchOutcome(detectionSpec, target, noteForRegister(notes, target));
 }
 
 // ── the router ──────────────────────────────────────────────────────────────────────────────────────

@@ -76,7 +76,9 @@ function specialPatternChild(n) {
   return undefined;
 }
 function walkPatternChildren(n, out) {
-  for (const k of Object.keys(n)) { if (!isMetaKey(k) && n[k] && typeof n[k] === 'object') walkPatternNode(n[k], out); }
+  // walkPatternNode self-guards non-object children (returns immediately), so the child object-test is
+  // redundant here; skipping only the meta keys keeps this a single-term conditional (Complex Conditional cap).
+  for (const k of Object.keys(n)) { if (!isMetaKey(k)) walkPatternNode(n[k], out); }
 }
 // patternNames(id) -> every identifier bound by a declarator/param pattern (destructuring included).
 function walkPatternNode(n, out) {

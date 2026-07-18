@@ -44,21 +44,31 @@ function classificationResult(fx, passed, shipped, detail) {
   return { name: fx.name, kind: fx.kind, passed, shipped, expectPositive: fx.class === 'known-breach', abstained: !shipped, immunityVeto: false, detail };
 }
 
-async function runAdjudication(fx) {
-  // The adjudicator now runs Gate 3 (checkEntailment) AFTER a breach verdict: an entailment request
-  // (recognisable by its closed 3-label verdict enum) must be answered with a gate-valid pass, or a
-  // scripted breach would demote to needs_review and the known-breach fixtures could never ship.
-  // Entailment-FAILURE behaviour is exercised by the dedicated entailment fixtures, not here.
-  const llmCall = fx.scripted_verdicts
-    ? async (request) => {
-      const enumSet = request && request.schema && request.schema.properties
-        && request.schema.properties.verdict && request.schema.properties.verdict.enum;
-      if (Array.isArray(enumSet) && enumSet.includes('entailment')) {
-        return { source_id: (request.allowedSourceIds || [])[0] || '', verdict: 'entailment' };
-      }
-      return fx.scripted_verdicts;
+// requestVerdictEnum(request): the closed verdict enum a request declares, or null. Split out so the
+// scripted call below carries no 4-term member-access chain of its own (Complex Conditional cap).
+function requestVerdictEnum(request) {
+  const props = request && request.schema && request.schema.properties;
+  const verdict = props && props.verdict;
+  return (verdict && verdict.enum) || null;
+}
+
+// scriptedAdjudicatorCall(fx): the scripted llmCall for an adjudication fixture. An entailment request
+// (its closed 3-label verdict enum) is answered with a gate-valid pass, so a scripted breach is not
+// demoted to needs_review; every other request returns the fixture's scripted verdicts unchanged.
+function scriptedAdjudicatorCall(fx) {
+  return async (request) => {
+    const enumSet = requestVerdictEnum(request);
+    if (Array.isArray(enumSet) && enumSet.includes('entailment')) {
+      return { source_id: (request.allowedSourceIds || [])[0] || '', verdict: 'entailment' };
     }
-    : null;
+    return fx.scripted_verdicts;
+  };
+}
+
+async function runAdjudication(fx) {
+  // Gate 3 (checkEntailment) runs AFTER a breach verdict; the scripted call answers the entailment leg
+  // (see scriptedAdjudicatorCall). Entailment-FAILURE behaviour is exercised by the entailment fixtures.
+  const llmCall = fx.scripted_verdicts ? scriptedAdjudicatorCall(fx) : null;
   const { findings } = await adjudicate(fx.candidates, fx.bundle, { llmCall, deadlineMs: SHELL_DEADLINE_MS });
   const states = findings.map((f) => f.state);
   return classificationResult(fx, arraysEqual(states, fx.expect.states), states.includes('violation'), 'states=[' + states.join(',') + ']');

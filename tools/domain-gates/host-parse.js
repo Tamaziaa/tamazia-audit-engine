@@ -56,12 +56,18 @@ const useAcorn = Boolean(acorn) && !FORCE_REFUSE;
 function isTraversalMetaKey(k) {
   return k === 'loc' || k === 'start' || k === 'end';
 }
+// walkCallChildren(n, out) -> record n when it is a CallExpression, then recurse into its non-meta
+// children. Split out of collectCallsWalk so the node-emit-and-descend "bump" is not folded into the
+// array/leaf dispatch above it (the health-gate Complex Method / Bumpy Road caps).
+function walkCallChildren(n, out) {
+  if (n.type === 'CallExpression') out.push(n);
+  for (const k of Object.keys(n)) { if (!isTraversalMetaKey(k)) collectCallsWalk(n[k], out); }
+}
 function collectCallsWalk(n, out) {
   if (!n || typeof n !== 'object') return;
   if (Array.isArray(n)) { for (const x of n) collectCallsWalk(x, out); return; }
   if (typeof n.type !== 'string') return;
-  if (n.type === 'CallExpression') out.push(n);
-  for (const k of Object.keys(n)) { if (!isTraversalMetaKey(k)) collectCallsWalk(n[k], out); }
+  walkCallChildren(n, out);
 }
 function collectCalls(root) {
   const out = [];

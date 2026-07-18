@@ -103,27 +103,46 @@ function extractJson(text) {
   return s.slice(start, end + 1);
 }
 
-// parseResponse(response): { ok:true, value } or { ok:false, violation }. A failed router response
-// (ok:false) and an unparseable body both route to a typed reject, so the gate can abstain cleanly.
-function parseResponse(response) {
-  if (response == null) return { ok: false, violation: { code: 'empty_response', message: 'no response supplied' } };
+// rejectResponse(code, message): the one shape for a typed parse reject, so parseResponse and its two
+// helpers below do not each spell out { ok:false, violation:{...} } (one door for the reject envelope).
+function rejectResponse(code, message) {
+  return { ok: false, violation: { code, message } };
+}
+
+// responseEnvelopeError(response): a typed reject when the router envelope itself is unusable (absent,
+// or an explicit ok:false), else null. Split out so parseResponse carries no envelope branch of its own.
+function responseEnvelopeError(response) {
+  if (response == null) return rejectResponse('empty_response', 'no response supplied');
   if (typeof response === 'object' && response.ok === false) {
-    return { ok: false, violation: { code: 'provider_unavailable', message: 'router returned ok:false (' + String(response.reason || response.error || 'unknown') + ')' } };
+    return rejectResponse('provider_unavailable', 'router returned ok:false (' + String(response.reason || response.error || 'unknown') + ')');
   }
-  const text = pickText(response);
-  if (text === null) {
-    if (typeof response === 'object') return { ok: true, value: response };
-    return { ok: false, violation: { code: 'empty_response', message: 'response carried no text' } };
-  }
+  return null;
+}
+
+// parseJsonSlice(text): extract and JSON.parse the first object/array in the text, or a typed reject.
+function parseJsonSlice(text) {
   const slice = extractJson(text);
-  if (slice === null) return { ok: false, violation: { code: 'unparseable_json', message: 'no JSON object or array found in the response text' } };
+  if (slice === null) return rejectResponse('unparseable_json', 'no JSON object or array found in the response text');
   try {
     return { ok: true, value: JSON.parse(slice) };
   } catch (_e) {
     // FAIL-OPEN: a JSON.parse throw is caught HERE and converted to a typed reject; validateResponse
     // then returns abstain (ok:false), so the SYSTEM fails closed - a malformed reply never ships.
-    return { ok: false, violation: { code: 'unparseable_json', message: 'the response text is not valid JSON' } };
+    return rejectResponse('unparseable_json', 'the response text is not valid JSON');
   }
+}
+
+// parseResponse(response): { ok:true, value } or { ok:false, violation }. A failed router response
+// (ok:false) and an unparseable body both route to a typed reject, so the gate can abstain cleanly.
+function parseResponse(response) {
+  const envelopeError = responseEnvelopeError(response);
+  if (envelopeError) return envelopeError;
+  const text = pickText(response);
+  if (text === null) {
+    if (typeof response === 'object') return { ok: true, value: response };
+    return rejectResponse('empty_response', 'response carried no text');
+  }
+  return parseJsonSlice(text);
 }
 
 // ---------------------------------------------------------------------------------------------------

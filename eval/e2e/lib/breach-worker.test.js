@@ -20,7 +20,10 @@ test('trimStage: keeps only the serialisable stage-outcome fields', () => {
 });
 
 function runWorker(job, timeoutMs) {
-  const jobFile = path.join(os.tmpdir(), 'e2e-worker-test-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.json');
+  // mkdtempSync (0700, unguessable) rather than a predictable os.tmpdir() filename (CodeQL
+  // js/insecure-temporary-file); mirrors the redteam.test.js tmpFile pattern.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-worker-test-'));
+  const jobFile = path.join(dir, 'job.json');
   fs.writeFileSync(jobFile, JSON.stringify(job));
   try {
     const stdout = execFileSync(process.execPath, [WORKER, jobFile], { timeout: timeoutMs || 10000, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -28,7 +31,7 @@ function runWorker(job, timeoutMs) {
   } catch (e) {
     return { ok: false, error: e };
   } finally {
-    try { fs.unlinkSync(jobFile); } catch (_e) { /* best-effort */ }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_e) { /* best-effort */ }
   }
 }
 

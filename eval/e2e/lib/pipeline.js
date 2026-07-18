@@ -195,10 +195,14 @@ function breachLaneError(reason) {
   return { propose: err(), verify: err(), adjudicate: err(), findings: [] };
 }
 
-// jobFilePath() -> a fresh temp path for one subprocess job (non-throwing: path.join + a random
-// suffix). Computed OUTSIDE the try/catch below since it does no I/O of its own.
+// jobFilePath() -> a fresh temp path for one subprocess job, created inside a per-job private
+// directory via mkdtempSync (0700). A predictable os.tmpdir() filename is a symlink/race sink
+// (CodeQL js/insecure-temporary-file); the crypto suffix is retained on the directory name for
+// readability. This now does I/O and can throw, so runBreachLaneSubprocess computes it INSIDE the
+// try below and a failure degrades to a recorded breach-lane error (Rule 9 fail-open), never a hang.
 function jobFilePath() {
-  return path.join(os.tmpdir(), 'e2e-breach-' + process.pid + '-' + crypto.randomBytes(6).toString('hex') + '.json');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-breach-' + process.pid + '-' + crypto.randomBytes(6).toString('hex') + '-'));
+  return path.join(dir, 'job.json');
 }
 function writeBreachJob(jobFile, bundle, coverage, opts) {
   const job = { bundle, catalogueRecords: opts.catalogueRecords || [], perRuleCoverage: perRuleCoverageArg(coverage) };
@@ -229,8 +233,9 @@ function breachSubprocessErrorReason(e, opts) {
   return 'breach subprocess failed: ' + String((e && e.message) || e).slice(0, 160);
 }
 function cleanupJobFile(jobFile) {
-  try { fs.unlinkSync(jobFile); }
-  catch (e) { /* FAIL-OPEN: best-effort temp cleanup; a leftover temp file in os.tmpdir() is harmless and reaped by the OS, never a correctness failure. */ }
+  if (!jobFile) return;
+  try { fs.rmSync(path.dirname(jobFile), { recursive: true, force: true }); }
+  catch (e) { /* FAIL-OPEN: best-effort temp cleanup; a leftover temp dir in os.tmpdir() is harmless and reaped by the OS, never a correctness failure. */ }
 }
 
 // runBreachLaneSubprocess(bundle, coverage, opts) -> the real lane, bounded by a HARD wall-clock kill
@@ -238,8 +243,9 @@ function cleanupJobFile(jobFile) {
 // child (breach-worker.js) that execFileSync kills after opts.breachTimeoutMs. A timeout or crash
 // degrades THIS firm's breach lane to an honest error, never hangs the run.
 function runBreachLaneSubprocess(bundle, coverage, opts) {
-  const jobFile = jobFilePath();
+  let jobFile;
   try {
+    jobFile = jobFilePath();
     writeBreachJob(jobFile, bundle, coverage, opts);
     return Promise.resolve(runBreachWorker(jobFile, opts));
   } catch (e) {

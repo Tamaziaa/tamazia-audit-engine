@@ -134,12 +134,17 @@ function isSpawnHttp(call) {
   return SPAWN_NAMES.has(spawnName(call.callee)) && subtreeSome(call.arguments, isHttpNode);
 }
 
-// isPromiseChainCall(node) -> true when node is a .then()/.catch()/.finally() call, so the multi-term
-// while condition in rootAwaitedCall is not its own "Complex Conditional" inline.
+const PROMISE_CHAIN_METHODS = new Set(['then', 'catch', 'finally']);
+// isMemberCall(node) -> true when node is a CallExpression whose callee is a member access. Split out so
+// isPromiseChainCall carries no 4-term guard of its own (Complex Conditional cap).
+function isMemberCall(node) {
+  return Boolean(node) && node.type === 'CallExpression' && node.callee && node.callee.type === 'MemberExpression';
+}
+// isPromiseChainCall(node) -> true when node is a .then()/.catch()/.finally() call, so the trailing
+// promise-combinator chain in rootAwaitedCall is unwrapped without a multi-term conditional inline.
 function isPromiseChainCall(node) {
-  if (!node || node.type !== 'CallExpression' || !node.callee || node.callee.type !== 'MemberExpression') return false;
-  const prop = propName(node.callee);
-  return prop === 'then' || prop === 'catch' || prop === 'finally';
+  if (!isMemberCall(node)) return false;
+  return PROMISE_CHAIN_METHODS.has(propName(node.callee));
 }
 // rootAwaitedCall(argNode) -> the base CallExpression an `await` ultimately awaits, unwrapping trailing
 // promise-combinator chains (X.then()/.catch()/.finally()), or null when the awaited value is not a call.

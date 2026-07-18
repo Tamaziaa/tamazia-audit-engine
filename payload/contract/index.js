@@ -103,8 +103,22 @@ function validatePayload(payload) {
 
 // ---------- self-test (run: node payload/contract/index.js --selftest) ----------
 
+// assertSafeKeys(keys) -> throws (fail closed, Constitution Rule 4) if any dot-path segment is a
+// prototype-pollution vector. setPath/setPathForce only ever receive the internal constant paths in
+// REQUIRED/NONEMPTY/EXACT_COUNTS, so this never fires at runtime; it is a defence-in-depth guard on
+// the dynamic key assignment that also closes the CodeQL js/prototype-pollution-utility and Semgrep
+// prototype-pollution-loop findings. One door for the check so the two builders below do not each
+// grow their own (jscpd clone).
+const UNSAFE_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function assertSafeKeys(keys) {
+  for (const k of keys) {
+    if (UNSAFE_PATH_KEYS.has(k)) throw new Error('unsafe payload path segment: ' + JSON.stringify(k));
+  }
+}
+
 function setPath(obj, dotPath, value) {
   const keys = dotPath.split('.');
+  assertSafeKeys(keys);
   let cur = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     if (cur[keys[i]] == null || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
@@ -115,6 +129,7 @@ function setPath(obj, dotPath, value) {
 
 function setPathForce(obj, dotPath, value) {
   const keys = dotPath.split('.');
+  assertSafeKeys(keys);
   let cur = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     if (cur[keys[i]] == null || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};

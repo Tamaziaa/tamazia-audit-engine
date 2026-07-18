@@ -76,15 +76,20 @@ function isOversizeLiteral(node) {
   return isNumericLiteral(node) && node.value > THRESHOLD_MS;
 }
 
+// childRefsBudget(v) -> true when a single child value (an array of nodes, or a nested node object)
+// references a budget-named identifier. Split out so anyChildRefsBudget carries neither the array/object
+// branch (a "Bumpy Road" bump) nor the 3-term object test (a Complex Conditional) inline.
+function childRefsBudget(v) {
+  if (Array.isArray(v)) return v.some(refsBudgetIdent);
+  return Boolean(v) && typeof v === 'object' && refsBudgetIdent(v);
+}
 // anyChildRefsBudget(node) -> true when some child (array entry or nested object) references a
 // budget-named identifier. Split out of refsBudgetIdent so the recursive fan-out is not folded into
 // the same function as the base cases (the health-gate "Bumpy Road"/Complex Method caps).
 function anyChildRefsBudget(node) {
   for (const k of Object.keys(node)) {
     if (isMetaKey(k)) continue;
-    const v = node[k];
-    if (Array.isArray(v)) { if (v.some(refsBudgetIdent)) return true; continue; }
-    if (v && typeof v === 'object' && refsBudgetIdent(v)) return true;
+    if (childRefsBudget(node[k])) return true;
   }
   return false;
 }

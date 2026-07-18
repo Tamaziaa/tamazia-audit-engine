@@ -39,7 +39,9 @@ const DEFAULT_DEADLINE_MS = 9000;
 // assertDeadline(ms): a budget cap must be a positive finite number. A misconfigured cap must SHOUT,
 // not silently degrade (caution.md C-025: sub-floor budgets throw at the boundary, never pass quietly).
 function assertDeadline(ms) {
-  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) {
+  // Number.isFinite is false for every non-number (and for NaN/Infinity), so it already subsumes the
+  // typeof guard: the cap is valid iff it is a finite number greater than zero.
+  if (!Number.isFinite(ms) || ms <= 0) {
     throw new Error('llm/router: deadlineMs must be a positive finite number, got ' + JSON.stringify(ms));
   }
 }
@@ -274,7 +276,9 @@ async function collectVotes(jurors, task, deadlineMs, validate, log) {
 // assertValidJurorCount(n): the requested jury size must be a positive integer; a misconfigured n must
 // throw at the boundary, never silently degrade (mirrors assertDeadline's C-025 doctrine).
 function assertValidJurorCount(n) {
-  if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+  // Number.isInteger is false for every non-number, so it subsumes the typeof guard: n is valid iff it
+  // is an integer of at least 1.
+  if (!Number.isInteger(n) || n < 1) {
     throw new Error('llm/router: quorum n must be a positive integer, got ' + JSON.stringify(n));
   }
 }
