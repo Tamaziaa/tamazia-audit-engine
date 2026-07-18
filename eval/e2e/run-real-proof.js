@@ -54,7 +54,6 @@ const { judgeFirm } = require('./lib/judge.js');
 const { loadReferenceSet, findFirm } = require('../reference-set/verify.js');
 const realLlm = require('./lib/real-llm.js');
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REF_FIXTURES = path.join(__dirname, '..', 'reference-set', 'fixtures');
 const SYNTHETIC_FIXTURE = path.join(__dirname, 'fixtures', 'synthetic-quote-breach.json');
 const REF_SET = path.join(__dirname, '..', 'reference-set', 'reference-set.json');

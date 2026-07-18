@@ -12,7 +12,7 @@ const path = require('node:path');
 
 const {
   atomicClaimFor, claimBasisFor, bridgeTextFor, isPresenceBreach, dutyText, firstClause,
-  affirmativeFromDuty, fallbackClaim, FALLBACK_FRAME,
+  affirmativeFromDuty, FALLBACK_FRAME,
 } = require('./claim.js');
 
 // A compiled-catalogue-shaped record with a "Do not X" prohibition duty (the UK_MHRA_POM_AD_BAN shape,

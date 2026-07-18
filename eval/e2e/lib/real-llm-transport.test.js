@@ -22,7 +22,7 @@ test('buildProvidersFromEnv builds one provider per present-key model, using the
   const providers = T.buildProvidersFromEnv({ GROQ_API_KEY: 'FAKEGROQKEY' }, { fetchImpl: fakeFetch });
   assert.ok(providers.length >= 1 && providers.every((p) => p.family === 'groq'));
   await providers[0].call({ system: 's', prompt: 'p' }, { signal: undefined });
-  assert.match(seen[0].url, /api\.groq\.com/);
+  assert.match(seen[0].url, /^https:\/\/api\.groq\.com\//);
   assert.strictEqual(seen[0].hasAuth, true, 'the Authorization header is set (its value is never asserted or logged, Rule 16)');
 });
 
