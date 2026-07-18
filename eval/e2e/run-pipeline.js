@@ -327,16 +327,15 @@ async function main(argv) {
   if (opts.json) {
     console.log(JSON.stringify({ stageWiring: wiring, rows: allRows, redteam, summary, vacuity, knownBreachTotals: totals }, null, 2));
   } else {
-    report.printHumanReport(wiring, allRows, redteam, summary);
-    // The always-on usefulness gauge, then (only when it fires) the C-236 vacuity line plus an
-    // explicit terminal FAIL line - report.js's own resultLine() above does not know about vacuity
-    // (it is not this task's file to edit), so this makes sure the TRUE verdict is never left looking
-    // like a clean "RESULT: OK" printed just above it.
-    console.log('reproduced: ' + totals.reproduced + '/' + totals.total);
-    if (vacuity.vacuous) {
-      console.log('vacuous: 0 known_breach reproduced across ' + vacuity.completeLanes + ' complete lanes');
-      console.log('RESULT: FAIL - vacuous positive-control bar (caution.md C-236): zero known_breach reproduced across a complete breach lane');
-    }
+    // P3-tail Wave-2 Builder B (R2/B4, caution.md C-236): report.js's printHumanReport()/resultLine()
+    // are now vacuity-aware and print the reproduced/vacuous detail lines PLUS the single terminal
+    // RESULT line themselves (the true home of resultLine) - passing { totals, vacuity } through is the
+    // whole fix. This file used to print its OWN extra "reproduced"/"vacuous"/"RESULT: FAIL" lines
+    // AFTER calling printHumanReport(), which had already printed a stale "RESULT: OK" from
+    // resultLine(summary) with no vacuity awareness: a vacuous run showed a contradictory OK line
+    // immediately followed by the real FAIL line. That second, corrective block is removed; there is
+    // now exactly one RESULT line, printed by report.js, and it is FAIL on a vacuous run.
+    report.printHumanReport(wiring, allRows, redteam, summary, { totals, vacuity });
   }
   return exitCodeFor(allRows, redteam);
 }

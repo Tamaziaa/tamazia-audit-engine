@@ -16,6 +16,17 @@
 // turned into the tolerant payload shape eval/reference-set/verify.js's verifyPayload() reads via
 // eval/reference-set/run-facts.js's EXPORTED factsToPayload() - reused, not re-derived, so the
 // identity/jurisdiction/sector/framework comparison logic lives in exactly one place.
+//
+// CATALOGUE ENRICHMENT (P3-tail Wave-2 Builder B, WAVE 2 AMENDMENT): breach/proposers/propose.js's real
+// candidate() emits only { record_id, artifact, page_url, duty_idx, kind, ... } - no description, no
+// law name, no lifted evidence_quote. breach/adjudicator/adjudicate.js's briefOf()/evidenceText() read
+// description/statutory_citation/framework/evidence_quote/checked_urls, none of which a bare candidate
+// carries, so every text-derived candidate used to reach the model with an EMPTY hypothesis and abstain
+// before it was ever really asked. eval/e2e/run-real-proof.js's own enrichCandidate() already closes
+// this gap for the real-model proof driver by joining each verified candidate to its compiled catalogue
+// record (Constitution Rule 2: the catalogue is the only source of law facts); this pipeline now does
+// the SAME join so replay and scripted runs adjudicate real briefs too - see enrichVerifiedCandidates()
+// below, called between the verify and adjudicate stages in runBreachLaneInProcess().
 
 const fs = require('fs');
 const os = require('os');
@@ -112,6 +123,80 @@ function verifiedCandidatesFrom(result) {
   return entries.map((e) => (e && e.candidate !== undefined ? e.candidate : e)).filter((c) => c != null);
 }
 
+// ── catalogue enrichment join (Rule 2: catalogue-only law facts; WAVE 2 AMENDMENT) ─────────────────
+// catalogueRecordIndex(records) -> Map<id, record> for a fast record_id lookup. A record with no `id`
+// is skipped (never indexed under undefined); a non-array/absent `records` yields an empty Map so the
+// join always degrades to "no catalogue record found" rather than throwing.
+function catalogueRecordIndex(records) {
+  const idx = new Map();
+  for (const rec of Array.isArray(records) ? records : []) {
+    if (rec && rec.id) idx.set(rec.id, rec);
+  }
+  return idx;
+}
+
+// obligationTextFor(record, dutyIdx) -> the catalogue's OWN obligation prose for one duty - this
+// becomes breach/adjudicator/adjudicate.js's Gate-3 HYPOTHESIS (the finding's `description`). Reads
+// record.website_obligations[dutyIdx].duty; falls back to the record's own name; never invents text of
+// its own (Rule 2 - a literal obligation string in this file would itself be a catalogue-lint violation
+// if it named a real duty, so this always reads the record, never writes one).
+function obligationTextFor(record, dutyIdx) {
+  const duties = record && Array.isArray(record.website_obligations) ? record.website_obligations : [];
+  const at = Number.isInteger(dutyIdx) ? dutyIdx : 0;
+  const duty = duties[at] && duties[at].duty;
+  if (typeof duty === 'string' && duty) return duty;
+  return record && record.name ? String(record.name) : '';
+}
+
+// citationTextFor(record) -> the catalogue's own citation string (section, else act, else url) for the
+// finding's `statutory_citation`. Rule 2: the compiled catalogue is the only source of a citation; a
+// missing/malformed citation block yields '' rather than a guess.
+function citationTextFor(record) {
+  const cite = record && record.citation;
+  if (!cite) return '';
+  return String(cite.section || cite.act || cite.url || '');
+}
+
+// quoteFromArtifact(candidate) -> the verified verbatim quote lifted from a QUOTE-typed artifact
+// (Gate 2's own string-matched span, breach/verifiers/quote-match.js), or '' for anything else (an
+// absence/behavioural/register candidate has no quote to lift). Never re-derives the quote text; it
+// only reads what the verifier already matched onto the candidate's own artifact.
+function quoteFromArtifact(candidate) {
+  const art = candidate && candidate.artifact;
+  if (!art || art.type !== 'quote') return '';
+  return String(art.quote != null ? art.quote : (art.text != null ? art.text : ''));
+}
+
+// joinCatalogueFacts(candidate, record) -> the finding breach/adjudicator/adjudicate.js actually rules
+// on. A bare propose.js candidate carries only { record_id, artifact, page_url, duty_idx, kind, ... }
+// (no description, no law name, no lifted quote); this merges in the catalogue-only fields
+// (description, framework, statutory_citation) plus the verified quote lifted to evidence_quote, so
+// briefOf()'s Gate-3 hypothesis and evidence are real. record_id, artifact, page_url, kind and every
+// other candidate field pass through UNTOUCHED (Object.assign onto a fresh copy, never mutating the
+// input - mirrors eval/e2e/run-real-proof.js's own enrichCandidate()). A record_id with no compiled
+// catalogue record (should not happen for a real catalogue rule; a stale/test id must never crash the
+// lane) degrades to empty catalogue-derived fields rather than throwing.
+function joinCatalogueFacts(candidate, record) {
+  const quote = quoteFromArtifact(candidate);
+  return Object.assign({}, candidate, {
+    description: obligationTextFor(record, candidate && candidate.duty_idx),
+    framework: record ? String(record.name || '') : '',
+    statutory_citation: citationTextFor(record),
+    evidence_quote: quote || undefined,
+    evidence_source_id: (candidate && candidate.page_url) || undefined,
+    checked_urls: (candidate && candidate.page_url) ? [candidate.page_url] : undefined,
+  });
+}
+
+// enrichVerifiedCandidates(candidates, catalogueRecords) -> every verified candidate joined to its
+// compiled catalogue record BEFORE the adjudicator sees it (Rule 2). Builds the record index once per
+// call; a candidate whose record_id resolves to no record still passes through (joinCatalogueFacts
+// degrades honestly rather than dropping the candidate or crashing the lane).
+function enrichVerifiedCandidates(candidates, catalogueRecords) {
+  const idx = catalogueRecordIndex(catalogueRecords);
+  return (Array.isArray(candidates) ? candidates : []).map((c) => joinCatalogueFacts(c, idx.get(c && c.record_id) || null));
+}
+
 // adjudicatedFindings(result) -> the finding[] an adjudicate-stage outcome yielded. Tolerant of BOTH
 // the real breach/adjudicator/adjudicate.js shape ({findings, report}) and a bare findings[] a test
 // double may return. An unwired/errored/empty stage yields [].
@@ -166,10 +251,15 @@ async function runBreachLaneInProcess(bundle, coverage, opts) {
 
   // Rob's ledger decision 6: unwrap the verifier's `.candidate`s, pass the bundle + a scripted llmCall,
   // read `.findings`. The adjudicate signature is adjudicate(candidates, bundle, { llmCall, ... }).
+  // WAVE 2 AMENDMENT (Builder B): join each verified candidate to its compiled catalogue record before
+  // the adjudicator sees it (Rule 2) - see enrichVerifiedCandidates() above. opts.catalogueRecords is
+  // already threaded through this function's caller (runPipeline) for the coverage stage; the SAME
+  // records are reused here rather than reloading the catalogue a second time.
   const adjudicateLoaded = opts.adjudicateLoaded || loadAdjudicateStage(opts.rootDir);
   const verifiedCandidates = verifiedCandidatesFrom(verifyResult);
+  const enrichedCandidates = enrichVerifiedCandidates(verifiedCandidates, opts.catalogueRecords);
   const llmCall = opts.llmCall || defaultScriptedLlmCall;
-  const adjudicateResult = await runOptionalStage('adjudicate', adjudicateLoaded, () => [verifiedCandidates, bundle, { llmCall }]);
+  const adjudicateResult = await runOptionalStage('adjudicate', adjudicateLoaded, () => [enrichedCandidates, bundle, { llmCall }]);
 
   return {
     propose: proposeResult,
@@ -357,4 +447,7 @@ module.exports = {
   perRuleCoverageArg,
   breachLaneError,
   breachLaneDisabled,
+  enrichVerifiedCandidates,
+  joinCatalogueFacts,
+  catalogueRecordIndex,
 };

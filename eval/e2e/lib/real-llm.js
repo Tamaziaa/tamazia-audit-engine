@@ -39,11 +39,17 @@
  * secret-shape guard and callTransport()'s deliberate omission of the Authorization header from logs.
  */
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { route } = require('../../../llm/router.js');
 const { validateResponse } = require('../../../llm/gate.js');
+// The key-derivation seam (P3-tail Wave-2 Builder B, C-211/C-222 closure): stableStringify,
+// artifactFingerprint and recordingKey used to be defined locally in this file; they now live in the
+// ONE shared module both this recorder and eval/e2e/lib/replay-llm.js import, so the two sides of the
+// frozen recorded-response contract can never independently drift (C-216). CONTRACT is single-sourced
+// there too. Nothing else in this file changes: these are re-exported below under their original names
+// so every existing caller of this module (run-real-proof.js, real-llm.test.js) is unaffected.
+const { CONTRACT, stableStringify, artifactFingerprint, recordingKey } = require('./record-key.js');
 
 // ── caps + defaults (Rule 8: every one is an upper bound, never a floor) ─────────────────────────────
 const DEFAULT_DEADLINE_MS = 20000;   // per-call hard deadline CAP handed to the router (Rule 9).
@@ -52,7 +58,6 @@ const DEFAULT_SPACING_MS = 400;      // quota-courtesy gap BETWEEN calls (C-138)
 //                                      per-call latency floor - it delays the START of the next call,
 //                                      never lengthens any single call (see Pacer below).
 const MAX_SPACING_MS = 5000;         // clamp on any REAL_LLM_SPACING_MS override.
-const CONTRACT = 'recorded-llm.v1';  // the frozen recorded-response contract id (P3-TAIL-ACCEPTANCE).
 const RECORD_DIRNAME = path.join(__dirname, '..', 'record');            // gitignored raw call logs.
 const RECORDED_DIRNAME = path.join(__dirname, '..', 'fixtures', 'recorded'); // committed, sanitised.
 
@@ -338,26 +343,8 @@ function entailmentValidator(request) {
 }
 
 // ── recording (the frozen recorded-llm.v1 contract) ──────────────────────────────────────────────────
-function sha256(s) { return crypto.createHash('sha256').update(String(s)).digest('hex'); }
-
-// stableStringify(v): deterministic JSON with object keys sorted, so an artifact fingerprint is stable
-// across runs regardless of key insertion order.
-function stableStringify(v) {
-  if (v === null || typeof v !== 'object') return JSON.stringify(v);
-  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
-  const keys = Object.keys(v).sort();
-  return '{' + keys.map((k) => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
-}
-// artifactFingerprint(artifact): a stable sha256 over the deterministic artifact (Rule 3's deterministic
-// artifact IS the identity of a candidate). The one derivation both the recorder and any replayer must
-// share (documented in docs/P3-TAIL-ACCEPTANCE.md).
-function artifactFingerprint(artifact) {
-  return sha256(stableStringify(artifact == null ? null : artifact));
-}
-// recordingKey(kind, ruleId, artifactFp): the frozen contract key = sha256(kind|rule_id|artifact_fp).
-function recordingKey(kind, ruleId, artifactFp) {
-  return sha256(String(kind) + '|' + String(ruleId) + '|' + String(artifactFp));
-}
+// stableStringify/artifactFingerprint/recordingKey are imported above from the shared record-key.js
+// module (the key-derivation seam this wave unified) - see this file's header.
 
 // containsSecretShape(s): true if any secret-shape fragment appears (Rule 16 defence in depth).
 function containsSecretShape(s) {

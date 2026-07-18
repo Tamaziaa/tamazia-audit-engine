@@ -1,8 +1,7 @@
 'use strict';
 // eval/e2e/lib/replay-llm.js - the REPLAY-side implementation of the frozen recorded-response
 // contract (docs/P3-TAIL-ACCEPTANCE.md "The frozen recorded-response contract"; caution.md C-236,
-// C-211). Built from the contract AS WRITTEN in that spec, not from eval/e2e/lib/real-llm.js or
-// eval/e2e/fixtures/recorded/** (U1's not-yet-final files, C-211): this module never requires them.
+// C-211, C-222, C-223).
 //
 // THE CONTRACT (recap, docs/P3-TAIL-ACCEPTANCE.md):
 //   eval/e2e/fixtures/recorded/<domain>.json, shape:
@@ -12,104 +11,125 @@
 //   makes: 'adjudicate' (breach/adjudicator/adjudicate.js's per-batch verdict call) and 'entailment'
 //   (Rule 12 gate 3's NLI call, llm/entailment.js).
 //
-// WHERE rule_id AND artifact_fingerprint ACTUALLY COME FROM (read live, not assumed - C-211):
-//   Neither llmCall(request) shape breach/adjudicator/adjudicate.js builds carries a literal
-//   `rule_id`/`artifact_fingerprint` field - a candidate's real identifier
-//   (breach/proposers/propose.js's `record_id`) and its artifact are never placed on the request the
-//   model/replay sees (deliberately: the model should judge evidence, not read internal ids). This
-//   module reconstructs the closest real equivalents from what IS actually on each request:
+// P3-TAIL WAVE-2 REVISION (C-211/C-222 closure - read this before the rest of the file):
+// This file's FIRST version derived the adjudicate-kind key from a law+hash(evidence+page) guess
+// parsed out of the model-facing CANDIDATES JSON text embedded in the prompt. That guess was
+// INDEPENDENT of what the recorder (eval/e2e/lib/real-llm.js, driven by eval/e2e/run-real-proof.js)
+// actually computes: run-real-proof.js's entailmentEntryFor/adjudicateEntriesFor key EVERY recording as
+//   realLlm.recordingKey(kind, candidate.record_id, realLlm.artifactFingerprint(candidate.artifact))
+// - i.e. the candidate's own catalogue rule id (record_id) and its own deterministic Rule-3 artifact
+// OBJECT (not a text string reconstructed from what the prompt happened to show a model). The recorder
+// never derives its key from a prompt string at all: it already holds the full candidate in memory.
+// The two guesses could never agree, which is exactly the class of bug C-211 exists to catch ("a
+// verifier built to an assumed sibling shape rejected 100% of real output").
 //
-//   - 'adjudicate' requests are BATCHED (breach/adjudicator/adjudicate.js's BATCH=10): one request's
-//     `prompt` string embeds `JSON.stringify(briefs)` between the literal markers 'CANDIDATES:\n' and
-//     '\n\nReturn STRICT JSON only:' (adjudicate.js's buildPrompt(), read verbatim from source). Each
-//     brief (adjudicate.js's briefOf()) carries { id, obligation, law, kind, evidence, page } - `law` is
-//     the closest exposed proxy for a rule identifier (briefOf reads f.statutory_citation, else
-//     f.framework), and `evidence` + `page` are the exposed artifact content (the verbatim quote or
-//     absence-claim text, and the checked page URL). rule_id here is realised as `law`; the artifact
-//     fingerprint is a hash of `evidence + '|' + page`. This module therefore parses the embedded
-//     briefs out of the prompt per request and computes ONE key per candidate brief, not one key per
-//     call - a batch of N candidates needs N recordings.
+// THE FIX: eval/e2e/lib/record-key.js is now the ONE shared derivation (stableStringify,
+// artifactFingerprint, recordingKey); this file and real-llm.js both import it and carry no local
+// hashing re-implementation (C-216). For the 'adjudicate' kind, this file reads `record_id` and
+// `artifact` off `request.candidates` - a small, OUT-OF-BAND array
+// (`[{id, record_id, artifact}, ...]`) breach/adjudicator/adjudicate.js's callGate() now attaches
+// directly onto the llmCall request ALONGSIDE (never inside) the model-facing prompt text (its
+// candidateRefsFor() helper, added in the SAME change as this file per the C-223 hard pairing below).
+// This is deliberately NOT embedded in the model-visible CANDIDATES JSON: doing so would either (a)
+// duplicate the candidate's raw, unsanitised artifact text a second time next to the newly
+// door-routed `evidence` field (undermining the sanitisation this same change adds - see the C-134
+// note below), or (b) require this eval-only module's hashing code to be imported by an ENGINE module
+// (breach/adjudicator/adjudicate.js), inverting the eval-depends-on-engine layering for no reason: the
+// real llmCall transport (eval/e2e/lib/real-llm.js's provider body-builders) never reads any field
+// except `system`/`prompt`, so attaching `candidates` changes nothing a live model ever sees.
 //
-//   - 'entailment' requests are always SINGLE-claim (llm/entailment.js's checkEntailment is always
-//     invoked with a one-element array from breach/adjudicator/adjudicate.js's gateEntailment) and DO
-//     carry clean structured per-claim fields: `allowedSourceIds` (a one-element array) and `sources`
-//     (an object keyed by that id, holding the verbatim premise text) - see llm/entailment.js
-//     callModel(). rule_id is realised as the source id; the artifact fingerprint is a hash of the
-//     premise text.
+// HARD PAIRING (C-223): this same change routes breach/adjudicator/adjudicate.js's untrusted brief
+// fields (the evidence quote, the page URL) through llm/prompts/sanitise.js's docDelimit/sanitiseSpan
+// (C-134 completion - see that file's own header). That sanitisation changes the CONTENT of the
+// `evidence`/`page` string fields inside the model-facing CANDIDATES JSON (a legitimate span passes
+// through byte-identical per sanitise.js's own proof; only a delimiter-breakout attempt changes at
+// all), which is exactly the kind of prompt-framing move this file's OWN key derivation used to depend
+// on. Because the key derivation now lives entirely on `request.candidates` (never on
+// `evidence`/`page`), that content change has NO EFFECT on key derivation - the coupling this file's
+// FIRST version had to the CANDIDATES text framing is retired by this same change, which is why both
+// land together rather than as two separate PRs (never finalise a consumer against an assumed sibling
+// shape that could move again independently, C-211/C-223).
 //
-// A DOCUMENTED GAP THIS FILE'S DESIGN SURFACES (routed to Rob, C-214 - not fixed here, propose.js and
-// breach/adjudicator/adjudicate.js are engine modules outside this unit's ownership): breach/
-// proposers/propose.js's real candidate() builder emits only
-// { record_id, duty_idx, evidence_type, kind, artifact, page_url, confidence_hint, suppressed_reason }.
-// adjudicate.js's briefOf()/evidenceText()/ctxFromBundle() read description/statutory_citation/
-// framework/evidence_quote/checked_urls/evidence_url/absence_evidence - none of which propose.js (or
-// breach/verifiers/, which passes the candidate through UNMODIFIED) ever sets. On a REAL candidate
-// today every brief therefore comes out near-identical and near-empty (empty `law`, empty `page`, and
-// the fixed absence-claim placeholder text for `evidence`), which (a) is a plausible root cause of
-// "0 of 5 known_breaches reproduce end-to-end" (the model is handed no real evidence to adjudicate)
-// and (b) means this file's per-candidate replay key cannot yet distinguish between different REAL
-// candidates. This file's own hermetic test therefore hand-builds candidates that ALSO carry the
-// fields briefOf() reads (simulating the hydration step this gap implies is missing), exactly as
-// C-211 prescribes: it does not require() propose.js/adjudicate.js's real candidate wiring, it locks
-// the REAL, observed brief/request SHAPE those modules already emit.
+// briefsFromAdjudicatePrompt() (below) is RETAINED, exported and still fully tested: it is a correct,
+// standalone description of the CANDIDATES text framing breach/adjudicator/adjudicate.js's buildPrompt()
+// still emits (useful for debugging/inspection of a captured prompt), but it is no longer this file's
+// key-derivation path - see answerAdjudicate() below.
 //
-// INTEGRATION RISK (for Rob/U1, not resolved here): a replay recording only ever hits if U1's
-// real-llm.js records under the SAME key derivation this file implements. That reconciliation is
-// explicitly Rob's job at integration (docs/P3-TAIL-ACCEPTANCE.md's Integration note); this file's
-// derivation is documented above precisely so it can be checked against whatever U1 lands with.
-//
-// FAIL-CLOSED SEMANTICS (Rule 4): a candidate brief with no matching recording gets no verdict entry
-// in the synthesised response, so breach/adjudicator/adjudicate.js's own filter-only `applyVerdicts`
-// abstains JUST that candidate to needs_review - never the rest of the batch, and never a fabricated
-// pass. An unparseable prompt (no 'CANDIDATES:' block found at all - e.g. a future prompt-framing
-// change, see the sanitisation-door risk note below) or zero candidates resolving to ANY recording
-// declines the WHOLE call (the scripted-llm.js default-decline shape), which is at least as safe as
-// today's scripted default. Nothing here ever guesses a verdict.
-//
-// A NOTE ON llm/prompts/adjudicate.js AND llm/prompts/entailment.js (seen dirty on this shared tree
-// while this file was written, C-210): those are U3's in-flight sanitisation-door files, not the code
-// path breach/adjudicator/adjudicate.js actually calls today (its own buildPrompt()/briefOf() are
-// inline in that file, importing neither). If a future change wires U3's sanitiser INTO
-// breach/adjudicator/adjudicate.js's own prompt framing, the literal 'CANDIDATES:\n' / '\n\nReturn
-// STRICT JSON only:' markers this file parses could move - Rob's own integration note anticipates
-// exactly this ("re-records U1 if U3's sanitisation changed any prompt surface"). This file's own
-// test locks today's real, observed framing so any such drift fails loudly here rather than silently.
+// ENTAILMENT KEY - AN HONEST, DOCUMENTED GAP (routed to Rob, C-214; not fixed in this change): the
+// recorder computes the entailment key the SAME way as adjudicate
+// (recordingKey('entailment', cand.record_id, artifactFingerprint(cand.artifact))), but
+// llm/entailment.js's callModel() builds its request from ONLY {hypothesis, premise, sourceId} - no
+// record_id, no artifact ever reaches it, and threading one through would mean editing
+// llm/entailment.js or breach/adjudicator/adjudicate.js's claimFor()/gateEntailment(), both outside
+// this unit's ownership (breach/adjudicator/adjudicate.js's buildPrompt seam ONLY). This file's
+// entailmentRequestKey() therefore keeps deriving from what an entailment request actually exposes
+// (allowedSourceIds[0] as rule_id, the cited premise TEXT as the artifact), routed through the SAME
+// shared hashing primitives (record-key.js's sha256Hex, wrapped here as fingerprintOf) so there is
+// still only one hash implementation in the codebase - but the entailment-kind key this file computes
+// will NOT match a real recorder-side entailment recording until llm/entailment.js's request shape
+// gains a record_id/artifact channel. Every hermetic test in this file and its callers derives its own
+// entailment recording key via entailmentRequestKey() (both sides consistent with EACH OTHER), so the
+// gap does not fail any test here; it is a real integration risk for the eventual re-record step,
+// reported honestly rather than silently glossed over.
 
 const fs = require('fs');
-const crypto = require('crypto');
-const { isEntailmentRequest } = require('./scripted-llm.js');
 const { assertSafeDirEntry, safeJoinEntry } = require('../../../tools/lib/safe-path.js');
-
-const CONTRACT = 'recorded-llm.v1';
+const { CONTRACT, sha256Hex, artifactFingerprint, recordingKey } = require('./record-key.js');
+const { isEntailmentRequest } = require('./scripted-llm.js');
 
 // ---------------------------------------------------------------------------------------------------
-// Hashing (Node's built-in crypto only - Constitution: zero runtime npm dependencies).
+// Hashing: delegates entirely to eval/e2e/lib/record-key.js (Constitution: zero runtime npm
+// dependencies; C-216: no local re-implementation of the shared hash formula).
 // ---------------------------------------------------------------------------------------------------
 
-function sha256Hex(s) {
-  return crypto.createHash('sha256').update(String(s == null ? '' : s), 'utf8').digest('hex');
-}
-
-// fingerprintOf(text) -> a bounded, stable content fingerprint (sha256 hex) for one artifact's
-// textual identity. Exported so a recorder (or this file's own tests) can compute the identical
+// fingerprintOf(text) -> a bounded, stable content fingerprint (sha256 hex) for a RAW STRING artifact
+// (the entailment premise text - see the header note above on why entailment stays string-keyed rather
+// than object-keyed). Exported so a recorder (or this file's own tests) can compute the identical
 // fingerprint from the same source text without re-deriving the hash choice (Rule 1: one door).
 function fingerprintOf(text) {
   return sha256Hex(text);
 }
 
-// computeKey(kind, ruleId, artifactFingerprint) -> the frozen contract's key, EXACTLY as documented:
-// sha256(kind + '|' + rule_id + '|' + artifact_fingerprint), lower-case hex.
-function computeKey(kind, ruleId, artifactFingerprint) {
-  return sha256Hex(String(kind || '') + '|' + String(ruleId || '') + '|' + String(artifactFingerprint || ''));
+// computeKey(kind, ruleId, artifactFingerprint) -> the frozen contract's key, delegating to
+// record-key.js's recordingKey (kept under this file's original exported name for backward
+// compatibility with existing callers of this module's public API).
+function computeKey(kind, ruleId, fp) {
+  return recordingKey(kind, ruleId, fp);
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Deriving (rule_id, artifact_fingerprint) from what an 'adjudicate'-kind request actually exposes.
+// ADJUDICATE-kind key: record_id + the candidate's own deterministic artifact object, EXACTLY as the
+// recorder computes it (see this file's header). Read from request.candidates (the out-of-band ref
+// array breach/adjudicator/adjudicate.js's callGate() attaches), never from prompt text.
 // ---------------------------------------------------------------------------------------------------
 
-// The exact literal framing breach/adjudicator/adjudicate.js's buildPrompt() emits around the
-// embedded candidate briefs (read verbatim from that file's source; see this file's header). Locked
-// by this module's own hermetic test, which drives the real adjudicate.js end to end.
+// adjudicateBriefKey(ref) -> the frozen-contract key for ONE candidate ref ({id, record_id, artifact}
+// or any object carrying at least record_id/artifact - a hand-built candidate satisfies this shape
+// directly, since record_id/artifact are exactly the fields breach/proposers/propose.js's real
+// candidate() emits and breach/adjudicator/adjudicate.js preserves untouched onto every finding).
+// Tolerates a missing/undefined ref without throwing (an absent record_id/artifact still yields a
+// real, if unlikely-to-match, key rather than blowing up the caller - fail-closed via a lookup miss,
+// never a crash).
+function adjudicateBriefKey(ref) {
+  const r = ref || {};
+  const ruleId = String(r.record_id == null ? '' : r.record_id);
+  return computeKey('adjudicate', ruleId, artifactFingerprint(r.artifact));
+}
+
+// candidateRefsFromRequest(request) -> the request.candidates[] array (breach/adjudicator/adjudicate.js
+// callGate's candidateRefsFor() output), or [] when absent/malformed. Fail-closed: no refs means
+// nothing can be keyed, so the caller declines the whole call rather than guessing.
+function candidateRefsFromRequest(request) {
+  return Array.isArray(request && request.candidates) ? request.candidates : [];
+}
+
+// ---------------------------------------------------------------------------------------------------
+// briefsFromAdjudicatePrompt: parsing the embedded CANDIDATES: block breach/adjudicator/adjudicate.js's
+// buildPrompt() frames (read verbatim from that file's source). RETAINED as a correct, independently
+// useful, fully-tested description of the prompt's own text framing (e.g. for inspecting a captured
+// prompt during debugging) but NO LONGER this file's key-derivation path - see this file's header.
+// ---------------------------------------------------------------------------------------------------
+
 const CANDIDATES_START = 'CANDIDATES:\n';
 const CANDIDATES_END = '\n\nReturn STRICT JSON only:';
 
@@ -133,24 +153,17 @@ function briefsFromAdjudicatePrompt(prompt) {
   return Array.isArray(parsed) ? parsed : [];
 }
 
-// adjudicateBriefKey(brief) -> the frozen-contract key for ONE candidate brief (kind='adjudicate').
-// rule_id is realised as the brief's `law` field (adjudicate.js briefLaw(): statutory_citation, else
-// framework, truncated to 90 chars) - the closest identifier the adjudication path exposes across the
-// llmCall seam (see this file's header: record_id itself never reaches the request). The artifact
-// fingerprint is realised from `evidence` + `page` (the verbatim-quote/absence-claim text and the
-// checked page URL), hashed for a bounded, stable fingerprint.
-function adjudicateBriefKey(brief) {
-  const b = brief || {};
-  const ruleId = String(b.law == null ? '' : b.law);
-  const artifactFingerprint = fingerprintOf(String(b.evidence == null ? '' : b.evidence) + '|' + String(b.page == null ? '' : b.page));
-  return computeKey('adjudicate', ruleId, artifactFingerprint);
-}
+// ---------------------------------------------------------------------------------------------------
+// ENTAILMENT-kind key: source_id + the cited premise TEXT (see this file's header for why this stays
+// string-keyed and the honest gap versus the recorder's own record_id+artifact basis).
+// ---------------------------------------------------------------------------------------------------
 
 // entailmentRequestKey(request) -> the frozen-contract key for a gate-3 NLI request (kind='entailment').
-// An entailment call is always ONE claim (see this file's header), and its request carries clean,
-// structured per-claim fields: allowedSourceIds[0] (the premise's source id) and sources[thatId] (the
-// verbatim premise text) - llm/entailment.js callModel(). rule_id is realised as the source id; the
-// artifact fingerprint is the hashed premise text.
+// An entailment call is always ONE claim (llm/entailment.js's checkEntailment is always invoked with a
+// one-element array from breach/adjudicator/adjudicate.js's gateEntailment), and its request carries
+// clean, structured per-claim fields: allowedSourceIds[0] (the premise's source id) and
+// sources[thatId] (the verbatim premise text) - see llm/entailment.js callModel(). rule_id is realised
+// as the source id; the artifact fingerprint is the hashed premise text.
 function entailmentRequestKey(request) {
   const ids = Array.isArray(request && request.allowedSourceIds) ? request.allowedSourceIds : [];
   const sourceId = ids.length ? String(ids[0]) : '';
@@ -231,37 +244,38 @@ function answerEntailment(recordings, request) {
   return parsed; // llm/gate.js's validateResponse() accepts a pre-parsed object directly.
 }
 
-// verdictFromParsedRaw(parsed, brief) -> one {id,verdict,reason,disproof}-shaped verdict, with `id`
+// verdictFromParsedRaw(parsed, ref) -> one {id,verdict,reason,disproof}-shaped verdict, with `id`
 // REMAPPED to this candidate's CURRENT batch position (the id a recording was made under may differ
 // from where its candidate lands in a later, differently-batched run - ids are per-batch positional,
 // never a stable identifier). Tolerates a recording that stored a whole {verdicts:[...]} response for
 // this one candidate (takes the first entry) as well as the primary documented shape (a single verdict
 // object) - defence in depth against the cross-unit key-granularity risk noted in this file's header.
-function verdictFromParsedRaw(parsed, brief) {
+function verdictFromParsedRaw(parsed, ref) {
   if (parsed && Array.isArray(parsed.verdicts)) {
-    return Object.assign({}, parsed.verdicts[0] || {}, { id: brief.id });
+    return Object.assign({}, parsed.verdicts[0] || {}, { id: ref.id });
   }
-  return Object.assign({}, parsed || {}, { id: brief.id });
+  return Object.assign({}, parsed || {}, { id: ref.id });
 }
 
 // answerAdjudicate(recordings, request) -> the resolved llmCall return value for an adjudicate-kind
-// (possibly batched) request. Each candidate brief is looked up INDEPENDENTLY: a brief with no
-// recording simply gets no verdict entry, so breach/adjudicator/adjudicate.js's own filter-only
-// applyVerdicts() abstains JUST that candidate to needs_review (Rule 12 gate 4) - a batch is a
-// call-shape convenience, not a unit of trust, so one missing recording never discards a batch-mate's
-// genuine recorded verdict. An unparseable prompt (no candidates identifiable at all) or a batch where
-// NOTHING resolves declines the whole call, matching the scripted default.
+// (possibly batched) request. Each candidate ref (request.candidates[], attached by
+// breach/adjudicator/adjudicate.js's callGate - see this file's header) is looked up INDEPENDENTLY: a
+// ref with no recording simply gets no verdict entry, so breach/adjudicator/adjudicate.js's own
+// filter-only applyVerdicts() abstains JUST that candidate to needs_review (Rule 12 gate 4) - a batch
+// is a call-shape convenience, not a unit of trust, so one missing recording never discards a
+// batch-mate's genuine recorded verdict. No candidate refs at all (an older caller, or a malformed
+// request) declines the whole call, matching the scripted default (fail-closed, Rule 4).
 function answerAdjudicate(recordings, request) {
-  const briefs = briefsFromAdjudicatePrompt(request && request.prompt);
-  if (!briefs.length) return DECLINE;
+  const refs = candidateRefsFromRequest(request);
+  if (!refs.length) return DECLINE;
   const verdicts = [];
-  for (const brief of briefs) {
-    const key = adjudicateBriefKey(brief);
+  for (const ref of refs) {
+    const key = adjudicateBriefKey(ref);
     const rec = recordings.get(key);
     if (!rec) continue; // no recording for this candidate -> no verdict entry -> it abstains alone.
     const parsed = parseRecordedRaw(rec.raw);
     if (parsed == null) continue;
-    verdicts.push(verdictFromParsedRaw(parsed, brief));
+    verdicts.push(verdictFromParsedRaw(parsed, ref));
   }
   if (!verdicts.length) return DECLINE;
   return { ok: true, out: { verdicts } };
@@ -296,6 +310,7 @@ module.exports = {
   fingerprintOf,
   adjudicateBriefKey,
   entailmentRequestKey,
+  candidateRefsFromRequest,
   briefsFromAdjudicatePrompt,
   loadRecordingsDir,
   CONTRACT,

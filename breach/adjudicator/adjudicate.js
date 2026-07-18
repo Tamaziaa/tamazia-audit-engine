@@ -28,6 +28,14 @@ const { raceWithDeadline } = require('../../evidence/browser/deadline.js');
 const { classifyEvidenceKind } = require('./evidence-kind.js');
 const { parseVerdict, LLM_VERDICTS, disproofMatches } = require('./verdict.js');
 const { checkEntailment } = require('../../llm/entailment.js'); // Rule 12 gate 3 (NLI), wired below
+// C-134 completion + C-211/C-222 record-key unification (P3-tail Wave-2 Builder B), extracted to
+// ./prompt.js (caution.md C-254: this seam's growth had pushed this file over the 500-line health-gate
+// cap; the fix is to extract a module, never grow the file further - see prompt.js's own header for the
+// full C-134/C-211/C-222 rationale this used to carry inline here). fieldStr is re-imported because
+// this file's own claimFor()/premiseQuote() (the entailment-claim builder, a different seam) also use
+// it; briefOf/systemPrompt/buildPrompt/candidateRefsFor are re-exported below unchanged so every
+// existing caller of this module (adjudicate.test.js, callGate()) sees no shape change at all.
+const { fieldStr, briefOf, systemPrompt, buildPrompt, candidateRefsFor } = require('./prompt.js');
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -74,86 +82,8 @@ function evidenceText(f) {
   return quote + ' ' + absence;
 }
 
-// ── the compact, quotable brief for ONE finding: everything the model needs and nothing else, so it
-//    cannot read our confidence off the payload and simply agree with us. Decomposed into small helpers
-//    so no single builder stays a "Bumpy Road" (health-gate decision cap). ──────────────────────────────
-function fieldStr(f, key) {
-  return f && f[key] != null ? String(f[key]) : '';
-}
-function hasCheckedUrls(f) {
-  return f && Array.isArray(f.checked_urls) && f.checked_urls.length > 0;
-}
-function firstCheckedUrl(f) {
-  if (f && f.evidence_url) return String(f.evidence_url);
-  if (hasCheckedUrls(f)) return String(f.checked_urls[0]);
-  return '';
-}
-function absenceLine(ae) {
-  if (ae && ae.nearest_quote) return 'NEAREST TEXT ON THE SITE: "' + String(ae.nearest_quote).slice(0, 220) + '"';
-  return 'CLAIM: the required disclosure is ABSENT. Pages checked: ' + ((ae && ae.pages_checked) || 0) + '. No page text is shown to you.';
-}
-function briefLaw(f) {
-  const cite = fieldStr(f, 'statutory_citation');
-  return (cite || fieldStr(f, 'framework')).slice(0, 90);
-}
-function briefEvidence(f, quote) {
-  if (quote) return 'VERBATIM FROM THE SITE: "' + quote.slice(0, 300) + '"';
-  return absenceLine(f && f.absence_evidence);
-}
-function briefOf(f, i) {
-  const quote = fieldStr(f, 'evidence_quote').trim();
-  return {
-    id: i,
-    obligation: fieldStr(f, 'description').slice(0, 240),
-    law: briefLaw(f),
-    kind: quote ? 'PRESENCE: we matched text on the site and claim it breaches' : 'ABSENCE: we claim a required disclosure is missing',
-    evidence: briefEvidence(f, quote),
-    page: firstCheckedUrl(f).slice(0, 120),
-  };
-}
-
-function systemPrompt() {
-  return 'You are a compliance adjudicator. A regular-expression engine has PROPOSED candidate breaches of '
-    + 'law on a company website. Your only job is to rule on each one against the evidence given. You are the '
-    + 'last check before a legal claim is sent to that company. You do not add findings. You do not soften '
-    + 'findings. You rule.';
-}
-
-function promptRules() {
-  return [
-    'HARD RULES:',
-    '  1. Judge ONLY the evidence given. No outside knowledge of this firm. No assumptions about the rest of the site.',
-    '  2. A FIRM WRITING ABOUT A TOPIC IS NOT COMMITTING IT. "We defend clients accused of X" is never evidence of X.',
-    '     A page discussing pornography offences, sex discrimination, fraud or money laundering is a PRACTICE AREA.',
-    '     This is the single most common false positive. Look for it first.',
-    '  3. HTML and technical vocabulary is not site content. A slot tag, a frame tag, a script filename: never evidence.',
-    '  4. For an ABSENCE claim, "no_breach" means the required disclosure IS present in the text you were shown.',
-    '     If you were shown no page text, you CANNOT clear an absence claim: answer "insufficient".',
-    '  5. For EVERY "no_breach" you MUST quote, verbatim, the words from the evidence that disprove the claim, in',
-    '     "disproof". If you cannot quote them, your verdict is "insufficient", not "no_breach".',
-    '  6. Never invent a citation, a penalty, or a finding.',
-  ];
-}
-
-function buildPrompt(ctx, briefs) {
-  return [
-    'FIRM: ' + ctx.domain + ' | SECTOR: ' + ctx.sector + ' | COUNTRY: ' + ctx.country,
-    'For EACH candidate below return a verdict:',
-    '  "breach"       = the evidence, AS GIVEN, establishes a breach of the stated obligation.',
-    '  "no_breach"    = it does not (a FALSE POSITIVE: the matched text means something else in context - a legal',
-    '                   practice area, an HTML tag name, a quotation, a negation, a blog post ABOUT the law - or the',
-    '                   obligation is plainly satisfied by the text shown).',
-    '  "insufficient" = the evidence is too thin to rule either way. Not a breach. Not a clearance.',
-    '',
-    ...promptRules(),
-    '',
-    'CANDIDATES:',
-    JSON.stringify(briefs),
-    '',
-    'Return STRICT JSON only:',
-    '{"verdicts":[{"id":0,"verdict":"breach|no_breach|insufficient","reason":"<=20 words","disproof":"<verbatim quote from the evidence, or null>"}]}',
-  ].join('\n');
-}
+// briefOf/systemPrompt/buildPrompt (the compact per-candidate brief + the model-facing prompt text) now
+// live in ./prompt.js (imported above) - see this file's header and prompt.js's own header for why.
 
 // ── the deterministic rubric handed to the injected gate: it scores structural validity, NEVER the
 //    model's self-reported confidence (C-145). Each sub-check is one small helper (health caps). ────────
@@ -329,6 +259,10 @@ function safeLog(log, event) {
   catch (e) { /* FAIL-OPEN: observability logging must never break adjudication; a broken logger is not a legal-claim failure. Dropped on purpose. */ }
 }
 
+// candidateRefsFor (the out-of-band {id, record_id, artifact} channel for replay-llm.js's key
+// derivation, C-211/C-222) now lives in ./prompt.js (imported above) alongside briefOf/buildPrompt,
+// since it is built from the exact same batch and exists for the exact same seam.
+
 // callGate(batch, ctx, opts) -> the injected caller's raw return, under a HARD deadline (Rule 9).
 // Resolves to the return value, or null when it timed out / threw (the caller then abstains the batch).
 async function callGate(batch, ctx, opts) {
@@ -341,6 +275,7 @@ async function callGate(batch, ctx, opts) {
     threshold: 7, max_attempts: 3, max_tokens: 900, temperature: 0,
     scan_id: String(ctx.domain || '') + ':adjudicate',
     deadline_ms: opts.batchDeadlineMs,
+    candidates: candidateRefsFor(batch),
   };
   const work = Promise.resolve().then(() => opts.llmCall(request));
   const raced = await raceWithDeadline(work, opts.batchDeadlineMs, opts.now).catch((e) => ({ _threw: e }));
@@ -463,6 +398,7 @@ module.exports = {
   rubricFor,
   verdictsFrom,
   applyVerdicts,
+  candidateRefsFor,
   BATCH,
   DEFAULT_DEADLINE_MS,
 };

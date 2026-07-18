@@ -125,14 +125,34 @@ function printContradictionDetail(rows) {
   }
 }
 
-function resultLine(summary) {
+// resultLine(summary, vacuity) -> the ONE terminal verdict line (P3-tail Wave-2 Builder B, R2/B4:
+// caution.md C-236's enforcing half must never be followed by a stale, contradictory OK line printed
+// just above it - see this file's own history: run-pipeline.js used to print this function's "RESULT:
+// OK" line via printHumanReport() and THEN, separately and later, its own corrective "RESULT: FAIL -
+// vacuous..." line when the vacuity clause fired, so a vacuous run showed BOTH lines, OK first). This
+// function is now vacuity-aware: when `vacuity` is given and `vacuity.vacuous` is true, this is the
+// ONLY branch that can fire, and it returns FAIL with the C-236 reason regardless of how clean
+// `summary`'s own contradiction/error/red-team counters look - a vacuous run is never allowed to print
+// OK. `vacuity` is optional (omitting it - the pre-existing call shape - preserves the exact prior
+// behaviour): only run-pipeline.js knows whether the vacuity clause fired, so it is passed in here
+// rather than recomputed.
+function resultLine(summary, vacuity) {
+  if (vacuity && vacuity.vacuous) {
+    return 'RESULT: FAIL - vacuous positive-control bar (caution.md C-236): zero known_breach reproduced across a complete breach lane';
+  }
   const clean = summary.contradicting === 0 && summary.errored === 0 && summary.redTeamEscapes === 0;
   return clean
     ? 'RESULT: OK (zero contradictions, zero red-team escapes among run entries)'
     : 'RESULT: FAIL - see detail above (contradiction, error row, or a red-team escape/error)';
 }
 
-function printHumanReport(stageTable, rows, redteam, summary) {
+// printHumanReport(stageTable, rows, redteam, summary, extra) -> the full human report, ending in
+// EXACTLY one RESULT line. `extra` is optional ({ totals, vacuity }): when given, the always-on
+// "reproduced: k/n" usefulness gauge and (only when it fires) the "vacuous: ..." detail line print
+// here, immediately before the final RESULT line - the true home for both the vacuity narrative and the
+// single terminal verdict (B4: "fix at the true home of resultLine"). Omitting `extra` preserves the
+// exact prior 4-argument call shape and output for any caller that has no vacuity/totals to report.
+function printHumanReport(stageTable, rows, redteam, summary, extra) {
   console.log('eval/e2e/run-pipeline: P3 exit-criteria harness (fixtureBundle -> facts -> coverage -> propose -> verify -> adjudicate -> findings)');
   console.log('stage wiring: ' + stageWiringLine(stageTable));
   console.log('');
@@ -145,8 +165,14 @@ function printHumanReport(stageTable, rows, redteam, summary) {
   const b = summary.breach || { complete: 0, errored: 0, skipped: 0 };
   console.log('         breach lane: ' + b.complete + ' complete | ' + b.errored + ' errored/timed-out | ' + b.skipped + ' skipped');
   console.log('         red-team: ' + summary.redTeamEntries + ' entries | ' + summary.redTeamEscapes + ' escaped/error');
+  const totals = extra && extra.totals;
+  const vacuity = extra && extra.vacuity;
+  if (totals) console.log('reproduced: ' + totals.reproduced + '/' + totals.total);
+  if (vacuity && vacuity.vacuous) {
+    console.log('vacuous: 0 known_breach reproduced across ' + vacuity.completeLanes + ' complete lanes');
+  }
   console.log('');
-  console.log(resultLine(summary));
+  console.log(resultLine(summary, vacuity));
 }
 
 module.exports = {

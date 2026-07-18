@@ -1,13 +1,15 @@
 'use strict';
 // eval/e2e/lib/replay-llm.test.js - node:test coverage for the replay-side implementation of the
-// frozen recorded-response contract (docs/P3-TAIL-ACCEPTANCE.md; caution.md C-211, C-236).
+// frozen recorded-response contract (docs/P3-TAIL-ACCEPTANCE.md; caution.md C-211, C-236, C-222).
 //
-// Per C-211 ("never finalise a consumer against an assumed contract of a not-yet-landed sibling; ...
-// hand-builds the candidate and does not require() the sibling"): every fixture here is hand-built.
-// This file does NOT require() eval/e2e/lib/real-llm.js or read anything under
-// eval/e2e/fixtures/recorded/ (U1's not-yet-final files) - it locks the REAL, already-landed shape of
-// breach/adjudicator/adjudicate.js, llm/entailment.js and llm/gate.js instead, driving those real
-// modules directly wherever practical.
+// P3-TAIL WAVE-2 REVISION: this suite was rewritten alongside replay-llm.js's own C-211/C-222 closure
+// (see that file's header). The adjudicate-kind key derivation moved from a law+hash(evidence+page)
+// guess parsed out of prompt text to record_id+artifactFingerprint(artifact) read off
+// request.candidates (the out-of-band ref array breach/adjudicator/adjudicate.js's callGate() now
+// attaches) - the same basis the recorder (eval/e2e/lib/real-llm.js via eval/e2e/run-real-proof.js)
+// actually computes. Per C-211 ("hand-builds the candidate and does not require() the sibling"), every
+// fixture here is still hand-built; the hermetic locks at the bottom drive the REAL, already-landed
+// breach/adjudicator/adjudicate.js end to end so the composition is genuinely proven, not assumed.
 //
 //   node --test eval/e2e/lib/replay-llm.test.js
 
@@ -20,8 +22,9 @@ const crypto = require('crypto');
 
 const {
   replayLlmCall, computeKey, fingerprintOf, adjudicateBriefKey, entailmentRequestKey,
-  briefsFromAdjudicatePrompt, loadRecordingsDir, CONTRACT, DECLINE,
+  candidateRefsFromRequest, briefsFromAdjudicatePrompt, loadRecordingsDir, CONTRACT, DECLINE,
 } = require('./replay-llm.js');
+const { artifactFingerprint } = require('./record-key.js');
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'replay-llm-test-'));
@@ -36,7 +39,8 @@ function recordingDoc(responses) {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// computeKey / fingerprintOf: the frozen contract's hash formula, exactly as documented.
+// computeKey / fingerprintOf: the frozen contract's hash formula, exactly as documented. Both now
+// delegate to eval/e2e/lib/record-key.js; these tests prove the PUBLIC behaviour is unchanged.
 // ---------------------------------------------------------------------------------------------------
 
 test('computeKey: matches sha256(kind + "|" + rule_id + "|" + artifact_fingerprint) exactly', () => {
@@ -66,9 +70,9 @@ test('fingerprintOf: deterministic sha256 hex of the given text, empty-safe', ()
 });
 
 // ---------------------------------------------------------------------------------------------------
-// briefsFromAdjudicatePrompt: parsing the embedded CANDIDATES: block, exactly as
-// breach/adjudicator/adjudicate.js's buildPrompt() frames it (read verbatim from that file's source -
-// see replay-llm.js's header). Hand-built prompt strings only; adjudicate.js is not require()'d here.
+// briefsFromAdjudicatePrompt: RETAINED as a correct, standalone description of the CANDIDATES prompt
+// text framing (still exactly what breach/adjudicator/adjudicate.js's buildPrompt() emits) - no longer
+// this file's key-derivation path (see replay-llm.js's header), but still real and still tested.
 // ---------------------------------------------------------------------------------------------------
 
 function fakeAdjudicatePrompt(briefs) {
@@ -120,27 +124,48 @@ test('briefsFromAdjudicatePrompt: null/undefined/non-string prompt never throws'
 });
 
 // ---------------------------------------------------------------------------------------------------
-// adjudicateBriefKey / entailmentRequestKey: deriving (rule_id, artifact_fingerprint) from what the
-// adjudication path actually exposes.
+// candidateRefsFromRequest: reading the out-of-band request.candidates array.
 // ---------------------------------------------------------------------------------------------------
 
-test('adjudicateBriefKey: same (law, evidence, page) -> same key; any field changing -> a different key', () => {
-  const base = { law: 'UK GDPR', evidence: 'VERBATIM FROM THE SITE: "we sell your data"', page: 'https://x.test/privacy' };
-  const k1 = adjudicateBriefKey(base);
-  const k2 = adjudicateBriefKey({ ...base });
-  const k3 = adjudicateBriefKey({ ...base, law: 'PECR' });
-  const k4 = adjudicateBriefKey({ ...base, evidence: 'different quote' });
-  const k5 = adjudicateBriefKey({ ...base, page: 'https://x.test/other' });
-  assert.strictEqual(k1, k2);
-  assert.notStrictEqual(k1, k3);
-  assert.notStrictEqual(k1, k4);
-  assert.notStrictEqual(k1, k5);
+test('candidateRefsFromRequest: reads a well-formed candidates array straight through', () => {
+  const refs = [{ id: 0, record_id: 'R', artifact: { type: 'quote' } }];
+  assert.deepStrictEqual(candidateRefsFromRequest({ candidates: refs }), refs);
 });
 
-test('adjudicateBriefKey: tolerates a missing/undefined brief without throwing', () => {
+test('candidateRefsFromRequest: absent/malformed candidates fails closed to []', () => {
+  assert.deepStrictEqual(candidateRefsFromRequest({}), []);
+  assert.deepStrictEqual(candidateRefsFromRequest({ candidates: 'not-an-array' }), []);
+  assert.deepStrictEqual(candidateRefsFromRequest(null), []);
+  assert.deepStrictEqual(candidateRefsFromRequest(undefined), []);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// adjudicateBriefKey: NOW derived from {record_id, artifact} - the recorder's own basis (C-211/C-222).
+// ---------------------------------------------------------------------------------------------------
+
+test('adjudicateBriefKey: same (record_id, artifact) -> same key; either field changing -> a different key', () => {
+  const artifact = { type: 'quote', text: 'we sell your data', surface: 'visible_text' };
+  const base = { record_id: 'UK_GDPR_ART5', artifact };
+  const k1 = adjudicateBriefKey(base);
+  const k2 = adjudicateBriefKey({ record_id: 'UK_GDPR_ART5', artifact: { surface: 'visible_text', text: 'we sell your data', type: 'quote' } }); // key order differs, value identical
+  const k3 = adjudicateBriefKey({ ...base, record_id: 'PECR_REG6' });
+  const k4 = adjudicateBriefKey({ ...base, artifact: { type: 'quote', text: 'different quote', surface: 'visible_text' } });
+  assert.strictEqual(k1, k2, 'artifact key order must not change the key (stableStringify)');
+  assert.notStrictEqual(k1, k3);
+  assert.notStrictEqual(k1, k4);
+  assert.strictEqual(k1, computeKey('adjudicate', 'UK_GDPR_ART5', artifactFingerprint(artifact)), 'must match the shared record-key.js formula directly');
+});
+
+test('adjudicateBriefKey: tolerates a missing/undefined ref without throwing (fail-closed, not a crash)', () => {
   assert.doesNotThrow(() => adjudicateBriefKey(undefined));
   assert.doesNotThrow(() => adjudicateBriefKey({}));
+  assert.match(adjudicateBriefKey({}), /^[0-9a-f]{64}$/, 'still yields a real (if unlikely-to-match) key');
 });
+
+// ---------------------------------------------------------------------------------------------------
+// entailmentRequestKey: UNCHANGED mechanism (source_id + premise text), now routed through the shared
+// hashing primitives - these tests prove the public VALUES are identical to before the refactor.
+// ---------------------------------------------------------------------------------------------------
 
 test('entailmentRequestKey: derived from allowedSourceIds[0] + sources[thatId], deterministic', () => {
   const req = { allowedSourceIds: ['https://x.test/p'], sources: { 'https://x.test/p': 'we drop cookies before consent' } };
@@ -201,26 +226,30 @@ test('loadRecordingsDir: throws loudly on a response entry with no string key', 
 
 // ---------------------------------------------------------------------------------------------------
 // replayLlmCall: the (request) => Promise<response> factory, direct unit behaviour (hit/decline for
-// both kinds), in isolation from the real adjudicator.
+// both kinds), in isolation from the real adjudicator. Adjudicate-kind requests are now built via
+// request.candidates (the new out-of-band mechanism), not the prompt text.
 // ---------------------------------------------------------------------------------------------------
 
-test('replayLlmCall: an adjudicate-kind request with NO matching brief key declines the whole call', async () => {
+function candRef(id, recordId, artifact) {
+  return { id, record_id: recordId, artifact };
+}
+
+test('replayLlmCall: an adjudicate-kind request with NO matching candidate ref declines the whole call', async () => {
   const dir = tmpDir(); // empty: nothing recorded
   const llmCall = replayLlmCall(dir);
-  const prompt = fakeAdjudicatePrompt([{ id: 0, law: 'UK GDPR', evidence: 'quote', page: 'https://x.test/p' }]);
-  const res = await llmCall({ prompt });
+  const res = await llmCall({ prompt: fakeAdjudicatePrompt([{ id: 0 }]), candidates: [candRef(0, 'UK_GDPR', { type: 'quote', text: 'quote' })] });
   assert.deepStrictEqual(res, DECLINE);
 });
 
-test('replayLlmCall: an adjudicate-kind request with a matching brief key returns a verdict for that id', async () => {
+test('replayLlmCall: an adjudicate-kind request with a matching candidate ref returns a verdict for that id', async () => {
   const dir = tmpDir();
-  const brief = { id: 0, law: 'UK GDPR', evidence: 'quote text', page: 'https://x.test/p' };
-  const key = adjudicateBriefKey(brief);
+  const ref = candRef(0, 'UK_GDPR', { type: 'quote', text: 'quote text', page_url: 'https://x.test/p' });
+  const key = adjudicateBriefKey(ref);
   writeRecordingFile(dir, 'rec.json', recordingDoc([
     { key, kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'matches', disproof: null }), meta: null },
   ]));
   const llmCall = replayLlmCall(dir);
-  const res = await llmCall({ prompt: fakeAdjudicatePrompt([brief]) });
+  const res = await llmCall({ prompt: fakeAdjudicatePrompt([{ id: 0 }]), candidates: [ref] });
   assert.strictEqual(res.ok, true);
   assert.strictEqual(res.out.verdicts.length, 1);
   assert.strictEqual(res.out.verdicts[0].verdict, 'breach');
@@ -229,21 +258,27 @@ test('replayLlmCall: an adjudicate-kind request with a matching brief key return
 
 test('replayLlmCall: within one batch, a hit and a miss coexist - the miss gets no verdict entry (per-candidate fail-closed, not whole-batch)', async () => {
   const dir = tmpDir();
-  const briefHit = { id: 0, law: 'UK GDPR', evidence: 'quote text', page: 'https://x.test/p' };
-  const briefMiss = { id: 1, law: 'PECR', evidence: 'other quote', page: 'https://x.test/q' };
+  const refHit = candRef(0, 'UK_GDPR', { type: 'quote', text: 'quote text' });
+  const refMiss = candRef(1, 'PECR', { type: 'quote', text: 'other quote' });
   writeRecordingFile(dir, 'rec.json', recordingDoc([
-    { key: adjudicateBriefKey(briefHit), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'matches', disproof: null }) },
+    { key: adjudicateBriefKey(refHit), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'matches', disproof: null }) },
   ]));
   const llmCall = replayLlmCall(dir);
-  const res = await llmCall({ prompt: fakeAdjudicatePrompt([briefHit, briefMiss]) });
+  const res = await llmCall({ prompt: fakeAdjudicatePrompt([{ id: 0 }, { id: 1 }]), candidates: [refHit, refMiss] });
   assert.strictEqual(res.ok, true);
   assert.strictEqual(res.out.verdicts.length, 1, 'only the recorded candidate gets a verdict entry; the missing one is simply absent, so the adjudicator abstains just that id');
   assert.strictEqual(res.out.verdicts[0].id, 0);
 });
 
-test('replayLlmCall: an adjudicate-kind request whose prompt has no parseable CANDIDATES block declines', async () => {
+test('replayLlmCall: an adjudicate-kind request with no request.candidates at all declines (fail-closed)', async () => {
   const llmCall = replayLlmCall(tmpDir());
   const res = await llmCall({ prompt: 'nothing recognisable here' });
+  assert.deepStrictEqual(res, DECLINE);
+});
+
+test('replayLlmCall: an adjudicate-kind request with an EMPTY request.candidates array declines', async () => {
+  const llmCall = replayLlmCall(tmpDir());
+  const res = await llmCall({ prompt: fakeAdjudicatePrompt([]), candidates: [] });
   assert.deepStrictEqual(res, DECLINE);
 });
 
@@ -277,37 +312,34 @@ test('replayLlmCall: an entailment-kind request with NO matching key declines', 
 
 test('replayLlmCall: recordings are loaded once per factory call (a second, unrelated dir does not leak in)', async () => {
   const dirA = tmpDir();
-  const brief = { id: 0, law: 'UK GDPR', evidence: 'quote text', page: 'https://x.test/p' };
+  const ref = candRef(0, 'UK_GDPR', { type: 'quote', text: 'quote text' });
   writeRecordingFile(dirA, 'rec.json', recordingDoc([
-    { key: adjudicateBriefKey(brief), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'x', disproof: null }) },
+    { key: adjudicateBriefKey(ref), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'x', disproof: null }) },
   ]));
   const dirB = tmpDir(); // empty
   const llmCallA = replayLlmCall(dirA);
   const llmCallB = replayLlmCall(dirB);
-  const req = { prompt: fakeAdjudicatePrompt([brief]) };
+  const req = { prompt: fakeAdjudicatePrompt([{ id: 0 }]), candidates: [ref] };
   assert.strictEqual((await llmCallA(req)).ok, true);
   assert.deepStrictEqual(await llmCallB(req), DECLINE);
 });
 
 // ---------------------------------------------------------------------------------------------------
-// U2-B1: end-to-end against the REAL, unmodified breach/adjudicator/adjudicate.js (and, as a sanity
-// check, breach/verifiers/ too) - a hand-built candidate approved by a hand-built recording reproduces
-// as a genuine 'violation', through the real adjudicator, the real Rule-12-gate-3 entailment call, and
-// the real llm/gate.js structural gate. This is the hermetic proof docs/P3-TAIL-ACCEPTANCE.md U2-B1
-// asks for: "a hand-built recording approving the synthetic breach lets a replay run reproduce >= 1".
+// U2-B1 / B-B2: end-to-end against the REAL, unmodified breach/adjudicator/adjudicate.js (and, as a
+// sanity check, breach/verifiers/ too) - a hand-built candidate approved by a hand-built recording
+// reproduces as a genuine 'violation', through the real adjudicator, the real Rule-12-gate-3
+// entailment call, and the real llm/gate.js structural gate. This is the hermetic proof
+// docs/P3-TAIL-ACCEPTANCE.md's Wave-2 amendment B-B2 asks for: with a hand-built recording approving a
+// synthetic-shaped candidate, the canonical replay path reproduces >= 1 THROUGH the real pipeline
+// pieces (here: directly through adjudicate.js; eval/e2e/run-pipeline.test.js separately proves the
+// same thing at the CLI/pipeline.js level).
 //
-// The candidate below carries BOTH breach/proposers/propose.js's real candidate() fields (record_id,
-// duty_idx, evidence_type, kind, artifact, page_url, confidence_hint, suppressed_reason) AND the
-// fields breach/adjudicator/adjudicate.js's briefOf()/evidenceText()/claimFor() actually read
-// (description, framework, evidence_quote, evidence_url) - the latter group is NOT produced by the
-// real, landed propose.js today (grep-verified: statutory_citation/evidence_quote/checked_urls appear
-// nowhere in breach/ or evidence/ except this adjudicate.js reader and one calibration fixture), so a
-// REAL end-to-end run would hand the model a constant, near-empty brief regardless of which rule
-// fired. That gap is documented in replay-llm.js's own header and routed to Rob (C-214); it is not
-// this unit's file to fix (propose.js/adjudicate.js are engine modules). Hand-adding those fields here
-// is exactly the C-211 discipline: this test does not require() propose.js's wiring, it locks the
-// REAL shape adjudicate.js's prompt-builder already reads.
-test('U2-B1: a hand-built recording approving a hand-built candidate reproduces as violation through the REAL adjudicator', async (t) => {
+// Because the key is now record_id+artifact (read off request.candidates, which
+// breach/adjudicator/adjudicate.js's own callGate() attaches), this test no longer needs to hand-mirror
+// briefOf()'s exact prompt-text construction (law/evidence/page derivation) to compute a matching key -
+// it only needs the candidate's own record_id and artifact, which are already directly on the
+// hand-built candidate. This is a direct, intended consequence of the C-211/C-222 unification.
+test('U2-B1/B-B2: a hand-built recording approving a hand-built candidate reproduces as violation through the REAL adjudicator', async (t) => {
   const { adjudicate } = require('../../../breach/adjudicator/adjudicate.js');
   const { verifyCandidate } = require('../../../breach/verifiers/index.js');
 
@@ -333,7 +365,8 @@ test('U2-B1: a hand-built recording approving a hand-built candidate reproduces 
     page_url: 'https://replay-hermetic.test/claims',
     confidence_hint: 'strong',
     suppressed_reason: null,
-    // fields adjudicate.js's briefOf()/evidenceText()/claimFor() read (see this test's header comment):
+    // fields adjudicate.js's briefOf()/evidenceText()/claimFor() read (the catalogue-enrichment join,
+    // eval/e2e/lib/pipeline.js's B2 addition, or eval/e2e/run-real-proof.js's own enrichCandidate):
     description: 'Guarantee-of-outcome claim for legal services (synthetic test obligation, harness self-test only, not a real law).',
     framework: 'synthetic replay-llm test framework (harness self-test only)',
     evidence_quote: 'We guarantee you will win every case, no exceptions',
@@ -345,16 +378,8 @@ test('U2-B1: a hand-built recording approving a hand-built candidate reproduces 
   const verified = verifyCandidate(candidate, bundle);
   assert.strictEqual(verified.verified, true, 'the hand-built candidate must genuinely verify: ' + verified.reason);
 
-  // What breach/adjudicator/adjudicate.js's OWN briefOf()/briefLaw() will derive from this candidate
-  // (hand-computed here per C-211, matching that file's read-only source exactly - see replay-llm.js's
-  // header): law = framework (statutory_citation is unset); evidence = the verbatim-quote framing;
-  // page = evidence_url.
-  const expectedBrief = {
-    law: 'synthetic replay-llm test framework (harness self-test only)',
-    evidence: 'VERBATIM FROM THE SITE: "We guarantee you will win every case, no exceptions"',
-    page: 'https://replay-hermetic.test/claims',
-  };
-  const adjudicateKey = adjudicateBriefKey(expectedBrief);
+  // The key the REAL recorder would compute for this candidate: record_id + artifactFingerprint(artifact).
+  const adjudicateKey = adjudicateBriefKey({ record_id: candidate.record_id, artifact: candidate.artifact });
 
   // What llm/entailment.js's callModel() will build for the gate-3 NLI call after a 'breach' verdict:
   // allowedSourceIds[0] = evidence_url (claimFor's premiseSourceId reads evidence_url before
@@ -412,4 +437,24 @@ test('U2-B1 (decline direction): the SAME candidate with NO recording present ab
   assert.strictEqual(findings.length, 1);
   assert.strictEqual(findings[0].state, 'needs_review');
   assert.notStrictEqual(findings[0].state, 'violation');
+});
+
+test('B-B1/B-B2 companion: a DIFFERENT record_id or artifact on the SAME candidate is a genuine miss (the key is not vacuously permissive)', async () => {
+  const { adjudicate } = require('../../../breach/adjudicator/adjudicate.js');
+  const bundle = {
+    domain: 'replay-hermetic-wrongkey.test',
+    corpus: { pages: [{ url: 'https://replay-hermetic-wrongkey.test/claims', text: 'We guarantee you will win every case, no exceptions.' }] },
+  };
+  const candidate = {
+    record_id: 'REPLAY-TEST-RULE', artifact: { type: 'quote', text: 'We guarantee you will win every case, no exceptions', surface: 'visible_text' },
+    page_url: 'https://replay-hermetic-wrongkey.test/claims',
+    description: 'Guarantee-of-outcome claim.', framework: 'fw',
+    evidence_quote: 'We guarantee you will win every case, no exceptions', evidence_url: 'https://replay-hermetic-wrongkey.test/claims',
+  };
+  // A recording keyed under a DIFFERENT record_id must not accidentally match.
+  const wrongKey = adjudicateBriefKey({ record_id: 'SOME-OTHER-RULE', artifact: candidate.artifact });
+  const dir = tmpDir();
+  writeRecordingFile(dir, 'x.json', recordingDoc([{ key: wrongKey, kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach' }) }]));
+  const { findings } = await adjudicate([candidate], bundle, { llmCall: replayLlmCall(dir) });
+  assert.strictEqual(findings[0].state, 'needs_review', 'a recording keyed under a different record_id must not match');
 });

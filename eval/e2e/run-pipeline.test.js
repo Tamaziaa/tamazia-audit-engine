@@ -392,6 +392,15 @@ test('pipelineOptsFrom: the attached replay llmCall declines when the directory 
 // eval/e2e/lib/replay-llm.test.js's own direct proof against the bare adjudicator.
 // =====================================================================================================
 
+// replayHermeticFixture() -> { bundle, candidate, catalogueRecord, expected }. P3-tail Wave-2 Builder B
+// note: `candidate` is deliberately BARE-shaped on its catalogue-derived fields would be if
+// eval/e2e/lib/pipeline.js's own enrichment join (B2) had not yet run - it still carries pre-set
+// description/framework/evidence_quote here ONLY so a caller that bypasses runPipeline can drive
+// adjudicate directly; any caller that goes through the real runPipeline() (as both tests below do) now
+// has those same fields RE-DERIVED by pipeline.js's join from `catalogueRecord` (matched by
+// candidate.record_id), which is why catalogueRecord's own name/duty text below are kept IDENTICAL to
+// the candidate's pre-set framework/description - the join is expected to reproduce them, not silently
+// blank them (a mismatch here would itself signal the enrichment join is not wired for this path).
 function replayHermeticFixture() {
   const bundle = {
     domain: 'cli-replay-hermetic.test',
@@ -413,8 +422,18 @@ function replayHermeticFixture() {
     evidence_quote: 'We guarantee you will win every case, no exceptions',
     evidence_url: 'https://cli-replay-hermetic.test/claims',
   };
+  // The compiled-catalogue-shaped record eval/e2e/lib/pipeline.js's enrichVerifiedCandidates() joins
+  // this candidate against (by record_id) once it runs for real inside runPipeline() below - without
+  // this, the join would find no record for a synthetic test id and (correctly, per Rule 2) degrade the
+  // candidate's description/framework to empty, which would make this hermetic test prove nothing.
+  const catalogueRecord = {
+    id: candidate.record_id,
+    name: candidate.framework,
+    website_obligations: [{ duty: candidate.description }],
+    citation: {},
+  };
   const expected = { known_breaches: [{ id: 'CLI-REPLAY-1', framework: candidate.framework, match_any: ['guarantee you will win every case'] }] };
-  return { bundle, candidate, expected };
+  return { bundle, candidate, catalogueRecord, expected };
 }
 
 function writeReplayRecording(dir, filename, responses) {
@@ -424,15 +443,14 @@ function writeReplayRecording(dir, filename, responses) {
 }
 
 test('U2-B1 (CLI level): a hand-built recording approving the synthetic breach lets a replay run reproduce >= 1 and exit 0', async () => {
-  const { bundle, candidate, expected } = replayHermeticFixture();
+  const { bundle, candidate, catalogueRecord, expected } = replayHermeticFixture();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-cli-replay-hit-'));
-  const brief = {
-    law: candidate.framework,
-    evidence: 'VERBATIM FROM THE SITE: "' + candidate.evidence_quote + '"',
-    page: candidate.evidence_url,
-  };
+  // P3-tail Wave-2 Builder B (C-211/C-222 closure): the recording key is now record_id +
+  // artifactFingerprint(artifact) - the recorder's own basis - read by replay-llm.js off
+  // request.candidates (breach/adjudicator/adjudicate.js's callGate() attaches it), not derived from a
+  // hand-mirrored law/evidence/page prompt-text brief.
   writeReplayRecording(dir, 'cli-replay-hermetic.test.json', [
-    { key: adjudicateBriefKey(brief), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'guarantees an outcome', disproof: null }) },
+    { key: adjudicateBriefKey({ record_id: candidate.record_id, artifact: candidate.artifact }), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'guarantees an outcome', disproof: null }) },
     {
       key: entailmentRequestKey({ allowedSourceIds: [candidate.evidence_url], sources: { [candidate.evidence_url]: candidate.evidence_quote } }),
       kind: 'entailment',
@@ -440,7 +458,12 @@ test('U2-B1 (CLI level): a hand-built recording approving the synthetic breach l
     },
   ]);
 
-  const pipelineOpts = { proposeLoaded: { available: true, run: () => [candidate] }, llmCall: replayLlmCall(dir) };
+  // catalogueRecords: [catalogueRecord] - explicit and hermetic (C-211: never rely on the real 92-record
+  // compiled catalogue for a synthetic test id). Also proves eval/e2e/lib/pipeline.js's B2 enrichment
+  // join is genuinely wired into this exact CLI path: runOneSynthetic -> runPipeline ->
+  // runBreachLaneInProcess now re-derives description/framework/evidence_quote from this record before
+  // the real adjudicator runs, and this test still reproduces - the join did not have to be bypassed.
+  const pipelineOpts = { proposeLoaded: { available: true, run: () => [candidate] }, catalogueRecords: [catalogueRecord], llmCall: replayLlmCall(dir) };
   const row = await runOneSynthetic({ domain: bundle.domain, role: 'synthetic', bundle, expected }, pipelineOpts);
 
   assert.strictEqual(row.error, undefined);
@@ -455,11 +478,11 @@ test('U2-B1 (CLI level): a hand-built recording approving the synthetic breach l
 });
 
 test('U2-B1 (miss direction, CLI level): the SAME hermetic setup with an EMPTY replay directory misses (lane complete, nothing recorded) and trips the vacuity clause -> exit 1', async () => {
-  const { bundle, candidate, expected } = replayHermeticFixture();
+  const { bundle, candidate, catalogueRecord, expected } = replayHermeticFixture();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-cli-replay-miss-'));
   // dir is left empty: no recordings at all -> every candidate abstains (fail-closed decline).
 
-  const pipelineOpts = { proposeLoaded: { available: true, run: () => [candidate] }, llmCall: replayLlmCall(dir) };
+  const pipelineOpts = { proposeLoaded: { available: true, run: () => [candidate] }, catalogueRecords: [catalogueRecord], llmCall: replayLlmCall(dir) };
   const row = await runOneSynthetic({ domain: bundle.domain, role: 'synthetic', bundle, expected }, pipelineOpts);
 
   assert.strictEqual(row.error, undefined);
