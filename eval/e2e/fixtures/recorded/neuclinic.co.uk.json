@@ -1,0 +1,16 @@
+{
+  "contract": "recorded-llm.v1",
+  "engine": {
+    "providers": [
+      "cloudflare",
+      "groq",
+      "nim",
+      "gemini"
+    ],
+    "recorded_at": "2026-07-18",
+    "prompt_versions": {},
+    "domain": "neuclinic.co.uk",
+    "note": "no breach-path LLM call recorded (propose produced 0 verifiable candidate(s); 133 suppressed upstream)"
+  },
+  "responses": []
+}
