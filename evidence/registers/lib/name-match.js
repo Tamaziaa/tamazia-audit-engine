@@ -1,5 +1,5 @@
 'use strict';
-// evidence/registers/lib/name-match.js — the ONE name-match algorithm every register module in this
+// evidence/registers/lib/name-match.js: the ONE name-match algorithm every register module in this
 // directory shares (Constitution C-004): a register row may be returned ONLY on a genuine name match
 // against the query, never merely because an API answered HTTP 200 with a non-empty body. Ported and
 // strengthened from the old estate's register-check.js / register-grounding.js, which accepted ANY
@@ -22,8 +22,8 @@
 //  - A register variant carrying one extra token the query lacks (a common real shape: the query is a
 //    shortened trading name and the register row spells out a fuller form) still clears the threshold
 //    with margin: two shared tokens out of a three-token union scores 0.667.
-//  - A two-word query sharing only its FIRST word with an unrelated two-word candidate — the
-//    "Kingsley Napley LLP" vs "Kingsley Carpets Ltd" class this module exists to reject — scores
+//  - A two-word query sharing only its FIRST word with an unrelated two-word candidate (the
+//    "Kingsley Napley LLP" vs "Kingsley Carpets Ltd" class this module exists to reject) scores
 //    0.333 (one shared token out of a three-token union), comfortably below the threshold.
 //  - 0.6 sits in the gap between these two real shapes with margin on both sides; it is not tuned to
 //    a single fixture value. See name-match.test.js and the eval/calibration-known-bad/fixtures/
@@ -133,14 +133,14 @@ function bestCandidate(queryName, candidates, nameOf) {
   };
 }
 
-// A minimal, LOCAL, non-authoritative fallback query seed derived from a domain — NOT the identity
+// A minimal, LOCAL, non-authoritative fallback query seed derived from a domain, NOT the identity
 // fact (facts/identity.js is the one door for display_name/legal_name, Constitution Rule 1; this
 // module never calls it, avoiding an evidence-to-facts-module dependency). Used only to give a
 // register search something to query when no company-name hint exists yet: P3 evidence collection
 // runs BEFORE identity resolution, not after. Shares its two-level-suffix handling (co.uk, org.uk,
 // ...) with facts/identity.js's own domainStem by reading the SAME vocabulary door
 // (facts/vocabulary.js's PUBLIC_SUFFIX_SECOND_LEVEL) rather than re-declaring a second copy of that
-// list — the list has one door; this is a second, independent algorithm over it, not a second door
+// list; the list has one door. This is a second, independent algorithm over it, not a second door
 // for a fact.
 const PUB2 = new Set((PUBLIC_SUFFIX_SECOND_LEVEL || []).map((x) => String(x).toLowerCase()));
 function domainStemFallback(domain) {
