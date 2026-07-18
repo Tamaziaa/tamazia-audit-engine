@@ -29,6 +29,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const safePath = require('../../tools/lib/safe-path');
+
 const GOLDENS_DIR = path.join(__dirname, 'goldens');
 const FRESH_DIR = path.join(__dirname, 'fresh');
 const MAX_DIFFS_PRINTED = 40;
@@ -126,8 +128,12 @@ function parseArgs(argv) {
   const opts = { fresh: FRESH_DIR, goldens: GOLDENS_DIR, accept: false, acceptCells: [], json: false };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === '--fresh') { opts.fresh = path.resolve(args[++i]); continue; }
-    if (a === '--goldens') { opts.goldens = path.resolve(args[++i]); continue; }
+    // --fresh/--goldens name an operator-chosen directory that may legitimately be absolute (an
+    // fs.mkdtempSync() tmp dir in tests, or any path an operator picks locally): resolveSafeScanPath
+    // covers both (absolute used directly, a relative one resolved against cwd, matching
+    // path.resolve()'s single-argument behaviour) while still refusing a ".." traversal segment.
+    if (a === '--fresh') { opts.fresh = safePath.resolveSafeScanPath(process.cwd(), args[++i], { label: '--fresh' }); continue; }
+    if (a === '--goldens') { opts.goldens = safePath.resolveSafeScanPath(process.cwd(), args[++i], { label: '--goldens' }); continue; }
     if (a === '--json') { opts.json = true; continue; }
     if (a === '--accept') { i = consumeAcceptCells(args, i, opts); continue; }
     console.error(`Unknown argument: ${a}`);
@@ -157,8 +163,10 @@ function resolveWantedCells(opts, freshFiles) {
 function writeAcceptedGoldens(opts, wanted) {
   fs.mkdirSync(opts.goldens, { recursive: true });
   for (const f of wanted) {
-    const data = JSON.parse(fs.readFileSync(path.join(opts.fresh, f), 'utf8'));
-    fs.writeFileSync(path.join(opts.goldens, f), `${JSON.stringify(data, null, 2)}\n`);
+    // f is always a "<cell>.payload.json" filename from listGoldens()'s fs.readdirSync() output: a
+    // safe single PATH COMPONENT, so safeJoin makes that validation visible at the site.
+    const data = JSON.parse(fs.readFileSync(safePath.safeJoin(opts.fresh, [f], { label: 'golden fresh file' }), 'utf8'));
+    fs.writeFileSync(safePath.safeJoin(opts.goldens, [f], { label: 'golden accept target' }), `${JSON.stringify(data, null, 2)}\n`);
     console.log(`ACCEPTED ${f} (fresh -> golden)`);
   }
 }
@@ -182,8 +190,9 @@ function runAccept(opts) {
 // regression error, an unreadable-JSON error, or a diffs[]/byClass tally).
 function compareCell(f, opts) {
   const cell = f.replace(/\.payload\.json$/, '');
-  const goldenPath = path.join(opts.goldens, f);
-  const freshPath = path.join(opts.fresh, f);
+  // f is always a "<cell>.payload.json" filename from listGoldens()'s fs.readdirSync() output.
+  const goldenPath = safePath.safeJoin(opts.goldens, [f], { label: 'golden compare target' });
+  const freshPath = safePath.safeJoin(opts.fresh, [f], { label: 'golden compare target' });
   const entry = { cell, diffs: [], byClass: {}, error: null };
   if (!fs.existsSync(freshPath)) {
     entry.error = `no fresh build output at ${freshPath} - a pinned cell with no fresh counterpart is a coverage regression`;

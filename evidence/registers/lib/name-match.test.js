@@ -31,6 +31,21 @@ test('an ampersand and a legal suffix normalise the same way on both sides', () 
   assert.ok(isNameMatch('Marks & Spencer plc', 'Marks and Spencer PLC'));
 });
 
+test('a legal-suffix WORD used mid-name is NOT stripped (only TRAILING suffixes are entity suffixes)', () => {
+  // "Limited" here is part of the trading name, not an entity suffix. Stripping it anywhere (the old
+  // global behaviour) would collapse "Limited Edition Design" onto "Edition Design" and could match an
+  // unrelated company. The trailing-anchored strip keeps the leading "limited" as a real name token.
+  assert.equal(nameMatch.normaliseName('Limited Edition Design'), 'limited edition design');
+  assert.equal(nameMatch.normaliseName('Limited Edition Design Ltd'), 'limited edition design', 'a TRAILING Ltd is still stripped');
+  // and two distinct companies sharing only the trailing suffix do not collapse together:
+  assert.equal(isNameMatch('Limited Edition Design', 'Napley Solicitors Ltd'), false);
+});
+
+test('domainStemFallback ignores credentials/port in the URL (parsed via the one URL-safe door, Rule 5)', () => {
+  assert.equal(domainStemFallback('https://user:pass@kingsleynapley.co.uk:8443/x'), 'kingsleynapley');
+  assert.equal(domainStemFallback('HTTP://WWW.Example.COM'), 'example');
+});
+
 test('empty or whitespace-only candidate never matches (no divide-by-zero, no crash)', () => {
   const r = scoreMatch('Kingsley Napley LLP', '');
   assert.equal(r.score, 0);

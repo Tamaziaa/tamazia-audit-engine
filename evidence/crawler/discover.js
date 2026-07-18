@@ -117,9 +117,13 @@ function guessedPaths(accepted) {
 // TIER-1-FIRST and THEN capped (C-026): the homepage leads, then Tier-1 (legal), Tier-2 (commercial),
 // blog, other; a stable sort preserves discovery order within a tier; the cap is applied LAST so Tier-1
 // survives even when it was discovered last and the cap is smaller than the candidate count.
-function orderCandidates(homeUrl, discovered, accepted, maxPages) {
-  const homeKey = normaliseUrl(homeUrl);
-  const pool = [homeUrl, ...guessedPaths(accepted), ...(discovered || [])];
+// rankFor(url, homeKey) -> the homepage always ranks 0; everything else ranks by its crawl tier.
+function rankFor(url, homeKey) {
+  return normaliseUrl(url) === homeKey ? 0 : TIER_RANK[classifyTier(url)];
+}
+// collectRanked(pool, accepted, homeKey) -> same-site, deduped {url, rank} entries in discovery order.
+// Split out of orderCandidates so the accumulation loop is its own single-purpose unit.
+function collectRanked(pool, accepted, homeKey) {
   const seen = new Set();
   const ranked = [];
   for (const u of pool) {
@@ -127,11 +131,16 @@ function orderCandidates(homeUrl, discovered, accepted, maxPages) {
     const key = normaliseUrl(u);
     if (seen.has(key)) continue;
     seen.add(key);
-    ranked.push({ url: u, rank: key === homeKey ? 0 : TIER_RANK[classifyTier(u)] });
+    ranked.push({ url: u, rank: rankFor(u, homeKey) });
   }
+  return ranked;
+}
+function orderCandidates(homeUrl, discovered, accepted, maxPages) {
+  const homeKey = normaliseUrl(homeUrl);
+  const pool = [homeUrl, ...guessedPaths(accepted), ...(discovered || [])];
+  const ranked = collectRanked(pool, accepted, homeKey);
   ranked.sort((a, b) => a.rank - b.rank); // stable in Node: ties keep discovery order
-  const capped = ranked.slice(0, maxPages).map((r) => r.url);
-  return capped;
+  return ranked.slice(0, maxPages).map((r) => r.url);
 }
 
 module.exports = {

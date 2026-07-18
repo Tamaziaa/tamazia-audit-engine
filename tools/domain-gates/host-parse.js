@@ -51,34 +51,54 @@ const FORCE_REFUSE = process.env.HOST_PARSE_ENGINE === 'refuse';
 const useAcorn = Boolean(acorn) && !FORCE_REFUSE;
 
 // ── acorn: collect every CallExpression node (compact generic walk, positions preserved) ──────────────
+// isTraversalMetaKey/collectCallsWalk are named top-level functions (not a nested IIFE) so the walk's
+// own decision count is not folded into collectCalls (the health-gate Complex Method/Bumpy Road caps).
+function isTraversalMetaKey(k) {
+  return k === 'loc' || k === 'start' || k === 'end';
+}
+function collectCallsWalk(n, out) {
+  if (!n || typeof n !== 'object') return;
+  if (Array.isArray(n)) { for (const x of n) collectCallsWalk(x, out); return; }
+  if (typeof n.type !== 'string') return;
+  if (n.type === 'CallExpression') out.push(n);
+  for (const k of Object.keys(n)) { if (!isTraversalMetaKey(k)) collectCallsWalk(n[k], out); }
+}
 function collectCalls(root) {
   const out = [];
-  (function walk(n) {
-    if (!n || typeof n !== 'object') return;
-    if (Array.isArray(n)) { for (const x of n) walk(x); return; }
-    if (typeof n.type !== 'string') return;
-    if (n.type === 'CallExpression') out.push(n);
-    for (const k of Object.keys(n)) { if (k !== 'loc' && k !== 'start' && k !== 'end') walk(n[k]); }
-  })(root);
+  collectCallsWalk(root, out);
   return out;
 }
 
+// isHostMemberAccess(arg) -> true when arg is a MemberExpression with an Identifier property. Named so
+// the conjunction is not its own "Complex Conditional" inline in isHostishArg.
+function isHostMemberAccess(arg) {
+  return arg.type === 'MemberExpression' && arg.property && arg.property.type === 'Identifier';
+}
+function isHostnameLiteral(arg) {
+  return typeof arg.value === 'string' && HOSTNAME_LITERAL_RX.test(arg.value);
+}
 // isHostishArg(arg) -> true when `arg` names a HOST value (an identifier, a .hostname/.host/.domain
 // member, or a bare-hostname literal). This is what turns a generic string search into a host test.
 function isHostishArg(arg) {
   if (!arg || typeof arg !== 'object') return false;
   if (arg.type === 'Identifier') return HOST_IDENT_RX.test(arg.name);
-  if (arg.type === 'MemberExpression' && arg.property && arg.property.type === 'Identifier') {
-    return HOST_MEMBER_RX.test(arg.property.name);
-  }
-  if (arg.type === 'Literal') return typeof arg.value === 'string' && HOSTNAME_LITERAL_RX.test(arg.value);
+  if (isHostMemberAccess(arg)) return HOST_MEMBER_RX.test(arg.property.name);
+  if (arg.type === 'Literal') return isHostnameLiteral(arg);
   return false;
 }
 
+// isInvalidMemberCallee/hasNoIdentifierProperty split the two guard conditions of searchMethodName so
+// neither multi-term test is inline (the health-gate "Complex Conditional" cap).
+function isInvalidMemberCallee(callee) {
+  return !callee || callee.type !== 'MemberExpression' || callee.computed;
+}
+function hasNoIdentifierProperty(callee) {
+  return !callee.property || callee.property.type !== 'Identifier';
+}
 // searchMethodName(callee) -> the string-search method name (.includes etc.) this call invokes, or null.
 function searchMethodName(callee) {
-  if (!callee || callee.type !== 'MemberExpression' || callee.computed) return null;
-  if (!callee.property || callee.property.type !== 'Identifier') return null;
+  if (isInvalidMemberCallee(callee)) return null;
+  if (hasNoIdentifierProperty(callee)) return null;
   return SEARCH_METHODS.has(callee.property.name) ? callee.property.name : null;
 }
 

@@ -13,6 +13,7 @@ const os = require('os');
 const path = require('path');
 
 const { main } = require('./run');
+const safePath = require('../../tools/lib/safe-path');
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'golden-test-'));
@@ -20,7 +21,9 @@ function tmpDir() {
 
 function writePayload(dir, cell, obj) {
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `${cell}.payload.json`), `${JSON.stringify(obj, null, 2)}\n`);
+  // cell is always a literal test-supplied name ('uk-legal', 'us-legal', ...) at every call site
+  // below: a door-routed join makes that a checked PATH COMPONENT rather than an inline path.join.
+  fs.writeFileSync(safePath.safeJoin(dir, [`${cell}.payload.json`], { label: 'golden test fixture' }), `${JSON.stringify(obj, null, 2)}\n`);
 }
 
 function runMain(goldens, fresh, extra) {

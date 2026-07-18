@@ -170,8 +170,7 @@ function recordScanError(violations, file, message) {
 function resolveScanTarget(p, violations) {
   let abs;
   try {
-    safePath.assertSafeScanPath(p, { label: 'facts-abstain scan path' });
-    abs = path.resolve(ROOT, p);
+    abs = safePath.resolveSafeScanPath(ROOT, p, { label: 'facts-abstain scan path' });
   } catch (e) {
     recordScanError(violations, String(p), e.message);
     return null;

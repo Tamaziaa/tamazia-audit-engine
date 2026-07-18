@@ -39,7 +39,7 @@ async function runPool(items, width, deadlineMs, fn, now) {
     for (;;) {
       const i = idx++;
       if (i >= items.length) return;
-      if (clock() - start > deadlineMs) { out[i] = null; continue; } // CAP: never START past the deadline
+      if (clock() - start >= deadlineMs) { out[i] = null; continue; } // CAP: never START at or past the deadline (>=, Rule 8 - the budget is exhausted the instant elapsed reaches it)
       try { out[i] = await fn(items[i], i); }
       catch (e) { out[i] = null; /* FAIL-OPEN: one page's failure degrades to a null slot and the crawl continues (E-236 tolerance); the null is visible to the caller's telemetry, not swallowed silently. */ }
     }

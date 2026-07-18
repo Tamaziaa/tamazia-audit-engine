@@ -17,7 +17,6 @@
 // is the same pattern catalogue/qa-approval.js's verifyQaApproval already uses.
 
 const fs = require('fs');
-const path = require('path');
 const safePath = require('../tools/lib/safe-path.js');
 const { isRealTimestamp } = require('./valid-date.js');
 
@@ -33,10 +32,10 @@ const VALUE_FLAGS = {
     state.stampFile = safePath.assertSafeRelativePath(value || '', { label: '--stamp-file', ErrorClass });
   },
   '--out': (state, value, ErrorClass) => {
-    state.out = path.resolve(process.cwd(), safePath.assertSafeRelativePath(value || '', { label: '--out', ErrorClass }));
+    state.out = safePath.resolveSafeRelativePath(process.cwd(), value || '', { label: '--out', ErrorClass });
   },
   '--packs': (state, value, ErrorClass) => {
-    state.packsDir = path.resolve(process.cwd(), safePath.assertSafeRelativePath(value || '', { label: '--packs', ErrorClass }));
+    state.packsDir = safePath.resolveSafeRelativePath(process.cwd(), value || '', { label: '--packs', ErrorClass });
   },
 };
 
@@ -81,7 +80,13 @@ function parseArgs(argv, defaultOut, ErrorClass) {
 // refused rather than silently preferring one (Rule 4: no silently-resolved ambiguity).
 function resolveStamp(stamp, stampFile, repoRoot, ErrorClass) {
   if (!stampFile) return stamp;
-  const abs = path.resolve(repoRoot, stampFile);
+  // stampFile is USUALLY already relative (the --stamp-file CLI flag validates it via
+  // assertSafeRelativePath in VALUE_FLAGS above before it ever reaches here), but this function is
+  // also called directly with an absolute path (catalogue/compile.test.js's own resolveStamp unit
+  // tests, and any future direct caller) - resolveSafeScanPath accepts both (absolute is used
+  // directly; a relative one is traversal-guarded and resolved against repoRoot), matching
+  // path.resolve(repoRoot, stampFile)'s original unrestricted-but-traversal-safe contract.
+  const abs = safePath.resolveSafeScanPath(repoRoot, stampFile, { label: '--stamp-file', ErrorClass });
   let content;
   try {
     content = fs.readFileSync(abs, 'utf8');

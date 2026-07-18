@@ -31,6 +31,8 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+const safePath = require('../../tools/lib/safe-path.js');
+
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
@@ -221,7 +223,15 @@ const CALIBRATIONS = [
 
 function findChecker(candidates) {
   for (const rel of candidates || []) {
-    const abs = path.join(REPO_ROOT, rel);
+    // rel is always a literal repo-relative path from the CALIBRATIONS table above
+    // ('tools/one-door/check.js', ...): resolveSafeRelativePath makes that validation visible at
+    // the site (Rule 1) instead of trusting the literal-table shape silently.
+    let abs;
+    try {
+      abs = safePath.resolveSafeRelativePath(REPO_ROOT, rel, { label: 'calibration checker candidate' });
+    } catch (e) {
+      continue; // FAIL-OPEN: a malformed checkerCandidates entry is not a valid path to probe; try the next candidate rather than crash the whole calibration run.
+    }
     if (fs.existsSync(abs)) return abs;
   }
   return null;
@@ -388,7 +398,8 @@ function runExternalCalibration(cal, strict) {
 // already equivalent to testing only the entries just pushed for THIS calibration, which is what
 // checkMissingFixtures's own (per-calibration) entries list does directly.
 function runOneCalibration(cal, strict) {
-  const fixtureAbs = cal.fixtures.map((f) => path.join(FIXTURES_DIR, f));
+  // f is always a literal fixture filename from the CALIBRATIONS table above.
+  const fixtureAbs = cal.fixtures.map((f) => safePath.safeJoin(FIXTURES_DIR, [f], { label: 'calibration fixture' }));
   const missing = checkMissingFixtures(cal, fixtureAbs);
   if (missing.entries.length > 0) return missing;
   if (cal.internal) return runInternalCalibration(cal, fixtureAbs);

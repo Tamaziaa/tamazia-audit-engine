@@ -33,10 +33,19 @@ function extractCandidates(json) {
     .map((r) => ({ name: String(r.organisation_name), raw: r }));
 }
 
+// isExpired(endDate) -> true | false | null. A missing end_date is an OPEN-ENDED registration (false,
+// not expired). A date-only expiry (YYYY-MM-DD) is valid THROUGH the whole of that day, so it lapses at
+// END-OF-DAY UTC, never from midnight - parsing '2024-01-15' as midnight would mark a live registration
+// lapsed throughout its final day. An UNPARSEABLE end_date proves NEITHER currency nor lapse: it fails
+// closed to null (unknown), so buildRow never fabricates a 'registered' (or 'expired') from garbage data
+// (Rule 4 fail-closed; Rule 6 abstain below confidence).
 function isExpired(endDate) {
   if (!endDate) return false;
-  const t = new Date(endDate).getTime();
-  return Number.isFinite(t) && t < Date.now();
+  const s = String(endDate).trim();
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const t = new Date(dateOnly ? s + 'T23:59:59.999Z' : s).getTime();
+  if (!Number.isFinite(t)) return null; // unparseable -> unknown, never silently 'registered'
+  return t < Date.now();
 }
 
 function buildRow(candidate) {
@@ -46,7 +55,9 @@ function buildRow(candidate) {
     organisation_name: candidate.name || null,
     registration_number: raw.registration_number,
     end_date: raw.end_date || null,
-    status: expired ? 'expired' : 'registered',
+    // A garbage end_date is 'unknown' (abstain), never a confident 'registered'/'expired' on data we
+    // could not parse; a downstream consumer treats 'unknown' as needs-review, not as a clean pass.
+    status: expired === null ? 'unknown' : (expired ? 'expired' : 'registered'),
   };
 }
 

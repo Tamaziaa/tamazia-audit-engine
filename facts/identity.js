@@ -314,8 +314,6 @@ function titleCandidates(title, domain) {
 }
 
 // Footer identity block: "(c) 2026 X Ltd", "X LLP is authorised and regulated by...".
-const SUFFIX_ALT = V.LEGAL_ENTITY_SUFFIXES
-  .map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
 const COPYRIGHT_RX = new RegExp(
   '(?:\\u00a9|\\(c\\)|copyright)\\s*(?:\\d{4}(?:\\s*[\\u2013-]\\s*\\d{4})?)?\\s*(?:by\\s+)?'
   + '([A-Za-z0-9][^|\\n]{1,119}?)'
@@ -757,18 +755,17 @@ function resolveIdentity(bundle) {
 function runCalibration(fixturesDir) {
   const fs = require('fs');
   const path = require('path');
+  const safePath = require('../tools/lib/safe-path.js');
   const dir = fixturesDir
     || path.join(__dirname, '..', 'eval', 'calibration-known-bad', 'fixtures');
   const findings = [];
   const files = fs.readdirSync(dir).filter((f) => /^p1-identity-.*\.json$/.test(f)).sort();
   for (const f of files) {
-    // Fail closed on an unsafe path component before it ever reaches path.join (traversal
-    // guard); every fixture name comes from the already-filtered p1-identity-*.json glob above,
-    // so this never fires in practice.
-    if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(f)) {
-      throw new Error('unsafe path component: ' + JSON.stringify(f));
-    }
-    const abs = path.join(dir, f);
+    // Fail closed on an unsafe path component before it ever reaches the join (traversal guard);
+    // every fixture name comes from the already-filtered p1-identity-*.json glob above, so this
+    // never fires in practice. safeJoin is the shared door (Rule 1) rather than a bespoke inline
+    // regex + path.join repeated at this call site.
+    const abs = safePath.safeJoin(dir, [f], { label: 'identity calibration fixture' });
     const fixture = JSON.parse(fs.readFileSync(abs, 'utf8'));
     const poison = fixture.poison || {};
     const result = resolveIdentity(fixture.bundle);

@@ -68,19 +68,30 @@ function makeFetchXml(fetchFn, perPageMs, timers) {
   return (url) => fetchPage(fetchFn, url, perPageMs, timers).then((r) => (r && r.ok && r.body) ? String(r.body) : '');
 }
 
+// noBodyKlass(res) -> the reason class for a response that carried no body at all (an honest 'error'
+// when a status was at least returned, else 'unreachable'). Named so the ternary is not folded into
+// contentPageFrom's own guard clause.
+function noBodyKlass(res) {
+  return res && res.status ? 'error' : 'unreachable';
+}
+// truncateToCorpusCap(page, cap) -> page.text clamped to the cap in place; returns whether it truncated.
+function truncateToCorpusCap(page, cap) {
+  if (page.text.length <= cap) return false;
+  page.text = page.text.slice(0, cap);
+  return true;
+}
 // contentPageFrom(url, res, cap) -> a corpus page ({url,title,text,jsonLd,ogSiteName?}) when res is real,
 // readable CONTENT (not a login/challenge/error/shell, C-031/C-038); else null with the reason class. A
 // document asset (PDF/doc, by extension or content-type) is NOT an HTML corpus page: its binary bytes
 // would strip into pseudo-"content" and falsely cover a page-class, defeating the C-033 no-parser
 // interlock. It is deferred to the documents lane and marked 'document' here (never asserted from).
 function contentPageFrom(url, res, cap) {
-  if (!res || !res.body) return { page: null, klass: res && res.status ? 'error' : 'unreachable' };
+  if (!res || !res.body) return { page: null, klass: noBodyKlass(res) };
   if (isPdfLike(url, res.contentType)) return { page: null, klass: 'document' };
   const klass = extract.pageContentClass(res.status, res.body);
   if (klass !== 'content') return { page: null, klass };
   const page = extract.buildPage(res.finalUrl || url, res.body);
-  let truncated = false;
-  if (page.text.length > cap) { truncated = true; page.text = page.text.slice(0, cap); }
+  const truncated = truncateToCorpusCap(page, cap);
   return { page, klass: 'content', truncated, bodyHash: crypto.createHash('sha1').update(String(res.body)).digest('hex') };
 }
 
@@ -187,12 +198,40 @@ async function followFooterDocuments(ctx, homeHtml, pages) {
     { fetchFn: opts.fetchFn, deadlineMs: perPageMs, timers: opts.timers, log: record });
 }
 
+// isFetchableDomain(dom) -> true when the normalised host has a public-suffix-shaped dot in it. Named
+// so the disjunction is not its own "Complex Conditional" inline in crawl.
+function isFetchableDomain(dom) {
+  return Boolean(dom) && dom.includes('.');
+}
+// pageFetcher(homeUrl, home, opts, perPageMs) -> the per-URL fetcher runPool calls: the already-fetched
+// homepage response is reused for homeUrl (no second fetch), everything else goes through fetchPage.
+// Named (not an inline arrow) so its ternary is not counted against crawl's own body.
+function pageFetcher(homeUrl, home, opts, perPageMs) {
+  return (u) => (u === homeUrl ? Promise.resolve(home) : fetchPage(opts.fetchFn, u, perPageMs, opts.timers));
+}
+// buildResult(parts) -> the assembled EvidenceBundle. Split out of crawl so the orchestrator's own body
+// stays a flat sequence of awaited steps (the health-gate function-length/Complex Method caps).
+function buildResult(parts) {
+  const { dom, pages, footerText, home, homeKlass, docResult, opts, truncated, telemetry, notes } = parts;
+  const unreachable = pages.length === 0;
+  return {
+    domain: dom,
+    corpus: { pages, footerText: footerText || undefined },
+    unreachable,
+    reason: blockReason(home, homeKlass, pages.length),
+    documents: { records: docResult.documents, unparsed: docResult.unparsed },
+    coverage: buildCoverage(pages, opts, truncated, docResult.unparsedClasses),
+    telemetry: { ...telemetry, pages_captured: pages.length, truncated, via: unreachable ? 'none' : 'direct' },
+    notes,
+  };
+}
+
 // crawl(domain, opts) -> the evidence bundle. Thin orchestrator: resolve budgets, fetch the homepage,
 // discover links + sitemap in parallel, order Tier-1-first then cap, fetch the corpus in parallel, follow
 // footer documents, and assemble the corpus + coverage report.
 async function crawl(domain, opts = {}) {
   const dom = normaliseDomain(domain);
-  if (!dom || !dom.includes('.')) throw new Error('crawl: a fetchable domain (with a public suffix) is required, got ' + JSON.stringify(domain));
+  if (!isFetchableDomain(dom)) throw new Error('crawl: a fetchable domain (with a public suffix) is required, got ' + JSON.stringify(domain));
   if (typeof opts.fetchFn !== 'function') throw new Error('crawl: opts.fetchFn is required (all network is dependency-injected)');
   const { notes, record } = makeRecorder(opts);
   const { cap, maxPages, width, deadlineMs, perPageMs } = resolveBudgets(opts);
@@ -205,26 +244,14 @@ async function crawl(domain, opts = {}) {
   const { home, homeHtml, homeKlass } = await fetchHomepage(ctx);
   const fetchList = await discoverFetchList(ctx, homeHtml, fetchXml, maxPages);
 
-  const results = await runPool(fetchList, width, deadlineMs,
-    (u) => (u === homeUrl ? Promise.resolve(home) : fetchPage(opts.fetchFn, u, perPageMs, opts.timers)), opts.now);
+  const results = await runPool(fetchList, width, deadlineMs, pageFetcher(homeUrl, home, opts, perPageMs), opts.now);
   const { pages, truncated, telemetry } = accumulateCorpus(fetchList, results, cap);
   if (truncated) record('corpus-truncated', 'a page exceeded the ' + cap + '-char corpus cap; absence claims on it demote to needs-review (C-024)');
 
   const footerText = extract.extractFooterText(homeHtml);
   const docResult = await followFooterDocuments(ctx, homeHtml, pages);
 
-  const unreachable = pages.length === 0;
-  const corpus = { pages, footerText: footerText || undefined };
-  return {
-    domain: dom,
-    corpus,
-    unreachable,
-    reason: blockReason(home, homeKlass, pages.length),
-    documents: { records: docResult.documents, unparsed: docResult.unparsed },
-    coverage: buildCoverage(pages, opts, truncated, docResult.unparsedClasses),
-    telemetry: { ...telemetry, pages_captured: pages.length, truncated, via: unreachable ? 'none' : 'direct' },
-    notes,
-  };
+  return buildResult({ dom, pages, footerText, home, homeKlass, docResult, opts, truncated, telemetry, notes });
 }
 
 module.exports = {

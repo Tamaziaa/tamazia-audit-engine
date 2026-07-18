@@ -37,19 +37,34 @@ function pagePath(page) {
   return '/' + path.replace(/[?#].*$/, '').replace(/^\/+/, '');
 }
 
+// isPricingSegment(seg) -> pricing tokens present, but not the "cost of living" false-friend phrase.
+// Named so the conjunction is not its own "Complex Conditional" inline in the rule table below.
+function isPricingSegment(seg) {
+  return /\b(pricing|prices?|tariff|cost[-_ ]?(of[-_ ]?service|guide|schedule)?|charges)\b/.test(seg)
+    && !/\bcost[-_ ]?of[-_ ]?living\b/.test(seg);
+}
+function isHomepageSegment(seg) {
+  return /^\/?$/.test(seg) || /\b(home|index)\b/.test(seg);
+}
+// CLASSIFY_RULES: first-match-wins, in the SAME precedence order as the original if-chain (privacy before
+// complaints before fees before pricing ... homepage last). A data-driven table rather than an if-chain
+// keeps classify() itself a plain lookup (the health-gate Complex Method cap), with each rule's own test
+// kept to a single regex (or the two named predicates above for the two compound cases).
+const CLASSIFY_RULES = [
+  { klass: 'privacy', test: (seg) => /\b(privacy|data[-_ ]?protection|gdpr|cookie)\b/.test(seg) },
+  { klass: 'complaints', test: (seg) => /\b(complaints?|ombudsman)\b/.test(seg) },
+  { klass: 'fees', test: (seg) => /\bfees?\b/.test(seg) },
+  { klass: 'pricing', test: isPricingSegment },
+  { klass: 'terms', test: (seg) => /\b(terms|t-and-c|conditions)\b/.test(seg) },
+  { klass: 'returns', test: (seg) => /\b(returns?|refunds?)\b/.test(seg) },
+  { klass: 'homepage', test: isHomepageSegment },
+];
 // classify(page) -> the page-class of a fetched URL by PATH SEGMENT with anchored tokens (C-044). Accepts
 // a page object ({url}|{type}) or a bare string.
 function classify(page) {
   const seg = pagePath(page);
-  const has = (re) => re.test(seg);
-  if (has(/\b(privacy|data[-_ ]?protection|gdpr|cookie)\b/)) return 'privacy';
-  if (has(/\b(complaints?|ombudsman)\b/)) return 'complaints';
-  if (has(/\bfees?\b/)) return 'fees';
-  if (has(/\b(pricing|prices?|tariff|cost[-_ ]?(of[-_ ]?service|guide|schedule)?|charges)\b/) && !/\bcost[-_ ]?of[-_ ]?living\b/.test(seg)) return 'pricing';
-  if (has(/\b(terms|t-and-c|conditions)\b/)) return 'terms';
-  if (has(/\b(returns?|refunds?)\b/)) return 'returns';
-  if (/^\/?$/.test(seg) || has(/\b(home|index)\b/)) return 'homepage';
-  return 'other';
+  const hit = CLASSIFY_RULES.find((r) => r.test(seg));
+  return hit ? hit.klass : 'other';
 }
 
 // fetchedClassSet(crawledPages) -> the Set of page-classes present in the crawl. The homepage counts as
@@ -73,21 +88,34 @@ function computeCoverage(crawledPages, sector, opts = {}) {
   return { required, fetched_classes: [...fetched].sort(), missing, ratio: Math.round(ratio * 100) / 100, render_class, reachable };
 }
 
+// isNonCrawlEvidenceType(evidenceType) -> true for register/behavioural duties (no crawl page-class).
+// Named so the 2-term conjunction is not its own "Complex Conditional" inline in pageClassForObligation.
+function isNonCrawlEvidenceType(evidenceType) {
+  return evidenceType !== 'presence' && evidenceType !== 'absence';
+}
+function obligationSearchText(obligation) {
+  return ((obligation.duty || '') + ' ' + (obligation.elements || []).join(' ')).toLowerCase();
+}
+// PAGE_CLASS_RULES: first-match-wins, same precedence order as the original if-chain. A data-driven
+// table keeps pageClassForObligation itself a plain lookup (the health-gate Complex Method cap).
+const PAGE_CLASS_RULES = [
+  { klass: 'privacy', test: (text) => /\b(privacy|data protection|gdpr|cookie|personal data)\b/.test(text) },
+  { klass: 'complaints', test: (text) => /\b(complaints?|ombudsman|redress)\b/.test(text) },
+  { klass: 'fees', test: (text) => /\bfees?\b/.test(text) },
+  { klass: 'pricing', test: (text) => /\b(pricing|price|tariff|charges|cost of service)\b/.test(text) },
+  { klass: 'terms', test: (text) => /\b(terms|conditions)\b/.test(text) },
+  { klass: 'returns', test: (text) => /\b(returns?|refunds?)\b/.test(text) },
+];
 // pageClassForObligation(obligation) -> the crawl page-class an on-page presence/absence duty needs,
 // derived from anchored tokens in the duty + element text; 'any' when the duty is a general on-page
 // requirement (assessable on the homepage/footer). register/behavioural duties return null (their
 // evidence comes from the registers/browser lanes, not the crawl).
 function pageClassForObligation(obligation) {
   const et = obligation && obligation.evidence_type;
-  if (et !== 'presence' && et !== 'absence') return null;
-  const text = ((obligation.duty || '') + ' ' + (obligation.elements || []).join(' ')).toLowerCase();
-  if (/\b(privacy|data protection|gdpr|cookie|personal data)\b/.test(text)) return 'privacy';
-  if (/\b(complaints?|ombudsman|redress)\b/.test(text)) return 'complaints';
-  if (/\bfees?\b/.test(text)) return 'fees';
-  if (/\b(pricing|price|tariff|charges|cost of service)\b/.test(text)) return 'pricing';
-  if (/\b(terms|conditions)\b/.test(text)) return 'terms';
-  if (/\b(returns?|refunds?)\b/.test(text)) return 'returns';
-  return 'any';
+  if (isNonCrawlEvidenceType(et)) return null;
+  const text = obligationSearchText(obligation);
+  const hit = PAGE_CLASS_RULES.find((r) => r.test(text));
+  return hit ? hit.klass : 'any';
 }
 
 // ruleNeeds(rule) -> { needs: [pageClass...], laneOnly: bool, hasAbsence: bool }. laneOnly means the rule

@@ -13,7 +13,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { observe } = require('./observe.js');
+const { observe, normaliseOpts, DEFAULT_DEADLINE_MS, DEFAULT_CLOSE_MS, DEFAULT_SETTLE_MS, DEFAULT_LINK_MS } = require('./observe.js');
 
 function counter() { let t = 0; return () => (t += 1); }
 function hangForever() { return new Promise(() => {}); }
@@ -133,6 +133,51 @@ test('observe: with no injected fetch, a control health cannot be asserted (heal
   const r = await observe('https://example.com', { launchBrowser: fake.launch, now: counter() });
   assert.equal(r.consentControl.healthy, null);
   assert.equal(r.observed.some((o) => o.kind === 'consent_control_broken'), false);
+});
+
+test('observe: an OBSERVED 404 control retains its status on the artifact (proof of a real broken control)', async () => {
+  const fake = makeFake({ control: { found: true, url: 'https://example.com/cookie-policy' } });
+  const r = await observe('https://example.com', { launchBrowser: fake.launch, now: counter(), fetchLink: async () => ({ ok: false, status: 404 }) });
+  const broken = r.observed.find((o) => o.kind === 'consent_control_broken');
+  assert.ok(broken);
+  assert.equal(broken.artifact.status, 404, 'the captured failing status rides the artifact (Rule 3)');
+});
+
+test('observe: a control-link TIMEOUT abstains (healthy:null) and emits NO broken finding (unobserved, not proof)', async () => {
+  const fake = makeFake({ control: { found: true, url: 'https://example.com/cookie-policy' } });
+  const neverSettles = () => new Promise(() => {});
+  const r = await observe('https://example.com', { launchBrowser: fake.launch, now: counter(), fetchLink: neverSettles, linkMs: 20 });
+  assert.equal(r.consentControl.healthy, null, 'a timeout is an unobserved failure -> abstain, not healthy:false');
+  assert.equal(r.observed.some((o) => o.kind === 'consent_control_broken'), false, 'no artifact-free broken finding on a timeout');
+});
+
+test('observe: a control-link TRANSPORT ERROR (rejected fetch) abstains (healthy:null), no broken finding', async () => {
+  const fake = makeFake({ control: { found: true, url: 'https://example.com/cookie-policy' } });
+  const rejects = async () => { throw new Error('ECONNRESET'); };
+  const r = await observe('https://example.com', { launchBrowser: fake.launch, now: counter(), fetchLink: rejects });
+  assert.equal(r.consentControl.healthy, null, 'a network error is unobserved -> abstain');
+  assert.equal(r.observed.some((o) => o.kind === 'consent_control_broken'), false);
+});
+
+test('observe: a DOM-controlled consent URL pointing at a private host is NOT fetched (SSRF door), abstains', async () => {
+  let fetched = false;
+  const fake = makeFake({ control: { found: true, url: 'http://127.0.0.1/cookie-policy' } });
+  const spyFetch = async () => { fetched = true; return { ok: false, status: 500 }; };
+  const r = await observe('https://example.com', { launchBrowser: fake.launch, now: counter(), fetchLink: spyFetch });
+  assert.equal(fetched, false, 'an unsafe (loopback) control URL must never reach the fetch');
+  assert.equal(r.consentControl.healthy, null);
+  assert.equal(r.observed.some((o) => o.kind === 'consent_control_broken'), false);
+});
+
+test('observe: budgets are hard caps - an oversized deadlineMs/closeMs/settleMs/linkMs clamps to the ceiling (Rule 8)', () => {
+  const capped = normaliseOpts({ deadlineMs: 3600000, closeMs: 999999, settleMs: 999999, linkMs: 999999 });
+  assert.equal(capped.deadlineMs, DEFAULT_DEADLINE_MS, 'an hour-long deadline clamps to the 45s ceiling');
+  assert.equal(capped.closeMs, DEFAULT_CLOSE_MS);
+  assert.equal(capped.settleMs, DEFAULT_SETTLE_MS);
+  assert.equal(capped.linkMs, DEFAULT_LINK_MS);
+  // a SHORTER budget is still honoured (a cap, never a floor).
+  assert.equal(normaliseOpts({ deadlineMs: 20 }).deadlineMs, 20);
+  assert.equal(normaliseOpts({ closeMs: 0 }).closeMs, DEFAULT_CLOSE_MS, 'a non-positive value falls back to the ceiling');
 });
 
 // ── C-040 / Rule 9: the outer deadline. The 752s class made structurally impossible ───────────────

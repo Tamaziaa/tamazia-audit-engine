@@ -55,17 +55,20 @@ const MATCH_THRESHOLD = 0.6;
 
 const CONNECTIVE_WORDS = new Set(['and', 'the', 'of', 'for']);
 
-const SUFFIX_BODY = '\\b(?:'
-  + LEGAL_ENTITY_SUFFIXES.map((s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
-  + ')\\b\\.?';
-const SUFFIX_RX = new RegExp(SUFFIX_BODY, 'gi');
+const SUFFIX_ALT = LEGAL_ENTITY_SUFFIXES.map((s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+// TRAILING-ONLY: one or more legal-entity suffixes at the END of the (trimmed) name, e.g. "... Ltd",
+// "... Co. Ltd". Anchoring to $ stops a suffix WORD used as ordinary vocabulary earlier in the name
+// ("Limited Edition Design", where "Limited" is the trading name, not an entity suffix) from being
+// stripped - the old global strip removed it anywhere and could collapse two distinct companies onto
+// the same normalised token set and thus the same register match.
+const SUFFIX_RX = new RegExp('(?:[\\s,]*\\b(?:' + SUFFIX_ALT + ')\\b\\.?)+[\\s.]*$', 'i');
 
 function tidy(s) {
   return String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 }
 
 function stripLegalSuffixes(s) {
-  return tidy(String(s || '').replace(SUFFIX_RX, ' '));
+  return tidy(String(s || '').replace(SUFFIX_RX, ''));
 }
 
 function normaliseName(name) {
@@ -137,10 +140,12 @@ function bestCandidate(queryName, candidates, nameOf) {
 // for a fact.
 const PUB2 = new Set((PUBLIC_SUFFIX_SECOND_LEVEL || []).map((x) => String(x).toLowerCase()));
 function domainStemFallback(domain) {
-  let d = String(domain || '').toLowerCase().trim()
-    .replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].split(':')[0];
-  if (!d) return '';
-  const parts = d.split('.').filter(Boolean);
+  // Host extraction goes through the ONE URL-safe door (Rule 5): inputHost parses via `new URL`, so
+  // credentials ("user:pass@evil.com"), ports, IPv6 and malformed inputs cannot derive a wrong register
+  // query the way the old replace-and-split chain could (a second, weaker host parser is a defect here).
+  const host = inputHost(domain);
+  if (!host) return '';
+  const parts = host.split('.').filter(Boolean);
   if (parts.length <= 1) return parts[0] || '';
   if (parts.length >= 3 && PUB2.has(parts.slice(-2).join('.'))) return parts[parts.length - 3];
   return parts[parts.length - 2];

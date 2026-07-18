@@ -20,6 +20,18 @@ test('stripHtml tolerates whitespace in closing tags (</script >)', () => {
   assert.ok(!/secret/.test(ex.stripHtml('<script >var s="secret"</script >visible')));
 });
 
+test('stripHtml drops an UNCLOSED raw-text element to end-of-input (no hidden script text in the corpus)', () => {
+  // A missing </script> must not leak the script body into the visible corpus (it could be quoted as a
+  // legal finding). Per HTML parsing the raw-text element runs to end-of-input, so nothing after it survives.
+  const html = '<body><p>real content</p><script>window.claim="privacy policy absent"</body>';
+  const text = ex.stripHtml(html);
+  assert.match(text, /real content/, 'genuine visible text before the unclosed element survives');
+  assert.ok(!/privacy policy absent/.test(text), 'the unterminated script body never enters the corpus');
+  assert.ok(!/window\.claim/.test(text), 'no script source leaks as evidence');
+  // an unclosed <style> is dropped the same way.
+  assert.ok(!/color:red/.test(ex.stripHtml('<div>shown</div><style>.x{color:red}')));
+});
+
 test('decodeEntities: named, numeric decimal, numeric hex, and malformed references', () => {
   assert.equal(ex.decodeEntities('a&amp;b'), 'a&b');
   assert.equal(ex.decodeEntities('&#65;&#x42;'), 'AB');

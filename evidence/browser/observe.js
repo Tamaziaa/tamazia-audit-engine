@@ -233,23 +233,35 @@ function diffSummary(pre, post, cfg) {
 // ── consent-control link health (C-042) ──────────────────────────────────────────────────────────
 
 function runFetch(fetchLink, url) { return Promise.resolve().then(() => fetchLink(url)); }
-function fetchToError(e) { return { timedOut: false, value: { ok: false, status: null, error: String((e && e.message) || e) } }; }
+// A rejected fetch is marked as a TRANSPORT ERROR (no `value`): the server's response was never seen.
+function fetchToError(e) { return { timedOut: false, error: String((e && e.message) || e).slice(0, 120) }; }
 function statusBad(status) { const s = Number(status); return Number.isFinite(s) && s >= 400; }
 
+// linkHealth(url, cfg) -> { healthy, status }. healthy is TRUE/FALSE only on an OBSERVED HTTP response
+// (a captured status): a >=400 or ok:false response is an observed broken control (healthy:false, status
+// retained for the artifact). A TIMEOUT or a TRANSPORT ERROR is an UNOBSERVED failure - the response was
+// never seen, so it proves nothing about the control and abstains (healthy:null), never emitting a
+// finding (absence vs observation, Rule 8 + "no artifact, no breach", Rule 3). The earlier build promoted
+// both timeout and network error to healthy:false and shipped an artifact carrying no status at all.
 async function linkHealth(url, cfg) {
   if (typeof cfg.fetchLink !== 'function') return { healthy: null, status: null };
   const raced = await raceWithDeadline(runFetch(cfg.fetchLink, url), cfg.linkMs, cfg.now).catch(fetchToError);
-  if (raced.timedOut) return { healthy: false, status: null };
+  if (raced.timedOut || raced.error !== undefined) return { healthy: null, status: null };
   const res = raced.value || {};
-  return { healthy: Boolean(res.ok) && !statusBad(res.status), status: numOrNull(res.status) };
+  const status = numOrNull(res.status);
+  return { healthy: Boolean(res.ok) && !statusBad(status), status };
 }
 
 async function checkConsentControl(control, cfg) {
   if (!control || !control.found) return unknownControl();
   const url = control.url || null;
-  if (!url) return { found: true, healthy: null, url: null };
+  if (!url) return { found: true, healthy: null, url: null, status: null };
+  // The control URL is DOM-controlled: it must clear the single SSRF-safe door before any fetch touches
+  // it (Rule 5 - hosts parsed via one door; a page cannot point the runner at a private/metadata host).
+  // An unsafe target is not fetched at all: health is unassertable, so abstain (no finding, healthy:null).
+  if (!parseSafeFetchTarget(url)) return { found: true, healthy: null, url, status: null };
   const health = await linkHealth(url, cfg);
-  return { found: true, healthy: health.healthy, url };
+  return { found: true, healthy: health.healthy, url, status: health.status };
 }
 
 // ── the observation pipeline (all under the outer deadline) ───────────────────────────────────────

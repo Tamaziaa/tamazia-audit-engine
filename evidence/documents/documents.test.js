@@ -48,13 +48,40 @@ test('an HTML policy document IS parsed (it has a zero-dependency route via the 
   assert.ok(!/<h1>/.test(rec.text), 'the document text is stripped, not raw HTML');
 });
 
-test('an unreachable document is fetched:false and NEVER enters unparsedClasses (no absence demotion on it)', async () => {
+test('an UNREACHABLE (timed-out/errored) document is UNREAD content and DEMOTES its obligation (fail-closed, path instruction 8)', async () => {
   const url = 'https://x.example/terms.pdf';
   const fetchFn = () => Promise.reject(new Error('connect ETIMEDOUT'));
   const out = await collectDocuments([url], { fetchFn, log: () => {} });
   assert.equal(out.documents[0].fetched, false);
+  assert.equal(out.documents[0].unread, true, 'a found-but-unreadable policy link is unread content');
   assert.match(out.documents[0].reason, /fetch-failed/);
-  assert.equal(out.unparsedClasses.size, 0, 'an unreachable document demotes nothing; only a fetched-but-unparsed one does');
+  assert.ok(out.unparsedClasses.has('terms'), 'unread content must demote the absence claim, never let it stand');
+});
+
+test('a 404 policy link is a DEFINITIVELY ABSENT document (broken link): fetched:false, unread:false, demotes NOTHING', async () => {
+  const url = 'https://x.example/terms.pdf';
+  const fetchFn = () => Promise.resolve({ ok: false, status: 404, body: '', finalUrl: url });
+  const out = await collectDocuments([url], { fetchFn, log: () => {} });
+  assert.equal(out.documents[0].fetched, false, 'a 404 is not a fetched document');
+  assert.equal(out.documents[0].unread, false, 'a 404 is not unread PRESENT content; there is nothing to read');
+  assert.equal(out.documents[0].reason, 'not-found');
+  assert.equal(out.unparsedClasses.size, 0, 'a broken footer link must not screen a legitimate absence finding');
+});
+
+test('a 5xx/403 policy link is UNREAD (a document that may exist but we could not read) and DEMOTES', async () => {
+  const url = 'https://x.example/terms.pdf';
+  const fetchFn = () => Promise.resolve({ ok: false, status: 503, body: '', finalUrl: url });
+  const out = await collectDocuments([url], { fetchFn, log: () => {} });
+  assert.equal(out.documents[0].unread, true);
+  assert.equal(out.documents[0].reason, 'unreachable');
+  assert.ok(out.unparsedClasses.has('terms'), 'a server error on a found policy link is unread content -> demote');
+});
+
+test('document budgets are hard caps: an explicit maxDocs:0 follows ZERO documents (0 is not coalesced to the default)', async () => {
+  const links = ['https://x.example/privacy-policy.pdf', 'https://x.example/terms.pdf'];
+  const fetchFn = docFetch({});
+  const out = await collectDocuments(links, { fetchFn, log: () => {}, maxDocs: 0 });
+  assert.equal(out.documents.length, 0, 'maxDocs:0 means follow nothing, never fall back to the 12 default');
 });
 
 test('collectDocuments follows only policy/document links, dedupes, and honours maxDocs', async () => {

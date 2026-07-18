@@ -27,11 +27,14 @@ function buildRequest(query, apiToken) {
 
 // extractCandidates(json) -> [{name, raw}]. The endpoint answers a bare array of organisation
 // objects; each candidate's display name may arrive under either camelCase or snake_case field name
-// depending on the API version fetched.
+// depending on the API version fetched. A candidate is kept ONLY when it carries BOTH a name AND an SRA
+// number: the SRA number is the register row's machine-verifiable identifier, and "NO ARTIFACT, NO
+// BREACH" (Rule 3) means a name-only hit is not a verifiable register row - it is dropped, so a
+// downstream finding can never rest on a matched row with sra_number:null.
 function extractCandidates(json) {
   const items = Array.isArray(json) ? json : [];
   return items
-    .filter((it) => it && (it.organisationName || it.name))
+    .filter((it) => it && (it.organisationName || it.name) && (it.sraNumber || it.sra_number))
     .map((it) => ({ name: String(it.organisationName || it.name || ''), raw: it }));
 }
 

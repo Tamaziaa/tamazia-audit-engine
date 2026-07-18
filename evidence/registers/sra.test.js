@@ -46,3 +46,11 @@ test('lookupSra: C-004 -- a non-empty response with no real name match returns n
   assert.equal(r.row, null);
   assert.equal(r.note.reason, 'below_threshold');
 });
+
+test('lookupSra: Rule 3 -- a NAME-ONLY hit with no SRA number is not a verifiable register row, returns no row', async () => {
+  // A perfect name match but the record carries no sraNumber: without the register identifier there is
+  // no machine-verifiable artifact, so the candidate is dropped and no row can be built on it.
+  const fetchFn = async () => ({ status: 200, json: [{ organisationName: 'KINGSLEY NAPLEY LLP' }] });
+  const r = await lookupSra({ query: 'Kingsley Napley LLP', sector: 'law-firms', fetchFn, deadlineMs: 500, keys: {} });
+  assert.equal(r.row, null, 'no SRA number -> no verifiable row (NO ARTIFACT, NO BREACH)');
+});

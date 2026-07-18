@@ -67,6 +67,16 @@ test('DEADLINE-AS-CAP: once the clock passes the deadline the pool STOPS startin
   assert.deepEqual(out, ['A', null, null, null], 'past-deadline items are null, not delayed to a floor');
 });
 
+test('DEADLINE-AS-CAP: an item whose start lands EXACTLY on the deadline is not started (>= boundary, Rule 8)', async () => {
+  const started = [];
+  // start reads 0; the single item check reads EXACTLY 100 (== the 100ms deadline). The budget is
+  // exhausted the instant elapsed reaches it, so the task must not start (the > vs >= boundary bug).
+  const now = steppingClock([0, 100]);
+  const out = await runPool(['a'], 1, 100, (u) => { started.push(u); return Promise.resolve(u); }, now);
+  assert.deepEqual(started, [], 'elapsed === deadlineMs is over budget; the task is null, not started');
+  assert.deepEqual(out, [null]);
+});
+
 test('DEADLINE-AS-CAP: a deadline already exceeded at start runs NOTHING (no minimum-work floor)', async () => {
   const started = [];
   // start reads 0; every item check reads 500 (> the 100ms deadline) -> all null, fn never called.

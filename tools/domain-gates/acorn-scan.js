@@ -35,10 +35,21 @@ function scanTreeWith(dirs, skipDirs, scanContent) {
 // here so the acorn domain gates share ONE copy rather than each re-declaring them (jscpd clone class).
 function isMetaKey(k) { return k === 'loc' || k === 'start' || k === 'end' || k === 'range'; }
 function lineOf(node) { return (node && node.loc && node.loc.start.line) || 1; }
+// Each named predicate below owns one branch of memberPropName's decision, so the if-chain itself has
+// no multi-term test left (the health-gate "Complex Conditional" cap).
+function isMissingMemberInfo(m) {
+  return !m || m.type !== 'MemberExpression' || !m.property;
+}
+function isPlainPropertyAccess(m) {
+  return !m.computed && m.property.type === 'Identifier';
+}
+function isComputedLiteralAccess(m) {
+  return m.computed && m.property.type === 'Literal';
+}
 function memberPropName(m) {
-  if (!m || m.type !== 'MemberExpression' || !m.property) return '';
-  if (!m.computed && m.property.type === 'Identifier') return m.property.name;
-  if (m.computed && m.property.type === 'Literal') return String(m.property.value);
+  if (isMissingMemberInfo(m)) return '';
+  if (isPlainPropertyAccess(m)) return m.property.name;
+  if (isComputedLiteralAccess(m)) return String(m.property.value);
   return '';
 }
 

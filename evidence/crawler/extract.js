@@ -16,18 +16,35 @@ const NAMED_ENTITIES = {
   pound: '£', euro: '€', middot: '·', bull: '•',
 };
 
+// numericEntityCode(g) -> the numeric code point a `#...`/`#x...` entity capture encodes.
+function numericEntityCode(g) {
+  return (g[1] === 'x' || g[1] === 'X') ? parseInt(g.slice(2), 16) : parseInt(g.slice(1), 10);
+}
+function isValidCodePoint(code) {
+  return Number.isFinite(code) && code >= 9 && code <= 0x10ffff;
+}
+// decodeNumericEntity(g) -> the decoded character for a numeric entity capture, or null when the code
+// point is out of range (the caller then falls back to leaving the entity unchanged).
+function decodeNumericEntity(g) {
+  const code = numericEntityCode(g);
+  if (!isValidCodePoint(code)) return null;
+  try { return String.fromCodePoint(code); }
+  catch (e) { return ' '; /* FAIL-OPEN: an invalid code point in hostile source HTML degrades to a space, the honest substitute; nothing is hidden. */ }
+}
+// decodeOneEntity(m, g) -> the replacement for one matched entity. A NAMED top-level function (not an
+// inline replacer arrow) so its branching is its own unit, not folded into decodeEntities (the
+// health-gate Complex Method/Complex Conditional caps).
+function decodeOneEntity(m, g) {
+  const key = g.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, key)) return NAMED_ENTITIES[key];
+  if (g[0] === '#') {
+    const decoded = decodeNumericEntity(g);
+    if (decoded !== null) return decoded;
+  }
+  return m;
+}
 function decodeEntities(s) {
-  return String(s).replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (m, g) => {
-    const key = g.toLowerCase();
-    if (Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, key)) return NAMED_ENTITIES[key];
-    if (g[0] === '#') {
-      const code = (g[1] === 'x' || g[1] === 'X') ? parseInt(g.slice(2), 16) : parseInt(g.slice(1), 10);
-      if (Number.isFinite(code) && code >= 9 && code <= 0x10ffff) {
-        try { return String.fromCodePoint(code); } catch (e) { return ' '; /* FAIL-OPEN: an invalid code point in hostile source HTML degrades to a space, the honest substitute; nothing is hidden. */ }
-      }
-    }
-    return m;
-  });
+  return String(s).replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, decodeOneEntity);
 }
 
 // stripHtml(html) -> visible text only. Raw-text and non-content elements are dropped whole (tolerant of
@@ -37,6 +54,13 @@ function stripHtml(html) {
   let s = String(html);
   s = s.replace(/<!--[\s\S]*?-->/g, ' ');
   s = s.replace(/<(script|style|noscript|template|svg|iframe|head)\b[\s\S]*?<\/\1\s*>/gi, ' ');
+  // An UNCLOSED raw-text element (e.g. `<script>window.x="privacy policy absent"</body>` with NO
+  // </script>) survives the paired removal above; the bare opening tag is then stripped by the generic
+  // tag rule, leaving its contents in the visible corpus - invisible script text that can become a
+  // quoted legal finding (Rule 3: evidence must be an observable artifact, caution.md C-035). Per HTML
+  // parsing a raw-text element consumes to its close OR end-of-input, so drop from the first still-open
+  // opener to EOI (fail-closed: unterminated raw text is corrupt input, never evidence).
+  s = s.replace(/<(?:script|style|noscript|template|svg|iframe|head)\b[^>]*>[\s\S]*$/i, ' ');
   s = s.replace(/<\/(p|div|li|ul|ol|h[1-6]|tr|td|th|section|article|footer|header|nav|br)\s*>/gi, '\n');
   s = s.replace(/<br\s*\/?>/gi, '\n');
   s = s.replace(/<[^>]+>/g, ' ');
@@ -145,11 +169,16 @@ function looksSpaShell(html, text) {
   return /<div[^>]*id\s*=\s*["'](root|app|__next|___gatsby)["']/i.test(body) || /<script/i.test(body);
 }
 
+// isErrorStatus(status) -> true for a hard server/not-found/gone status. Named so the 2-operator
+// disjunction is not its own "Complex Conditional" inline in pageContentClass.
+function isErrorStatus(status) {
+  return status >= 500 || status === 404 || status === 410;
+}
 // pageContentClass(status, html) -> 'content' | 'challenge' | 'login' | 'error' | 'empty'. Only 'content'
 // enters the corpus and counts toward reachability; every other class is honestly withheld.
 function pageContentClass(status, html) {
   const st = Number(status) || 0;
-  if (st >= 500 || st === 404 || st === 410) return 'error';
+  if (isErrorStatus(st)) return 'error';
   const text = stripHtml(html);
   if (looksChallenge(st, text, extractTitle(html))) return 'challenge';
   if (looksLogin(html, text)) return 'login';
