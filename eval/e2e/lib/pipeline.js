@@ -42,6 +42,11 @@ const { factsToPayload, hasReadableCorpus } = require('../../reference-set/run-f
 const { loadProposeStage, loadVerifyStage, loadAdjudicateStage } = require('./breach-stages.js');
 const { defaultScriptedLlmCall } = require('./scripted-llm.js');
 const { loadCatalogueRecords } = require('./catalogue-records.js');
+// The Gate-3 atomic-claim door (P3-tail Wave-2 FINAL UNIT): the enrichment join below stamps each
+// verified candidate with the atomic breach claim (the Rule-12-gate-3 hypothesis) computed from the FULL
+// catalogue record, so the adjudicator's Gate-3 never receives the raw obligation duty for a
+// presence-breach. See breach/adjudicator/claim.js's header for the derivation and the U1 blocker it fixes.
+const { atomicClaimFor } = require('../../../breach/adjudicator/claim.js');
 
 const BREACH_WORKER = path.join(__dirname, 'breach-worker.js');
 
@@ -185,6 +190,12 @@ function joinCatalogueFacts(candidate, record) {
     evidence_quote: quote || undefined,
     evidence_source_id: (candidate && candidate.page_url) || undefined,
     checked_urls: (candidate && candidate.page_url) ? [candidate.page_url] : undefined,
+    // The Gate-3 (Rule 12 gate 3) hypothesis, computed from the FULL catalogue record via the one door
+    // (P3-tail Wave-2 FINAL UNIT). For a presence-breach this is the atomic BREACH claim the verbatim
+    // quote must ENTAIL, NOT the obligation duty (`description` stays the duty, used by briefOf's
+    // adjudication prompt; only the NLI hypothesis differs). breach/adjudicator/adjudicate.js's claimFor
+    // reads this field. For non-presence kinds the door returns the duty, so the field equals description.
+    atomic_claim: atomicClaimFor(record, candidate),
   });
 }
 

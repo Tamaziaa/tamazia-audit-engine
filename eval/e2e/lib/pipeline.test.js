@@ -288,6 +288,20 @@ test('joinCatalogueFacts: a bare propose.js-shaped candidate gains description/f
   assert.strictEqual(enriched.kind, 'presence-breach');
 });
 
+test('joinCatalogueFacts: a presence-breach is stamped with the ATOMIC Gate-3 claim (not the duty); description stays the duty', () => {
+  const bare = { record_id: 'PIPELINE-TEST-RULE', duty_idx: 0, artifact: { type: 'quote', text: 'we guarantee you will win', page_url: 'https://x.test/claims' }, page_url: 'https://x.test/claims', kind: 'presence-breach' };
+  const enriched = joinCatalogueFacts(bare, FIXTURE_RECORD);
+  assert.strictEqual(enriched.atomic_claim, 'This website does guarantee the outcome of a legal matter (self-test obligation)', 'the Gate-3 hypothesis is the affirmative breach claim');
+  assert.notStrictEqual(enriched.atomic_claim, enriched.description, 'the atomic claim must differ from the obligation duty (the U1 blocker)');
+  assert.strictEqual(enriched.description, FIXTURE_RECORD.website_obligations[0].duty, 'description stays the duty (used by the adjudication prompt, briefOf)');
+});
+
+test('joinCatalogueFacts: an ABSENCE (coverage_proof) candidate stamps atomic_claim == the duty (presence-only change)', () => {
+  const bare = { record_id: 'PIPELINE-TEST-RULE', duty_idx: 0, artifact: { type: 'coverage_proof' }, page_url: 'https://x.test/', kind: 'absence-breach' };
+  const enriched = joinCatalogueFacts(bare, FIXTURE_RECORD);
+  assert.strictEqual(enriched.atomic_claim, enriched.description, 'absence keeps the existing duty basis for its hypothesis');
+});
+
 test('joinCatalogueFacts: no matching catalogue record degrades honestly (empty fields), never throws', () => {
   const bare = { record_id: 'NO-SUCH-RULE', artifact: { type: 'absence' } };
   const enriched = joinCatalogueFacts(bare, null);
@@ -337,6 +351,12 @@ test('CONTRACT: pipeline.js enriches a bare candidate before the REAL adjudicato
   assert.strictEqual(f.framework, FIXTURE_RECORD.name, 'the finding must carry the catalogue framework name (proof the join ran, not a bare candidate)');
   assert.strictEqual(f.description, 'Do not guarantee the outcome of a legal matter (self-test obligation)');
   assert.strictEqual(f.statutory_citation, 'section 99');
+  // P3-tail Wave-2 FINAL UNIT: the enrichment also stamps the atomic Gate-3 claim, and the real
+  // adjudicator's Gate-3 uses it (not the duty) - proven by the finding reaching violation with a
+  // scripted breach + entailment. (Under the default scripted DECLINE this would demote; the affirming
+  // script here stands in for the real model's judgment of the atomic claim, which U1 validates next.)
+  assert.strictEqual(f.atomic_claim, 'This website does guarantee the outcome of a legal matter (self-test obligation)', 'the Gate-3 hypothesis is the atomic breach claim, stamped by the enrichment join');
+  assert.notStrictEqual(f.atomic_claim, f.description, 'the atomic claim is not the obligation duty (the U1 blocker is fixed)');
   assert.strictEqual(f.state, 'violation', 'a real brief + a scripted breach verdict + real Gate-3 entailment must reach violation');
 });
 

@@ -133,6 +133,88 @@ test('GATE 3: the entailment llmCall carries request.candidate = {record_id, art
   assert.ok(!String(entailmentRequest.prompt || '').includes('ENTAILMENT-CANDIDATE-RULE'), 'record_id must not leak into the NLI prompt');
 });
 
+// ── P3-tail Wave-2 FINAL UNIT: the Gate-3 atomic-claim door. The NLI hypothesis for a presence-breach is
+// the ATOMIC BREACH CLAIM the offending quote entails, NOT the raw obligation duty (the U1 blocker). ────
+const { claimFor, hypothesisFor } = require('./adjudicate.js');
+
+// A presence-breach finding shaped like the UK_MHRA synthetic: a verbatim quote artifact + a "Do not X"
+// obligation duty as `description` (what pipeline.js's enrichment sets before the adjudicator sees it).
+function pomPresenceFinding(over) {
+  return Object.assign({
+    record_id: 'SYN-POM-RULE',
+    kind: 'presence-breach',
+    artifact: { type: 'quote', text: 'wrinkle-relaxing injections', surface: 'visible_text', page_url: 'https://clinic.test/' },
+    page_url: 'https://clinic.test/',
+    description: 'Do not advertise any prescription only medicine to the public; remove indirect references from public pages',
+    framework: 'synthetic MHRA-shaped framework (harness self-test only)',
+    evidence_quote: 'wrinkle-relaxing injections',
+    evidence_url: 'https://clinic.test/',
+  }, over || {});
+}
+
+test('DOOR: claimFor uses the ATOMIC breach claim as the Gate-3 hypothesis for a presence-breach, never the obligation duty', () => {
+  const f = pomPresenceFinding();
+  const built = claimFor(f);
+  assert.equal(built.claim, 'This website does advertise any prescription only medicine to the public');
+  assert.notEqual(built.claim, f.description, 'the duty text must NOT be the Gate-3 hypothesis (the U1 blocker)');
+  assert.ok(!/\bdo not\b/i.test(built.claim), 'the hypothesis is the affirmative breach claim, not the prohibition');
+});
+
+test('DOOR: hypothesisFor prefers a pipeline-stored atomic_claim, else derives it from the finding via the one door', () => {
+  const f = pomPresenceFinding();
+  assert.equal(hypothesisFor(f), 'This website does advertise any prescription only medicine to the public', 'derived from the finding when no atomic_claim stored');
+  const withStored = pomPresenceFinding({ atomic_claim: 'This website does advertise a prescription only medicine to the public (pipeline-computed from the full record)' });
+  assert.equal(hypothesisFor(withStored), withStored.atomic_claim, 'a pipeline-stored atomic_claim wins (computed from the FULL catalogue record)');
+});
+
+test('DOOR: an absence-breach (coverage_proof) keeps the duty as its hypothesis - the change is presence-only', () => {
+  const absence = { record_id: 'ABS', kind: 'absence-breach', artifact: { type: 'coverage_proof' }, description: 'Do not omit the mandatory cookie disclosure', evidence_quote: '' };
+  assert.equal(claimFor(absence).claim, absence.description, 'absence hypothesis basis is unchanged (spec F1)');
+});
+
+test('DOOR F3(a): a synthetic-shaped presence-breach reaches VIOLATION through the REAL adjudicator when the NLI affirms the ATOMIC claim', async () => {
+  let nliPrompt = null;
+  const gateAffirmingAtomic = async (request) => {
+    if (request && request.schema) { nliPrompt = String(request.prompt || ''); return nliReply(request, 'entailment'); }
+    return { ok: true, out: { verdicts: [{ id: 0, verdict: 'breach', reason: 'advertising prescription only medicine' }] } };
+  };
+  const { findings } = await adjudicate([pomPresenceFinding()], BUNDLE, { llmCall: gateAffirmingAtomic });
+  assert.equal(findings[0].state, 'violation');
+  assert.equal(findings[0].adjudication, 'breach');
+  // The NLI genuinely received the ATOMIC claim as its hypothesis, not the duty (the whole fix).
+  assert.ok(nliPrompt.includes('This website does advertise any prescription only medicine to the public'), 'the atomic claim is the NLI hypothesis');
+  assert.ok(!nliPrompt.includes('Do not advertise'), 'the obligation duty is NOT the NLI hypothesis');
+});
+
+test('DOOR F3(b) never-a-loosening: the SAME presence-breach still DEMOTES when the NLI returns contradiction or neutral', async () => {
+  const contra = await adjudicate([pomPresenceFinding()], BUNDLE, { llmCall: gate([{ id: 0, verdict: 'breach' }], 'contradiction') });
+  assert.equal(contra.findings[0].state, 'needs_review', 'contradiction still demotes - the gate did not go soft');
+  assert.equal(contra.findings[0].adjudication, 'nli_demoted');
+  const neutral = await adjudicate([pomPresenceFinding()], BUNDLE, { llmCall: gate([{ id: 0, verdict: 'breach' }], 'neutral') });
+  assert.equal(neutral.findings[0].state, 'needs_review', 'neutral still demotes');
+});
+
+test('DOOR F3(b) C-048 direction: a faithful NLI (entails iff the premise carries the offending phrase) affirms the offending page and demotes a compliant one, against the SAME constructed claim', async () => {
+  // A faithful-double NLI: for the entailment call it inspects the premise it was shown and returns
+  // entailment ONLY when the premise contains the prohibited phrase, else neutral. This proves the
+  // constructed atomic claim DISCRIMINATES: an offending premise entails it, a compliant premise does not.
+  const faithful = (offending) => async (request) => {
+    if (request && request.schema) {
+      const sid = (request.allowedSourceIds || [])[0] || '';
+      const premise = (request.sources && request.sources[sid]) || '';
+      return nliReply(request, premise.includes(offending) ? 'entailment' : 'neutral');
+    }
+    return { ok: true, out: { verdicts: [{ id: 0, verdict: 'breach' }] } };
+  };
+  const offending = 'wrinkle-relaxing injections';
+  const offendingRun = await adjudicate([pomPresenceFinding()], BUNDLE, { llmCall: faithful(offending) });
+  assert.equal(offendingRun.findings[0].state, 'violation', 'the offending premise ENTAILS the constructed breach claim');
+  // The same rule/claim, but a compliant premise (no prohibited phrase) must NOT entail the breach claim.
+  const compliant = pomPresenceFinding({ evidence_quote: 'we offer general skincare consultations without naming any product' });
+  const compliantRun = await adjudicate([compliant], BUNDLE, { llmCall: faithful(offending) });
+  assert.equal(compliantRun.findings[0].state, 'needs_review', 'a compliant premise does NOT entail the constructed breach claim (C-048 direction)');
+});
+
 test('a valid no_breach WITH a verbatim disproof -> pass', async () => {
   const state = await stateOf(textCand(), { llmCall: gate([{ id: 0, verdict: 'no_breach', disproof: 'practice area' }]) });
   assert.equal(state, 'pass');

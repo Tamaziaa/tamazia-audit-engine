@@ -36,6 +36,12 @@ const { checkEntailment } = require('../../llm/entailment.js'); // Rule 12 gate 
 // it; briefOf/systemPrompt/buildPrompt/candidateRefsFor are re-exported below unchanged so every
 // existing caller of this module (adjudicate.test.js, callGate()) sees no shape change at all.
 const { fieldStr, briefOf, systemPrompt, buildPrompt, candidateRefsFor } = require('./prompt.js');
+// The Gate-3 (Rule 12 gate 3) atomic-claim door (P3-tail Wave-2 FINAL UNIT). U1's real-model run proved
+// the NLI hypothesis must be the ATOMIC BREACH CLAIM, not the raw obligation duty (an offending quote
+// CONTRADICTS the duty and Gate 3 wrongly demoted every presence-breach). claimFor() below now sources
+// the hypothesis from this one door instead of the finding's duty text; see claim.js's own header for
+// the derivation and why this is a framing correction, never a loosening.
+const { atomicClaimFor } = require('./claim.js');
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -194,10 +200,21 @@ function premiseQuote(f, art) {
   if (art.text != null) return String(art.text);
   return '';
 }
+// hypothesisFor(f) -> the Gate-3 NLI hypothesis (Rule 12 gate 3): the ATOMIC CLAIM, never the raw
+// obligation duty for a presence-breach (the U1 blocker). Prefers f.atomic_claim when the enrichment
+// step (eval/e2e/lib/pipeline.js, or run-real-proof.js's enrichCandidate once U1 adopts the door)
+// pre-computed it from the FULL catalogue record; otherwise derives it here from the finding itself via
+// the same one door (f carries the selected duty as `description`, so atomicClaimFor(f, f) reproduces
+// the identical claim). For a non-presence-breach the door returns the duty unchanged, so absence/
+// coverage_proof keep their existing hypothesis basis exactly as before.
+function hypothesisFor(f) {
+  if (typeof f.atomic_claim === 'string' && f.atomic_claim) return f.atomic_claim;
+  return atomicClaimFor(f, f);
+}
 function claimFor(f) {
   const art = f.artifact || {};
   return {
-    claim: fieldStr(f, 'description'),
+    claim: hypothesisFor(f),
     premise_source_id: premiseSourceId(f, art),
     premise: premiseQuote(f, art),
     // The out-of-band candidate identity for the frozen recorded-response contract's ENTAILMENT key
@@ -414,6 +431,8 @@ module.exports = {
   verdictsFrom,
   applyVerdicts,
   candidateRefsFor,
+  claimFor,
+  hypothesisFor,
   BATCH,
   DEFAULT_DEADLINE_MS,
 };
