@@ -47,20 +47,31 @@ function noteForRegister(bundle, register) {
 // verifyRegisterAbsence(artifact, bundle) -> {verified, code, reason}. Fails closed on: a missing
 // register field, a register that actually returned a present row (so an absence claim is false), or a
 // lookup that did not definitively run-and-no-match (a skipped/degraded/absent note proves nothing).
+function isMissingRegisterField(artifact) {
+  return typeof artifact.register !== 'string' || !artifact.register;
+}
+function isPresentRow(present) {
+  return Boolean(present) && typeof present === 'object';
+}
+// doesNotProveAbsence(note) -> true unless the note is a genuine run-and-no-match record (C-004).
+function doesNotProveAbsence(note) {
+  return !note || note.kind !== KIND_PROVES_ABSENCE;
+}
+
 function verifyRegisterAbsence(artifact, bundle) {
-  if (typeof artifact.register !== 'string' || !artifact.register) {
+  if (isMissingRegisterField(artifact)) {
     return rejected(CODES.REGISTER_ABSENCE_MISSING_FIELDS, 'artifact.register is required');
   }
   const registers = (bundle && bundle.registers) || {};
   const present = registers[artifact.register];
-  if (present && typeof present === 'object') {
+  if (isPresentRow(present)) {
     return rejected(
       CODES.REGISTER_ABSENCE_ROW_PRESENT,
       'bundle.registers.' + artifact.register + ' carries a present row; a non-appearance claim cannot stand against a matched register row'
     );
   }
   const note = noteForRegister(bundle, artifact.register);
-  if (!note || note.kind !== KIND_PROVES_ABSENCE) {
+  if (doesNotProveAbsence(note)) {
     const seen = note ? note.kind : 'no note';
     return rejected(
       CODES.REGISTER_ABSENCE_NOT_PROVEN,

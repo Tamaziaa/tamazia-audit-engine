@@ -164,6 +164,31 @@ test('RT-F: register form (LLP) contradicting the on-page form (Ltd) demotes off
   assert.ok(result.notes.some((n) => n.includes('entity_form_mismatch')));
 });
 
+test('RT-F raw-text: a differing legal form found ONLY in raw page text (no structured name candidate) still contradicts', () => {
+  // The register name-core ("Harpton Legal") appears only in the page BODY as "...Ltd", never as an
+  // accepted title/OG/footer/JSON-LD candidate. A raw-text name match must not silently corroborate a
+  // register row (LLP) the page contradicts (Ltd): the on-page form is gathered from the raw surface too.
+  const result = resolveIdentity(bundleOf({
+    domain: 'harptonlegal.co.uk',
+    corpus: {
+      pages: [{
+        url: 'https://harptonlegal.co.uk/',
+        title: 'Welcome to our website',
+        text: 'For expert advice contact Harpton Legal Ltd, a firm based in Leeds serving clients nationwide.',
+        jsonLd: [],
+      }],
+      footerText: '',
+    },
+    registers: {
+      companiesHouse: { company_name: 'HARPTON LEGAL LLP', company_number: 'OC556677' },
+    },
+  }));
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.REGISTER, 'a raw-text-only name match must not attach the contradicted register row');
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.CORROBORATED);
+  assert.equal(result.company_number.value, null);
+  assert.ok(result.notes.some((n) => n.includes('entity_form_mismatch')), 'the raw-text differing form is recorded as a contradiction');
+});
+
 test('RT-F guard is not over-eager: a matching on-page number keeps register confidence', () => {
   const result = resolveIdentity(bundleOf({
     domain: 'kingsleynapley.co.uk',

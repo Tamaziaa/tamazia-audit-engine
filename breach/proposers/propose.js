@@ -68,14 +68,15 @@ function pagesOf(bundle) {
 function footerOf(bundle) {
   return bundle && bundle.corpus && typeof bundle.corpus.footerText === 'string' ? bundle.corpus.footerText : '';
 }
-// isTruncated(bundle): the crawler flags a page past the corpus cap (C-024). Read defensively from the
-// spots the crawl telemetry may surface it on; a missing flag is treated as NOT truncated, and that
-// dependency on the bundle assembler propagating truncation is flagged honestly to the caller.
-function isTruncated(bundle) {
-  if (!bundle) return false;
-  if (bundle.corpus && typeof bundle.corpus.truncated === 'boolean') return bundle.corpus.truncated;
-  if (typeof bundle.truncated === 'boolean') return bundle.truncated;
-  return Boolean(bundle.telemetry && bundle.telemetry.truncated);
+// truncationState(bundle): the crawler flags a page past the corpus cap (C-024). Read defensively from
+// the spots the crawl telemetry may surface it on. Returns a BOOLEAN when truncation is known, or null
+// when NO truncation telemetry was surfaced at all: a missing flag is UNKNOWN, never a silent false.
+// The crawler always sets bundle.corpus.truncated, so null means the bundle assembler dropped the field.
+function truncationState(bundle) {
+  if (bundle && bundle.corpus && typeof bundle.corpus.truncated === 'boolean') return bundle.corpus.truncated;
+  if (bundle && typeof bundle.truncated === 'boolean') return bundle.truncated;
+  if (bundle && bundle.telemetry && typeof bundle.telemetry.truncated === 'boolean') return bundle.telemetry.truncated;
+  return null;
 }
 // isUnreadable(bundle): a bot-walled or SPA-shell bundle carries no readable page (C-038). Nothing is
 // ever asserted about content that was not read; propose returns [] on it.
@@ -235,7 +236,15 @@ function absenceInterlock(detectionSpec, bundle, coverageState) {
   if (detectionSpec.surface === 'raw_html') return 'required mechanism lives in raw HTML, unreadable in the stripped corpus; abstained rather than fabricate a missing-mechanism breach (C-036/C-032)';
   if (detectionSpec.surface === 'footer' && !footerOf(bundle)) return 'no footer surface was captured; a registration-disclosure absence cannot be asserted (C-034)';
   if (pagesOf(bundle).length < MIN_PAGES_FOR_ABSENCE) return 'corpus below the ' + MIN_PAGES_FOR_ABSENCE + '-page floor for an absence claim (C-025)';
-  if (isTruncated(bundle)) return 'corpus was truncated; the required content may sit past the cut, so the absence claim is demoted (C-024)';
+  const truncated = truncationState(bundle);
+  if (truncated !== false) {
+    // A truncated corpus (true) OR unknown truncation (null: the assembler surfaced no telemetry) both
+    // demote: an absence claim needs PROOF the corpus was complete, and "truncated:false" must never be
+    // emitted on a bundle that never told us its truncation state (ledger decision 2, C-024, Rule 4).
+    return truncated === null
+      ? 'corpus truncation is UNKNOWN (no telemetry surfaced); an absence claim cannot prove the corpus was complete, so it is demoted (C-024)'
+      : 'corpus was truncated; the required content may sit past the cut, so the absence claim is demoted (C-024)';
+  }
   return null;
 }
 
@@ -261,7 +270,9 @@ function evalAbsenceBreach(detectionSpec, bundle, coverageState) {
     pages_checked: surface.coveredPages,
     searched_patterns: detectionSpec.patterns.map(patternSummary),
     tier1_fetched: true,
-    truncated: isTruncated(bundle),
+    // Always false here by construction: absenceInterlock above demotes on both a truncated (true) AND an
+    // unknown (null) corpus, so this emit is only ever reached with a proven-complete corpus (C-024).
+    truncated: false,
   };
   return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: null, confidence: 'moderate' });
 }
@@ -314,7 +325,10 @@ function observedCandidates(detectionSpec, observed) {
   for (const ev of (Array.isArray(observed) ? observed : [])) {
     if (!isRelevantObservation(detectionSpec, ev)) continue;
     out.push(candidate({
-      detectionSpec, kind: KIND.BEHAVIOURAL, artifact: { type: ARTIFACT_TYPES.NETWORK_EVENT, ...ev },
+      // The spread comes BEFORE the discriminator so a stray `ev.type` can never overwrite the canonical
+      // network_event type (ledger decision 1: the artifact-type enum is the one door). A clobbered
+      // discriminator would quarantine or misroute a genuine observed pre-consent event.
+      detectionSpec, kind: KIND.BEHAVIOURAL, artifact: { ...ev, type: ARTIFACT_TYPES.NETWORK_EVENT },
       pageUrl: ev.host || ev.url || null, confidence: 'strong',
     }));
   }
@@ -410,7 +424,19 @@ function listOf(x) { return x ? [x] : []; }
 // bundle asserts nothing at all.
 function propose(bundle, catalogue, coverage) {
   if (isUnreadable(bundle) || isNonEnglishGated(bundle)) return [];
-  const { specs } = spec.compileCatalogue(catalogue);
+  const { specs, rejected } = spec.compileCatalogue(catalogue);
+  // FAIL-CLOSED (Rule 4): a READABLE bundle whose catalogue compiled to ZERO detection specs while
+  // REJECTING obligations is a malformed/unavailable catalogue, not a clean site. Returning [] here would
+  // be a confident empty result - no breaches proposed because no legal inputs compiled at all - which is
+  // exactly the "partial catalogue attached nothing" class (caution.md b107). Throw so the caller records
+  // an ERRORED propose stage rather than shipping a clean bill of health for a check that never ran. (A
+  // PARTIAL compile - some specs valid, some rejected - is a per-obligation coverage gap for the stage
+  // manifest to surface in P4, not a reason to fail the whole mint.)
+  if (specs.length === 0 && rejected.length > 0) {
+    throw new Error('breach/proposers: catalogue compiled to ZERO detection specs while rejecting '
+      + rejected.length + ' obligation(s); a malformed catalogue must not yield a confident empty result: '
+      + JSON.stringify(rejected.slice(0, 3)));
+  }
   const records = recordIndex(catalogue);
   const out = [];
   for (const detectionSpec of specs) {

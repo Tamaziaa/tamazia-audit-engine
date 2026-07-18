@@ -24,22 +24,38 @@ const { CODES, accepted, rejected } = require('./result');
 // differs from the bundle's row in any field (an altered figure, a fabricated number, a dropped
 // provenance field - all count as a mismatch; Rule 12 Gate 2's "exact re-match" ethos applied to
 // structured data, not just prose).
+// Each named predicate below owns exactly one field-shape check, so verifyRegisterRow's own
+// guard-clause chain stays a flat sequence of single-call ifs (the health-gate Complex Method /
+// Complex Conditional caps) rather than folding a multi-term boolean into any one of them.
+function isMissingArtifactEnvelope(artifact) {
+  return !artifact || typeof artifact !== 'object';
+}
+function isMissingRegisterField(artifact) {
+  return typeof artifact.register !== 'string' || !artifact.register;
+}
+function isMissingRowField(artifact) {
+  return !artifact.row || typeof artifact.row !== 'object' || Array.isArray(artifact.row);
+}
+function isMissingActualRow(actual) {
+  return !actual || typeof actual !== 'object';
+}
+
 function verifyRegisterRow(artifact, bundle) {
-  if (!artifact || typeof artifact !== 'object') {
+  if (isMissingArtifactEnvelope(artifact)) {
     // Fail closed on a missing artifact envelope (Rule 3/4): read `artifact.register` off undefined
     // would THROW, and a thrown verifier is an unhandled path - a missing envelope is simply "no
     // verifiable register row", so it is a clean REJECT, never an exception into the pipeline.
     return rejected(CODES.REGISTER_ROW_MISSING_FIELDS, 'artifact envelope is required (no artifact, no breach)');
   }
-  if (typeof artifact.register !== 'string' || !artifact.register) {
+  if (isMissingRegisterField(artifact)) {
     return rejected(CODES.REGISTER_ROW_MISSING_FIELDS, 'artifact.register is required');
   }
-  if (!artifact.row || typeof artifact.row !== 'object' || Array.isArray(artifact.row)) {
+  if (isMissingRowField(artifact)) {
     return rejected(CODES.REGISTER_ROW_MISSING_FIELDS, 'artifact.row is required (the exact row object the candidate cites)');
   }
   const registers = (bundle && bundle.registers) || {};
   const actual = registers[artifact.register];
-  if (!actual || typeof actual !== 'object') {
+  if (isMissingActualRow(actual)) {
     return rejected(CODES.REGISTER_ROW_ABSENT, 'bundle.registers has no row for ' + JSON.stringify(artifact.register));
   }
   if (!isDeepStrictEqual(actual, artifact.row)) {

@@ -634,7 +634,8 @@ function resolveIdentity(bundle) {
         regEvidence.push({ kind: first.rung, source: first.source, quote: first.quote || first.value });
       }
       const contradiction = (numberOnPage || nameOnPage)
-        ? registerContradiction(reg, onPageNumbers, regNorm ? groups.get(regNorm) : null)
+        ? registerContradiction(reg, onPageNumbers, regNorm ? groups.get(regNorm) : null,
+          [footerText].concat(pages.map((p) => p.text)))
         : null;
       if (contradiction) {
         regAttachment = 'contradicted';

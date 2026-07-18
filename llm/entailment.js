@@ -92,13 +92,20 @@ async function callModel(pkg, opts) {
 // verdictFromResponse(raw, pkg): run the injected caller's return through llm/gate.js and reduce it
 // to { verdict, ok, reason }. A gate rejection (schema, out-of-set source_id, quote drift) or a
 // missing/unknown label abstains; only a clean, gate-valid 'entailment' is ok:true.
+// gateRejectionCode/labelFromGated split out of verdictFromResponse so neither field derivation is
+// folded into its own decision count (the health-gate Complex Method cap).
+function gateRejectionCode(gated) {
+  return (gated.violations && gated.violations[0] && gated.violations[0].code) || 'gate_reject';
+}
+function labelFromGated(gated) {
+  return String((gated.value && gated.value.verdict) || '').toLowerCase().trim();
+}
 function verdictFromResponse(raw, pkg) {
   const gated = validateResponse(raw, { schema: pkg.schema, allowedSourceIds: pkg.allowedSourceIds, sources: pkg.sources });
   if (!gated.ok) {
-    const code = (gated.violations && gated.violations[0] && gated.violations[0].code) || 'gate_reject';
-    return { verdict: ABSTAIN_LABEL, ok: false, reason: 'gate rejected the nli response (' + code + ') -> abstain' };
+    return { verdict: ABSTAIN_LABEL, ok: false, reason: 'gate rejected the nli response (' + gateRejectionCode(gated) + ') -> abstain' };
   }
-  const label = String((gated.value && gated.value.verdict) || '').toLowerCase().trim();
+  const label = labelFromGated(gated);
   if (!LABELS.includes(label)) return { verdict: ABSTAIN_LABEL, ok: false, reason: 'nli label not in the closed enum -> abstain' };
   if (label === ENTAILMENT) return { verdict: ENTAILMENT, ok: true, reason: 'premise entails the hypothesis' };
   return { verdict: label, ok: false, reason: 'nli label "' + label + '" is not entailment -> abstain (Rule 12 gate 3)' };

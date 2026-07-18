@@ -90,19 +90,23 @@ function tokenContains(text, token) {
 // matcher propose.js calls (one door): a token-set is tested token by token, combined by some() ('any')
 // or every() ('all') - NEVER a co-occurrence mega-regex (the ReDoS Rob P0 fixed). An anchored-regex is
 // a `\b`-bounded word run (linear). A url-path is matched by propose.js against page URLs, not here.
+// matchesTokenSet/matchesAnchoredRegex split out of matchesText so its own body is a flat kind dispatch
+// (the health-gate Complex Method/Bumpy Road caps), each kind's matching logic kept to its own unit.
+function matchesTokenSet(pattern, hay) {
+  const tokens = pattern.value && Array.isArray(pattern.value.tokens) ? pattern.value.tokens : [];
+  if (!tokens.length) return false;
+  const hit = (t) => tokenContains(hay, t);
+  return pattern.value.mode === 'any' ? tokens.some(hit) : tokens.every(hit);
+}
+function matchesAnchoredRegex(pattern, hay) {
+  const re = compileRegex(pattern);
+  return re ? re.test(hay) : false;
+}
 function matchesText(pattern, text) {
   if (!pattern || typeof pattern !== 'object') return false;
   const hay = String(text == null ? '' : text);
-  if (pattern.kind === 'token-set') {
-    const tokens = pattern.value && Array.isArray(pattern.value.tokens) ? pattern.value.tokens : [];
-    if (!tokens.length) return false;
-    const hit = (t) => tokenContains(hay, t);
-    return pattern.value.mode === 'any' ? tokens.some(hit) : tokens.every(hit);
-  }
-  if (pattern.kind === 'anchored-regex') {
-    const re = compileRegex(pattern);
-    return re ? re.test(hay) : false;
-  }
+  if (pattern.kind === 'token-set') return matchesTokenSet(pattern, hay);
+  if (pattern.kind === 'anchored-regex') return matchesAnchoredRegex(pattern, hay);
   return false;
 }
 

@@ -18,17 +18,21 @@ const { observe, normaliseOpts, DEFAULT_DEADLINE_MS, DEFAULT_CLOSE_MS, DEFAULT_S
 function counter() { let t = 0; return () => (t += 1); }
 function hangForever() { return new Promise(() => {}); }
 
-function makeFake(script) {
-  const s = script || {};
-  const rec = { closed: false, newPageCalls: 0, gotoCalled: false, clicked: false, consented: false };
-  const handlers = [];
-  function emit(reqs) {
+// makeFake's scripted fake browser is built from small named factories (one per contract surface -
+// event emission, the page, the browser, the launcher) rather than one large object literal, so each
+// piece is its own reportable unit and none folds every case into "makeFake" itself (the health-gate
+// Complex Method cap; this is a test file, so the split is case-driven per the fix brief).
+function makeEmit(handlers) {
+  return function emit(reqs) {
     for (const r of reqs || []) {
       const ev = { host: r.host, url: r.url || ('https://' + r.host + '/tag.js'), resourceType: r.resourceType || 'script', ts: Date.now() };
       for (const h of handlers) h(ev);
     }
-  }
-  const page = {
+  };
+}
+
+function makeFakePage(s, rec, handlers, emit) {
+  return {
     on(ev, h) { if (ev === 'request') handlers.push(h); },
     async goto() { if (s.hang === 'goto') return hangForever(); rec.gotoCalled = true; emit(s.preRequests); },
     async settle() {},
@@ -36,11 +40,27 @@ function makeFake(script) {
     async findConsentControl() { return s.control || null; },
     async clickConsent() { rec.clicked = true; rec.consented = true; emit(s.postRequests); },
   };
-  const browser = {
+}
+
+function makeFakeBrowser(rec, page) {
+  return {
     async newPage() { rec.newPageCalls++; return page; },
     async close() { rec.closed = true; },
   };
-  async function launch() { if (s.hang === 'launch') return hangForever(); return browser; }
+}
+
+function makeFakeLauncher(s, browser) {
+  return async function launch() { if (s.hang === 'launch') return hangForever(); return browser; };
+}
+
+function makeFake(script) {
+  const s = script || {};
+  const rec = { closed: false, newPageCalls: 0, gotoCalled: false, clicked: false, consented: false };
+  const handlers = [];
+  const emit = makeEmit(handlers);
+  const page = makeFakePage(s, rec, handlers, emit);
+  const browser = makeFakeBrowser(rec, page);
+  const launch = makeFakeLauncher(s, browser);
   return { launch, rec, browser, page };
 }
 

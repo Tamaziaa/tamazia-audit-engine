@@ -151,6 +151,30 @@ test('absence-breach is SUPPRESSED on a truncated corpus by the proposer interlo
   assert.ok(suppressedOf(cands, KIND.ABSENCE_BREACH).some((c) => /truncat/i.test(c.suppressed_reason)), 'the proposer interlock demotes it');
 });
 
+test('absence-breach is SUPPRESSED when truncation telemetry is UNKNOWN (missing), never emitted as truncated:false', () => {
+  // The crawler always sets corpus.truncated; a bundle that OMITS it never told us the corpus is complete,
+  // so an absence claim cannot be proven and is demoted (fail-closed, ledger decision 2, C-024).
+  const cat = { records: [{ id: 'FAKE_ACT_2099_PRESENCE_ONLY', regulator: {}, citation: {},
+    website_obligations: [{ duty: 'Publish the required provider disclosure', elements: ["'authorised widget provider' wording present"], evidence_type: 'presence' }] }] };
+  const b = bundle();
+  const cov = coverageContract.coverageFor(cat.records, b.corpus.pages, { truncated: false });
+  delete b.corpus.truncated; // truncation state is now UNKNOWN
+  const cands = propose(b, cat, cov);
+  assert.strictEqual(fired(cands, KIND.ABSENCE_BREACH).length, 0, 'no absence claim on an unknown-truncation corpus');
+  assert.ok(suppressedOf(cands, KIND.ABSENCE_BREACH).some((c) => /UNKNOWN/i.test(c.suppressed_reason)), 'the interlock demotes on unknown truncation');
+});
+
+test('propose FAILS CLOSED when a readable bundle produces a totally uncompilable catalogue (zero specs, all rejected)', () => {
+  // Every obligation carries an un-anchored (banned) regex pattern, so compileCatalogue rejects them ALL
+  // and returns zero specs. Returning [] would be a confident empty result on a malformed catalogue.
+  const badCat = { records: [{ id: 'BAD_RULE', regulator: {}, citation: {},
+    website_obligations: [{ duty: 'x', elements: ['y'], evidence_type: 'absence',
+      detection: { patterns: [{ kind: 'anchored-regex', value: 'cost' }] } }] }] };
+  const b = bundle();
+  const cov = coverageFor(b, badCat);
+  assert.throws(() => propose(b, badCat, cov), /ZERO detection specs|confident empty result/);
+});
+
 test('absence-breach is SUPPRESSED below the min-pages floor (C-025)', () => {
   const b = bundle();
   b.corpus.pages = pages().slice(0, MIN_PAGES_FOR_ABSENCE - 1);

@@ -298,3 +298,4 @@ One line per pointer in `caution.md`, grouped by its section, for fast recall. F
 - C-253: (P3) a no-leak test embedded a secret-shaped literal -> rename it to an obviously-synthetic token so the secret-scan gate is not tripped.
 - C-254: (P3) a repo-wide health total hid new debt; a fix crossed the line cap -> separate pre-existing from new by (rule, location); extract a module, never grow the file.
 - C-255: (P3) a red-team fixture the generic evaluator could not check read as caught -> route to a bespoke handler or mark an explicit skip with a reason; count states separately.
+- C-256 readdir-name validators accept every legal filename (dotfiles) | C-257 shared-helper edits test EVERY caller mode

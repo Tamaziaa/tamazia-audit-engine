@@ -28,12 +28,20 @@ function isNonEmptyString(v) {
 // the candidate cites: same kind, same host, same name, and (when the candidate pins a timestamp)
 // the same ts. This is an EQUALITY check throughout, never a substring/includes test (GAPS.md
 // host-substring: a host is compared by parsed/exact identity here, never by token or substring).
+function isInvalidEntry(entry) {
+  return !entry || typeof entry !== 'object';
+}
+// tsMismatch(entry, artifact) -> true only when the candidate PINS a timestamp and the entry's differs.
+// Named so the conjunction is not its own "Complex Conditional" inline in entryMatches.
+function tsMismatch(entry, artifact) {
+  return artifact.ts !== undefined && entry.ts !== artifact.ts;
+}
 function entryMatches(entry, artifact) {
-  if (!entry || typeof entry !== 'object') return false;
+  if (isInvalidEntry(entry)) return false;
   if (entry.kind !== artifact.kind) return false;
   if (entry.host !== artifact.host) return false;
   if (entry.name !== artifact.name) return false;
-  if (artifact.ts !== undefined && entry.ts !== artifact.ts) return false;
+  if (tsMismatch(entry, artifact)) return false;
   return true;
 }
 
@@ -41,15 +49,21 @@ function entryMatches(entry, artifact) {
 // identifying fields, a browser lane that never ran (nothing to verify against - C-041's "absence is
 // visible, never silent" means an un-run lane cannot silently back-fill a claim either), or a cited
 // event with no match in bundle.browser.observed (fabricated network event).
+function hasMissingIdentityFields(artifact) {
+  return !isNonEmptyString(artifact.kind) || !isNonEmptyString(artifact.host) || !isNonEmptyString(artifact.name);
+}
+function laneDidNotRun(browser) {
+  return !browser || !browser.lane || browser.lane.ran !== true;
+}
 function verifyNetworkEvent(artifact, bundle) {
-  if (!isNonEmptyString(artifact.kind) || !isNonEmptyString(artifact.host) || !isNonEmptyString(artifact.name)) {
+  if (hasMissingIdentityFields(artifact)) {
     return rejected(
       CODES.NETWORK_EVENT_MISSING_FIELDS,
       'artifact.kind, artifact.host and artifact.name are all required to identify a network_event candidate'
     );
   }
   const browser = bundle && bundle.browser;
-  if (!browser || !browser.lane || browser.lane.ran !== true) {
+  if (laneDidNotRun(browser)) {
     return rejected(
       CODES.NETWORK_EVENT_LANE_NOT_RUN,
       'bundle.browser.lane did not run (ran !== true); there is no observation to verify a network_event against'

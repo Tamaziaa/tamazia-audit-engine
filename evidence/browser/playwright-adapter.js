@@ -35,10 +35,13 @@ function resolveChromium() {
   return null;
 }
 
+// chromiumFrom(m) -> the chromium launcher off a required module, in either export shape.
+function chromiumFrom(m) {
+  return m.chromium || (m.default && m.default.chromium) || null;
+}
 function tryRequireChromium(mod) {
   try {
-    const m = require(mod);
-    return m.chromium || (m.default && m.default.chromium) || null;
+    return chromiumFrom(require(mod));
   } catch (e) {
     return null; // FAIL-OPEN: an absent OPTIONAL driver is a legitimate state; the caller logs the aggregate miss loudly and returns null (C-041). Not an error to surface per-driver.
   }
