@@ -101,6 +101,7 @@ tested and reachable from its own `.test.js`, but no `mint/` entry point require
 |---|---|---|---|
 | `breach/proposers/propose.js` | the breach proposer (`propose(bundle, catalogue, coverage)`); tested (`propose.test.js`) and exercised against the real catalogue, but no `mint/` entry point calls it yet | Aman | `mint/` requires `breach/proposers/propose.js` for the propose-verify-adjudicate pipeline (Constitution Rule 3) |
 | `breach/proposers/detection-spec.js` | the runtime prose-obligation -> DetectionSpec migration consumed only by `propose.js`; page-class resolution is the single door imported from `evidence/crawler/coverage-contract.js` (no second copy); tested (`detection-spec.test.js`) | Aman | same as above |
+| `breach/proposers/pattern-match.js` | the linear-time anchoring + matching primitives (`anchorToken`/`buildAnchoredRegex`/`compileRegex`/`matchesText`/`tokenContains`) consumed by `detection-spec.js` and `propose.js`; a token-set is matched token-by-token, never a co-occurrence mega-regex (the ReDoS that hung real corpora); tested (`pattern-match.test.js`) | Aman | same as above |
 
 ## llm/ (P3 Wave-2, landed mid-pass)
 

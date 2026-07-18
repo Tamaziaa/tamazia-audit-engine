@@ -1,0 +1,11 @@
+{
+  "kind": "quorum-immunity",
+  "name": "immunity-sector-core",
+  "note": "a SECTOR_CORE curated catalogue fact is IMMUNE: the jury may never veto it (C-131 - the LLM once vetoed the SRA off an SRA-regulated solicitor). Even a jury scripted to veto must return 'immune'.",
+  "task": { "curated": true, "claim": "SRA regulation applies to this solicitors' firm", "immunity": "SECTOR_CORE" },
+  "providers": [
+    { "name": "groq-a", "family": "groq", "reply": { "veto": true, "reason": "I think this does not apply" } },
+    { "name": "gemini-b", "family": "gemini", "reply": { "veto": true, "reason": "no nexus in my opinion" } }
+  ],
+  "expect": { "verdict": "immune" }
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "gate",
+  "name": "gate-quote-drift",
+  "class": "gate",
+  "note": "Rule 12 gate 2: a quote that is not a verbatim substring of its cited source (a paraphrase inside quotation marks) is refused before the claim can exist.",
+  "response": { "verdict": "violation", "source_id": "s1", "quote": "the company promises to never ever share your personal data" },
+  "schema": { "type": "object", "required": ["verdict"], "properties": { "verdict": { "type": "string" }, "source_id": { "type": "string" }, "quote": { "type": "string" } } },
+  "allowedSourceIds": ["s1"],
+  "sources": { "s1": "We may share your personal data with selected third-party partners for marketing." },
+  "expect": { "ok": false }
+}

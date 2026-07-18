@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-out-of-set-citation",
+  "class": "gate",
+  "note": "the model claims entailment but cites a source_id that was never in the retrieval set; Gate 1 hard-rejects it (escape probability zero), so an entailment LABEL cannot ride a fabricated citation to ok:true.",
+  "claims": [
+    { "claim": "the firm is authorised by the FCA", "premise_source_id": "s1", "premise": "Authorised and regulated by the Financial Conduct Authority, firm reference number 123456." }
+  ],
+  "scripted_response": { "source_id": "fabricated-authority-99", "verdict": "entailment", "rationale": "cites an id that does not exist" },
+  "expect": { "ok": [false] }
+}

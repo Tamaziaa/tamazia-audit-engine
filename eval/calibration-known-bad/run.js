@@ -202,6 +202,20 @@ const CALIBRATIONS = [
     ],
     checkerCandidates: ['breach/verifiers/quote-match.js'],
   },
+  {
+    name: 'deadline-hang',
+    description:
+      'Constitution Rule 9 (every external step has a hard deadline): an injected external call (fetchFn / launchBrowser / llmCall / a provider .call) awaited with no raceWithDeadline/withDeadline wrapper and no deadline arg, or a spawn shelling out to http, must be flagged - the 752s stuck-Chromium / exhausted-free-tier hang class (GAPS.md deadline-hang, caution.md C-040/C-138). The module IS the checker: tools/domain-gates/deadline-audit.js --calibrate replays the seeded undeadlined awaits',
+    fixtures: ['p3-gate-deadline-audit.js'],
+    checkerCandidates: ['tools/domain-gates/deadline-audit.js'],
+  },
+  {
+    name: 'module-scope-state',
+    description:
+      'caution.md C-153 (no mutable module-scope state in the mint path): a module-scope binding mutated per audit from a function (the _WARN/_SWARN counter/accumulator that was never reset between builds, so warning counts were wrong for every audit after the first) must be flagged; guarded write-once memoisation and module-init IIFEs are spared. GAPS.md module-scope-state. The module IS the checker: tools/no-module-state/check.js --calibrate replays the seeded accumulator',
+    fixtures: ['p3-gate-module-state.js'],
+    checkerCandidates: ['tools/no-module-state/check.js'],
+  },
 ];
 
 function findChecker(candidates) {

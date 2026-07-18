@@ -141,9 +141,11 @@ function matchUrlPath(value, pages) {
   return pages.some((p) => pathHasSegment(p.url, value));
 }
 // patternMatchesText(pattern, text) -> does a text pattern (anchored-regex or token-set) match `text`.
+// Delegates to detection-spec.js's matchesText, the ONE linear-time matcher (a token-set is tested
+// token by token, never a co-occurrence mega-regex - Rob P0: the old lookahead form backtracked
+// catastrophically on real corpora).
 function patternMatchesText(pattern, text) {
-  const re = spec.compileRegex(pattern);
-  return re ? re.test(text) : false;
+  return spec.matchesText(pattern, text);
 }
 // requiredContentPresent(detectionSpec, surfaceText, pages) -> is ANY pattern satisfied (the lenient
 // "present" check for a REQUIRED disclosure: a partial or differently-worded disclosure still counts as

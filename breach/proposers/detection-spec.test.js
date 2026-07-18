@@ -61,6 +61,40 @@ test('CALIBRATION: validateSpec rejects every bad spec in p3-proposer-unanchored
   assert.strictEqual(ds.validateSpec(fixture.good).valid, true, 'the anchored twin must pass (both-directions calibration, C-203)');
 });
 
+// ── the ReDoS guard: derived patterns must be linear-time (Rob P0, real-corpus hang) ────────────────
+test('validateSpec REJECTS a catastrophic-backtracking derived pattern (lookahead-dot-star / nested quantifier)', () => {
+  const redos = [
+    '(?=[\\s\\S]*sra)\\bx\\b',   // lookahead with an unbounded [\s\S]* - the exact old 'all' token-set form
+    '\\bfoo.*bar\\b',            // an unbounded .* dot-star
+    '\\b(a+)+\\b',               // a nested quantifier
+  ];
+  for (const value of redos) {
+    const spec = { record_id: 'X', duty_idx: 0, evidence_type: 'absence', surface: 'visible_text', page_class: 'any',
+      patterns: [{ kind: 'anchored-regex', value, negation_guarded: false }] };
+    const v = ds.validateSpec(spec);
+    assert.strictEqual(v.valid, false, value + ' must be rejected as a ReDoS vector');
+    assert.ok(v.errors.some((e) => /backtrack|linear|lookar|nested|redos/i.test(e)), 'the rejection names the backtracking defect: ' + JSON.stringify(v.errors));
+  }
+  // A legitimate \b-bounded phrase with \W+ gaps and an escaped literal dot is NOT flagged.
+  assert.strictEqual(ds.isAnchoredPatternValue({ kind: 'anchored-regex', value: '\\bauthorised\\W+widget\\W+provider\\b' }).ok, true);
+  assert.strictEqual(ds.isAnchoredPatternValue({ kind: 'anchored-regex', value: '\\ba\\.b\\b' }).ok, true, 'an escaped literal dot is fine');
+});
+
+test('matchesText is LINEAR for an "all" token-set: it tests each token, never a co-occurrence mega-regex', () => {
+  const all = { kind: 'token-set', value: { tokens: ['certification', 'specialist'], mode: 'all' } };
+  assert.equal(ds.matchesText(all, 'we hold a certification as a specialist firm'), true);
+  assert.equal(ds.matchesText(all, 'we hold a certification'), false, 'all tokens must co-occur');
+  const any = { kind: 'token-set', value: { tokens: ['complaint', 'ombudsman'], mode: 'any' } };
+  assert.equal(ds.matchesText(any, 'contact the ombudsman'), true);
+  assert.equal(ds.matchesText(any, 'nothing relevant here'), false);
+  // compileRegex no longer produces a lookahead for an 'all' token-set (the ReDoS form is gone).
+  assert.equal(ds.compileRegex(all), null, "an 'all' token-set has no single-regex form; it is matched linearly");
+  const bigAbsent = 'the firm advises clients on many matters. '.repeat(20000); // ~840k chars, tokens absent
+  const t0 = Date.now();
+  assert.equal(ds.matchesText(all, bigAbsent), false);
+  assert.ok(Date.now() - t0 < 500, 'matching a huge corpus is linear, not a backtracking hang (took ' + (Date.now() - t0) + 'ms)');
+});
+
 // ── negation, review and prose guards (ported from corpus-index.js, C-048/C-090/C-089) ──────────────
 test('isNegated fires on a compliance self-declaration, not on a bare prohibited claim', () => {
   assert.ok(ds.isNegated('we do not offer this treatment to under-18s'));

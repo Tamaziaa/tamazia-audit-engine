@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-contradiction",
+  "class": "gate",
+  "note": "the premise makes the hypothesis false; Gate 3 abstains (only entailment ships).",
+  "claims": [
+    { "claim": "the firm is not regulated by any authority", "premise_source_id": "s1", "premise": "Authorised and regulated by the Financial Conduct Authority, firm reference number 123456." }
+  ],
+  "scripted_response": { "source_id": "s1", "verdict": "contradiction", "rationale": "premise states the firm IS regulated" },
+  "expect": { "ok": [false] }
+}

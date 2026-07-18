@@ -30,4 +30,16 @@ function scanTreeWith(dirs, skipDirs, scanContent) {
   return { violations, scanned };
 }
 
-module.exports = { scanTreeWith };
+// The micro-helpers every acorn gate needs (isMetaKey to skip acorn's loc/start/end/range bookkeeping,
+// lineOf for a 1-based report line, memberPropName for a MemberExpression's property name). Extracted
+// here so the acorn domain gates share ONE copy rather than each re-declaring them (jscpd clone class).
+function isMetaKey(k) { return k === 'loc' || k === 'start' || k === 'end' || k === 'range'; }
+function lineOf(node) { return (node && node.loc && node.loc.start.line) || 1; }
+function memberPropName(m) {
+  if (!m || m.type !== 'MemberExpression' || !m.property) return '';
+  if (!m.computed && m.property.type === 'Identifier') return m.property.name;
+  if (m.computed && m.property.type === 'Literal') return String(m.property.value);
+  return '';
+}
+
+module.exports = { scanTreeWith, isMetaKey, lineOf, memberPropName };

@@ -1,0 +1,11 @@
+{
+  "kind": "quorum-immunity",
+  "name": "immunity-global-framework",
+  "note": "a SECTOR_AGNOSTIC / GLOBAL curated framework is immune by definition; a veto-scripted jury must still return 'immune' (Rule 12 gate 5 immunity).",
+  "task": { "curated": true, "claim": "UK GDPR applies to a UK-established data controller", "immunity": "SECTOR_AGNOSTIC" },
+  "providers": [
+    { "name": "groq-a", "family": "groq", "reply": { "verdict": "pass" } },
+    { "name": "nim-b", "family": "nim", "reply": { "veto": true, "reason": "unsure about nexus" } }
+  ],
+  "expect": { "verdict": "immune" }
+}

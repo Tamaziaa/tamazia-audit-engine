@@ -33,7 +33,7 @@
  *                                                           REQUIRE the seeded undeadlined await is caught
  */
 const { runGateCli } = require('../lib/gate-cli');
-const { scanTreeWith } = require('./acorn-scan');
+const { scanTreeWith, isMetaKey, lineOf, memberPropName: propName } = require('./acorn-scan');
 
 const SCAN_DIRS = ['evidence', 'llm', 'breach'];
 const SKIP_DIRS = /^(node_modules|\.git|out|packs|dist|fixtures)$/;
@@ -54,17 +54,7 @@ catch (e) { acorn = null; /* FAIL-OPEN: acorn=null is the typed failure captured
 const FORCE_REFUSE = process.env.DEADLINE_AUDIT_ENGINE === 'refuse';
 const useAcorn = Boolean(acorn) && !FORCE_REFUSE;
 
-// ── small AST predicates ──────────────────────────────────────────────────────────────────────────
-function isMetaKey(k) { return k === 'loc' || k === 'start' || k === 'end' || k === 'range'; }
-function lineOf(node) { return (node.loc && node.loc.start.line) || 1; }
-
-function propName(m) {
-  if (!m || m.type !== 'MemberExpression' || !m.property) return '';
-  if (!m.computed && m.property.type === 'Identifier') return m.property.name;
-  if (m.computed && m.property.type === 'Literal') return String(m.property.value);
-  return '';
-}
-
+// ── small AST predicates (isMetaKey / lineOf / propName come from the shared acorn-scan lib) ──────────
 function isKnownExternalCallee(callee) {
   if (!callee) return false;
   if (callee.type === 'Identifier') return KNOWN_IDENTS.has(callee.name);
@@ -89,39 +79,43 @@ function spawnName(callee) {
   return '';
 }
 
-// refsDeadline(node) -> a budget/deadline/timeout/signal identifier or property key appears anywhere in
-// this subtree (so fetchFn(url, { deadlineMs }) and llmCall(req, signal) are recognised as self-bounded).
-function refsDeadline(node) {
+// subtreeSome(node, pred) -> true when any typed AST node in this subtree (arrays included) satisfies
+// pred. The ONE recursive subtree scan both detectors below share (no per-detector clone).
+function subtreeSome(node, pred) {
+  if (Array.isArray(node)) return node.some((x) => subtreeSome(x, pred));
   if (!node || typeof node !== 'object') return false;
-  if (node.type === 'Identifier') return DEADLINE_RX.test(node.name);
-  if (node.type === 'Property' && node.key) {
-    const k = node.key.type === 'Identifier' ? node.key.name : (node.key.type === 'Literal' ? String(node.key.value) : '');
-    if (k && DEADLINE_RX.test(k)) return true;
-  }
+  if (typeof node.type === 'string' && pred(node)) return true;
   for (const key of Object.keys(node)) {
-    if (isMetaKey(key)) continue;
-    const v = node[key];
-    if (Array.isArray(v)) { if (v.some(refsDeadline)) return true; }
-    else if (v && typeof v === 'object' && refsDeadline(v)) return true;
+    if (!isMetaKey(key) && subtreeSome(node[key], pred)) return true;
   }
   return false;
 }
 
-function argHasHttp(node) {
-  if (!node || typeof node !== 'object') return false;
-  if (node.type === 'Literal' && typeof node.value === 'string') return HTTP_RX.test(node.value) || SHELL_HTTP_RX.test(node.value);
-  for (const key of Object.keys(node)) {
-    if (isMetaKey(key)) continue;
-    const v = node[key];
-    if (Array.isArray(v)) { if (v.some(argHasHttp)) return true; }
-    else if (v && typeof v === 'object' && argHasHttp(v)) return true;
-  }
+function keyName(key) {
+  if (!key) return '';
+  if (key.type === 'Identifier') return key.name;
+  if (key.type === 'Literal') return String(key.value);
+  return '';
+}
+
+// isDeadlineNode(node) -> a budget/deadline/timeout/signal identifier or property key (so
+// fetchFn(url, { deadlineMs }) and llmCall(req, signal) read as self-bounded, exempt from the gate).
+function isDeadlineNode(node) {
+  if (node.type === 'Identifier') return DEADLINE_RX.test(node.name);
+  if (node.type === 'Property') { const k = keyName(node.key); return Boolean(k) && DEADLINE_RX.test(k); }
   return false;
 }
+
+// isHttpNode(node) -> a string literal that is an http(s) URL or a curl/wget command (a spawn shelling
+// out to the network).
+function isHttpNode(node) {
+  return node.type === 'Literal' && typeof node.value === 'string' && (HTTP_RX.test(node.value) || SHELL_HTTP_RX.test(node.value));
+}
+
+function hasOwnDeadlineArg(call) { return subtreeSome(call.arguments, isDeadlineNode); }
 
 function isSpawnHttp(call) {
-  if (!SPAWN_NAMES.has(spawnName(call.callee))) return false;
-  return (call.arguments || []).some(argHasHttp);
+  return SPAWN_NAMES.has(spawnName(call.callee)) && subtreeSome(call.arguments, isHttpNode);
 }
 
 // rootAwaitedCall(argNode) -> the base CallExpression an `await` ultimately awaits, unwrapping trailing
@@ -140,7 +134,7 @@ function flagAwait(node, wrapped, relPath, violations) {
   if (wrapped) return; // the await is lexically inside a deadline wrapper's arguments -> exempt
   const call = rootAwaitedCall(node.argument);
   if (!call || !isKnownExternalCallee(call.callee)) return;
-  if (refsDeadline(call.arguments)) return; // self-bounded: carries its own deadline/timeout/signal arg
+  if (hasOwnDeadlineArg(call)) return; // self-bounded: carries its own deadline/timeout/signal arg
   violations.push({ file: relPath, line: lineOf(node), kind: 'undeadlined-await',
     message: 'awaited external call is not inside a raceWithDeadline/withDeadline wrapper and carries no deadline argument (Rule 9); a slow dependency would HANG the mint' });
 }

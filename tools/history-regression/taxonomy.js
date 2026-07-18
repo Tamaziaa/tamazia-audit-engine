@@ -240,7 +240,7 @@ const TAXONOMY = [
     class: 'deadline-hang',
     description: 'An external step with no hard outer deadline holding a mint hostage (752s stuck Chromium; 30s x 3 x 3 rate-limited chains).',
     catching_gate: 'tools/domain-gates/deadline-audit.js',
-    status: 'gap', phase: 'P3', past_severity: 'P0', shipped: false,
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: false,
     caution: ['C-040', 'C-138'],
   },
   {
@@ -282,7 +282,7 @@ const TAXONOMY = [
     class: 'module-scope-state',
     description: 'Module-scope mutable singletons never reset between builds (_WARN/_SWARN), so warning counts were wrong for every audit after the first.',
     catching_gate: 'tools/no-module-state/check.js',
-    status: 'gap', phase: 'P3', past_severity: 'P0', shipped: true,
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-153'],
   },
   {

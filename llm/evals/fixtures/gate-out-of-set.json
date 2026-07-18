@@ -1,0 +1,11 @@
+{
+  "kind": "gate",
+  "name": "gate-out-of-set",
+  "class": "gate",
+  "note": "Rule 12 gate 1 at the pure structural level: a response citing a source_id outside the injected retrieval set is refused, whatever the label.",
+  "response": { "verdict": "violation", "source_id": "authority-not-retrieved" },
+  "schema": { "type": "object", "required": ["verdict"], "properties": { "verdict": { "type": "string" }, "source_id": { "type": "string" } } },
+  "allowedSourceIds": ["authority-1", "authority-2"],
+  "sources": { "authority-1": "some retrieved text", "authority-2": "other retrieved text" },
+  "expect": { "ok": false }
+}

@@ -47,6 +47,9 @@ const LANES = [
   ['one-door', 'tools/one-door/check.js', ['--json', path.join(SARIF, 'one-door.local.json')]],
   ['swallow-gate', 'tools/swallow-gate/check.js', ['--json', path.join(SARIF, 'swallow-gate.local.json')]],
   ['fact-lineage', 'tools/fact-lineage/check.js', ['--json', path.join(SARIF, 'fact-lineage.local.json')]],
+  // P3 domain gates (self-testing acorn gates; exit 2 aborts the sweep, exit 1 is collected):
+  ['deadline-audit', 'tools/domain-gates/deadline-audit.js', ['--json', path.join(SARIF, 'deadline-audit.local.json')]],
+  ['no-module-state', 'tools/no-module-state/check.js', ['--json', path.join(SARIF, 'no-module-state.local.json')]],
 ];
 
 // runSelfTestsOrAbort() -> step 0. In-process, synthetic input, no files: one-door and

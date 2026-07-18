@@ -62,6 +62,10 @@
 // judged (C-035). It lives in evidence/crawler/coverage-contract.js; this module imports it rather than
 // keeping a second copy (the cross-wave clone the reconciliation pass deletes).
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
+// The anchoring + matching primitives live in one focused module (linear-time by construction, Rob P0);
+// re-exported below so the public API (anchorToken/buildAnchoredRegex/compileRegex/matchesText/
+// tokenContains) is unchanged. buildAnchoredRegex is also used internally by patternsFromElement.
+const { anchorToken, buildAnchoredRegex, compileRegex, matchesText, tokenContains } = require('./pattern-match.js');
 
 // ── frozen vocabularies (the closed sets validateSpec enforces) ──────────────────────────────────
 const EVIDENCE_TYPES = Object.freeze(['presence', 'absence', 'behavioural', 'register']);
@@ -97,58 +101,8 @@ const MECHANISM_RX = /\b(badge|embedded|embed|script|plugin|clickable|consent[- 
 // Footer-surface duties: a company/registration number or registered office (C-034/C-072).
 const FOOTER_RX = /\b(company number|registration number|registered office|firm(?:'s)? (?:sra|number)|number shown|registered number)\b/i;
 
-// ── anchoring primitives ─────────────────────────────────────────────────────────────────────────
-function escapeRegex(s) {
-  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// anchorToken(word) -> a word-boundary-anchored regex SOURCE for one token (C-059). An internal hyphen
-// is preserved ("under-18" -> \bunder-18\b); a bare token can never leak into a substring match.
-function anchorToken(word) {
-  return '\\b' + escapeRegex(String(word)) + '\\b';
-}
-
-// buildAnchoredRegex(phrase) -> a single anchored-regex SOURCE for a multi-word phrase: each word
-// escaped, joined by \W+ (run of non-word chars), the whole bounded by \b on both ends. Whitespace and
-// punctuation between the client's words is tolerated; the phrase can never match as a bare substring.
-function buildAnchoredRegex(phrase) {
-  const words = String(phrase).trim().split(/\s+/).map(escapeRegex).filter(Boolean);
-  if (!words.length) return null;
-  return '\\b' + words.join('\\W+') + '\\b';
-}
-
-// compileRegex(pattern) -> a case-insensitive RegExp for a pattern, or null if it cannot compile. The
-// matcher (propose.js) calls this; a null here is surfaced by validateSpec as a rejected spec, never
-// swallowed (the C-050 dead-regex class: a pattern that does not compile is not a silent no-op).
-function compileRegex(pattern) {
-  const src = regexSourceOf(pattern);
-  if (src == null) return null;
-  try {
-    return new RegExp(src, 'i');
-  } catch (_err) {
-    // FAIL-OPEN: recorded as null and reported by validateSpec's does-not-compile branch (Rule 4).
-    return null;
-  }
-}
-
-// regexSourceOf(pattern) -> the regex source a pattern compiles to: an anchored-regex is its value; a
-// token-set becomes an AND/OR of anchored tokens via lookahead ('all') or alternation ('any'); a
-// url-path is compiled by matchUrlPath, not here (returns null).
-function regexSourceOf(pattern) {
-  if (!pattern || typeof pattern !== 'object') return null;
-  if (pattern.kind === 'anchored-regex') return typeof pattern.value === 'string' ? pattern.value : null;
-  if (pattern.kind === 'token-set') return tokenSetSource(pattern.value);
-  return null;
-}
-
-function tokenSetSource(value) {
-  const tokens = value && Array.isArray(value.tokens) ? value.tokens : null;
-  if (!tokens || !tokens.length) return null;
-  const anchored = tokens.map(anchorToken);
-  if (value.mode === 'any') return '(?:' + anchored.join('|') + ')';
-  // 'all': every token must occur somewhere in the surface, order-independent (lookahead per token).
-  return anchored.map((a) => '(?=[\\s\\S]*' + a + ')').join('') + '[\\s\\S]';
-}
+// ── anchoring + matching primitives ── moved to pattern-match.js (linear-time, Rob P0), imported and
+//    re-exported above. detection-spec.js keeps only the DERIVATION + VALIDATION of patterns. ─────────
 
 // ── negation guard (ported from corpus-index.js NEGATION_RX; PR #340 blanket-negation fix kept) ───
 // A prohibition ('absence') fires when the firm MAKES the forbidden claim. A sentence that NEGATES the
@@ -405,9 +359,24 @@ function isAnchoredPatternValue(pattern) {
   return urlPathOk(pattern.value);
 }
 
+// REDOS_RX: catastrophic-backtracking constructs unrepresentable in a DERIVED anchored-regex (Rob P0:
+// derived token-set lookaheads with [\s\S]* hung on real corpora). A derived phrase pattern is a
+// `\b`-bounded word run joined by `\W+` and legitimately never needs any of these, so this rule fires
+// only on a regression that reintroduces a ReDoS vector:
+//   \(\?[=!<]        any lookaround (the old 'all' co-occurrence used (?=[\s\S]*...))
+//   \[\\s\\S\]\*     an unbounded [\s\S]* (or [\S\s]*) wildcard star
+//   (?:^|[^\\])\.\*  an unescaped .* dot-star ([^\\] so an escaped \.  literal dot is not flagged)
+const REDOS_RX = /\(\?[=!<]|\[\\s\\S\]\*|\[\\S\\s\]\*|(?:^|[^\\])\.\*/;
+// NESTED_QUANT_RX: a quantified group immediately re-quantified ((a+)+, (\w*)* ...), the classic
+// exponential ReDoS. `\W+`/`\W*` are unparenthesised single quantifiers and never match this.
+const NESTED_QUANT_RX = /\([^)]*[+*][^)]*\)\s*[+*]/;
+
 function anchoredRegexOk(value) {
   if (typeof value !== 'string' || !value.length) return { ok: false, reason: 'anchored-regex value must be a non-empty string' };
   if (!/\\b|\^|\$/.test(value)) return { ok: false, reason: 'anchored-regex is not anchored (no \\b, ^ or $): a bare pattern substring-matches (C-019/C-059)' };
+  if (REDOS_RX.test(value) || NESTED_QUANT_RX.test(value)) {
+    return { ok: false, reason: 'anchored-regex contains a catastrophic-backtracking construct (a lookaround, an unbounded .* / [\\s\\S]*, or a nested quantifier); derived patterns must be linear-time (Rob P0: real-corpus hang)' };
+  }
   try {
     new RegExp(value, 'i');
   } catch (err) {
@@ -483,6 +452,8 @@ module.exports = {
   anchorToken,
   buildAnchoredRegex,
   compileRegex,
+  matchesText,
+  tokenContains,
   NEGATION_RX,
   isNegated,
   looksLikeReview,
