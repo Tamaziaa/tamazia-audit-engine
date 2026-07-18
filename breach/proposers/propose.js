@@ -68,14 +68,27 @@ function pagesOf(bundle) {
 function footerOf(bundle) {
   return bundle && bundle.corpus && typeof bundle.corpus.footerText === 'string' ? bundle.corpus.footerText : '';
 }
+// truncatedFlagFrom(container): the boolean `truncated` field read off ONE candidate container, or
+// undefined when that container is absent or does not carry a real boolean there (undefined is the
+// not-found sentinel, distinct from a legitimate `false`). Split out so truncationState reads as a
+// flat "try each spot in order" list rather than three independent nested guards (the health-gate
+// Complex Method cap).
+function truncatedFlagFrom(container) {
+  return container && typeof container.truncated === 'boolean' ? container.truncated : undefined;
+}
 // truncationState(bundle): the crawler flags a page past the corpus cap (C-024). Read defensively from
-// the spots the crawl telemetry may surface it on. Returns a BOOLEAN when truncation is known, or null
-// when NO truncation telemetry was surfaced at all: a missing flag is UNKNOWN, never a silent false.
-// The crawler always sets bundle.corpus.truncated, so null means the bundle assembler dropped the field.
+// the spots the crawl telemetry may surface it on, tried in order, first found wins. Returns a BOOLEAN
+// when truncation is known, or null when NO truncation telemetry was surfaced at all: a missing flag is
+// UNKNOWN, never a silent false. The crawler always sets bundle.corpus.truncated, so null means the
+// bundle assembler dropped the field.
 function truncationState(bundle) {
-  if (bundle && bundle.corpus && typeof bundle.corpus.truncated === 'boolean') return bundle.corpus.truncated;
-  if (bundle && typeof bundle.truncated === 'boolean') return bundle.truncated;
-  if (bundle && bundle.telemetry && typeof bundle.telemetry.truncated === 'boolean') return bundle.telemetry.truncated;
+  if (!bundle) return null;
+  const fromCorpus = truncatedFlagFrom(bundle.corpus);
+  if (fromCorpus !== undefined) return fromCorpus;
+  const fromBundle = truncatedFlagFrom(bundle);
+  if (fromBundle !== undefined) return fromBundle;
+  const fromTelemetry = truncatedFlagFrom(bundle.telemetry);
+  if (fromTelemetry !== undefined) return fromTelemetry;
   return null;
 }
 // isUnreadable(bundle): a bot-walled or SPA-shell bundle carries no readable page (C-038). Nothing is
@@ -148,15 +161,18 @@ function matchUrlPath(value, pages) {
 function patternMatchesText(pattern, text) {
   return spec.matchesText(pattern, text);
 }
+// patternSatisfiesPresence(pattern, surfaceText, pages) -> does this ONE pattern count as "present": a
+// url-path pattern checks page paths, every other kind checks the surface text. Split out so the loop
+// below is a plain existence check, not a nested if-with-continue (the health-gate Deep Nesting cap).
+function patternSatisfiesPresence(pattern, surfaceText, pages) {
+  if (pattern.kind === 'url-path') return matchUrlPath(pattern.value, pages);
+  return patternMatchesText(pattern, surfaceText);
+}
 // requiredContentPresent(detectionSpec, surfaceText, pages) -> is ANY pattern satisfied (the lenient
 // "present" check for a REQUIRED disclosure: a partial or differently-worded disclosure still counts as
 // present, so the absence-breach fires only on total silence - the C-024 false-missing guard).
 function requiredContentPresent(detectionSpec, surfaceText, pages) {
-  for (const pattern of detectionSpec.patterns) {
-    if (pattern.kind === 'url-path') { if (matchUrlPath(pattern.value, pages)) return true; continue; }
-    if (patternMatchesText(pattern, surfaceText)) return true;
-  }
-  return false;
+  return detectionSpec.patterns.some((pattern) => patternSatisfiesPresence(pattern, surfaceText, pages));
 }
 // prohibitedHitInSentence(detectionSpec, sentence) -> the first pattern that matches WHOLLY within one
 // sentence (a scattered token-set across the page is not a single prohibited claim), or null.
@@ -168,6 +184,25 @@ function prohibitedHitInSentence(detectionSpec, sentence) {
   return null;
 }
 
+// sentenceVerdict(detectionSpec, sentence) -> 'hit' | 'guarded' | 'skip'. Named so the per-sentence scan
+// below is a single dispatch rather than three inline nested ifs (the health-gate Deep Nesting cap).
+function sentenceVerdict(detectionSpec, sentence) {
+  if (!prohibitedHitInSentence(detectionSpec, sentence)) return 'skip';
+  if (spec.isNegated(sentence) || spec.looksLikeReview(sentence)) return 'guarded';
+  if (!spec.isProse(sentence)) return 'skip';
+  return 'hit';
+}
+// findProhibitedQuoteOnPage(detectionSpec, page) -> { quote, guarded } for ONE page: the first hitting
+// sentence (guarded:false), or a guarded flag when a hit existed but every carrier was guarded away.
+function findProhibitedQuoteOnPage(detectionSpec, page) {
+  let guarded = false;
+  for (const sentence of spec.splitSentences(page.text)) {
+    const verdict = sentenceVerdict(detectionSpec, sentence);
+    if (verdict === 'hit') return { quote: sentence, guarded: false };
+    if (verdict === 'guarded') guarded = true;
+  }
+  return { quote: null, guarded };
+}
 // findProhibitedQuote(detectionSpec, pages) -> { page_url, quote, guardedOnly }. Scans visible prose
 // sentence by sentence; a carrier sentence must be genuine prose (C-089), not negated (C-048) and not a
 // customer review (C-090). guardedOnly signals a match existed but every carrier was guarded away (a
@@ -175,12 +210,9 @@ function prohibitedHitInSentence(detectionSpec, sentence) {
 function findProhibitedQuote(detectionSpec, pages) {
   let sawGuarded = false;
   for (const page of pages) {
-    for (const sentence of spec.splitSentences(page.text)) {
-      if (!prohibitedHitInSentence(detectionSpec, sentence)) continue;
-      if (spec.isNegated(sentence) || spec.looksLikeReview(sentence)) { sawGuarded = true; continue; }
-      if (!spec.isProse(sentence)) continue;
-      return { page_url: page.url, quote: sentence, guardedOnly: false };
-    }
+    const found = findProhibitedQuoteOnPage(detectionSpec, page);
+    if (found.quote) return { page_url: page.url, quote: found.quote, guardedOnly: false };
+    if (found.guarded) sawGuarded = true;
   }
   return { page_url: null, quote: null, guardedOnly: sawGuarded };
 }
@@ -281,12 +313,16 @@ function patternSummary(pattern) {
   return { kind: pattern.kind, value: pattern.value };
 }
 
+// tokensOf(pattern) -> the lowercase token list a token-set pattern carries, or [] for any other kind.
+// Split out so specTokens holds no nested if-inside-for (the health-gate Deep Nesting cap).
+function tokensOf(pattern) {
+  if (pattern.kind !== 'token-set') return [];
+  return pattern.value.tokens.map((t) => String(t).toLowerCase());
+}
 // specTokens(detectionSpec) -> the flat set of lane-routing tokens a behavioural/register spec carries.
 function specTokens(detectionSpec) {
   const out = new Set();
-  for (const p of detectionSpec.patterns) {
-    if (p.kind === 'token-set') for (const t of p.value.tokens) out.add(String(t).toLowerCase());
-  }
+  for (const p of detectionSpec.patterns) for (const t of tokensOf(p)) out.add(t);
   return out;
 }
 // obligationConcerns(detectionSpec, obsKind) -> does this behavioural obligation concern an observation

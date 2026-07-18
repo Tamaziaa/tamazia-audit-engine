@@ -432,6 +432,43 @@ function entityForm(name) {
   return Object.prototype.hasOwnProperty.call(STRONG_FORM, last) ? STRONG_FORM[last] : null;
 }
 
+// tokensOf(text): lowercase, punctuation-stripped word tokens. Shared by the name-core and surface
+// tokenisation below so both sides of the comparison are tokenised identically (one door).
+function tokensOf(text) {
+  return String(text || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+}
+// coreTokensOf(regName): the register name's suffix-stripped token run (the "core" a raw surface must
+// carry verbatim, immediately followed by a strong-form token, to establish an on-page entity form).
+function coreTokensOf(regName) {
+  return tokensOf(stripLegalSuffixes(tokensOf(regName).join(' ')));
+}
+// tokenRunMatches(toks, start, run): does `run` occur verbatim in `toks` starting at `start`. Split out
+// so the inner comparison loop is its own unit (the health-gate Deep Nesting / Bumpy Road caps).
+function tokenRunMatches(toks, start, run) {
+  for (let j = 0; j < run.length; j += 1) {
+    if (toks[start + j] !== run[j]) return false;
+  }
+  return true;
+}
+// formAfterRun(toks, start, runLength): the canonical strong form immediately following a matched
+// token run, or null when the following token is not a recognised entity-form suffix.
+function formAfterRun(toks, start, runLength) {
+  const next = toks[start + runLength];
+  return Object.prototype.hasOwnProperty.call(STRONG_FORM, next) ? STRONG_FORM[next] : null;
+}
+// formsInSurface(surface, stripped): every strong form found immediately after a verbatim run of
+// `stripped` tokens inside one raw surface. Split out of pageFormsFromRaw so the double loop over
+// surfaces x positions is not itself nested inside a third, per-token comparison loop.
+function formsInSurface(surface, stripped) {
+  const toks = tokensOf(surface);
+  const forms = [];
+  for (let i = 0; i + stripped.length < toks.length; i += 1) {
+    if (!tokenRunMatches(toks, i, stripped)) continue;
+    const form = formAfterRun(toks, i, stripped.length);
+    if (form) forms.push(form);
+  }
+  return forms;
+}
 // pageFormsFromRaw(regName, rawSurfaces): the entity forms that appear IMMEDIATELY AFTER the register
 // name-core in any raw surface text. A register name-core can be established on-page via RAW TEXT alone
 // (nameOnPage below matches the suffix-stripped core against footer/page text, not only structured name
@@ -440,20 +477,11 @@ function entityForm(name) {
 // name-core as a consecutive token run immediately followed by a strong-form token keeps this specific
 // (low false-positive); and a false positive here only ABSTAINS (the safe direction, C-004/C-072).
 function pageFormsFromRaw(regName, rawSurfaces) {
-  const coreToks = String(regName || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
-  const stripped = stripLegalSuffixes(coreToks.join(' ')).replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  const stripped = coreTokensOf(regName);
   if (!stripped.length || stripped.join('').length < 6) return [];
   const forms = new Set();
   for (const surface of rawSurfaces || []) {
-    const toks = String(surface || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
-    for (let i = 0; i + stripped.length < toks.length; i += 1) {
-      let hit = true;
-      for (let j = 0; j < stripped.length; j += 1) { if (toks[i + j] !== stripped[j]) { hit = false; break; } }
-      if (hit) {
-        const next = toks[i + stripped.length];
-        if (Object.prototype.hasOwnProperty.call(STRONG_FORM, next)) forms.add(STRONG_FORM[next]);
-      }
-    }
+    for (const f of formsInSurface(surface, stripped)) forms.add(f);
   }
   return [...forms];
 }

@@ -230,6 +230,15 @@ function checkArray(value, schema, path) {
   return out;
 }
 
+// applyContainerConstraints(value, schema, path): the object/array shape rules for a value that
+// passed the scalar checks. Split out of validateSchema so the type dispatch is not folded into the
+// same function as the earlier guard clauses (the health-gate Complex Method cap).
+function applyContainerConstraints(value, schema, path) {
+  if (typeOf(value) === 'object') return checkObject(value, schema, path);
+  if (Array.isArray(value)) return checkArray(value, schema, path);
+  return [];
+}
+
 // validateSchema(value, schema, path): the recursive shape check. A type mismatch short-circuits (deeper
 // checks on the wrong shape are noise); otherwise scalar bounds, object and array rules all apply.
 function validateSchema(value, schema, path) {
@@ -238,10 +247,7 @@ function validateSchema(value, schema, path) {
   if (schema.type && !typeMatches(value, schema.type)) {
     return [sv(path, 'expected ' + JSON.stringify(schema.type) + ', got ' + typeOf(value))];
   }
-  const out = checkScalarConstraints(value, schema, path);
-  if (typeOf(value) === 'object') out.push(...checkObject(value, schema, path));
-  else if (Array.isArray(value)) out.push(...checkArray(value, schema, path));
-  return out;
+  return [...checkScalarConstraints(value, schema, path), ...applyContainerConstraints(value, schema, path)];
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -366,18 +372,33 @@ function validateResponse(response, opts = {}) {
 // planted disease, and the calibration runner fails CI (Constitution Rule 4: a zero you did not earn).
 // ---------------------------------------------------------------------------------------------------
 
+// expectedViolationCode(fx): the poison fixture's pinned expected violation code, or null when the
+// fixture does not pin one (any refusal then counts as a correct catch).
+function expectedViolationCode(fx) {
+  return (fx.poison && fx.poison.expect_violation) || null;
+}
+// matchesExpectedCode(violations, wantCode): true when no code was pinned, or one of the violations
+// carries it. Split out so judgeFixture's own decision count stays low (Complex Method cap).
+function matchesExpectedCode(violations, wantCode) {
+  if (!wantCode) return true;
+  return (violations || []).some((v) => v.code === wantCode);
+}
+// violationCodesSummary(violations): a comma-joined list of violation codes, or the literal 'reject'
+// when the gate abstained with no typed violation recorded.
+function violationCodesSummary(violations) {
+  const codes = (violations || []).map((v) => v.code).join(',');
+  return codes || 'reject';
+}
+
 function judgeFixture(abs, fx) {
   const result = validateResponse(fx.response, {
     schema: fx.schema, allowedSourceIds: fx.allowedSourceIds, sources: fx.sources, minQuoteLen: fx.minQuoteLen,
   });
-  const wantCode = (fx.poison && fx.poison.expect_violation) || null;
-  const codeHit = !wantCode || (result.violations || []).some((v) => v.code === wantCode);
-  if (result.ok === false && codeHit) {
-    return { file: abs, line: 1, rule: 'llm-gate-reject', message: 'correctly refused poisoned response: ' + ((result.violations || []).map((v) => v.code).join(',') || 'reject') };
-  }
+  const codeHit = matchesExpectedCode(result.violations, expectedViolationCode(fx));
   // The gate WRONGLY ACCEPTED (or refused for the wrong reason): emit NO finding for this fixture, so
   // eval/calibration-known-bad/run.js sees the fixture uncaught and FAILS (earn-your-zero).
-  return null;
+  if (result.ok !== false || !codeHit) return null;
+  return { file: abs, line: 1, rule: 'llm-gate-reject', message: 'correctly refused poisoned response: ' + violationCodesSummary(result.violations) };
 }
 
 function runCalibration(fixturesDir) {

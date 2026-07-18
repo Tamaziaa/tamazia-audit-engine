@@ -59,12 +59,18 @@ const CLASSIFY_RULES = [
   { klass: 'returns', test: (seg) => /\b(returns?|refunds?)\b/.test(seg) },
   { klass: 'homepage', test: isHomepageSegment },
 ];
+// firstMatchingClass(rules, input, fallback) -> the klass of the first rule whose test(input) passes,
+// or `fallback` when none match. Shared by classify() and pageClassForObligation() below so the same
+// first-match-wins dispatch is not duplicated across the two rule tables (jscpd/CodeScene duplication;
+// also keeps each caller a plain lookup, the health-gate Complex Method cap).
+function firstMatchingClass(rules, input, fallback) {
+  const hit = rules.find((r) => r.test(input));
+  return hit ? hit.klass : fallback;
+}
 // classify(page) -> the page-class of a fetched URL by PATH SEGMENT with anchored tokens (C-044). Accepts
 // a page object ({url}|{type}) or a bare string.
 function classify(page) {
-  const seg = pagePath(page);
-  const hit = CLASSIFY_RULES.find((r) => r.test(seg));
-  return hit ? hit.klass : 'other';
+  return firstMatchingClass(CLASSIFY_RULES, pagePath(page), 'other');
 }
 
 // fetchedClassSet(crawledPages) -> the Set of page-classes present in the crawl. The homepage counts as
@@ -113,9 +119,7 @@ const PAGE_CLASS_RULES = [
 function pageClassForObligation(obligation) {
   const et = obligation && obligation.evidence_type;
   if (isNonCrawlEvidenceType(et)) return null;
-  const text = obligationSearchText(obligation);
-  const hit = PAGE_CLASS_RULES.find((r) => r.test(text));
-  return hit ? hit.klass : 'any';
+  return firstMatchingClass(PAGE_CLASS_RULES, obligationSearchText(obligation), 'any');
 }
 
 // ruleNeeds(rule) -> { needs: [pageClass...], laneOnly: bool, hasAbsence: bool }. laneOnly means the rule

@@ -215,7 +215,9 @@ function isModuleTarget(name, ctx) { return Boolean(name) && ctx.bindings.has(na
 function inFunction(ctx) { return ctx.fnStack.length > 0; }
 function topFn(ctx) { return ctx.fnStack[ctx.fnStack.length - 1]; }
 
-function flag(ctx, node, name, kind, message) {
+// flag({ctx, node, name, kind, message}): record one violation. An options object (the
+// <=4-positional-arg house style) rather than five positional arguments.
+function flag({ ctx, node, name, kind, message }) {
   ctx.violations.push({ file: ctx.relPath, line: lineOf(node), name, kind, message });
 }
 
@@ -223,7 +225,7 @@ function handleUpdate(node, ctx) {
   if (!inFunction(ctx)) return;
   const name = rootIdent(node.argument);
   if (!isModuleTarget(name, ctx)) return;
-  flag(ctx, node, name, 'module-accumulator', 'module-scope binding "' + name + '" is mutated (++/--) from a function - a per-audit accumulator that leaks between builds (C-153)');
+  flag({ ctx, node, name, kind: 'module-accumulator', message: 'module-scope binding "' + name + '" is mutated (++/--) from a function - a per-audit accumulator that leaks between builds (C-153)' });
 }
 
 function handleMutatingCall(node, ctx) {
@@ -231,7 +233,7 @@ function handleMutatingCall(node, ctx) {
   if (!MUTATING_METHODS.has(propName(node.callee))) return;
   const name = rootIdent(node.callee.object);
   if (!isModuleTarget(name, ctx)) return;
-  flag(ctx, node, name, 'module-accumulator', 'module-scope collection "' + name + '" is mutated (.' + propName(node.callee) + ') from a function - a per-audit accumulator that leaks between builds (C-153)');
+  flag({ ctx, node, name, kind: 'module-accumulator', message: 'module-scope collection "' + name + '" is mutated (.' + propName(node.callee) + ') from a function - a per-audit accumulator that leaks between builds (C-153)' });
 }
 
 // handleAssign: '=' to an Identifier is a reassignment (M2, with the benign-singleton exemptions);
@@ -241,17 +243,17 @@ function handleAssign(node, ctx) {
   const name = rootIdent(node.left);
   if (!isModuleTarget(name, ctx)) return;
   if (ARITH_COMPOUND.has(node.operator)) {
-    flag(ctx, node, name, 'module-accumulator', 'module-scope binding "' + name + '" is compound-mutated (' + node.operator + ') from a function - a per-audit accumulator (C-153)');
+    flag({ ctx, node, name, kind: 'module-accumulator', message: 'module-scope binding "' + name + '" is compound-mutated (' + node.operator + ') from a function - a per-audit accumulator (C-153)' });
     return;
   }
   if (node.operator !== '=') return; // logical compound (||= &&= ??=) is idempotent memoisation - exempt
   if (node.left.type === 'MemberExpression') {
-    flag(ctx, node, name, 'module-accumulator', 'a property of module-scope object "' + name + '" is written from a function - per-audit mutation of shared state (C-153)');
+    flag({ ctx, node, name, kind: 'module-accumulator', message: 'a property of module-scope object "' + name + '" is written from a function - per-audit mutation of shared state (C-153)' });
     return;
   }
   const fn = topFn(ctx);
   if (isBenignReassign(fn, name, node)) return;
-  flag(ctx, node, name, 'module-reassign', 'module-scope binding "' + name + '" is reassigned from a function without a write-once guard - per-audit state that leaks between builds (C-153); use a per-invocation state object');
+  flag({ ctx, node, name, kind: 'module-reassign', message: 'module-scope binding "' + name + '" is reassigned from a function without a write-once guard - per-audit state that leaks between builds (C-153); use a per-invocation state object' });
 }
 // isBenignReassign(fn, name, node) -> module-init IIFE write, guarded write-once, or idempotent
 // self-reference (`x = x || v`). Named so the 3-term disjunction is not its own "Complex Conditional".

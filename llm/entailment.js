@@ -67,8 +67,10 @@ function firstString(cands) {
   return '';
 }
 
-// resultFor(claim, sourceId, verdict, ok, reason): the one canonical result row shape.
-function resultFor(hypothesis, sourceId, verdict, ok, reason) {
+// resultFor({hypothesis, sourceId, verdict, ok, reason}): the one canonical result row shape. An
+// options object (the <=4-positional-arg house style; the P2-proven shape) rather than five
+// positional arguments.
+function resultFor({ hypothesis, sourceId, verdict, ok, reason }) {
   return { claim: hypothesis, premise_source_id: sourceId, verdict, ok, reason };
 }
 
@@ -123,17 +125,17 @@ function claimUnverifiable(hypothesis, sourceId, premise) {
 async function checkOne(claim, opts) {
   const { hypothesis, sourceId, premise } = normaliseClaim(claim);
   if (claimUnverifiable(hypothesis, sourceId, premise)) {
-    return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, 'no hypothesis, cited premise span or source_id -> cannot verify, abstain (Rule 3/4)');
+    return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no hypothesis, cited premise span or source_id -> cannot verify, abstain (Rule 3/4)' });
   }
   if (typeof opts.llmCall !== 'function') {
-    return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, 'no llmCall injected -> abstain (Rule 12 gate 4)');
+    return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no llmCall injected -> abstain (Rule 12 gate 4)' });
   }
   const pkg = buildEntailmentPrompt({ hypothesis, premise, sourceId });
   const called = await callModel(pkg, opts);
-  if (called._abstain) return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, called.reason);
+  if (called._abstain) return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: called.reason });
   const v = verdictFromResponse(called.value, pkg);
   logSafe(opts.log, { event: 'nli', source_id: sourceId, verdict: v.verdict, ok: v.ok });
-  return resultFor(hypothesis, sourceId, v.verdict, v.ok, v.reason);
+  return resultFor({ hypothesis, sourceId, verdict: v.verdict, ok: v.ok, reason: v.reason });
 }
 
 // logSafe(log, event): emit to an optional observability sink; a throwing sink can never break a

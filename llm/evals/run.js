@@ -32,8 +32,16 @@ const { quorum } = require('../router.js');
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 const SHELL_DEADLINE_MS = 5000; // a CAP for the scripted shells; they resolve synchronously anyway.
 
+// sameLengthArrays(a, b) -> true when both are arrays of equal length (the shape precondition before
+// any element-wise comparison is meaningful). Named guard clauses rather than one compound test, so
+// neither this nor arraysEqual carries a multi-operator "Complex Conditional".
+function sameLengthArrays(a, b) {
+  if (!Array.isArray(a)) return false;
+  if (!Array.isArray(b)) return false;
+  return a.length === b.length;
+}
 function arraysEqual(a, b) {
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  if (!sameLengthArrays(a, b)) return false;
   return a.every((x, i) => x === b[i]);
 }
 

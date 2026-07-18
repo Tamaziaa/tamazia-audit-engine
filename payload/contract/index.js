@@ -116,26 +116,32 @@ function assertSafeKeys(keys) {
   }
 }
 
-function setPath(obj, dotPath, value) {
-  const keys = dotPath.split('.');
-  assertSafeKeys(keys);
+// walkToParent(obj, keys): descend obj along keys[0..length-2], creating an intermediate object at any
+// step that is missing or non-object, and return the parent object the final key should be set on.
+// Shared by setPath/setPathForce so the traversal exists in exactly one place (removes the
+// CodeScene/jscpd near-duplicate the two previously carried verbatim).
+function walkToParent(obj, keys) {
   let cur = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     if (cur[keys[i]] == null || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
     cur = cur[keys[i]];
   }
-  if (cur[keys[keys.length - 1]] === undefined) cur[keys[keys.length - 1]] = value;
+  return cur;
+}
+
+function setPath(obj, dotPath, value) {
+  const keys = dotPath.split('.');
+  assertSafeKeys(keys);
+  const parent = walkToParent(obj, keys);
+  const lastKey = keys[keys.length - 1];
+  if (parent[lastKey] === undefined) parent[lastKey] = value;
 }
 
 function setPathForce(obj, dotPath, value) {
   const keys = dotPath.split('.');
   assertSafeKeys(keys);
-  let cur = obj;
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (cur[keys[i]] == null || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
-    cur = cur[keys[i]];
-  }
-  cur[keys[keys.length - 1]] = value;
+  const parent = walkToParent(obj, keys);
+  parent[keys[keys.length - 1]] = value;
 }
 
 /** Builds the smallest payload that satisfies contract v1 (placeholder leaves). */
@@ -170,21 +176,27 @@ function schemaNodeFor(dotPath) {
 // group reads independently and none of the underlying assertion logic changed, only where it
 // lives.
 
+// pathRequiredInSchema(segs) -> the first segment along `segs` that the schema does not mark
+// `required`, or null when every checkable segment is required. Split out of
+// checkRequiredPathsAgainstSchema so the inner walk's own nesting is its own unit (the health-gate
+// Deep Nesting cap): the outer loop no longer nests a second loop nesting an if.
+function pathRequiredInSchema(segs) {
+  let node = schema;
+  for (const seg of segs) {
+    if (!Array.isArray(node.required) || !node.required.includes(seg)) return seg;
+    node = node.properties && node.properties[seg];
+    if (!node) return null; // ran out of schema to descend; nothing further to check
+  }
+  return null;
+}
+
 // 1. Every REQUIRED path must exist in the schema and be in a `required` chain.
 function checkRequiredPathsAgainstSchema() {
   const errors = [];
   for (const p of REQUIRED) {
     if (!schemaNodeFor(p)) errors.push(`REQUIRED path not described by schema: ${p}`);
-    const segs = p.split('.');
-    let node = schema;
-    for (const seg of segs) {
-      if (!Array.isArray(node.required) || !node.required.includes(seg)) {
-        errors.push(`schema does not require "${seg}" on path ${p}`);
-        break;
-      }
-      node = node.properties && node.properties[seg];
-      if (!node) break;
-    }
+    const missingSeg = pathRequiredInSchema(p.split('.'));
+    if (missingSeg) errors.push(`schema does not require "${missingSeg}" on path ${p}`);
   }
   return errors;
 }

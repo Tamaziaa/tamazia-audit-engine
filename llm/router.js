@@ -254,9 +254,12 @@ function firstVeto(valid, vetoRule) {
   return null;
 }
 
-// collectVotes(jurors, task, deadlineMs, validate, log): call each juror, gate.js-validate each
-// response BEFORE it may vote (Rule 12: gates 1-4 run per response), and return the vote ledger.
-async function collectVotes(jurors, task, deadlineMs, validate, log) {
+// collectVotes(jurors, opts): call each juror, gate.js-validate each response BEFORE it may vote (Rule
+// 12: gates 1-4 run per response), and return the vote ledger. opts = {task, deadlineMs, validate, log}
+// - an options object (the <=4-positional-arg house style; the P2-proven shape, mirroring
+// callProvider's own options-object) rather than five positional arguments.
+async function collectVotes(jurors, opts) {
+  const { task, deadlineMs, validate, log } = opts;
   const votes = [];
   for (const juror of jurors) {
     const outcome = await callProvider({ provider: juror, task, deadlineMs, validate, log });
@@ -297,7 +300,7 @@ async function quorum(task, opts = {}) {
   if (jurors.length < n) {
     return { ok: false, verdict: 'reject', reason: 'insufficient_independent_families:' + jurors.length + '<' + n, votes: [] };
   }
-  const votes = await collectVotes(jurors, task, deadlineMs, validate, log);
+  const votes = await collectVotes(jurors, { task, deadlineMs, validate, log });
   const valid = votes.filter((v) => v.value != null);
   if (valid.length < n) return { ok: false, verdict: 'reject', reason: 'insufficient_valid_votes:' + valid.length + '<' + n, votes };
   const veto = firstVeto(valid, vetoRule);
