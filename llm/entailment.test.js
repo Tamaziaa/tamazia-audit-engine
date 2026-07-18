@@ -125,3 +125,38 @@ test('filter-only: |result| === |claims|, in order, and the array is built from 
 test('a non-array claims input yields an empty result (never throws)', async () => {
   assert.deepEqual(await checkEntailment(null, { llmCall: scripted(jsonReply('entailment')) }), []);
 });
+
+// ── P3-tail Wave-2 resume: claim.candidate rides the llmCall request out-of-band, never the prompt ──
+// breach/adjudicator/adjudicate.js's claimFor attaches candidate = { record_id, artifact } so the
+// recorded-response replay adapter (eval/e2e/lib/replay-llm.js) can derive the frozen-contract
+// entailment key on the (record_id, artifact) basis. It must reach the injected llmCall request and
+// must NEVER appear in the model-facing prompt/system/sources (a live model must never see an internal
+// id, and the recorded-response key must not depend on prompt text - C-211/C-222/C-134).
+test('claim.candidate is passed onto the llmCall request as request.candidate, byte-for-byte', async () => {
+  let seen = null;
+  const spy = (req) => { seen = req; return Promise.resolve(jsonReply('entailment')); };
+  const candidate = { record_id: 'UK_GDPR_ART5', artifact: { type: 'quote', text: 'we drop cookies before consent' } };
+  const [r] = await checkEntailment([{ claim: 'the firm drops cookies before consent', premise_source_id: 'src-1', premise: PREMISE, candidate }], { llmCall: spy });
+  assert.equal(r.ok, true);
+  assert.ok(seen, 'the llmCall must have been invoked');
+  assert.deepEqual(seen.candidate, candidate, 'request.candidate must carry the exact candidate ref');
+});
+
+test('claim.candidate NEVER leaks into the model-facing prompt/system/sources text', async () => {
+  let seen = null;
+  const spy = (req) => { seen = req; return Promise.resolve(jsonReply('entailment')); };
+  const candidate = { record_id: 'SECRET-INTERNAL-RECORD-ID-XYZ', artifact: { type: 'quote', text: PREMISE } };
+  await checkEntailment([{ claim: 'c', premise_source_id: 'src-1', premise: PREMISE, candidate }], { llmCall: spy });
+  assert.ok(seen);
+  assert.ok(!String(seen.prompt || '').includes('SECRET-INTERNAL-RECORD-ID-XYZ'), 'record_id must not appear in the prompt text');
+  assert.ok(!String(seen.system || '').includes('SECRET-INTERNAL-RECORD-ID-XYZ'), 'record_id must not appear in the system text');
+  assert.ok(!JSON.stringify(seen.sources || {}).includes('SECRET-INTERNAL-RECORD-ID-XYZ'), 'record_id must not appear in the sources map');
+});
+
+test('a claim with NO candidate leaves request.candidate unset (backward compatible; a direct caller is unaffected)', async () => {
+  let seen = null;
+  const spy = (req) => { seen = req; return Promise.resolve(jsonReply('entailment')); };
+  await checkEntailment([CLAIM], { llmCall: spy }); // CLAIM carries no candidate
+  assert.ok(seen);
+  assert.equal('candidate' in seen, false, 'no candidate attached -> the field is simply absent, not undefined');
+});

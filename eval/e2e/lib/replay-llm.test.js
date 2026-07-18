@@ -21,7 +21,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const {
-  replayLlmCall, computeKey, fingerprintOf, adjudicateBriefKey, entailmentRequestKey,
+  replayLlmCall, computeKey, candidateKey, adjudicateBriefKey, entailmentCandidateKey, entailmentRequestKey,
   candidateRefsFromRequest, briefsFromAdjudicatePrompt, loadRecordingsDir, CONTRACT, DECLINE,
 } = require('./replay-llm.js');
 const { artifactFingerprint } = require('./record-key.js');
@@ -39,7 +39,7 @@ function recordingDoc(responses) {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// computeKey / fingerprintOf: the frozen contract's hash formula, exactly as documented. Both now
+// computeKey / candidateKey: the frozen contract's hash formula, exactly as documented. Both now
 // delegate to eval/e2e/lib/record-key.js; these tests prove the PUBLIC behaviour is unchanged.
 // ---------------------------------------------------------------------------------------------------
 
@@ -62,11 +62,18 @@ test('computeKey: deterministic and sensitive to every field', () => {
   assert.match(a, /^[0-9a-f]{64}$/);
 });
 
-test('fingerprintOf: deterministic sha256 hex of the given text, empty-safe', () => {
-  assert.strictEqual(fingerprintOf('hello'), fingerprintOf('hello'));
-  assert.notStrictEqual(fingerprintOf('hello'), fingerprintOf('world'));
-  assert.match(fingerprintOf(''), /^[0-9a-f]{64}$/);
-  assert.match(fingerprintOf(undefined), /^[0-9a-f]{64}$/); // never throws on a missing field
+test('candidateKey: the ONE shared derivation - adjudicate and entailment differ ONLY by kind on the same ref', () => {
+  const ref = { record_id: 'UK_GDPR_ART5', artifact: { type: 'quote', text: 'we sell your data' } };
+  // candidateKey composes recordingKey(kind, record_id, artifactFingerprint(artifact)) directly.
+  assert.strictEqual(candidateKey('adjudicate', ref), computeKey('adjudicate', ref.record_id, artifactFingerprint(ref.artifact)));
+  assert.strictEqual(candidateKey('entailment', ref), computeKey('entailment', ref.record_id, artifactFingerprint(ref.artifact)));
+  // adjudicateBriefKey / entailmentCandidateKey are the two named kinds over the SAME ref -> same key but for kind.
+  assert.strictEqual(adjudicateBriefKey(ref), candidateKey('adjudicate', ref));
+  assert.strictEqual(entailmentCandidateKey(ref), candidateKey('entailment', ref));
+  assert.notStrictEqual(adjudicateBriefKey(ref), entailmentCandidateKey(ref), 'the two kinds must not collide on the same ref');
+  // a missing/undefined ref never throws (fail-closed via a lookup miss, not a crash).
+  assert.doesNotThrow(() => candidateKey('entailment', undefined));
+  assert.match(candidateKey('entailment', {}), /^[0-9a-f]{64}$/);
 });
 
 // ---------------------------------------------------------------------------------------------------
@@ -163,23 +170,35 @@ test('adjudicateBriefKey: tolerates a missing/undefined ref without throwing (fa
 });
 
 // ---------------------------------------------------------------------------------------------------
-// entailmentRequestKey: UNCHANGED mechanism (source_id + premise text), now routed through the shared
-// hashing primitives - these tests prove the public VALUES are identical to before the refactor.
+// entailmentRequestKey: NOW reads request.candidate = { record_id, artifact } (the unified basis, the
+// SAME one adjudicate and the recorder use), NOT the premise text (the closed C-211/C-222 gap).
 // ---------------------------------------------------------------------------------------------------
 
-test('entailmentRequestKey: derived from allowedSourceIds[0] + sources[thatId], deterministic', () => {
-  const req = { allowedSourceIds: ['https://x.test/p'], sources: { 'https://x.test/p': 'we drop cookies before consent' } };
-  const k1 = entailmentRequestKey(req);
-  const k2 = entailmentRequestKey({ allowedSourceIds: ['https://x.test/p'], sources: { 'https://x.test/p': 'we drop cookies before consent' } });
-  const k3 = entailmentRequestKey({ allowedSourceIds: ['https://x.test/OTHER'], sources: { 'https://x.test/OTHER': 'we drop cookies before consent' } });
-  assert.strictEqual(k1, k2);
-  assert.notStrictEqual(k1, k3);
+test('entailmentRequestKey: derived from request.candidate {record_id, artifact}, deterministic, == entailmentCandidateKey', () => {
+  const cand = { record_id: 'UK_GDPR_ART5', artifact: { type: 'quote', text: 'we drop cookies before consent' } };
+  const k1 = entailmentRequestKey({ candidate: cand });
+  const k2 = entailmentRequestKey({ candidate: { record_id: 'UK_GDPR_ART5', artifact: { text: 'we drop cookies before consent', type: 'quote' } } }); // key order differs
+  const k3 = entailmentRequestKey({ candidate: { record_id: 'PECR_REG6', artifact: cand.artifact } });
+  assert.strictEqual(k1, k2, 'artifact key order must not change the key (stableStringify)');
+  assert.notStrictEqual(k1, k3, 'a different record_id yields a different key');
+  assert.strictEqual(k1, entailmentCandidateKey(cand), 'entailmentRequestKey just extracts request.candidate and delegates');
 });
 
-test('entailmentRequestKey: an empty/malformed request never throws and yields a stable key', () => {
+test('entailmentRequestKey: the SAME candidate keyed for entailment differs from its adjudicate sibling ONLY by kind', () => {
+  const cand = { record_id: 'UK_GDPR_ART5', artifact: { type: 'quote', text: 'we drop cookies before consent' } };
+  assert.notStrictEqual(entailmentRequestKey({ candidate: cand }), adjudicateBriefKey(cand));
+  // proof they share the (record_id, artifact) basis and differ only by the kind token:
+  assert.strictEqual(entailmentRequestKey({ candidate: cand }), computeKey('entailment', cand.record_id, artifactFingerprint(cand.artifact)));
+  assert.strictEqual(adjudicateBriefKey(cand), computeKey('adjudicate', cand.record_id, artifactFingerprint(cand.artifact)));
+});
+
+test('entailmentRequestKey: a request with no candidate (old-shape allowedSourceIds/sources) never throws and yields a stable key', () => {
   assert.doesNotThrow(() => entailmentRequestKey({}));
   assert.doesNotThrow(() => entailmentRequestKey(null));
-  assert.strictEqual(entailmentRequestKey({}), entailmentRequestKey({ allowedSourceIds: [] }));
+  // the old allowedSourceIds/sources shape carries no request.candidate, so it derives from an empty
+  // ref (fail-closed: a stable key that simply will not match a real recorder-side recording).
+  assert.strictEqual(entailmentRequestKey({}), entailmentRequestKey({ allowedSourceIds: ['x'], sources: { x: 'ignored now' } }));
+  assert.match(entailmentRequestKey({}), /^[0-9a-f]{64}$/);
 });
 
 // ---------------------------------------------------------------------------------------------------
@@ -282,13 +301,23 @@ test('replayLlmCall: an adjudicate-kind request with an EMPTY request.candidates
   assert.deepStrictEqual(res, DECLINE);
 });
 
-test('replayLlmCall: an entailment-kind request with a matching key returns the recorded verdict', async () => {
-  const dir = tmpDir();
-  const request = {
+// An entailment-kind request now carries request.candidate = { record_id, artifact } (the unified
+// basis), plus the schema/allowedSourceIds/sources buildEntailmentPrompt produces (which isEntailment
+// Request reads to route the call). entailmentRequest(cand) builds that shape.
+function entailmentRequest(cand, premiseSid) {
+  const sid = premiseSid || 'https://x.test/p';
+  return {
     schema: { properties: { verdict: { enum: ['entailment', 'neutral', 'contradiction'] } } },
-    allowedSourceIds: ['https://x.test/p'],
-    sources: { 'https://x.test/p': 'the premise text' },
+    allowedSourceIds: [sid],
+    sources: { [sid]: 'the premise text (ignored by the key now; only the model ever reads it)' },
+    candidate: cand,
   };
+}
+
+test('replayLlmCall: an entailment-kind request with a matching candidate key returns the recorded verdict', async () => {
+  const dir = tmpDir();
+  const cand = { record_id: 'UK_GDPR_ART5', artifact: { type: 'quote', text: 'we drop cookies before consent' } };
+  const request = entailmentRequest(cand);
   const key = entailmentRequestKey(request);
   writeRecordingFile(dir, 'rec.json', recordingDoc([
     { key, kind: 'entailment', raw: JSON.stringify({ source_id: 'https://x.test/p', verdict: 'entailment', rationale: 'ok' }) },
@@ -299,14 +328,20 @@ test('replayLlmCall: an entailment-kind request with a matching key returns the 
   assert.strictEqual(res.verdict, 'entailment');
 });
 
-test('replayLlmCall: an entailment-kind request with NO matching key declines', async () => {
+test('replayLlmCall: an entailment-kind request whose candidate has NO matching recording declines', async () => {
   const llmCall = replayLlmCall(tmpDir());
-  const request = {
-    schema: { properties: { verdict: { enum: ['entailment', 'neutral', 'contradiction'] } } },
-    allowedSourceIds: ['https://x.test/nope'],
-    sources: { 'https://x.test/nope': 'unrecorded premise' },
-  };
-  const res = await llmCall(request);
+  const res = await llmCall(entailmentRequest({ record_id: 'UNRECORDED', artifact: { type: 'quote', text: 'x' } }));
+  assert.deepStrictEqual(res, DECLINE);
+});
+
+test('replayLlmCall: an entailment recording keyed for a DIFFERENT candidate does not match (the key is not vacuously permissive)', async () => {
+  const dir = tmpDir();
+  const recorded = { record_id: 'RULE-A', artifact: { type: 'quote', text: 'quote A' } };
+  const asked = { record_id: 'RULE-B', artifact: { type: 'quote', text: 'quote B' } };
+  writeRecordingFile(dir, 'rec.json', recordingDoc([
+    { key: entailmentCandidateKey(recorded), kind: 'entailment', raw: JSON.stringify({ source_id: 's', verdict: 'entailment' }) },
+  ]));
+  const res = await replayLlmCall(dir)(entailmentRequest(asked));
   assert.deepStrictEqual(res, DECLINE);
 });
 
@@ -378,16 +413,14 @@ test('U2-B1/B-B2: a hand-built recording approving a hand-built candidate reprod
   const verified = verifyCandidate(candidate, bundle);
   assert.strictEqual(verified.verified, true, 'the hand-built candidate must genuinely verify: ' + verified.reason);
 
-  // The key the REAL recorder would compute for this candidate: record_id + artifactFingerprint(artifact).
+  // BOTH kinds now key on the SAME (record_id, artifact) basis - the C-211/C-222 unification. The
+  // recorder computes recordingKey(kind, candidate.record_id, artifactFingerprint(candidate.artifact));
+  // the replay side reads the identical record_id + artifact off request.candidates (adjudicate) and
+  // request.candidate (entailment, attached by adjudicate.js's claimFor -> entailment.js's callModel).
+  // So the two recording keys differ ONLY by kind - the whole point of this resume task.
   const adjudicateKey = adjudicateBriefKey({ record_id: candidate.record_id, artifact: candidate.artifact });
-
-  // What llm/entailment.js's callModel() will build for the gate-3 NLI call after a 'breach' verdict:
-  // allowedSourceIds[0] = evidence_url (claimFor's premiseSourceId reads evidence_url before
-  // artifact.page_url); sources[thatId] = evidence_quote (claimFor's premiseQuote reads it directly).
-  const entailmentKey = entailmentRequestKey({
-    allowedSourceIds: ['https://replay-hermetic.test/claims'],
-    sources: { 'https://replay-hermetic.test/claims': 'We guarantee you will win every case, no exceptions' },
-  });
+  const entailmentKey = entailmentCandidateKey({ record_id: candidate.record_id, artifact: candidate.artifact });
+  assert.notStrictEqual(adjudicateKey, entailmentKey, 'same candidate, both kinds - the keys differ only by kind');
 
   const dir = tmpDir();
   writeRecordingFile(dir, 'replay-hermetic.test.json', recordingDoc([
@@ -408,15 +441,41 @@ test('U2-B1/B-B2: a hand-built recording approving a hand-built candidate reprod
   const llmCall = replayLlmCall(dir);
   const { findings, report } = await adjudicate([candidate], bundle, { llmCall });
 
-  await t.test('the finding reproduces as a genuine violation', () => {
+  await t.test('the finding reproduces as a genuine violation (BOTH kinds - adjudicate verdict + entailment - replayed on the unified basis)', () => {
     assert.strictEqual(findings.length, 1);
     assert.strictEqual(findings[0].state, 'violation', 'adjudication_reason: ' + findings[0].adjudication_reason);
     assert.strictEqual(findings[0].adjudicated, true);
+    assert.strictEqual(findings[0].adjudication, 'breach', 'a violation, not an nli_demote - so the entailment recording WAS consumed');
   });
   await t.test('the adjudicator report shows the LLM was available and the batch ran', () => {
     assert.strictEqual(report.llm_available, true);
     assert.strictEqual(report.violation, 1);
   });
+});
+
+test('B-B2 (entailment genuinely required): the adjudicate recording ALONE (no entailment recording) demotes to needs_review - proving the entailment key is consumed by the real Gate-3', async () => {
+  const { adjudicate } = require('../../../breach/adjudicator/adjudicate.js');
+  const bundle = {
+    domain: 'replay-nli-required.test',
+    corpus: { pages: [{ url: 'https://replay-nli-required.test/claims', text: 'ReplayCo helps clients. We guarantee you will win every case, no exceptions, or your money back.' }] },
+  };
+  const candidate = {
+    record_id: 'REPLAY-NLI-REQUIRED-RULE', duty_idx: 0, kind: 'presence-breach', evidence_type: 'absence',
+    artifact: { type: 'quote', text: 'We guarantee you will win every case, no exceptions', surface: 'visible_text', page_url: 'https://replay-nli-required.test/claims' },
+    page_url: 'https://replay-nli-required.test/claims',
+    description: 'Guarantee-of-outcome claim (harness self-test only).', framework: 'synthetic replay-llm test framework (harness self-test only)',
+    evidence_quote: 'We guarantee you will win every case, no exceptions', evidence_url: 'https://replay-nli-required.test/claims',
+  };
+  // ONLY the adjudicate recording is written; the entailment recording is deliberately absent, so the
+  // breach verdict is approved but Gate-3 (checkEntailment -> replay entailment lookup) DECLINEs.
+  const dir = tmpDir();
+  writeRecordingFile(dir, 'replay-nli-required.test.json', recordingDoc([
+    { key: adjudicateBriefKey({ record_id: candidate.record_id, artifact: candidate.artifact }), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'guarantees an outcome', disproof: null }) },
+  ]));
+  const { findings } = await adjudicate([candidate], bundle, { llmCall: replayLlmCall(dir) });
+  assert.strictEqual(findings.length, 1);
+  assert.strictEqual(findings[0].state, 'needs_review', 'no entailment recording -> Gate-3 declines -> nli_demote, never a fabricated violation');
+  assert.strictEqual(findings[0].adjudication, 'nli_demoted', 'proves the entailment recording is genuinely consumed, not decorative');
 });
 
 test('U2-B1 (decline direction): the SAME candidate with NO recording present abstains to needs_review, never a fabricated violation', async () => {

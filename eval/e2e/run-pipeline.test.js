@@ -14,7 +14,7 @@ const {
   main, parseArgs, pipelineOptsFrom, loadFixtureBundle, runOneFirm, runOneSynthetic, exitCodeFor,
   DEFAULT_BREACH_TIMEOUT_MS, vacuityCheck, knownBreachTotals, breachLaneCompleteFor, llmReplayDirFrom,
 } = require('./run-pipeline');
-const { replayLlmCall, adjudicateBriefKey, entailmentRequestKey, CONTRACT } = require('./lib/replay-llm.js');
+const { replayLlmCall, adjudicateBriefKey, entailmentCandidateKey, CONTRACT } = require('./lib/replay-llm.js');
 
 test('parseArgs: defaults point at the real reference-set + this directory\'s own fixtures/red-team paths', () => {
   const { opts } = parseArgs(['node', 'run-pipeline.js']);
@@ -445,14 +445,17 @@ function writeReplayRecording(dir, filename, responses) {
 test('U2-B1 (CLI level): a hand-built recording approving the synthetic breach lets a replay run reproduce >= 1 and exit 0', async () => {
   const { bundle, candidate, catalogueRecord, expected } = replayHermeticFixture();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-cli-replay-hit-'));
-  // P3-tail Wave-2 Builder B (C-211/C-222 closure): the recording key is now record_id +
-  // artifactFingerprint(artifact) - the recorder's own basis - read by replay-llm.js off
-  // request.candidates (breach/adjudicator/adjudicate.js's callGate() attaches it), not derived from a
-  // hand-mirrored law/evidence/page prompt-text brief.
+  // P3-tail Wave-2 Builder B (C-211/C-222 closure): BOTH recording keys are now record_id +
+  // artifactFingerprint(artifact) - the recorder's own basis, differing only by kind. adjudicate is
+  // read off request.candidates (breach/adjudicator/prompt.js candidateRefsFor); entailment is read off
+  // request.candidate (breach/adjudicator/adjudicate.js's claimFor -> llm/entailment.js's callModel).
+  // The entailment key here uses entailmentCandidateKey({record_id, artifact}) - the Wave-2 RESUME
+  // unification (this call previously used the removed allowedSourceIds+premise-text basis; updated in
+  // the same change as the entailmentRequestKey contract move, C-223 pairing).
   writeReplayRecording(dir, 'cli-replay-hermetic.test.json', [
     { key: adjudicateBriefKey({ record_id: candidate.record_id, artifact: candidate.artifact }), kind: 'adjudicate', raw: JSON.stringify({ id: 0, verdict: 'breach', reason: 'guarantees an outcome', disproof: null }) },
     {
-      key: entailmentRequestKey({ allowedSourceIds: [candidate.evidence_url], sources: { [candidate.evidence_url]: candidate.evidence_quote } }),
+      key: entailmentCandidateKey({ record_id: candidate.record_id, artifact: candidate.artifact }),
       kind: 'entailment',
       raw: JSON.stringify({ source_id: candidate.evidence_url, verdict: 'entailment', rationale: 'the quote asserts a guaranteed outcome' }),
     },

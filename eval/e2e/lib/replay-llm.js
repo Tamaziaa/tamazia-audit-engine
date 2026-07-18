@@ -55,40 +55,33 @@
 // still emits (useful for debugging/inspection of a captured prompt), but it is no longer this file's
 // key-derivation path - see answerAdjudicate() below.
 //
-// ENTAILMENT KEY - AN HONEST, DOCUMENTED GAP (routed to Rob, C-214; not fixed in this change): the
-// recorder computes the entailment key the SAME way as adjudicate
-// (recordingKey('entailment', cand.record_id, artifactFingerprint(cand.artifact))), but
-// llm/entailment.js's callModel() builds its request from ONLY {hypothesis, premise, sourceId} - no
-// record_id, no artifact ever reaches it, and threading one through would mean editing
-// llm/entailment.js or breach/adjudicator/adjudicate.js's claimFor()/gateEntailment(), both outside
-// this unit's ownership (breach/adjudicator/adjudicate.js's buildPrompt seam ONLY). This file's
-// entailmentRequestKey() therefore keeps deriving from what an entailment request actually exposes
-// (allowedSourceIds[0] as rule_id, the cited premise TEXT as the artifact), routed through the SAME
-// shared hashing primitives (record-key.js's sha256Hex, wrapped here as fingerprintOf) so there is
-// still only one hash implementation in the codebase - but the entailment-kind key this file computes
-// will NOT match a real recorder-side entailment recording until llm/entailment.js's request shape
-// gains a record_id/artifact channel. Every hermetic test in this file and its callers derives its own
-// entailment recording key via entailmentRequestKey() (both sides consistent with EACH OTHER), so the
-// gap does not fail any test here; it is a real integration risk for the eventual re-record step,
-// reported honestly rather than silently glossed over.
+// ENTAILMENT KEY - NOW UNIFIED WITH THE ADJUDICATE BASIS (P3-tail Wave-2 resume, C-211/C-222 gap
+// CLOSED; this block previously recorded the gap as open). The recorder (eval/e2e/run-real-proof.js's
+// entailmentEntryFor) has always keyed an entailment recording by
+// recordingKey('entailment', cand.record_id, artifactFingerprint(cand.artifact)) - the record_id +
+// artifact-object basis, NOT the premise text. This file's FIRST version keyed the replay side by
+// allowedSourceIds[0] + the premise TEXT instead (the only fields an entailment request then exposed),
+// so a real recorder-side entailment recording could never match. The gap is now closed at the source:
+// breach/adjudicator/adjudicate.js's claimFor() attaches candidate = { record_id, artifact } to the
+// entailment claim, llm/entailment.js's callModel() passes it straight onto the llmCall request as
+// request.candidate WITHOUT it ever entering the prompt text (the prompt is built from
+// {hypothesis, premise, sourceId} only, and the real transport reads only system/prompt/schema/sources
+// - so no live model ever sees it). This file's entailmentRequestKey() now reads request.candidate and
+// derives the key on the SAME (record_id, artifact) basis as adjudicate, via the SAME shared helper
+// (candidateKey below), differing only by kind. One basis, both kinds, both sides. The old
+// allowedSourceIds+premise-text basis is REMOVED (not kept as a fallback): U1's committed recordings
+// carry zero entailment entries (all responses:[] today), so nothing validated against the old basis,
+// and the recorder never used it - keeping it would be two competing bases for no consumer.
 
 const fs = require('fs');
 const { assertSafeDirEntry, safeJoinEntry } = require('../../../tools/lib/safe-path.js');
-const { CONTRACT, sha256Hex, artifactFingerprint, recordingKey } = require('./record-key.js');
+const { CONTRACT, artifactFingerprint, recordingKey } = require('./record-key.js');
 const { isEntailmentRequest } = require('./scripted-llm.js');
 
 // ---------------------------------------------------------------------------------------------------
 // Hashing: delegates entirely to eval/e2e/lib/record-key.js (Constitution: zero runtime npm
 // dependencies; C-216: no local re-implementation of the shared hash formula).
 // ---------------------------------------------------------------------------------------------------
-
-// fingerprintOf(text) -> a bounded, stable content fingerprint (sha256 hex) for a RAW STRING artifact
-// (the entailment premise text - see the header note above on why entailment stays string-keyed rather
-// than object-keyed). Exported so a recorder (or this file's own tests) can compute the identical
-// fingerprint from the same source text without re-deriving the hash choice (Rule 1: one door).
-function fingerprintOf(text) {
-  return sha256Hex(text);
-}
 
 // computeKey(kind, ruleId, artifactFingerprint) -> the frozen contract's key, delegating to
 // record-key.js's recordingKey (kept under this file's original exported name for backward
@@ -98,27 +91,40 @@ function computeKey(kind, ruleId, fp) {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// ADJUDICATE-kind key: record_id + the candidate's own deterministic artifact object, EXACTLY as the
-// recorder computes it (see this file's header). Read from request.candidates (the out-of-band ref
-// array breach/adjudicator/adjudicate.js's callGate() attaches), never from prompt text.
+// Candidate-ref key: record_id + the candidate's own deterministic artifact object, EXACTLY as the
+// recorder computes it (see this file's header). This is the ONE derivation both breach-lane kinds use
+// (adjudicate and entailment), differing only by `kind` - the C-211/C-222 unification.
 // ---------------------------------------------------------------------------------------------------
 
-// adjudicateBriefKey(ref) -> the frozen-contract key for ONE candidate ref ({id, record_id, artifact}
-// or any object carrying at least record_id/artifact - a hand-built candidate satisfies this shape
-// directly, since record_id/artifact are exactly the fields breach/proposers/propose.js's real
-// candidate() emits and breach/adjudicator/adjudicate.js preserves untouched onto every finding).
-// Tolerates a missing/undefined ref without throwing (an absent record_id/artifact still yields a
-// real, if unlikely-to-match, key rather than blowing up the caller - fail-closed via a lookup miss,
-// never a crash).
-function adjudicateBriefKey(ref) {
+// candidateKey(kind, ref) -> recordingKey(kind, ref.record_id, artifactFingerprint(ref.artifact)). The
+// single shared derivation for BOTH breach-lane kinds. `ref` is any object carrying record_id/artifact
+// (a candidate ref, or a hand-built candidate directly, since record_id/artifact are exactly the fields
+// breach/proposers/propose.js's candidate() emits and breach/adjudicator/adjudicate.js preserves
+// untouched onto every finding). Tolerates a missing/undefined ref without throwing (an absent
+// record_id/artifact still yields a real, if unlikely-to-match, key rather than blowing up the caller -
+// fail-closed via a lookup miss, never a crash).
+function candidateKey(kind, ref) {
   const r = ref || {};
-  const ruleId = String(r.record_id == null ? '' : r.record_id);
-  return computeKey('adjudicate', ruleId, artifactFingerprint(r.artifact));
+  return computeKey(kind, String(r.record_id == null ? '' : r.record_id), artifactFingerprint(r.artifact));
 }
 
-// candidateRefsFromRequest(request) -> the request.candidates[] array (breach/adjudicator/adjudicate.js
-// callGate's candidateRefsFor() output), or [] when absent/malformed. Fail-closed: no refs means
-// nothing can be keyed, so the caller declines the whole call rather than guessing.
+// adjudicateBriefKey(ref) -> the frozen-contract key for ONE adjudicate-kind candidate ref
+// ({id, record_id, artifact}). Read from request.candidates (the out-of-band ref array
+// breach/adjudicator/prompt.js candidateRefsFor() attaches to the adjudicate request), never from
+// prompt text.
+function adjudicateBriefKey(ref) {
+  return candidateKey('adjudicate', ref);
+}
+
+// entailmentCandidateKey(ref) -> the frozen-contract key for ONE entailment-kind candidate ref
+// ({record_id, artifact}). The mirror of adjudicateBriefKey on the SAME basis, differing only by kind.
+function entailmentCandidateKey(ref) {
+  return candidateKey('entailment', ref);
+}
+
+// candidateRefsFromRequest(request) -> the request.candidates[] array (breach/adjudicator/prompt.js
+// candidateRefsFor() output), or [] when absent/malformed. Fail-closed: no refs means nothing can be
+// keyed, so the caller declines the whole call rather than guessing.
 function candidateRefsFromRequest(request) {
   return Array.isArray(request && request.candidates) ? request.candidates : [];
 }
@@ -154,22 +160,22 @@ function briefsFromAdjudicatePrompt(prompt) {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// ENTAILMENT-kind key: source_id + the cited premise TEXT (see this file's header for why this stays
-// string-keyed and the honest gap versus the recorder's own record_id+artifact basis).
+// ENTAILMENT-kind key: record_id + artifact from request.candidate - the SAME basis as adjudicate, the
+// SAME basis the recorder uses (see this file's header). NOT the premise text (the closed C-211/C-222
+// gap).
 // ---------------------------------------------------------------------------------------------------
 
 // entailmentRequestKey(request) -> the frozen-contract key for a gate-3 NLI request (kind='entailment').
 // An entailment call is always ONE claim (llm/entailment.js's checkEntailment is always invoked with a
-// one-element array from breach/adjudicator/adjudicate.js's gateEntailment), and its request carries
-// clean, structured per-claim fields: allowedSourceIds[0] (the premise's source id) and
-// sources[thatId] (the verbatim premise text) - see llm/entailment.js callModel(). rule_id is realised
-// as the source id; the artifact fingerprint is the hashed premise text.
+// one-element array from breach/adjudicator/adjudicate.js's gateEntailment), and its request now carries
+// the owning candidate's identity out-of-band as request.candidate = { record_id, artifact }
+// (breach/adjudicator/adjudicate.js's claimFor -> llm/entailment.js's callModel; never in the prompt).
+// The key is candidateKey('entailment', request.candidate) - identical to the recorder's
+// recordingKey('entailment', cand.record_id, artifactFingerprint(cand.artifact)). A request with no
+// candidate (a caller that did not attach one - not the live breach path, which always does) derives
+// from an empty ref and thus fail-closed declines at lookup, never throws.
 function entailmentRequestKey(request) {
-  const ids = Array.isArray(request && request.allowedSourceIds) ? request.allowedSourceIds : [];
-  const sourceId = ids.length ? String(ids[0]) : '';
-  const sources = (request && request.sources) || {};
-  const premise = typeof sources[sourceId] === 'string' ? sources[sourceId] : '';
-  return computeKey('entailment', sourceId, fingerprintOf(premise));
+  return entailmentCandidateKey(request && request.candidate);
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -307,8 +313,9 @@ function replayLlmCall(dir) {
 module.exports = {
   replayLlmCall,
   computeKey,
-  fingerprintOf,
+  candidateKey,
   adjudicateBriefKey,
+  entailmentCandidateKey,
   entailmentRequestKey,
   candidateRefsFromRequest,
   briefsFromAdjudicatePrompt,

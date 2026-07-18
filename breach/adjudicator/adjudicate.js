@@ -196,7 +196,22 @@ function premiseQuote(f, art) {
 }
 function claimFor(f) {
   const art = f.artifact || {};
-  return { claim: fieldStr(f, 'description'), premise_source_id: premiseSourceId(f, art), premise: premiseQuote(f, art) };
+  return {
+    claim: fieldStr(f, 'description'),
+    premise_source_id: premiseSourceId(f, art),
+    premise: premiseQuote(f, art),
+    // The out-of-band candidate identity for the frozen recorded-response contract's ENTAILMENT key
+    // (P3-tail Wave-2 resume, C-211/C-222 gap closure). record_id + the candidate's own deterministic
+    // Rule-3 artifact object - the IDENTICAL basis prompt.js candidateRefsFor() uses for the
+    // adjudicate-kind key, so an entailment recording keys under the same (record_id, artifact) the
+    // recorder computes, differing from its adjudicate sibling only by kind. llm/entailment.js passes
+    // this straight onto the llmCall request as request.candidate WITHOUT it ever entering the prompt
+    // text (buildEntailmentPrompt sees only {hypothesis, premise, sourceId}), so eval/e2e/lib/replay-
+    // llm.js can derive the same key while a live model never sees an internal id. (Paired with
+    // prompt.js candidateRefsFor: both build {record_id, artifact} from the same fields; a change to the
+    // key basis must move both.)
+    candidate: { record_id: fieldStr(f, 'record_id'), artifact: (f && f.artifact != null) ? f.artifact : null },
+  };
 }
 // runEntailment(claim, opts, remaining) -> the NLI verdict, or null on throw/no-result. FAIL-OPEN
 // (Rule 4/9): a shell that throws demotes the finding to needs_review, never throws into the mint.

@@ -136,3 +136,52 @@ test('B-B1 COMPOSITION: a key derived here as the recorder would is found by the
     assert.equal(res.out.verdicts[0].verdict, 'breach');
   });
 });
+
+// B-B1 (entailment kind, P3-tail Wave-2 resume): the SAME composition proof for kind 'entailment'. The
+// recorder (run-real-proof.js entailmentEntryFor) keys an entailment recording by
+// recordingKey('entailment', cand.record_id, artifactFingerprint(cand.artifact)); the replay side
+// (replay-llm.js entailmentRequestKey) now reads request.candidate = { record_id, artifact } and
+// derives the IDENTICAL key. This proves the gap-1 closure end to end: recorder-written key found
+// replay-side, on the unified basis, for the entailment kind.
+test('B-B1 COMPOSITION (entailment): an entailment key written recorder-side is found replay-side via request.candidate', () => {
+  const realLlm = require('./real-llm.js');
+  const { replayLlmCall, DECLINE } = require('./replay-llm.js');
+
+  const candidate = {
+    record_id: 'RECORD-KEY-ENTAILMENT-COMPOSITION',
+    artifact: { type: 'quote', text: 'we guarantee you will win every case', surface: 'visible_text', page_url: 'https://composition-nli.test/claims' },
+    page_url: 'https://composition-nli.test/claims',
+  };
+
+  // Recorder-side key, exactly as run-real-proof.js's entailmentEntryFor computes it.
+  const key = realLlm.recordingKey('entailment', candidate.record_id, realLlm.artifactFingerprint(candidate.artifact));
+  // And it must equal the shared-module derivation directly (one door, both consumers).
+  assert.equal(key, recordingKey('entailment', candidate.record_id, artifactFingerprint(candidate.artifact)));
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'record-key-nli-composition-'));
+  const recording = realLlm.buildRecordingFile({
+    domain: 'composition-nli.test',
+    providers: ['hermetic-test'],
+    responses: [{
+      key,
+      kind: 'entailment',
+      raw: JSON.stringify({ source_id: candidate.page_url, verdict: 'entailment', rationale: 'the quote guarantees an outcome' }),
+      meta: { provider: 'hermetic-test', model: 'hand-built' },
+    }],
+  });
+  realLlm.writeRecordingFile(dir, candidate.page_url.replace(/[^a-z0-9.-]/gi, '-'), recording);
+
+  // The replay side sees an entailment-shaped request (isEntailmentRequest reads schema.verdict.enum),
+  // carrying request.candidate out-of-band exactly as llm/entailment.js's callModel now attaches it.
+  const llmCall = replayLlmCall(dir);
+  return llmCall({
+    schema: { properties: { verdict: { enum: ['entailment', 'neutral', 'contradiction'] } } },
+    allowedSourceIds: [candidate.page_url],
+    sources: { [candidate.page_url]: candidate.artifact.text },
+    candidate: { record_id: candidate.record_id, artifact: candidate.artifact },
+  }).then((res) => {
+    assert.notDeepEqual(res, DECLINE, 'the replayer must find the entailment recording written under the recorder-derived key');
+    assert.equal(res.verdict, 'entailment');
+    assert.equal(res.source_id, candidate.page_url);
+  });
+});

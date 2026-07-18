@@ -111,6 +111,28 @@ test('GATE 3: the default scripted gate answers NLI with entailment, so a breach
   assert.equal(await stateOf(textCand(), { llmCall: gate([{ id: 0, verdict: 'breach' }]) }), 'violation');
 });
 
+// ── P3-tail Wave-2 resume (C-211/C-222 gap-1 closure): gateEntailment attaches the owning candidate's
+// {record_id, artifact} to the NLI llmCall as request.candidate, out-of-band from the prompt, so the
+// recorded-response replay adapter can key the entailment recording on the same basis as adjudicate. ──
+test('GATE 3: the entailment llmCall carries request.candidate = {record_id, artifact}, never in the prompt', async () => {
+  let entailmentRequest = null;
+  // The gate serves the adjudication call (has rubric/no schema) with a breach, and CAPTURES the NLI
+  // call (has schema.verdict.enum) answering it with entailment so the finding still ships.
+  const capturingGate = async (request) => {
+    if (request && request.schema) { entailmentRequest = request; return nliReply(request, 'entailment'); }
+    return { ok: true, out: { verdicts: [{ id: 0, verdict: 'breach' }] } };
+  };
+  const cand = textCand({ record_id: 'ENTAILMENT-CANDIDATE-RULE' });
+  const { findings } = await adjudicate([cand], BUNDLE, { llmCall: capturingGate });
+  assert.equal(findings[0].state, 'violation');
+  assert.ok(entailmentRequest, 'the NLI (schema-bearing) call must have been made');
+  assert.ok(entailmentRequest.candidate, 'the entailment request must carry request.candidate');
+  assert.equal(entailmentRequest.candidate.record_id, 'ENTAILMENT-CANDIDATE-RULE');
+  assert.deepEqual(entailmentRequest.candidate.artifact, cand.artifact);
+  // The internal record_id must never reach the model-facing prompt text.
+  assert.ok(!String(entailmentRequest.prompt || '').includes('ENTAILMENT-CANDIDATE-RULE'), 'record_id must not leak into the NLI prompt');
+});
+
 test('a valid no_breach WITH a verbatim disproof -> pass', async () => {
   const state = await stateOf(textCand(), { llmCall: gate([{ id: 0, verdict: 'no_breach', disproof: 'practice area' }]) });
   assert.equal(state, 'pass');
