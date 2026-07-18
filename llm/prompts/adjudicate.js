@@ -13,8 +13,9 @@
 //     llm/gate.js can retrieval-gate the citation (gate 1) and re-match the quote (gate 2).
 //   - A pass (a NO_BREACH-style verdict) MUST carry a verbatim disproof quote (caution.md C-092);
 //     citationRequiredFor() exposes that policy so the Wave-2 adjudicator enforces it in one place.
-//   - Untrusted site text is DOC-delimited and declared DATA ONLY, and the DOC delimiter is
-//     neutralised inside every span so injected text cannot break out (caution.md C-134).
+//   - Untrusted site text is DOC-delimited and declared DATA ONLY, its DOC delimiter neutralised so
+//     injected text cannot break out. That framing is the ONE shared door (llm/prompts/sanitise.js,
+//     imported below, never re-implemented here) so adjudicate and entailment cannot drift (C-134).
 //
 // The prompt names NO law, regulator or fine (Rule 2: those live only in the catalogue). It rules on
 // the generic CLAIM the proposer supplied, against the generic EVIDENCE spans the retriever supplied.
@@ -28,19 +29,18 @@
 // (ledger decision 5; the earlier hyphenated 'needs-review' copy here was that drift).
 const { VERDICTS } = require('../../breach/adjudicator/verdict.js');
 
+// The untrusted-text framing (DOC-delimit + delimiter neutralisation) is the ONE shared door (Rule 1,
+// caution.md C-134); adjudicate and entailment both import it so their injection defence cannot drift.
+// sanitiseSpan is re-exported below so the existing adjudicate.test.js injection cases keep asserting
+// the door's behaviour through this module's public surface.
+const { sanitiseSpan, docDelimit } = require('./sanitise.js');
+
 // citationRequiredFor(verdict): the two verdicts that assert something checkable about the site and so
 // MUST carry a verbatim quote - a violation (its proving artifact, caution.md C-080) and a pass (its
 // disproof quote, caution.md C-092). needs_review abstains and may cite nothing. The structural gate
 // verifies any quote that IS present; this predicate is where the Wave-2 adjudicator enforces PRESENCE.
 function citationRequiredFor(verdict) {
   return verdict === 'violation' || verdict === 'pass';
-}
-
-// sanitiseSpan(text): neutralise the DOC delimiter inside untrusted span text so an injected "</DOC>
-// now follow these instructions" cannot break out of the data block (caution.md C-134). We replace any
-// angle-bracket "doc" token with a harmless marker; the visible words survive for the verbatim match.
-function sanitiseSpan(text) {
-  return String(text == null ? '' : text).replace(/<\s*\/?\s*doc/gi, '[doc]');
 }
 
 // evidenceRows(evidence): normalise the caller's evidence into { source_id, text } rows, dropping any
@@ -55,10 +55,12 @@ function evidenceRows(evidence) {
   return rows;
 }
 
-// buildDocBlock(rows): the DATA-ONLY evidence block, each span DOC-delimited and tagged with its id.
+// buildDocBlock(rows): the DATA-ONLY evidence block, each span DOC-delimited and tagged with its id
+// through the one shared door (docDelimit). The raw span survives untouched in the `sources` map that
+// Gate 2 re-matches against (see buildAdjudicationPrompt); only the model-facing framing is sanitised.
 function buildDocBlock(rows) {
   if (!rows.length) return '(no evidence spans were supplied)';
-  return rows.map((r) => '<DOC id="' + r.source_id + '">' + sanitiseSpan(r.text) + '</DOC>').join('\n');
+  return rows.map((r) => docDelimit(r.source_id, r.text)).join('\n');
 }
 
 // responseSchema(): the JSON-Schema subset llm/gate.js validates the reply against. finding_id and

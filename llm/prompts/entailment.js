@@ -22,10 +22,11 @@
 //   { system, prompt, schema, allowedSourceIds, sources, labels }
 // Feed { schema, allowedSourceIds, sources } straight into llm/gate.js validateResponse().
 
-// sanitiseSpan is the ONE door for neutralising the DOC delimiter inside untrusted span text
-// (Rule 1). It is imported from the adjudicate prompt rather than re-implemented so the two prompt
-// builders share a single, tested sanitiser (no jscpd clone, no drift).
-const { sanitiseSpan } = require('./adjudicate.js');
+// The untrusted-text framing (DOC-delimit + delimiter neutralisation) is the ONE shared door
+// (Rule 1, caution.md C-134): both this NLI prompt and the adjudication prompt import docDelimit from
+// llm/prompts/sanitise.js rather than re-implementing it, so the injection defence cannot drift and
+// there is a single, tested sanitiser (no jscpd clone).
+const { docDelimit } = require('./sanitise.js');
 
 // The CLOSED three-value NLI label set. entailment is the ONLY affirmative label; neutral and
 // contradiction both route the consumer to abstention (Rule 12 gates 3-4). This list is the single
@@ -77,7 +78,7 @@ function buildEntailmentPrompt({ hypothesis, premise, sourceId } = {}) {
     hyp,
     '',
     'PREMISE (the ONLY evidence you may use; cite it by source_id):',
-    '<DOC id="' + sid + '">' + sanitiseSpan(premiseText) + '</DOC>',
+    docDelimit(sid, premiseText),
     '',
     'Return strict JSON: {"source_id","verdict","rationale"}.',
     'verdict is one of: ' + LABELS.join(' | ') + '.',
