@@ -10,7 +10,26 @@
     "recorded_at": "2026-07-18",
     "prompt_versions": {},
     "domain": "example-synthetic-breach.test",
-    "note": "no breach-path LLM call recorded (propose produced 0 verifiable candidate(s); 135 suppressed upstream)"
+    "note": null
   },
-  "responses": []
+  "responses": [
+    {
+      "key": "989c5cd3060163a0f206a1fad6e86242667c4bc930ab9ba31ceb101a6d50d75e",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":0,\"reason\":\"advertising prescription only medicine\",\"verdict\":\"breach\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "c43b7f0e99fdf67c61340c3297bf83fd0e9bd8da1e96a17c0be57aa0eca2648b",
+      "kind": "entailment",
+      "raw": "{\"rationale\":\"The premise explicitly mentions 'wrinkle-relaxing injections', which is an indirect reference to a prescription-only medicine, contradicting the hypothesis that such references should be removed from public pages and ads.\",\"source_id\":\"https://example-synthetic-breach.test/\",\"verdict\":\"contradiction\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    }
+  ]
 }

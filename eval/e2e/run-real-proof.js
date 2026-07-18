@@ -174,47 +174,64 @@ function decidingGate(f) {
   return 'adjudicated:' + String(adj || 'unknown');
 }
 
-// ── recording assembly (recorded-llm.v1); correlates each real call to the candidate(s) it covered ────
-// entailmentEntryFor(event, enriched): match the NLI call's premise (allowedSourceIds[0] + sources[sid])
-// to the enriched candidate, and key by (entailment | record_id | artifact_fingerprint).
-function entailmentEntryFor(event, enriched) {
-  const req = event.request || {};
-  const sid = Array.isArray(req.allowedSourceIds) && req.allowedSourceIds.length ? String(req.allowedSourceIds[0]) : '';
-  const premise = (req.sources && sid && req.sources[sid] != null) ? String(req.sources[sid]) : '';
-  const cand = enriched.find((c) => (c.evidence_source_id === sid || c.page_url === sid) && (!premise || String(c.evidence_quote || '') === premise));
-  if (!cand) return null;
+// ── recording assembly (recorded-llm.v1) - keyed OUT-OF-BAND on the candidate refs the adjudicator ────
+// attaches to each request (P3-tail Wave-2 Builder B, C-211/C-222). The adjudicate request carries
+// request.candidates = [{id, record_id, artifact}] (prompt.js candidateRefsFor) and the entailment
+// request carries request.candidate = {record_id, artifact} (adjudicate.js claimFor -> entailment.js
+// callModel). The recorder keys on the SAME (record_id, artifact) basis eval/e2e/lib/replay-llm.js reads
+// (its candidateKey), via the SAME shared derivation (record-key.js's recordingKey/artifactFingerprint,
+// re-exported by real-llm.js). No content-matching from the prompt text is needed any longer.
+function candKey(kind, ref) {
+  return realLlm.recordingKey(kind, ref && ref.record_id != null ? ref.record_id : '', realLlm.artifactFingerprint(ref && ref.artifact));
+}
+// entailmentEntryFor(event): one recording entry for a gate-3 NLI call, keyed on request.candidate.
+function entailmentEntryFor(event) {
+  const cand = event.request && event.request.candidate;
+  if (!cand || cand.record_id == null) return null;
   return {
-    key: realLlm.recordingKey('entailment', cand.record_id, realLlm.artifactFingerprint(cand.artifact)),
+    key: candKey('entailment', cand),
     kind: 'entailment', raw: String(event.raw == null ? '' : event.raw),
     meta: { provider: event.provider || '', model: event.model || '' },
   };
 }
-// adjudicateEntriesFor(event, enriched): a batch adjudicate call covers several candidates; emit one
-// entry per candidate whose obligation/quote appears in the call prompt (content correlation, robust to
-// batch order). All entries in a call share that call's verbatim raw (the batch response).
-function adjudicateEntriesFor(event, enriched) {
-  const prompt = String((event.request && event.request.prompt) || '');
+// verdictsById(raw): the batch response's verdicts array indexed by its per-batch `id`, so each
+// candidate ref can be paired with ITS OWN verdict (never the first one - replay-llm.js's
+// verdictFromParsedRaw reads a single-verdict raw per candidate, so a batch of >1 must be split here).
+function verdictsById(raw) {
+  const parsed = realLlm.parseModelJson(String(raw == null ? '' : raw));
+  const list = parsed && Array.isArray(parsed.verdicts) ? parsed.verdicts : [];
+  const m = new Map();
+  for (const v of list) { const id = Number(v && v.id); if (Number.isInteger(id) && !m.has(id)) m.set(id, v); }
+  return m;
+}
+// adjudicateEntriesFor(event): one recording entry PER candidate ref in the batch, each keyed on its own
+// (record_id, artifact) and carrying ITS OWN verdict as the raw (matched by the per-batch id), so a
+// replay serves the right verdict to each candidate regardless of batch size or later re-batching.
+function adjudicateEntriesFor(event) {
+  const refs = Array.isArray(event.request && event.request.candidates) ? event.request.candidates : [];
+  if (!refs.length) return [];
+  const byId = verdictsById(event.raw);
   const out = [];
-  for (const c of enriched) {
-    const marker = String(c.evidence_quote || c.description || '').slice(0, 60);
-    if (marker && prompt.includes(marker)) {
-      out.push({
-        key: realLlm.recordingKey('adjudicate', c.record_id, realLlm.artifactFingerprint(c.artifact)),
-        kind: 'adjudicate', raw: String(event.raw == null ? '' : event.raw),
-        meta: { provider: event.provider || '', model: event.model || '' },
-      });
-    }
+  for (const ref of refs) {
+    if (ref.record_id == null) continue;
+    const verdict = byId.get(Number(ref.id));
+    if (verdict === undefined) continue; // no verdict for this candidate in the batch -> record nothing.
+    out.push({
+      key: candKey('adjudicate', ref),
+      kind: 'adjudicate', raw: JSON.stringify(verdict), // this candidate's OWN verdict object.
+      meta: { provider: event.provider || '', model: event.model || '' },
+    });
   }
   return out;
 }
-// buildResponses(callEvents, enriched): the responses[] for one firm's recording, deduped by key (last
-// write wins - a later call supersedes an earlier one for the same finding). Only ok calls are recorded.
-function buildResponses(callEvents, enriched) {
+// buildResponses(callEvents): the responses[] for one firm's recording, deduped by key (last write wins).
+// Only ok calls are recorded.
+function buildResponses(callEvents) {
   const byKey = new Map();
   for (const ev of callEvents) {
     if (!ev.ok) continue;
-    if (ev.kind === 'entailment') { const e = entailmentEntryFor(ev, enriched); if (e) byKey.set(e.key, e); }
-    else if (ev.kind === 'adjudicate') { for (const e of adjudicateEntriesFor(ev, enriched)) byKey.set(e.key, e); }
+    if (ev.kind === 'entailment') { const e = entailmentEntryFor(ev); if (e) byKey.set(e.key, e); }
+    else if (ev.kind === 'adjudicate') { for (const e of adjudicateEntriesFor(ev)) byKey.set(e.key, e); }
   }
   return [...byKey.values()];
 }
@@ -288,57 +305,77 @@ function buildRealCaller(opts) {
   return caller;
 }
 
+// resolveInputs(opts) -> {records, recIdx, firms} or {exitCode}. Loads the compiled catalogue (C-240)
+// and the reference set, builds the firm list, and fails closed (exit 2) on a missing catalogue or a
+// requested firm with no fixture on disk. Split out of main (C-254: keep main's decision count low).
+function resolveInputs(opts) {
+  const records = loadCatalogueRecords();
+  if (!records.length) {
+    console.error('run-real-proof: the compiled catalogue is empty or missing. Run `npm run catalogue` first (C-240).');
+    return { exitCode: 2 };
+  }
+  const refSet = loadReferenceSet(REF_SET);
+  const firms = loadFirms(opts, refSet);
+  const missing = firms.filter((f) => f.error);
+  if (missing.length) { for (const m of missing) console.error('run-real-proof: ' + m.domain + ': ' + m.error); return { exitCode: 2 }; }
+  return { records, recIdx: recordIndex(records), firms };
+}
+
+// constructCaller(opts) -> {realCaller} (null under --dry) or {exitCode}. A construction failure (no
+// RUN_REAL_LLM / no keys) is a usage error reported to the operator, never silently downgraded to a fake.
+function constructCaller(opts) {
+  if (opts.dry) return { realCaller: null };
+  try {
+    return { realCaller: buildRealCaller(opts) };
+  } catch (e) {
+    console.error('run-real-proof: cannot construct the real LLM caller: ' + e.message);
+    console.error('  Re-run with RUN_REAL_LLM=1 and provider keys in env, or use --dry for a structural (no-network) run.');
+    return { exitCode: 2 };
+  }
+}
+
+// runAllFirms(...) -> firmResults[]. Per firm: compose + judge + assemble recording. Each firm gets its
+// OWN call-event window (the shared realCaller log is drained before each firm) so a recording carries
+// only that firm's calls.
+async function runAllFirms(firms, records, recIdx, realCaller, recordedDir) {
+  const firmResults = [];
+  for (const firm of firms) {
+    if (realCaller) realCaller._callEvents.length = 0; // drain: start this firm's call window
+    firmResults.push(await runOneFirmWindowed(firm, records, recIdx, realCaller, recordedDir));
+  }
+  return firmResults;
+}
+
+// emitReport(...): the --json vs human report branch, split out of main.
+function emitReport(opts, preflightRows, firmResults, summary, realCaller) {
+  if (opts.json) {
+    console.log(JSON.stringify({ preflight: preflightRows, firms: firmResults.map(serialiseFirm), summary }, null, 2));
+    return;
+  }
+  console.log(printPreflightHuman(preflightRows));
+  for (const r of firmResults) console.log(printFirmHuman(r.firm, r.composed, r.judged));
+  console.log(printSummaryHuman(summary, realCaller));
+}
+
 async function main(argv) {
   const parsed = parseArgs(argv);
   if (parsed.exitCode) return parsed.exitCode;
   const { opts } = parsed;
 
-  const records = loadCatalogueRecords();
-  if (!records.length) {
-    console.error('run-real-proof: the compiled catalogue is empty or missing. Run `npm run catalogue` first (C-240).');
-    return 2;
-  }
-  const recIdx = recordIndex(records);
-  const refSet = loadReferenceSet(REF_SET);
-  const firms = loadFirms(opts, refSet);
-  const missing = firms.filter((f) => f.error);
-  if (missing.length) { for (const m of missing) console.error('run-real-proof: ' + m.domain + ': ' + m.error); return 2; }
+  const inputs = resolveInputs(opts);
+  if (inputs.exitCode) return inputs.exitCode;
 
-  // Real caller (fail-closed unless --dry). A construction failure (no RUN_REAL_LLM / no keys) is a
-  // usage error the operator must fix; it is reported, never silently downgraded to a fake.
-  let realCaller = null;
-  if (!opts.dry) {
-    try { realCaller = buildRealCaller(opts); }
-    catch (e) {
-      console.error('run-real-proof: cannot construct the real LLM caller: ' + e.message);
-      console.error('  Re-run with RUN_REAL_LLM=1 and provider keys in env, or use --dry for a structural (no-network) run.');
-      return 2;
-    }
-  }
+  const caller = constructCaller(opts);
+  if (caller.exitCode) return caller.exitCode;
+  const realCaller = caller.realCaller;
 
   // Preflight (liveness) - proves the adapter reaches live providers and gathers U1-B4 data (C-135).
-  let preflightRows = [];
-  if (realCaller && opts.preflight) preflightRows = await realCaller.preflight();
-
+  const preflightRows = (realCaller && opts.preflight) ? await realCaller.preflight() : [];
   const recordedDir = realCaller ? realCaller.recordedDir : null; // --dry writes no recordings
 
-  // Per firm: compose + judge + assemble recording. Each firm gets its OWN call-event window so the
-  // recording only carries that firm's calls (the shared realCaller log is drained per firm).
-  const firmResults = [];
-  for (const firm of firms) {
-    if (realCaller) realCaller._callEvents.length = 0; // drain: start this firm's call window
-    const res = await runOneFirmWindowed(firm, records, recIdx, realCaller, recordedDir);
-    firmResults.push(res);
-  }
-
+  const firmResults = await runAllFirms(inputs.firms, inputs.records, inputs.recIdx, realCaller, recordedDir);
   const summary = summarise(firmResults);
-  if (opts.json) {
-    console.log(JSON.stringify({ preflight: preflightRows, firms: firmResults.map(serialiseFirm), summary }, null, 2));
-  } else {
-    console.log(printPreflightHuman(preflightRows));
-    for (const r of firmResults) console.log(printFirmHuman(r.firm, r.composed, r.judged));
-    console.log(printSummaryHuman(summary, realCaller));
-  }
+  emitReport(opts, preflightRows, firmResults, summary, realCaller);
   return summary.reproduced >= 1 && summary.contradictions === 0 ? 0 : 1;
 }
 
@@ -350,7 +387,7 @@ async function runOneFirmWindowed(firm, records, recIdx, realCaller, recordedDir
   const composed = await composeFirm(firm, records, recIdx, llmCall);
   if (realCaller) for (const e of realCaller._callEvents) callEvents.push(e);
   const judged = judgeFirm(firm.firmEntry, { payload: composed.payload, breachLaneComplete: true });
-  const responses = buildResponses(callEvents, composed.enriched);
+  const responses = buildResponses(callEvents);
   const recording = realLlm.buildRecordingFile({
     domain: firm.domain,
     providers: realCaller ? realCaller.families : [],

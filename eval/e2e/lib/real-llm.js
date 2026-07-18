@@ -50,6 +50,14 @@ const { validateResponse } = require('../../../llm/gate.js');
 // there too. Nothing else in this file changes: these are re-exported below under their original names
 // so every existing caller of this module (run-real-proof.js, real-llm.test.js) is unaffected.
 const { CONTRACT, stableStringify, artifactFingerprint, recordingKey } = require('./record-key.js');
+// The provider TRANSPORT layer (P3-tail Wave-2 U1 resume, C-254: extracted so this file stays under the
+// 500-line health-gate cap). It owns provider construction + the structured-output body builders + the
+// single deadline-bounded fetch; this file owns the routing, gating, recording and factory around it.
+// Destructured to bare names so every call site below is unchanged by the extraction.
+const {
+  PROVIDER_MODELS, envKeysPresent, buildProvidersFromEnv, modelOfName, familyOfName,
+  preflightRequest, buildPreflightRow,
+} = require('./real-llm-transport.js');
 
 // ── caps + defaults (Rule 8: every one is an upper bound, never a floor) ─────────────────────────────
 const DEFAULT_DEADLINE_MS = 20000;   // per-call hard deadline CAP handed to the router (Rule 9).
@@ -71,34 +79,9 @@ const SECRET_SHAPES = [
   'g' + 'sk_', 'AI' + 'za', 'g' + 'hp_', 'git' + 'hub_pat_', 's' + 'k-', 'np' + 'g_', 'cf' + 'ut_', 'Bearer ',
 ];
 
-// PROVIDER_MODELS: the ONE place model IDs live (caution.md C-135). Free-first families matching
-// llm/router.js FAMILY_ORDER (cloudflare, groq, nim, gemini). Each family lists candidate model IDs in
-// preference order; the liveness preflight probes them and the first that answers is used. A dead id is
-// reported (C-135), never silently retried. Add/rotate ids HERE and nowhere else.
-// Model IDs verified against the live providers on 2026-07-18 by run-real-proof.js's preflight (C-135):
-// cloudflare (both live), groq (both live), nim (8b live; 70b slow, kept - a timeout is transient, not
-// a dead id), gemini-2.0-flash (live; free key currently 429 quota-limited). gemini-1.5-flash and
-// gemini-1.5-flash-8b were REMOVED after the preflight returned 404 "not found for v1beta" for both -
-// shipping a retired id is exactly the C-135 defect (8 refs to a retired model 401'd for weeks).
-const PROVIDER_MODELS = {
-  cloudflare: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct'],
-  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
-  nim: ['meta/llama-3.1-8b-instruct', 'meta/llama-3.3-70b-instruct'],
-  gemini: ['gemini-2.0-flash'],
-};
-
 // ── env gate (fail-closed construction) ─────────────────────────────────────────────────────────────
-// envKeysPresent(env): the families whose credentials are all present in env. cloudflare needs BOTH a
-// token and an account id; the others need one key each. Never reads a value into a return, only names.
-function envKeysPresent(env) {
-  const e = env || {};
-  const present = [];
-  if (e.CLOUDFLARE_API_TOKEN && (e.CLOUDFLARE_ACCOUNT_ID || e.CF_ACCOUNT_ID)) present.push('cloudflare');
-  if (e.GROQ_API_KEY) present.push('groq');
-  if (e.NIM_API_KEY) present.push('nim');
-  if (e.GEMINI_API_KEY || e.GOOGLE_API_KEY) present.push('gemini');
-  return present;
-}
+// PROVIDER_MODELS + envKeysPresent are imported from real-llm-transport.js (the extracted transport
+// layer); envKeysPresent is re-exported below so external callers of this module are unaffected (C-254).
 
 // assertRunGate(env): the RUN_REAL_LLM=1 hard gate. Construction of a real caller is refused unless the
 // operator explicitly opted in AND at least one provider's keys are present (fail-closed, Rule 4).
@@ -140,166 +123,10 @@ function isAdjudicationRequest(request) {
   return Boolean(request) && typeof request.rubric === 'function';
 }
 
-// ── structured-output body builders (C-137: every JSON-expecting call sets the provider's own mode) ──
-// messagesFor(request): the OpenAI-style message array shared by the OpenAI-compatible providers.
-function messagesFor(request) {
-  const msgs = [];
-  if (request.system) msgs.push({ role: 'system', content: String(request.system) });
-  msgs.push({ role: 'user', content: String(request.prompt || '') });
-  return msgs;
-}
-function maxTokensFor(request) {
-  const n = Number(request.max_tokens);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 2048) : 900;
-}
-
-// openAiBody(model, request): the OpenAI-compatible chat body (Groq, NIM). response_format json_object
-// is the portable structured-output mode both support (C-137).
-function openAiBody(model, request) {
-  return {
-    model,
-    messages: messagesFor(request),
-    temperature: 0,
-    max_tokens: maxTokensFor(request),
-    response_format: { type: 'json_object' },
-  };
-}
-// geminiBody(request): Gemini generateContent with responseMimeType application/json (C-137). The
-// system prompt is folded into the first user turn (v1beta systemInstruction is also honoured below).
-function geminiBody(request) {
-  return {
-    systemInstruction: request.system ? { parts: [{ text: String(request.system) }] } : undefined,
-    contents: [{ role: 'user', parts: [{ text: String(request.prompt || '') }] }],
-    generationConfig: { temperature: 0, maxOutputTokens: maxTokensFor(request), responseMimeType: 'application/json' },
-  };
-}
-// cloudflareBody(model, request): Workers AI chat body; response_format json_object where the model
-// supports it (C-137). Unknown-support models still return text the gate.js extractor can parse.
-function cloudflareBody(request) {
-  return {
-    messages: messagesFor(request),
-    temperature: 0,
-    max_tokens: maxTokensFor(request),
-    response_format: { type: 'json_object' },
-  };
-}
-
-// ── response text extractors (one per provider wire shape) ───────────────────────────────────────────
-function textFromOpenAi(json) {
-  const c = json && json.choices && json.choices[0];
-  return (c && c.message && typeof c.message.content === 'string') ? c.message.content : '';
-}
-function textFromGemini(json) {
-  const cand = json && json.candidates && json.candidates[0];
-  const parts = cand && cand.content && cand.content.parts;
-  if (!Array.isArray(parts)) return '';
-  return parts.map((p) => (p && typeof p.text === 'string' ? p.text : '')).join('');
-}
-function textFromCloudflare(json) {
-  const r = json && json.result;
-  if (r && typeof r.response === 'string') return r.response;
-  if (r && r.response && typeof r.response === 'object') return JSON.stringify(r.response);
-  return '';
-}
-
-// ── the transport: ONE deadline-bounded fetch attempt (the router owns the deadline + no-retry) ───────
-// httpErr(status, bodyText): a short, key-free error string for the attempt ledger (U1-B4: 429s and
-// dead-model 401/404 surface here). Never includes a request header.
-function httpErr(status, bodyText) {
-  return 'HTTP ' + status + ': ' + String(bodyText || '').replace(/\s+/g, ' ').slice(0, 120);
-}
-// doFetch(url, options, signal, extract): perform ONE fetch, honour the abort signal, and reduce the
-// response to { ok, text } | { ok:false, error }. Returns ok:false (never throws) on a non-2xx so the
-// router records a clean outcome and falls over; a network throw propagates to the router's withDeadline
-// (which captures it as a first-class value - no redundant catch here, caution.md C-239).
-async function doFetch(url, options, signal, extract) {
-  const res = await fetch(url, Object.assign({ signal }, options));
-  if (!res.ok) {
-    let body = '';
-    // FAIL-OPEN: reading the error body is best-effort telemetry for the attempt ledger; if the body
-    // stream itself errors we still return the status code, which is the load-bearing signal (U1-B4).
-    try { body = await res.text(); } catch (_e) { body = '(error body unreadable)'; }
-    return { ok: false, error: httpErr(res.status, body) };
-  }
-  const json = await res.json();
-  const text = extract(json);
-  return text && text.trim() ? { ok: true, text } : { ok: false, error: 'empty_text' };
-}
-
-// ── provider builders (each returns a router provider {name, family, tier, model, call} or null) ──────
-// name is family::model so it is unique per model and the recording meta can recover the model id.
-function providerName(family, model) { return family + '::' + model; }
-function modelOfName(name) { const i = String(name).indexOf('::'); return i === -1 ? '' : String(name).slice(i + 2); }
-function familyOfName(name) { const i = String(name).indexOf('::'); return i === -1 ? String(name) : String(name).slice(0, i); }
-
-function buildGroqProvider(env, model, fetchImpl) {
-  const key = env.GROQ_API_KEY;
-  if (!key) return null;
-  return {
-    name: providerName('groq', model), family: 'groq', tier: 'free', model,
-    call: (request, { signal }) => (fetchImpl || doFetch)(
-      'https://api.groq.com/openai/v1/chat/completions',
-      { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(openAiBody(model, request)) },
-      signal, textFromOpenAi),
-  };
-}
-function buildNimProvider(env, model, fetchImpl) {
-  const key = env.NIM_API_KEY;
-  if (!key) return null;
-  return {
-    name: providerName('nim', model), family: 'nim', tier: 'free', model,
-    call: (request, { signal }) => (fetchImpl || doFetch)(
-      'https://integrate.api.nvidia.com/v1/chat/completions',
-      { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(openAiBody(model, request)) },
-      signal, textFromOpenAi),
-  };
-}
-function buildGeminiProvider(env, model, fetchImpl) {
-  const key = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
-  if (!key) return null;
-  return {
-    name: providerName('gemini', model), family: 'gemini', tier: 'free', model,
-    call: (request, { signal }) => (fetchImpl || doFetch)(
-      'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key),
-      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(geminiBody(request)) },
-      signal, textFromGemini),
-  };
-}
-function buildCloudflareProvider(env, model, fetchImpl) {
-  const key = env.CLOUDFLARE_API_TOKEN;
-  const acct = env.CLOUDFLARE_ACCOUNT_ID || env.CF_ACCOUNT_ID;
-  if (!key || !acct) return null;
-  return {
-    name: providerName('cloudflare', model), family: 'cloudflare', tier: 'free', model,
-    call: (request, { signal }) => (fetchImpl || doFetch)(
-      'https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(acct) + '/ai/run/' + model,
-      { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(cloudflareBody(request)) },
-      signal, textFromCloudflare),
-  };
-}
-
-const FAMILY_BUILDERS = {
-  cloudflare: buildCloudflareProvider, groq: buildGroqProvider, nim: buildNimProvider, gemini: buildGeminiProvider,
-};
-
-// buildProvidersFromEnv(env, opts): the full provider set from env keys, one entry per (family, model)
-// candidate whose key is present. opts.families limits to a subset; opts.fetchImpl injects a fake
-// transport for tests (network-free). Free-first ordering is imposed by the router, not here.
-function buildProvidersFromEnv(env, opts = {}) {
-  const e = env || {};
-  const families = opts.families || Object.keys(PROVIDER_MODELS);
-  const out = [];
-  for (const fam of families) {
-    const builder = FAMILY_BUILDERS[fam];
-    const models = PROVIDER_MODELS[fam] || [];
-    if (!builder) continue;
-    for (const model of models) {
-      const p = builder(e, model, opts.fetchImpl);
-      if (p) out.push(p);
-    }
-  }
-  return out;
-}
+// The provider transport (structured-output body builders, wire-response extractors, doFetch, the four
+// provider builders, buildProvidersFromEnv, the name helpers modelOfName/familyOfName) now lives in
+// real-llm-transport.js and is imported above (C-254 extraction). runRoute/preflight/createRealLlmCall
+// below call the imported bare names unchanged.
 
 // ── the two route validators (the structural gates applied inside the router's own validated() path) ──
 // parseModelJson(text): reuse llm/gate.js's OWN exported validateResponse as the shared JSON
@@ -501,14 +328,7 @@ function makeLlmCall(ctx) {
 }
 
 // ── liveness preflight (C-135): probe each provider/model once, serially, and report which answer ─────
-function preflightRequest() {
-  return {
-    role: 'extract',
-    system: 'You are a JSON echo. Reply with STRICT JSON only, no prose.',
-    prompt: 'Return exactly this JSON object and nothing else: {"ok":true,"probe":"tamazia-real-llm-preflight"}',
-    max_tokens: 60, temperature: 0, deadline_ms: 12000, scan_id: 'preflight',
-  };
-}
+// preflightRequest() + buildPreflightRow() are imported from real-llm-transport.js (C-254 extraction).
 // preflight(ctx): call each provider directly (one attempt each, serial, paced) and report liveness.
 // Uses the same doFetch transport but bypasses route() so a dead model is attributed to its exact id
 // (C-135), not hidden behind a fall-over. Returns [{provider, model, ok, ms, error}].
@@ -530,16 +350,6 @@ async function preflight(ctx) {
   }
   return out;
 }
-// buildPreflightRow(provider, raced, ms): reduce a withDeadline result to a liveness row. No throw: a
-// timeout, a rejection and a non-2xx are all first-class reported outcomes (C-135/U1-B4).
-function buildPreflightRow(p, raced, ms) {
-  if (raced.timedOut) return { provider: p.family, model: p.model, ok: false, ms, error: 'timeout', raw: null };
-  if (raced.error !== undefined) return { provider: p.family, model: p.model, ok: false, ms, error: String(raced.error).slice(0, 120), raw: null };
-  const v = raced.value;
-  if (v && v.ok) return { provider: p.family, model: p.model, ok: true, ms, error: null, raw: String(v.text || '').slice(0, 200) };
-  return { provider: p.family, model: p.model, ok: false, ms, error: (v && v.error) || 'no_text', raw: null };
-}
-
 // ── the factory ──────────────────────────────────────────────────────────────────────────────────────
 /**
  * createRealLlmCall(opts) -> { llmCall, providers, families, preflight, recordDir, recordedDir }
@@ -624,12 +434,6 @@ module.exports = {
   RECORD_DIRNAME,
   RECORDED_DIRNAME,
   // internal helpers exported for the node:test suite (never fact producers):
-  openAiBody,
-  geminiBody,
-  cloudflareBody,
-  textFromOpenAi,
-  textFromGemini,
-  textFromCloudflare,
   parseModelJson,
   deadlineFor,
   clampDeadline,

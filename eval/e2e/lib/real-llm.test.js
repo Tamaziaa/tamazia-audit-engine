@@ -72,32 +72,8 @@ test('createRealLlmCall constructs with the flag + injected providers', () => {
   assert.deepStrictEqual(c.families, ['groq']);
 });
 
-test('envKeysPresent detects families from env keys (names only, never values asserted)', () => {
-  assert.deepStrictEqual(R.envKeysPresent({ GROQ_API_KEY: 'x' }), ['groq']);
-  assert.deepStrictEqual(R.envKeysPresent({ CLOUDFLARE_API_TOKEN: 'x' }), [], 'cloudflare needs a token AND an account id');
-  assert.deepStrictEqual(R.envKeysPresent({ CLOUDFLARE_API_TOKEN: 'x', CF_ACCOUNT_ID: 'y' }), ['cloudflare']);
-  assert.ok(R.envKeysPresent({ GEMINI_API_KEY: 'x', NIM_API_KEY: 'y' }).sort().join(',') === 'gemini,nim');
-});
-
-// ── buildProvidersFromEnv + structured output (C-137) via a FAKE fetch (no network) ──────────────────
-test('buildProvidersFromEnv builds one provider per present-key model, using the injected fetch', async () => {
-  const seen = [];
-  const fakeFetch = (url, options, _signal, _extract) => { seen.push({ url, hasAuth: /^Bearer /.test(options.headers.authorization || '') }); return Promise.resolve({ ok: true, text: '{}' }); };
-  const providers = R.buildProvidersFromEnv({ GROQ_API_KEY: 'FAKEGROQKEY' }, { fetchImpl: fakeFetch });
-  assert.ok(providers.length >= 1 && providers.every((p) => p.family === 'groq'));
-  await providers[0].call({ system: 's', prompt: 'p' }, { signal: undefined });
-  assert.match(seen[0].url, /api\.groq\.com/);
-  assert.strictEqual(seen[0].hasAuth, true, 'the Authorization header is set (its value is never asserted or logged, Rule 16)');
-});
-test('cloudflare provider requires BOTH token and account id', () => {
-  assert.strictEqual(R.buildProvidersFromEnv({ CLOUDFLARE_API_TOKEN: 'x' }, {}).length, 0);
-  assert.ok(R.buildProvidersFromEnv({ CLOUDFLARE_API_TOKEN: 'x', CLOUDFLARE_ACCOUNT_ID: 'y' }, {}).length >= 1);
-});
-test('structured-output mode is set per provider (C-137)', () => {
-  assert.deepStrictEqual(R.openAiBody('m', { prompt: 'p' }).response_format, { type: 'json_object' });
-  assert.strictEqual(R.geminiBody({ prompt: 'p' }).generationConfig.responseMimeType, 'application/json');
-  assert.deepStrictEqual(R.cloudflareBody({ prompt: 'p' }).response_format, { type: 'json_object' });
-});
+// (envKeysPresent / buildProvidersFromEnv / structured-output body tests moved to
+// real-llm-transport.test.js alongside the extracted transport module, C-254.)
 
 // ── request-kind detection ───────────────────────────────────────────────────────────────────────────
 test('request-kind detection distinguishes entailment (schema.verdict.enum) from adjudication (rubric)', () => {

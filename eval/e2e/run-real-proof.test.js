@@ -57,34 +57,36 @@ test('decidingGate maps every adjudication outcome to an honest label', () => {
   assert.match(D.decidingGate({ adjudication: 'insufficient' }), /insufficient.*needs_review/);
 });
 
-// ── recording assembly (correlate a real call to the candidate(s) it covered) ─────────────────────────
-function candFor() {
-  return {
-    record_id: 'R1', artifact: { type: 'quote', text: 'we guarantee you will win every case' },
-    page_url: 'https://x/', evidence_source_id: 'https://x/',
-    evidence_quote: 'we guarantee you will win every case', description: 'must not guarantee outcomes',
-  };
-}
-test('buildResponses correlates an entailment call to its candidate by premise + source_id', () => {
+// ── recording assembly - keyed OUT-OF-BAND on the request's candidate refs (Builder B unification) ────
+test('buildResponses keys an entailment call on request.candidate (record_id + artifact), no content-matching', () => {
+  const artifact = { type: 'quote', text: 'we offer wrinkle-relaxing injections' };
   const ev = { event: 'real_llm_call', kind: 'entailment', ok: true, raw: '{"source_id":"https://x/","verdict":"entailment"}', provider: 'groq', model: 'm',
-    request: { allowedSourceIds: ['https://x/'], sources: { 'https://x/': 'we guarantee you will win every case' } } };
-  const responses = D.buildResponses([ev], [candFor()]);
+    request: { candidate: { record_id: 'UK_MHRA_POM_AD_BAN', artifact } } };
+  const responses = D.buildResponses([ev]);
   assert.strictEqual(responses.length, 1);
   assert.strictEqual(responses[0].kind, 'entailment');
-  assert.strictEqual(responses[0].key, R.recordingKey('entailment', 'R1', R.artifactFingerprint(candFor().artifact)));
+  assert.strictEqual(responses[0].key, R.recordingKey('entailment', 'UK_MHRA_POM_AD_BAN', R.artifactFingerprint(artifact)),
+    'the entailment key matches replay-llm.js candidateKey on the SAME (record_id, artifact) basis');
   assert.strictEqual(responses[0].meta.provider, 'groq');
 });
-test('buildResponses correlates an adjudicate call to every candidate whose quote appears in the prompt', () => {
-  const ev = { event: 'real_llm_call', kind: 'adjudicate', ok: true, raw: '{"verdicts":[{"id":0,"verdict":"breach"}]}', provider: 'gemini', model: 'g',
-    request: { prompt: 'CANDIDATES: [{"id":0,"evidence":"we guarantee you will win every case"}]' } };
-  const responses = D.buildResponses([ev], [candFor()]);
-  assert.strictEqual(responses.length, 1);
-  assert.strictEqual(responses[0].kind, 'adjudicate');
-  assert.strictEqual(responses[0].key, R.recordingKey('adjudicate', 'R1', R.artifactFingerprint(candFor().artifact)));
+test('buildResponses keys each adjudicate candidate on request.candidates and stores ITS OWN verdict (batch split by id)', () => {
+  const a0 = { type: 'quote', text: 'q0' };
+  const a1 = { type: 'coverage_proof', page_class: 'any' };
+  const ev = { event: 'real_llm_call', kind: 'adjudicate', ok: true, provider: 'gemini', model: 'g',
+    raw: '{"verdicts":[{"id":0,"verdict":"breach"},{"id":1,"verdict":"insufficient"}]}',
+    request: { candidates: [{ id: 0, record_id: 'R0', artifact: a0 }, { id: 1, record_id: 'R1', artifact: a1 }] } };
+  const responses = D.buildResponses([ev]);
+  assert.strictEqual(responses.length, 2);
+  const byKey = new Map(responses.map((r) => [r.key, r]));
+  const k0 = R.recordingKey('adjudicate', 'R0', R.artifactFingerprint(a0));
+  const k1 = R.recordingKey('adjudicate', 'R1', R.artifactFingerprint(a1));
+  assert.ok(byKey.has(k0) && byKey.has(k1), 'each candidate keyed on its own (record_id, artifact)');
+  assert.strictEqual(JSON.parse(byKey.get(k0).raw).verdict, 'breach', 'candidate 0 gets verdict id 0, not the batch head');
+  assert.strictEqual(JSON.parse(byKey.get(k1).raw).verdict, 'insufficient', 'candidate 1 gets verdict id 1 (per-candidate split)');
 });
 test('buildResponses ignores failed (ok:false) calls - only real answers are recorded', () => {
-  const ev = { event: 'real_llm_call', kind: 'adjudicate', ok: false, raw: null, request: { prompt: 'we guarantee you will win every case' } };
-  assert.deepStrictEqual(D.buildResponses([ev], [candFor()]), []);
+  const ev = { event: 'real_llm_call', kind: 'adjudicate', ok: false, raw: null, request: { candidates: [{ id: 0, record_id: 'R', artifact: {} }] } };
+  assert.deepStrictEqual(D.buildResponses([ev]), []);
 });
 
 // ── summarise ─────────────────────────────────────────────────────────────────────────────────────────
@@ -100,16 +102,24 @@ test('summarise counts reproduced known_breaches and contradictions across firms
   assert.strictEqual(s.recordedResponses, 2);
 });
 
-// ── composeFirm on the synthetic fixture, DRY (no model): locks the honest current reality ────────────
-test('composeFirm on the synthetic fixture proposes candidates but 0 survive to a real artifact (the blocker)', async () => {
+// ── composeFirm on the synthetic fixture: locks the NEW honest reality (Builder A's A3 fix) ────────────
+// The control was replanted on the compiled prohibition spec UK_MHRA_POM_AD_BAN ("wrinkle-relaxing
+// injections"), so EXACTLY ONE presence-breach quote candidate now survives propose+verify. A future
+// regression to 0 (a suppressor eats the presence quote again) or 2+ (a stray candidate) fails loudly.
+test('composeFirm on the synthetic fixture yields EXACTLY 1 real-artifact candidate: UK_MHRA_POM_AD_BAN (quote)', async () => {
   const records = loadCatalogueRecords();
   assert.ok(records.length > 0, 'the compiled catalogue must be present (npm run catalogue)');
   const recIdx = D.recordIndex(records);
   const firm = D.loadSyntheticFirm();
   const composed = await D.composeFirm(firm, records, recIdx, null); // null llmCall = structural dry run
-  assert.ok(composed.proposedTotal > 0, 'propose does emit candidates');
-  assert.strictEqual(composed.real.length, 0, 'but 0 carry a real artifact on the committed fixture (all suppressed upstream)');
-  assert.strictEqual(composed.findings.length, 0, 'so the adjudicator (and the model) is never reached');
+  assert.strictEqual(composed.real.length, 1, 'exactly one presence-breach survives on the synthetic control');
+  const cand = composed.real[0];
+  assert.strictEqual(cand.record_id, 'UK_MHRA_POM_AD_BAN', 'the surviving candidate is the MHRA POM-advertising prohibition');
+  assert.strictEqual(cand.artifact && cand.artifact.type, 'quote', 'it carries a verbatim quote artifact (presence-breach), not a coverage_proof');
+  assert.strictEqual(composed.verified.length, 1, 'and it passes gate-2 verify (verbatim quote re-match)');
+  // Under a null (dry) llmCall the model is never asked, so the one finding abstains to needs_review
+  // (the fixture's own reproduced/missed doctrine); a real-model breach verdict flips it to violation.
+  assert.strictEqual(composed.findings[0].state, 'needs_review', 'dry (no model) demotes to needs_review, never a fabricated violation');
 });
 
 // ── main --dry: end to end, no network, exits 1 (NOT PROVEN), writes no recordings ────────────────────

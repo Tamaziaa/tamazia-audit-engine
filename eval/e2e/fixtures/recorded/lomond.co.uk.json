@@ -10,7 +10,287 @@
     "recorded_at": "2026-07-18",
     "prompt_versions": {},
     "domain": "lomond.co.uk",
-    "note": "no breach-path LLM call recorded (propose produced 0 verifiable candidate(s); 132 suppressed upstream)"
+    "note": null
   },
-  "responses": []
+  "responses": [
+    {
+      "key": "ddcc3b9ab3ecc0e85424c33d96be9f654c821d843c09ef7642e351afafae3b06",
+      "kind": "adjudicate",
+      "raw": "{\"id\":0,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "2f7f919aa2ce85a345ee92ae42f669b20e3617330b7285c83d519cb09dd9a2f8",
+      "kind": "adjudicate",
+      "raw": "{\"id\":1,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "46165a7ddd9dd6aa9cf9569af6791f4a1f3b0654d1f925588d97037eac9d803d",
+      "kind": "adjudicate",
+      "raw": "{\"id\":2,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "a7f0a32aa7f28779c5b379af6589f3519eb0c528fac62c74142dcda90a124c14",
+      "kind": "adjudicate",
+      "raw": "{\"id\":3,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "2869ab00e640a5ef1cb05232501ccf36cd4c09c5218e490f8bca6c27c1721880",
+      "kind": "adjudicate",
+      "raw": "{\"id\":4,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "5956e7fd4e7241e07f5a1339324e3248227dceed8826b23e91c718acc4d4ed9a",
+      "kind": "adjudicate",
+      "raw": "{\"id\":5,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "526f292a4d6a91d5f6161de243f558fa257fd50887514bac8f2815502957d9b2",
+      "kind": "adjudicate",
+      "raw": "{\"id\":6,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "5c6e23ed599c2586453bc9010d25376288ece70a07d56b5c8097df34b7a02057",
+      "kind": "adjudicate",
+      "raw": "{\"id\":7,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "aeeaa71eef44eab7f6d26444f3a4afb868b48ec860716ee14addcab9d3a09ab8",
+      "kind": "adjudicate",
+      "raw": "{\"id\":8,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "c84905c6c270928f8dad728cf38776fae2691183e05c7d008e9ceb6faa3fd9b0",
+      "kind": "adjudicate",
+      "raw": "{\"id\":9,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "5e8285a841264f806f857134dfc277770163d41d9d91d5148e332d430dddd21d",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":0,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "3e2d674a46dbc300e9ae1842a097739a163dea34cfb3eda4115448eccf193cea",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":1,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "ae2eb6605737c348a9f26e49039a8d6ce1cf8e0aa99d35b04320d7f7036ed29f",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":2,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "85d50e40522fc3b13d5cb80502f7bb5be602881feb8d1271f059d1213212eb20",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":3,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "98c2e9e8591bd294e2e63fde229be35bcf08f11a2cbda73ae5473211ab6bdedd",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":4,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "d32d3bf4f2e46362dca07b283f2fd0c126eba5bf482afde6b103dd556f772aa1",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":5,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "d8d236e847576726f8bdcf3f0673deef66bb5cf16a11bbddd92a0aab1cadcc7f",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":6,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "637e8a8c5e277ecdd11dab44805787cd3213ede9027905d5c81649fb39120495",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":7,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "73143836ecec71c10eba6ba9d206e571a8b0b4c5bc02ee43871766c016ae565b",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":8,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "06b94b6aa154b4234a9d0443d79c4693f273d7a2a023ccb39ae59937151a27ed",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":9,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "6d69875bdcb57cb4715c7722790f0eb159c0b7714050d5f69b5336e70adba749",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":0,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "12646230dc162893e672049680af126b3b6964fe98d74a977740f82b93714e67",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":1,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "a8c8c459d956c205a2f30efd8ee5158f7c859c92e573d72b381d680f54a191a3",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":2,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "91b611761fb58aae087664a76ab98eec0e5a16ec55b23fa87be4d3c314ccb537",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":3,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "a7af09af2963675f6f7047305433fce3ca67dcd9755fb2c4c6da3b3c9421b03b",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":4,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "8f4c80c9fff7851ddba567395b3015af6c851ad7f091bbd117361f7132c35ab8",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":5,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "4a24669613ed605d3abf5cf3f9920ef80ac038cb9d73b9d6a8a67cfe4c094c3a",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":6,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "2d7a69a8c1379807e781194282cf1da8e78db417a9de84cb681412ac058cf2cd",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":7,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "a743114bfdfd82faed733c01c66a22ea5680c0376b415e7d26b3b059e24b67fa",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":8,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "ffabc317ccae8f94bb58c6757ac38877501e0cd5853770b9e566427467aca9ec",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":9,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    },
+    {
+      "key": "5a3882788896a899b07d264986779380cf2718e9b057d435a9ee3c322bb7678f",
+      "kind": "adjudicate",
+      "raw": "{\"disproof\":null,\"id\":0,\"reason\":\"No page text shown\",\"verdict\":\"insufficient\"}",
+      "meta": {
+        "provider": "cloudflare",
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      }
+    }
+  ]
 }
