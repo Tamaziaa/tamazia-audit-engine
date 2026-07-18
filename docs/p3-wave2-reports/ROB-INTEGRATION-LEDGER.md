@@ -30,5 +30,17 @@ Authored by Rob (Fable orchestrator) while wave-2 builders were landing. This fi
 - Sweep single-tool REVIEW leads in P3 files: triage each (fix or documented-accept), zero leads in P3 files at PR time.
 - Full fleet from FRESH CLONE (C-201) before PR #4.
 
-## Completion state at last update
-DONE+ACCEPTED: W1b registers, W1c browser, W2b verifiers, W2c adjudicator, W2d llm, W2e integration. RUNNING: W1a-salvage (crawler), W2a proposers (restarted), W2f red-team+US firms, W2g e2e harness.
+## Completion state at last update (2026-07-18 ~05:00, post quota-cut truth audit)
+DONE+ACCEPTED: W1b registers, W1c browser, W2b verifiers, W2c adjudicator, W2d llm, W2e integration.
+QUOTA-CUT AT ~95% (8:40am session-limit killed all four mid-final-verification; work on disk, checkpoint 376ace1): W1a-salvage (dying words: 0 leads in its files, was locking final numbers), W2a proposers (was adding swallow markers - ROB DID THIS: 3 FAIL-OPEN markers applied, sweep now GREEN), W2f red-team (one stale RT-H doc line left), W2g e2e (was deciding proposer-stage wiring).
+
+**GROUND TRUTH after Rob's fixes: npm test 937/937, lint CLEAN, sweep GREEN (ACT 0, 5 single-tool REVIEW leads), calibration --strict green.** The combined tree is coherent and locally green.
+
+## PROCESS RULE (C-208 candidate, from the salvage-45-min question)
+Salvage ran concurrently with five wave-2 builders mutating the shared tree; every churn forced it to re-run and re-attribute the whole sweep (its transcript tail is one long attribution table). Builders may run parallel; VERIFICATION-heavy stages need a QUIET tree - sequence verifiers after the build fleet lands. Also: session-limit windows (8:40am resets) are a scheduling input - do not launch long agents into the last hour of a quota window.
+
+## COMPLETION WORKLIST (single reconciliation wave, post-8:40am quota reset, QUIET TREE - one agent at a time or strictly disjoint)
+R1 (finisher, resumes W2f context): fix the stale RT-H status line in eval/red-team/fixtures.json/README per its dying words. TINY.
+R2 (finisher, resumes W2g context): wire the proposer stage into eval/e2e per STAGE decision 6 (adjudicate.js 3-arg adapter), re-run pipeline, report reference-set + red-team results. 
+R3 (reconciliation agent): ledger decisions 1-5 (artifact enum one-door incl register_absence + adjudicator mapping, coverage_proof tier1/truncated fields, consent artifact reuse, VERDICTS underscore) + 7 (taxonomy 8-flip + history:build + check exit 0) + 8 (DORMANT refresh) + 10 (coverage-contract.test.js consuming p3-crawl-substring-classify) + triage the 5 REVIEW leads (incl cross-wave pageClassForObligation clone: proposers imports from coverage-contract, no copy).
+R4 (Rob): fresh-clone fleet (C-201) -> push -> open PR #4 -> external stack (CodeRabbit, CodeScene, CodeQL, Semgrep x2, Local fleet manifest-checked) -> parallel fix agents on findings -> founder merge. P3 exit judged by e2e harness vs reference-set (zero false accusations) + red-team all-caught.

@@ -125,7 +125,10 @@ function surfaceTextForPresence(detectionSpec, pages, footer) {
 function pathHasSegment(url, seg) {
   let path;
   try { path = new URL(url).pathname.toLowerCase(); }
-  catch (_err) { path = String(url || '').toLowerCase(); } // FAIL-OPEN: a non-URL is matched as a raw path, never crashes the scan
+  catch (_err) {
+    // FAIL-OPEN: a non-URL is matched as a raw path, never crashes the scan.
+    path = String(url || '').toLowerCase();
+  }
   const norm = ('/' + path.replace(/^\/+/, '')).replace(/\/+$/, '') + '/';
   return norm.includes(seg.toLowerCase() + '/') || norm.includes(seg.toLowerCase() + '-');
 }

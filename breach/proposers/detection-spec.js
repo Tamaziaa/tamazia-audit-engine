@@ -120,7 +120,7 @@ function compileRegex(pattern) {
   try {
     return new RegExp(src, 'i');
   } catch (_err) {
-    // RECORDED as null and reported by validateSpec's does-not-compile branch; not swallowed (Rule 4).
+    // FAIL-OPEN: recorded as null and reported by validateSpec's does-not-compile branch (Rule 4).
     return null;
   }
 }
@@ -416,6 +416,7 @@ function anchoredRegexOk(value) {
   try {
     new RegExp(value, 'i');
   } catch (err) {
+    // FAIL-OPEN: the error is RECORDED verbatim in the returned reason; validateSpec surfaces it (C-050).
     return { ok: false, reason: 'anchored-regex does not compile (C-050): ' + err.message };
   }
   return { ok: true, reason: null };
