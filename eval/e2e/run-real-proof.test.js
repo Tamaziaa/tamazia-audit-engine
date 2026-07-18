@@ -29,12 +29,13 @@ test('enrichCandidate lifts the catalogue obligation to description and the quot
   };
   const cand = { record_id: 'R1', duty_idx: 0, artifact: { type: 'quote', text: 'we sell your data', surface: 'visible_text' }, page_url: 'https://x/p' };
   const f = D.enrichCandidate(cand, record);
-  assert.strictEqual(f.description, 'Publish an accessible privacy notice', 'the Gate-3 hypothesis comes from the catalogue duty');
+  assert.strictEqual(f.description, 'Publish an accessible privacy notice', 'description is the obligation duty (briefOf adjudication prompt), not the Gate-3 hypothesis');
   assert.strictEqual(f.framework, 'UK GDPR and Data Protection Act 2018');
   assert.strictEqual(f.statutory_citation, 'Arts 13/14');
   assert.strictEqual(f.evidence_quote, 'we sell your data', 'the verified quote becomes the Gate-3 premise');
   assert.strictEqual(f.evidence_source_id, 'https://x/p');
   assert.strictEqual(f.record_id, 'R1', 'the candidate identity is preserved untouched');
+  assert.strictEqual(typeof f.atomic_claim, 'string', 'a Gate-3 atomic_claim is stamped via the one door');
 });
 test('enrichCandidate never fabricates: a null record yields empty catalogue fields', () => {
   const f = D.enrichCandidate({ record_id: 'X', duty_idx: 0, artifact: { type: 'coverage_proof' } }, null);
@@ -46,6 +47,21 @@ test('dutyText falls back to the record name; citationText reads section/act/url
   assert.strictEqual(D.dutyText({ name: 'Some Law', website_obligations: [] }, 0), 'Some Law');
   assert.strictEqual(D.citationText({ citation: { act: 'Act X' } }), 'Act X');
   assert.strictEqual(D.citationText({}), '');
+});
+// The Gate-3 atomic-claim door (P3-tail Wave-2 FINAL UNIT): the enriched synthetic finding must carry the
+// EXACT door-derived affirmative claim (the quote can entail it), distinct from the raw prohibition duty
+// (which the quote contradicts - the U1 blocker). Identical to eval/e2e/lib/pipeline.js's stamp, so the
+// driver and the engine path construct the SAME Gate-3 hypothesis.
+test('enrichCandidate stamps the exact door-derived atomic_claim for the synthetic, distinct from the duty', async () => {
+  const records = loadCatalogueRecords();
+  const recIdx = D.recordIndex(records);
+  const composed = await D.composeFirm(D.loadSyntheticFirm(), records, recIdx, null);
+  const f = composed.enriched[0];
+  assert.strictEqual(f.record_id, 'UK_MHRA_POM_AD_BAN');
+  assert.strictEqual(f.atomic_claim, 'This website does advertise any prescription only medicine to the public',
+    'the door inverts the prohibition duty to the affirmative breach claim the verbatim quote ENTAILS');
+  assert.notStrictEqual(f.atomic_claim, f.description, 'the Gate-3 hypothesis is NOT the raw obligation duty (the U1 blocker)');
+  assert.match(f.description, /^Do not advertise/, 'description stays the raw duty for the adjudication prompt');
 });
 
 // ── deciding-gate attribution (honest per-candidate WHY) ──────────────────────────────────────────────

@@ -47,6 +47,7 @@ const path = require('path');
 const { propose } = require('../../breach/proposers/propose.js');
 const { verifyAll } = require('../../breach/verifiers/index.js');
 const { adjudicate } = require('../../breach/adjudicator/adjudicate.js');
+const { atomicClaimFor } = require('../../breach/adjudicator/claim.js'); // the ONE Gate-3 hypothesis door (P3-tail Wave-2 FINAL UNIT)
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
 const { loadCatalogueRecords } = require('./lib/catalogue-records.js');
 const { judgeFirm } = require('./lib/judge.js');
@@ -85,8 +86,9 @@ function recordIndex(records) {
   for (const r of records) if (r && r.id) m.set(r.id, r);
   return m;
 }
-// dutyText(record, dutyIdx): the obligation prose for one duty - the Gate-3 HYPOTHESIS. Reads the
-// catalogue's website_obligations[dutyIdx].duty; falls back to the record name. Never invents text.
+// dutyText(record, dutyIdx): the obligation prose for one duty - the ADJUDICATION-PROMPT obligation
+// (briefOf reads it as `description`), NOT the Gate-3 hypothesis (that is `atomic_claim`, below). Reads
+// the catalogue's website_obligations[dutyIdx].duty; falls back to the record name. Never invents text.
 function dutyText(record, dutyIdx) {
   const obs = record && Array.isArray(record.website_obligations) ? record.website_obligations : [];
   const idx = Number.isInteger(dutyIdx) ? dutyIdx : 0;
@@ -99,10 +101,16 @@ function citationText(record) {
   if (!c) return '';
   return String(c.section || c.act || c.url || '');
 }
-// enrichCandidate(candidate, record): the finding the adjudicator rules on. Adds description (obligation),
-// framework + statutory_citation (catalogue-only, Rule 2), and lifts the verified quote to evidence_quote
-// so the Gate-3 premise is the exact string-matched span (Rule 12 gate 2 feeds gate 3). Everything else
-// on the candidate (record_id, artifact, page_url, kind) is preserved untouched.
+// enrichCandidate(candidate, record): the finding the adjudicator rules on. Mirrors eval/e2e/lib/
+// pipeline.js's joinCatalogueFacts EXACTLY (Rule 2, catalogue-only fields; the mint and this driver
+// build IDENTICAL findings). Adds description (the obligation, for briefOf's adjudication prompt),
+// framework + statutory_citation, lifts the verified quote to evidence_quote (the Gate-2 span that
+// feeds Gate 3 as the premise), and stamps atomic_claim - the Gate-3 (Rule 12 gate 3) NLI HYPOTHESIS -
+// via the ONE shared door breach/adjudicator/claim.js atomicClaimFor (P3-tail Wave-2 FINAL UNIT). For a
+// presence-breach that door returns the affirmative breach claim the verbatim quote ENTAILS (not the
+// prohibition duty an offending quote CONTRADICTS - the U1 real-model blocker this closes); for every
+// other kind it returns the duty, so atomic_claim equals description. Everything else on the candidate
+// (record_id, artifact, page_url, kind) passes through untouched.
 function enrichCandidate(candidate, record) {
   const art = candidate.artifact || {};
   const quote = art.type === 'quote' ? String(art.quote != null ? art.quote : (art.text != null ? art.text : '')) : '';
@@ -113,6 +121,7 @@ function enrichCandidate(candidate, record) {
     evidence_quote: quote || undefined,
     evidence_source_id: candidate.page_url || undefined,
     checked_urls: candidate.page_url ? [candidate.page_url] : undefined,
+    atomic_claim: atomicClaimFor(record, candidate),
   });
 }
 
