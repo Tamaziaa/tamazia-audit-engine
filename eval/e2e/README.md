@@ -7,10 +7,10 @@ fixtureBundle -> facts -> coverage -> propose -> verify -> adjudicate -> finding
 ```
 
 against `eval/reference-set/reference-set.json`'s hand-verified expectations, plus this directory's own
-synthetic fixtures, plus (when it lands) `eval/red-team/fixtures.json`'s adversarial fixtures. It never
-touches the network and never calls a real LLM provider - propose/verify/adjudicate are wired
-opportunistically: **wired the moment a real module lands, honestly reported `skipped` until then**
-(caution.md C-037: absence must be visible, never a silent or fabricated pass).
+synthetic fixtures, plus `eval/red-team/fixtures.json`'s adversarial fixtures (landed mid-build; see
+below). It never touches the network and never calls a real LLM provider - propose/verify/adjudicate are
+wired opportunistically: **wired the moment a real module lands, honestly reported `skipped` until
+then** (caution.md C-037: absence must be visible, never a silent or fabricated pass).
 
 ## Running
 
@@ -83,9 +83,17 @@ conform to them or tell this harness's owner to adjust `eval/e2e/lib/breach-stag
 ## The judging law: match or abstain, never contradict - plus honest skips
 
 Reuses `eval/reference-set/verify.js`'s `verifyPayload()` UNMODIFIED for identity / sector /
-jurisdiction / `expected_frameworks_min` / known-breach / known-non-breach matching. `eval/e2e/lib/
-judge.js` adds the one distinction a facts-only harness cannot make - **why** a `known_breach` was not
-reproduced:
+jurisdiction / `expected_frameworks_min` / known-breach / known-non-breach matching, and
+`eval/reference-set/run-facts.js`'s exported `canonicaliseFirm()` to canonicalise `expected.sector`
+before that comparison (facts/vocabulary.js's `canonicalSector`) - **exactly** the call the facts-only
+harness itself makes, and for the same reason: the sector door emits a canonical family key
+(`law-firms`), reference-set.json records a human alias (`legal`), and comparing the raw strings would
+report a false CONTRADICTION on every aliased sector. This was caught live during this harness's own
+build (`immigrationlawyersusa.com` / `russell-cooke.co.uk` both false-CONTRADICTed before the fix) and
+is now regression-locked in `eval/e2e/lib/judge.test.js`.
+
+`eval/e2e/lib/judge.js` adds the one further distinction a facts-only harness cannot make - **why** a
+`known_breach` was not reproduced:
 
 - **reproduced** - a `known_breach`'s `match_any` tokens were found among the pipeline's findings.
 - **missed** - the FULL breach lane ran (propose + verify + adjudicate all genuinely executed) and still
@@ -117,38 +125,63 @@ one planted, verbatim-quotable "guarantee of outcome" claim (a `known_breach`) a
 that must never be asserted (a `known_non_breach`), with no sector/jurisdiction expectations at all so
 the fixture can never itself create an unrelated false contradiction.
 
-### Red-team lane (`eval/red-team/fixtures.json`, expected to land in parallel)
+### Red-team lane (`eval/red-team/fixtures.json`)
 
-Absent today; the lane reports itself honestly skipped (`present:false`) rather than a fabricated pass
-on zero entries. **Assumed contract** (align `eval/e2e/lib/redteam.js` the moment the real file lands
-with a different shape):
+Landed mid-build with nine adversarial classes (`RT-A` through `RT-H`; see the file's own `doctrine` /
+`bundle_shape_ref` blocks) in a richer, per-fixture shape than a single generic contract can express -
+some entries carry a plain `input.bundle` (an `EvidenceBundle`), others carry `input.fetch` +
+`input.honest_bundle` + `input.naive_bundle` (RT-D), `input.cookies_pre_consent` +
+`input.browser_script` (RT-G), or bare `input.corpus_text` strings (RT-H); `must_not` is mostly
+descriptive boolean flags rather than a single token list; `target_gate` is an object
+(`{gate, status, ...}`), and the fixture's own `current_status` field records whether the class is
+already `verified_caught_live`, `verified_escapes_live_gate` (a KNOWN, tracked, owned-elsewhere issue),
+or `pending_gate` (not on disk at all). `eval/e2e/lib/redteam.js` supports this in two layers:
 
-```jsonc
-{
-  "entries": [
-    {
-      "id": "RT-001",
-      "description": "optional, human-readable",
-      "target_gate": "propose",              // optional: facts|coverage|propose|verify|adjudicate.
-                                                // Names a stage that must be WIRED for this entry to run;
-                                                // if that stage did not run, the entry is skipped (running
-                                                // it would trivially "catch" for a reason that proves
-                                                // nothing).
-      "bundle": { "...": "an inline EvidenceBundle" },
-                                                // OR "fixture": "relative/or/absolute/path.json"
-                                                // OR "domain": "example.co.uk" (looked up in --fixtures)
-      "must_not": { "match_any": ["fake statute name", "hallucinated-id-123"] }
-    }
-  ]
-}
-```
+1. **Bespoke per-id handlers** (`eval/e2e/lib/redteam-handlers.js`), for the four entries whose `input`
+   is not a plain bundle, or whose correct handling needs xfail semantics:
+   - `RT-D-BOT-WALL` - `evidence/crawler/extract.js`'s `pageContentClass()` recognises the challenge
+     page, and the four facts doors abstain across the board on both the honest (`unreachable:true`)
+     and naive (challenge text stored as content) bundles.
+   - `RT-G-ESSENTIAL-COOKIE-PRECONSENT` (**partial** - documented scope limit) - `evidence/browser/
+     oracle.js`'s `classifyCookie()` correctly classifies the fixture's session/CSRF/consent cookies as
+     essential. The full `evidence/browser/observe()` lane run against a scripted fake browser built
+     from `input.browser_script` is NOT implemented; that is a real, separate piece of work.
+   - `RT-H-QUOTE-DRIFT` - `breach/verifiers/index.js`'s `verifyQuote()` (Gate 2) rejects the one-word-
+     drifted quote and accepts the exact control quote (both directions, C-203 - a verifier that
+     rejects everything is theatre).
+   - `RT-F-CONTRADICTORY-ENTITY` - `facts/identity.js`'s `resolveIdentity()` is called directly; the
+     fixture documents a KNOWN, live escape (a name-corroborated register row is accepted at `register`
+     confidence despite a contradicting on-page company number and Ltd/LLP entity-form conflict). Wired
+     as **xfail**: if the escape still reproduces AND the fixture's own `current_status` already says
+     `verified_escapes_live_gate`, this is the tracked, expected state (does not fail the build); if it
+     no longer reproduces, that is a genuine regression-fix (reports `caught`); a *different* new escape
+     shape would still report a fresh `escaped`, never silently absorbed into the xfail (caution.md
+     C-162 / Fleet Rule 4: the red team records, it does not fix).
+2. **A generic evaluator** for every other entry (and any future entry with no bespoke handler): resolve
+   a bundle from `entry.input.bundle` (this file's originally-assumed `entry.bundle`/`entry.fixture`/
+   `entry.domain` shapes are kept as a forward-compatible fallback), run it through the real pipeline,
+   and treat **every STRING value found anywhere in `entry.must_not`, including every string inside an
+   array value**, as a forbidden token to search for in the pipeline's findings and its whole serialised
+   output (checked in both places for defence in depth). Boolean flags - most of this file's `must_not`
+   clauses, e.g. `RT-B1`/`RT-B2`/`RT-E` are entirely boolean - carry no searchable text and contribute
+   nothing: those entries fall through to an honest `skipped` rather than a fabricated `caught` on a
+   check that never actually ran (this is the same "a skipped stage can never fabricate a pass" doctrine
+   applied to red-team). `RT-A` (fake statute) and `RT-C` (hallucinated id) both DO carry real forbidden
+   tokens (`attach_framework_matching`, `emit_finding_citing`, and similar string/array fields) and are
+   genuinely, generically caught this way.
 
-(A bare top-level array of the same entry shape, or `{"fixtures":[...]}`, are also accepted.) Each entry
-reports `caught` (the gate held), `escaped` (a forbidden token appeared anywhere in the pipeline's
-findings or its whole serialised output - checked in both places for defence in depth), `skipped`
-(target gate unavailable, or no runnable bundle, or no evaluable `must_not` clause), or `error` (the
-PIPELINE ITSELF threw on the fixture - a distinct failure mode from an escape, always loud, never
-mistaken for the gate having held).
+An absent `eval/red-team/fixtures.json` is handled as an honest whole-lane skip (`present:false`), never
+a fabricated pass on zero entries. Each entry reports `caught` (the gate held), `escaped` (a forbidden
+token appeared, or a bespoke handler found the live gate did not hold), `skipped` (target gate
+unavailable per the fixture's own `current_status`/`target_gate.status: pending_gate`, no runnable
+bundle, or no evaluable `must_not` content), `xfail` (RT-F only - a known, already-tracked escape,
+counted separately from a fresh one), or `error` (the pipeline, or a bespoke handler, itself threw - a
+distinct failure mode from an escape, always loud, never mistaken for the gate having held).
+
+Running `node eval/e2e/run-pipeline.js --no-synthetic` against the real, committed fixture file today
+reports: `RT-A`/`RT-C`/`RT-D`/`RT-G`/`RT-H` caught, `RT-F` xfail, `RT-B1`/`RT-B2`/`RT-E` honestly
+skipped (no evaluable content this wave, or the fixture's own `pending_gate` declaration) - zero
+escapes, zero errors.
 
 ## Files
 
@@ -164,7 +197,8 @@ eval/e2e/
     catalogue-records.js          loads catalogue/dist/catalogue.v1.json's records[] for coverage
     judge.js                     reference-set comparison overlay (reproduced/missed/skipped, contradiction/clean)
     synthetic-fixtures.js         loads eval/e2e/fixtures/*.json
-    redteam.js                    the red-team lane (see contract above)
+    redteam.js                    the red-team lane: generic evaluator + bespoke-handler dispatch
+    redteam-handlers.js            bespoke per-fixture-id wiring for RT-D/RT-F/RT-G/RT-H (see above)
     report.js                    human-table + --json rendering
     *.test.js                    one node:test suite per module above
   fixtures/

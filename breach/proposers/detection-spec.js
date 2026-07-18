@@ -38,27 +38,23 @@
  *   - 'behavioural' proved by an observed browser action (evidence/browser), surface 'browser_lane',
  *                   page_class null.
  *
- * ── surface = evidence surface, DECLARED per rule (C-035/C-036) ──────────────────────────────────
- * A spec's surface is BOTH where propose.js detects AND where it cuts the evidence quote, so a hit and
- * its quote can never disagree (C-035, the raw-html-vs-stripped-text bug). The asymmetry of C-036 is
- * encoded here, not left to the matcher: a PROHIBITION ('absence') triggers on VISIBLE prose only
- * (surface 'visible_text'), because a forbidden claim buried in a <script> is not a claim to the
- * public; a REQUIRED MECHANISM that legitimately lives in JavaScript (a consent widget, an embedded
- * verification badge) is routed to surface 'raw_html' so a strict visible-text check can never
- * fabricate a "missing" breach on a compliant JS control - and because the pure EvidenceBundle carries
- * stripped text only (facts/README.md, C-012), propose.js ABSTAINS on a 'raw_html' surface rather than
- * assert absence it cannot see. Registration-number / registered-office duties are routed to 'footer',
- * the mandatory statutory-disclosure surface (C-034).
+ * ── surface = evidence surface, DECLARED per rule (C-035/C-036/C-034) ────────────────────────────
+ * A spec's surface is BOTH where propose.js detects AND where it cuts the quote, so a hit and its quote
+ * can never disagree (C-035). The C-036 asymmetry is encoded here: a PROHIBITION ('absence') triggers on
+ * VISIBLE prose only ('visible_text'), since a forbidden claim inside a <script> is not a public claim;
+ * a REQUIRED MECHANISM that legitimately lives in JavaScript (a consent tool, an embedded badge) routes
+ * to 'raw_html' so a strict visible check cannot fabricate a "missing" breach on a compliant JS control,
+ * and since the pure EvidenceBundle is stripped text only (C-012) propose.js ABSTAINS on 'raw_html'
+ * rather than assert what it cannot see. Registration-number / office duties route to 'footer' (C-034).
  *
  * ── Anchoring + negation (C-009/C-019/C-059, ported idea from corpus-index.js) ───────────────────
- * Every derived pattern is word-boundary anchored on every token; a bare prefix or substring is
+ * Every derived pattern is word-boundary anchored on every token; a bare prefix/substring is
  * unrepresentable and REJECTED by validateSpec (the "cost"->pricing, /^EU/->EUROPEAN class). Prohibition
- * patterns carry negation_guarded so propose.js skips a negated carrier sentence (idea ported from
- * corpus-index.js NEGATION_RX, without its blanket-negation false-negative that PR #340 removed).
+ * patterns carry negation_guarded so propose.js skips a negated carrier sentence (ported NEGATION_RX
+ * idea, without the blanket-negation false-negative PR #340 removed).
  *
- * Pure and synchronous: no network, no clock, no env. Holds NO law name, fine or regulator literal
- * (Rule 2); every word it patterns on is READ from the catalogue argument at runtime, never authored
- * here.
+ * Pure and synchronous (no network/clock/env). Holds NO law/fine/regulator literal (Rule 2); every word
+ * it patterns on is READ from the catalogue argument at runtime, never authored here.
  */
 
 // ── frozen vocabularies (the closed sets validateSpec enforces) ──────────────────────────────────
@@ -87,8 +83,11 @@ const STOPWORDS = new Set([
 // Element wording that means "a page/section of this class exists" rather than "this phrase appears":
 // such an element is satisfiable by a crawled page of the right class, so it also gets a url-path pattern.
 const FINDABILITY_RX = /\b(findable|available on the website|on the website|link(?:s|ed|ing)?|page|section|procedure)\b/i;
-// Required-mechanism wording that legitimately lives in JavaScript (route to raw_html; propose abstains).
-const MECHANISM_RX = /\b(badge|widget|embedded|embed|script|plugin|banner|tool|consent[- ]?(?:tool|manager|management)|clickable)\b/i;
+// Required-mechanism wording that legitimately lives in JavaScript (route to raw_html; propose abstains
+// rather than fabricate a missing-mechanism breach, C-036/C-032). Deliberately NARROW: bare "widget",
+// "tool" and "banner" are ordinary disclosure words and would over-abstain, so only unambiguously
+// JS-embedded controls qualify (an SRA-style clickable embedded badge, a script/plugin, a consent tool).
+const MECHANISM_RX = /\b(badge|embedded|embed|script|plugin|clickable|consent[- ]?(?:tool|manager|management)|(?:cookie|consent)[- ]?banner)\b/i;
 // Footer-surface duties: a company/registration number or registered office (C-034/C-072).
 const FOOTER_RX = /\b(company number|registration number|registered office|firm(?:'s)? (?:sra|number)|number shown|registered number)\b/i;
 

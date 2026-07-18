@@ -86,3 +86,17 @@ test('judgeFirm: a firm with no known_breaches/known_non_breaches at all judges 
   assert.deepStrictEqual(judged.knownNonBreaches, []);
   assert.strictEqual(judged.contradiction, false);
 });
+
+// Regression: judgeFirm must canonicalise expected.sector (via eval/reference-set/run-facts.js's
+// exported canonicaliseFirm) before comparing, exactly as the facts-only harness does. A payload
+// asserting the engine's canonical family key ("law-firms") must NOT contradict a reference-set entry
+// recording the human alias ("legal") - this was caught live against the real reference-set data
+// (immigrationlawyersusa.com / russell-cooke.co.uk both false-CONTRADICTed before this fix).
+test('judgeFirm: an aliased sector (engine "law-firms" vs reference-set "legal") is a MATCH, never a contradiction', () => {
+  const sectorFirm = { domain: 'sector-alias.example', role: 'test', expected: { sector: 'legal' } };
+  const result = pipelineResult([], true);
+  result.payload.meta.sector = 'law-firms';
+  const judged = judgeFirm(sectorFirm, result);
+  assert.strictEqual(judged.contradiction, false);
+  assert.ok(judged.report.matches.some((m) => m.check === 'sector'));
+});
