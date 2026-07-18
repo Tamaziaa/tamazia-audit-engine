@@ -16,16 +16,16 @@
     {
       "key": "989c5cd3060163a0f206a1fad6e86242667c4bc930ab9ba31ceb101a6d50d75e",
       "kind": "adjudicate",
-      "raw": "{\"disproof\":null,\"id\":0,\"reason\":\"Direct advertisement of prescription-only medicine\",\"verdict\":\"breach\"}",
+      "raw": "{\"id\":0,\"verdict\":\"breach\",\"reason\":\"advertising prescription-only medicine\",\"disproof\":null}",
       "meta": {
         "provider": "cloudflare",
-        "model": "@cf/meta/llama-3.1-8b-instruct"
+        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
       }
     },
     {
       "key": "c43b7f0e99fdf67c61340c3297bf83fd0e9bd8da1e96a17c0be57aa0eca2648b",
       "kind": "entailment",
-      "raw": "{\"rationale\":\"The premise mentions offering wrinkle-relaxing injections, but it does not explicitly state that the website advertises prescription-only medicine to the public, as the nature of the injections (prescription or not) and the method of advertisement are not specified.\",\"source_id\":\"https://example-synthetic-breach.test/\",\"verdict\":\"neutral\"}",
+      "raw": "{\"source_id\": \"https://example-synthetic-breach.test/\", \"verdict\": \"contradiction\", \"rationale\": \"The page evidence mentions 'wrinkle-relaxing injections', which the rule text identifies as an indirect reference to prescription only medicine, indicating that the website does advertise such medicine to the public, contrary to the hypothesis that it does not.\"}",
       "meta": {
         "provider": "cloudflare",
         "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"

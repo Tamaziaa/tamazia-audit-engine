@@ -47,7 +47,7 @@ const path = require('path');
 const { propose } = require('../../breach/proposers/propose.js');
 const { verifyAll } = require('../../breach/verifiers/index.js');
 const { adjudicate } = require('../../breach/adjudicator/adjudicate.js');
-const { atomicClaimFor } = require('../../breach/adjudicator/claim.js'); // the ONE Gate-3 hypothesis door (P3-tail Wave-2 FINAL UNIT)
+const { atomicClaimFor, bridgeTextFor } = require('../../breach/adjudicator/claim.js'); // the ONE Gate-3 hypothesis + bridge-premise door (P3-tail Wave-2 FINAL UNIT iterations 1 + 2)
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
 const { loadCatalogueRecords } = require('./lib/catalogue-records.js');
 const { judgeFirm } = require('./lib/judge.js');
@@ -109,11 +109,18 @@ function citationText(record) {
 // via the ONE shared door breach/adjudicator/claim.js atomicClaimFor (P3-tail Wave-2 FINAL UNIT). For a
 // presence-breach that door returns the affirmative breach claim the verbatim quote ENTAILS (not the
 // prohibition duty an offending quote CONTRADICTS - the U1 real-model blocker this closes); for every
-// other kind it returns the duty, so atomic_claim equals description. Everything else on the candidate
-// (record_id, artifact, page_url, kind) passes through untouched.
+// other kind it returns the duty, so atomic_claim equals description. It ALSO stamps `bridge` (FINAL
+// UNIT iteration 2) - the Gate-3 SECOND premise, the record's OWN verbatim duty text (which lists the
+// rule's indirect-reference examples, e.g. 'wrinkle-relaxing injections'), so the NLI can resolve an
+// INDIRECT offending quote it could not bridge on its own (the iteration-1 `neutral` residual). The
+// bridge is stamped from the FULL catalogue record via the same one door (bridgeTextFor), mirroring how
+// adjudicate.js's claimFor attaches claim.bridge, so this driver and the engine path build IDENTICAL
+// entailment premises; '' for non-presence kinds (their hypothesis IS the duty, so a duty bridge would
+// be a trivial self-entailment). Everything else on the candidate passes through untouched.
 function enrichCandidate(candidate, record) {
   const art = candidate.artifact || {};
   const quote = art.type === 'quote' ? String(art.quote != null ? art.quote : (art.text != null ? art.text : '')) : '';
+  const bridge = bridgeTextFor(record, candidate);
   return Object.assign({}, candidate, {
     description: dutyText(record, candidate.duty_idx),
     framework: record ? String(record.name || '') : '',
@@ -122,6 +129,7 @@ function enrichCandidate(candidate, record) {
     evidence_source_id: candidate.page_url || undefined,
     checked_urls: candidate.page_url ? [candidate.page_url] : undefined,
     atomic_claim: atomicClaimFor(record, candidate),
+    bridge: bridge || undefined,
   });
 }
 
