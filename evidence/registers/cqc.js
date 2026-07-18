@@ -55,7 +55,7 @@ function buildRow(candidate) {
 async function lookupCqc({ query, sector, fetchFn, deadlineMs, keys, log }) {
   if (!applies(sector)) {
     const detail = 'sector "' + sector + '" is not a health family; CQC lookup skipped (Rule 8 budget cap)';
-    return { row: null, note: makeNote('cqc', 'skipped', 'sector_not_applicable', detail, log) };
+    return { row: null, note: makeNote({ register: 'cqc', kind: 'skipped', reason: 'sector_not_applicable', detail, log }) };
   }
   const cqcKeys = keys && keys.cqc;
   const hasKey = Boolean(cqcKeys && cqcKeys.apiKey && cqcKeys.partnerCode);

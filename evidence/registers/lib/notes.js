@@ -10,7 +10,9 @@
 //   'no_match' — the register answered but no candidate cleared the name-match threshold (C-004), or
 //                answered with zero candidates at all.
 
-function makeNote(register, kind, reason, detail, log) {
+// makeNote({ register, kind, reason, detail, log }) -> the shared notes[] entry. An options object (the
+// <=4-positional-arg house style; five distinct inputs). `log` is an optional best-effort side channel.
+function makeNote({ register, kind, reason, detail, log }) {
   const note = { register, kind, reason, detail: detail || null };
   if (typeof log === 'function') {
     try {

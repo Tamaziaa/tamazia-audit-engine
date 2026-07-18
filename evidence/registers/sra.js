@@ -56,7 +56,7 @@ function buildRow(candidate) {
 async function lookupSra({ query, sector, fetchFn, deadlineMs, keys, log }) {
   if (!applies(sector)) {
     const detail = 'sector "' + sector + '" is not law-firms/barristers; SRA lookup skipped (Rule 8 budget cap)';
-    return { row: null, note: makeNote('sra', 'skipped', 'sector_not_applicable', detail, log) };
+    return { row: null, note: makeNote({ register: 'sra', kind: 'skipped', reason: 'sector_not_applicable', detail, log }) };
   }
   const apiToken = keys && keys.sra;
   return runLookup({

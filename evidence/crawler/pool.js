@@ -26,11 +26,12 @@ function withDeadline(factory, ms, timers) {
     .finally(() => { if (timer) T.clearTimeout(timer); });
 }
 
-// runPool(items, width, deadlineMs, fn, now) -> results aligned to `items` (null where a fetch failed or
-// the wall-clock deadline was reached before that item STARTED). `now` is injectable (defaults to
-// Date.now) so a test can prove the deadline is a cap: advance the clock past deadlineMs and the pool
-// stops starting work, leaving the un-started tail null - it never blocks and never floors.
-async function runPool(items, width, deadlineMs, fn, now) {
+// runPool({ items, width, deadlineMs, fn, now }) -> results aligned to `items` (null where a fetch
+// failed or the wall-clock deadline was reached before that item STARTED). An options object (the
+// <=4-positional-arg house style; five distinct inputs). `now` is injectable (defaults to Date.now) so
+// a test can prove the deadline is a cap: advance the clock past deadlineMs and the pool stops starting
+// work, leaving the un-started tail null - it never blocks and never floors.
+async function runPool({ items, width, deadlineMs, fn, now }) {
   const clock = typeof now === 'function' ? now : Date.now;
   const out = new Array(items.length);
   let idx = 0;

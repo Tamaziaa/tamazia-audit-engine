@@ -58,7 +58,7 @@ function buildRow(candidate) {
 async function lookupFca({ query, sector, fetchFn, deadlineMs, keys, log }) {
   if (!applies(sector)) {
     const detail = 'sector "' + sector + '" is not a finance family; FCA lookup skipped (Rule 8 budget cap)';
-    return { row: null, note: makeNote('fca', 'skipped', 'sector_not_applicable', detail, log) };
+    return { row: null, note: makeNote({ register: 'fca', kind: 'skipped', reason: 'sector_not_applicable', detail, log }) };
   }
   const fcaKeys = keys && keys.fca;
   const hasKey = Boolean(fcaKeys && fcaKeys.email && fcaKeys.key);

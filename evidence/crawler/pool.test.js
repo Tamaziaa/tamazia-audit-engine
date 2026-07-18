@@ -51,7 +51,7 @@ test('withDeadline: a synchronously-throwing factory rejects with ITS error, not
 
 test('runPool: within the deadline, every item runs and results align to the input order', async () => {
   const items = ['a', 'b', 'c', 'd'];
-  const out = await runPool(items, 2, 1000, (u, i) => Promise.resolve(u + i), () => 0);
+  const out = await runPool({ items, width: 2, deadlineMs: 1000, fn: (u, i) => Promise.resolve(u + i), now: () => 0 });
   assert.deepEqual(out, ['a0', 'b1', 'c2', 'd3']);
 });
 
@@ -61,8 +61,8 @@ test('DEADLINE-AS-CAP: once the clock passes the deadline the pool STOPS startin
   // never STARTED - they degrade to null immediately, they do not wait out any minimum (Rule 8).
   const started = [];
   const now = steppingClock([0, 50, 200, 200, 200]);
-  const out = await runPool(['a', 'b', 'c', 'd'], 1, 100,
-    (u) => { started.push(u); return Promise.resolve(u.toUpperCase()); }, now);
+  const out = await runPool({ items: ['a', 'b', 'c', 'd'], width: 1, deadlineMs: 100,
+    fn: (u) => { started.push(u); return Promise.resolve(u.toUpperCase()); }, now });
   assert.deepEqual(started, ['a'], 'only the item started before the deadline ran; the tail was never started');
   assert.deepEqual(out, ['A', null, null, null], 'past-deadline items are null, not delayed to a floor');
 });
@@ -72,7 +72,7 @@ test('DEADLINE-AS-CAP: an item whose start lands EXACTLY on the deadline is not 
   // start reads 0; the single item check reads EXACTLY 100 (== the 100ms deadline). The budget is
   // exhausted the instant elapsed reaches it, so the task must not start (the > vs >= boundary bug).
   const now = steppingClock([0, 100]);
-  const out = await runPool(['a'], 1, 100, (u) => { started.push(u); return Promise.resolve(u); }, now);
+  const out = await runPool({ items: ['a'], width: 1, deadlineMs: 100, fn: (u) => { started.push(u); return Promise.resolve(u); }, now });
   assert.deepEqual(started, [], 'elapsed === deadlineMs is over budget; the task is null, not started');
   assert.deepEqual(out, [null]);
 });
@@ -81,14 +81,14 @@ test('DEADLINE-AS-CAP: a deadline already exceeded at start runs NOTHING (no min
   const started = [];
   // start reads 0; every item check reads 500 (> the 100ms deadline) -> all null, fn never called.
   const now = steppingClock([0, 500, 500, 500]);
-  const out = await runPool(['a', 'b', 'c'], 1, 100, (u) => { started.push(u); return Promise.resolve(u); }, now);
+  const out = await runPool({ items: ['a', 'b', 'c'], width: 1, deadlineMs: 100, fn: (u) => { started.push(u); return Promise.resolve(u); }, now });
   assert.deepEqual(started, [], 'no item is started once the deadline is already past - the pool never floors up to N');
   assert.deepEqual(out, [null, null, null]);
 });
 
 test('runPool: one item throwing degrades to a null slot; the pool continues (FAIL-OPEN tolerance)', async () => {
-  const out = await runPool(['a', 'b', 'c'], 3, 1000,
-    (u) => (u === 'b' ? Promise.reject(new Error('flaky')) : Promise.resolve(u)), () => 0);
+  const out = await runPool({ items: ['a', 'b', 'c'], width: 3, deadlineMs: 1000,
+    fn: (u) => (u === 'b' ? Promise.reject(new Error('flaky')) : Promise.resolve(u)), now: () => 0 });
   assert.deepEqual(out, ['a', null, 'c']);
 });
 
@@ -101,14 +101,14 @@ test('runPool: concurrency never exceeds width', async () => {
     inFlight--;
     return u;
   };
-  const out = await runPool(['a', 'b', 'c', 'd', 'e', 'f'], 2, 1000, fn, () => 0);
+  const out = await runPool({ items: ['a', 'b', 'c', 'd', 'e', 'f'], width: 2, deadlineMs: 1000, fn, now: () => 0 });
   assert.equal(out.length, 6);
   assert.ok(peak <= 2, 'at most `width` fetches in flight at once, got peak ' + peak);
 });
 
 test('runPool: an empty item list opens no lanes and returns []', async () => {
   let called = false;
-  const out = await runPool([], 8, 1000, () => { called = true; return Promise.resolve(1); }, () => 0);
+  const out = await runPool({ items: [], width: 8, deadlineMs: 1000, fn: () => { called = true; return Promise.resolve(1); }, now: () => 0 });
   assert.deepEqual(out, []);
   assert.equal(called, false);
 });

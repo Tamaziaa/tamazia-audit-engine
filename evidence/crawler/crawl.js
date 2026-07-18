@@ -244,7 +244,7 @@ async function crawl(domain, opts = {}) {
   const { home, homeHtml, homeKlass } = await fetchHomepage(ctx);
   const fetchList = await discoverFetchList(ctx, homeHtml, fetchXml, maxPages);
 
-  const results = await runPool(fetchList, width, deadlineMs, pageFetcher(homeUrl, home, opts, perPageMs), opts.now);
+  const results = await runPool({ items: fetchList, width, deadlineMs, fn: pageFetcher(homeUrl, home, opts, perPageMs), now: opts.now });
   const { pages, truncated, telemetry } = accumulateCorpus(fetchList, results, cap);
   if (truncated) record('corpus-truncated', 'a page exceeded the ' + cap + '-char corpus cap; absence claims on it demote to needs-review (C-024)');
 

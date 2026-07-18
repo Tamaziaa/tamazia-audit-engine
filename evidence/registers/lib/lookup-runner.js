@@ -18,14 +18,14 @@ function noteForFailedFetch(spec, outcome) {
   const detail = outcome.reason === 'timeout'
     ? 'no response within the call deadline'
     : 'fetch failed: ' + (outcome.error && outcome.error.message);
-  return makeNote(spec.register, 'degraded', reason, detail, spec.log);
+  return makeNote({ register: spec.register, kind: 'degraded', reason, detail, log: spec.log });
 }
 
 // noteForBadResponse(spec, res) -> note when the settled fetchFn result is not a well-formed
 // {status:200, json} shape (a non-200 status, or a missing/absent JSON body).
 function noteForBadResponse(spec, res) {
   const status = res && res.status;
-  return makeNote(spec.register, 'degraded', 'unexpected_response', 'register answered with status ' + status, spec.log);
+  return makeNote({ register: spec.register, kind: 'degraded', reason: 'unexpected_response', detail: 'register answered with status ' + status, log: spec.log });
 }
 
 // judgeCandidates(spec, json) -> {row, note}. Runs the shared name-match gate (C-004) over a
@@ -35,14 +35,14 @@ function judgeCandidates(spec, json) {
   const { register, query, log } = spec;
   const candidates = spec.extractCandidates(json) || [];
   if (candidates.length === 0) {
-    return { row: null, note: makeNote(register, 'no_match', 'no_candidates_returned', 'register returned zero candidates for "' + query + '"', log) };
+    return { row: null, note: makeNote({ register, kind: 'no_match', reason: 'no_candidates_returned', detail: 'register returned zero candidates for "' + query + '"', log }) };
   }
   const best = bestCandidate(query, candidates, (c) => c.name);
   if (!best || !best.matched) {
     const nearest = best ? (best.nameMatched + ' (score ' + best.score.toFixed(2) + ')') : '(none)';
     const detail = 'nearest candidate for "' + query + '" was ' + nearest
       + '; refused (C-004: a non-empty response is not a match without a real name match)';
-    return { row: null, note: makeNote(register, 'no_match', 'below_threshold', detail, log) };
+    return { row: null, note: makeNote({ register, kind: 'no_match', reason: 'below_threshold', detail, log }) };
   }
   const row = spec.buildRow(best.candidate, best);
   row.source = register;
@@ -85,10 +85,10 @@ async function runLookup(spec) {
   const { register, query, fetchFn, deadlineMs, log } = spec;
   if (queryTooShort(query)) {
     const detail = 'normalised query "' + query + '" is too short to search a register safely';
-    return { row: null, note: makeNote(register, 'no_match', 'query_too_short', detail, log) };
+    return { row: null, note: makeNote({ register, kind: 'no_match', reason: 'query_too_short', detail, log }) };
   }
   if (spec.requiredKeyNote && spec.requiredKeyNote.present === false) {
-    return { row: null, note: makeNote(register, 'degraded', spec.requiredKeyNote.reason, spec.requiredKeyNote.detail, log) };
+    return { row: null, note: makeNote({ register, kind: 'degraded', reason: spec.requiredKeyNote.reason, detail: spec.requiredKeyNote.detail, log }) };
   }
   const { url, headers, requestKey } = spec.buildRequest();
   const outcome = await withDeadline(() => fetchFn(url, { headers, requestKey }), deadlineMs || DEFAULT_DEADLINE_MS, register);
