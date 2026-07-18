@@ -46,18 +46,42 @@ function allVerdicts(verdict, count, extra) {
   return { verdicts };
 }
 
+// isEntailmentRequest(request) -> true when the request is Gate 3's NLI call (llm/entailment.js):
+// its schema's verdict enum is the closed 3-label NLI set, distinct from the adjudication verdict
+// request. Wired since the adjudicator now runs checkEntailment AFTER a breach verdict (Rule 12
+// gate 3), so a verdict-driving script would otherwise see the entailment request eat its next
+// queued/fixed verdicts response and every scripted breach would demote to needs_review.
+function isEntailmentRequest(request) {
+  const enumSet = request && request.schema && request.schema.properties
+    && request.schema.properties.verdict && request.schema.properties.verdict.enum;
+  return Array.isArray(enumSet) && enumSet.includes('entailment');
+}
+
+// entailmentPass(request) -> a gate-valid PASSING entailment response for the request's single
+// premise source id. The array/fixed script paths answer Gate 3 with this automatically: those
+// scripts exist to drive the VERDICT lane, and a scripted "breach" is meant to survive to violation.
+// A test that wants to exercise entailment FAILURE uses a function script (full per-call control).
+function entailmentPass(request) {
+  const ids = Array.isArray(request.allowedSourceIds) ? request.allowedSourceIds : [];
+  return { source_id: ids[0] || '', verdict: 'entailment' };
+}
+
 // scriptedLlmCall(script) -> an llmCall(request) function.
 //   script a function       -> called with each request; its return value (or resolved promise) is the response.
+//                              (No entailment interception: the function has full per-call control.)
 //   script an array         -> responses consumed strictly in call order; once exhausted, further calls
-//                              DECLINE (`{ok:false}`) rather than reusing a stale entry.
-//   script anything else     -> every call gets the same single response object.
+//                              DECLINE (`{ok:false}`) rather than reusing a stale entry. Entailment
+//                              requests are answered with a pass and do NOT consume the queue.
+//   script anything else     -> every call gets the same single response object; entailment requests
+//                              are answered with a pass instead.
 function scriptedLlmCall(script) {
   if (typeof script === 'function') {
     return (request) => Promise.resolve(script(request));
   }
   if (Array.isArray(script)) {
     const queue = script.slice();
-    return function scripted(_request) {
+    return function scripted(request) {
+      if (isEntailmentRequest(request)) return Promise.resolve(entailmentPass(request));
       if (queue.length === 0) {
         return Promise.resolve({ ok: false, reason: 'scripted-llm.js: scripted response queue exhausted -> decline (abstain)' });
       }
@@ -65,7 +89,7 @@ function scriptedLlmCall(script) {
     };
   }
   const fixed = script;
-  return (_request) => Promise.resolve(fixed);
+  return (request) => Promise.resolve(isEntailmentRequest(request) ? entailmentPass(request) : fixed);
 }
 
-module.exports = { defaultScriptedLlmCall, scriptedLlmCall, allVerdicts };
+module.exports = { defaultScriptedLlmCall, scriptedLlmCall, allVerdicts, isEntailmentRequest, entailmentPass };

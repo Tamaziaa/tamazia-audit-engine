@@ -27,6 +27,7 @@
 const { raceWithDeadline } = require('../../evidence/browser/deadline.js');
 const { classifyEvidenceKind } = require('./evidence-kind.js');
 const { parseVerdict, LLM_VERDICTS, disproofMatches } = require('./verdict.js');
+const { checkEntailment } = require('../../llm/entailment.js'); // Rule 12 gate 3 (NLI), wired below
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -208,6 +209,13 @@ function stampFromVerdict(f, parsed) {
   f.adjudication_reason = parsed.reason;
   if (parsed.disproof) f.adjudication_disproof = parsed.disproof;
 }
+// stampNliDemote(f, e): Rule 12 gate 3. A text candidate the model ruled `breach` whose verified quote
+// (Gate 2's output) does NOT ENTAIL the claim is demoted to needs_review - it was adjudicated, but the
+// NLI gate withheld the violation (neutral/contradiction/gate-reject/timeout/no-premise/no result).
+function stampNliDemote(f, e) {
+  baseAdj(f, 'needs_review', true, 'nli_demoted');
+  f.adjudication_reason = 'nli:' + ((e && e.verdict) || 'no_result');
+}
 
 // verdictsFrom(out) -> the verdicts array from the injected caller's return, accepting both the gate.js
 // shape ({ ok, out:{ verdicts } }) and a bare { verdicts }. `ok:false` or no array -> null (abstain).
@@ -217,10 +225,46 @@ function verdictsFrom(out) {
   return Array.isArray(v) ? v : null;
 }
 
-// applyVerdicts(batch, verdicts) - THE FILTER-ONLY CORE. Iterate the INPUT candidates and look up each
-// one's verdict by the id THIS module assigned it. Nothing is ever created from `verdicts`; a verdict
-// for an unknown id is simply never looked up. This is why an invented finding cannot be injected.
-function applyVerdicts(batch, verdicts) {
+// gateEntailment(f, parsed, opts) - Rule 12 GATE 3 (NLI), the last check before a `breach` verdict
+// becomes a shipped `violation`. The hypothesis is the claim (the candidate's description); the premise
+// is the EXACT verbatim quote the quote-match verifier already string-matched to the corpus (Gate 2
+// feeds Gate 3, so the NLI premise is grounded, not paraphrased). Only a gate-valid `entailment` label
+// keeps the violation; anything else (neutral, contradiction, gate-reject, timeout, no premise, no
+// result) demotes to needs_review. The NLI call is bounded by whatever adjudication budget remains
+// (Rule 8/9: a cap, never a floor); an exhausted budget demotes without calling the model.
+async function gateEntailment(f, parsed, opts) {
+  const deadlineAt = Number.isFinite(opts.deadlineAt) ? opts.deadlineAt : (opts.now() + DEFAULT_DEADLINE_MS);
+  const remaining = deadlineAt - opts.now();
+  if (remaining <= 0) { stampNliDemote(f, { verdict: 'deadline' }); return; }
+  // Premise fields: a P3 candidate carries its verbatim quote on the ARTIFACT (artifact.quote/.text,
+  // Gate 2's string-matched span) and its locator on artifact.page_url/candidate.page_url; the
+  // port-era flat fields (evidence_quote/evidence_source_id/evidence_url) are read first for
+  // compatibility. Missing premise still abstain-demotes inside checkEntailment (never a guess).
+  const art = f.artifact || {};
+  const claim = {
+    claim: fieldStr(f, 'description'),
+    premise_source_id: f.evidence_source_id || f.evidence_url || art.page_url || f.page_url,
+    premise: fieldStr(f, 'evidence_quote') || (art.quote != null ? String(art.quote) : '') || (art.text != null ? String(art.text) : ''),
+  };
+  let e = null;
+  try {
+    const results = await checkEntailment([claim], { llmCall: opts.llmCall, deadlineMs: remaining, log: opts.log });
+    e = results && results[0];
+  } catch (_err) {
+    // FAIL-OPEN: an NLI shell that throws demotes the finding to needs_review (Rule 4), never throws
+    // into the mint. checkEntailment already captures caller throws internally; this is belt-and-braces.
+    e = null;
+  }
+  if (!e || !e.ok) { stampNliDemote(f, e); return; }
+  stampFromVerdict(f, parsed);
+}
+
+// applyVerdicts(batch, verdicts, opts) - THE FILTER-ONLY CORE. Iterate the INPUT candidates and look up
+// each one's verdict by the id THIS module assigned it. Nothing is ever created from `verdicts`; a
+// verdict for an unknown id is simply never looked up. This is why an invented finding cannot be
+// injected. A `breach` verdict is NOT stamped `violation` directly: it must first survive Rule 12 gate
+// 3 (gateEntailment); every other verdict is stamped as-is.
+async function applyVerdicts(batch, verdicts, opts) {
   const byId = new Map();
   for (const v of verdicts) {
     const id = Number(v && v.id);
@@ -229,7 +273,9 @@ function applyVerdicts(batch, verdicts) {
   for (let i = 0; i < batch.length; i++) {
     const raw = byId.get(i);
     if (raw === undefined) { stampAbstain(batch[i], 'no verdict returned for this candidate -> abstain'); continue; }
-    stampFromVerdict(batch[i], parseVerdict(raw, evidenceText(batch[i])));
+    const parsed = parseVerdict(raw, evidenceText(batch[i]));
+    if (parsed.state === 'violation') { await gateEntailment(batch[i], parsed, opts); continue; }
+    stampFromVerdict(batch[i], parsed);
   }
 }
 
@@ -276,7 +322,7 @@ async function adjudicateBatch(batch, ctx, opts) {
   if (res.error) { applyAbstain(batch, 'llm error -> abstain'); return { ranOk: false, reason: 'error:' + res.error }; }
   const verdicts = verdictsFrom(res.value);
   if (!verdicts) { applyAbstain(batch, 'llm returned no usable verdicts -> abstain'); return { ranOk: false, reason: 'no_verdicts' }; }
-  applyVerdicts(batch, verdicts);
+  await applyVerdicts(batch, verdicts, opts);
   return { ranOk: true, score: (res.value && res.value.score) || null, provider: (res.value && res.value.provider) || null };
 }
 
@@ -294,7 +340,7 @@ async function adjudicateText(text, ctx, opts, report) {
     const batch = text.slice(start, start + BATCH);
     const remaining = deadline - opts.now();
     if (remaining <= 0) { applyAbstain(batch, 'adjudication deadline exhausted -> abstain'); report.timed_out = true; report.batches.push({ start, ranOk: false, reason: 'deadline' }); continue; }
-    const batchOpts = Object.assign({}, opts, { batchDeadlineMs: remaining });
+    const batchOpts = Object.assign({}, opts, { batchDeadlineMs: remaining, deadlineAt: deadline });
     const row = await adjudicateBatch(batch, ctx, batchOpts);
     report.ran = report.ran || row.ranOk;
     report.batches.push(Object.assign({ start }, row));

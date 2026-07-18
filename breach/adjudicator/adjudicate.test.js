@@ -12,8 +12,16 @@ const path = require('node:path');
 const { adjudicate, ctxFromBundle, verdictsFrom } = require('./adjudicate.js');
 
 // ── fakes ─────────────────────────────────────────────────────────────────────────────────────────────
-function gate(verdicts) { return async () => ({ ok: true, out: { verdicts } }); }        // gate.js shape
-function bareGate(verdicts) { return async () => ({ verdicts }); }                        // bare shape
+// The scripted caller serves TWO request types: the adjudication call (has a `rubric`, no `schema`) and
+// the Rule-12 gate-3 NLI call (has a `schema` + allowedSourceIds - checkEntailment). For an NLI request
+// it cites the one allowed premise source_id and returns the scripted label (default 'entailment', so a
+// breach verdict stays a violation unless a test overrides `nli`).
+function nliReply(request, nli) {
+  const sid = (request && request.allowedSourceIds && request.allowedSourceIds[0]) || 'S';
+  return JSON.stringify({ source_id: sid, verdict: nli || 'entailment' });
+}
+function gate(verdicts, nli) { return async (request) => (request && request.schema ? nliReply(request, nli) : { ok: true, out: { verdicts } }); }
+function bareGate(verdicts, nli) { return async (request) => (request && request.schema ? nliReply(request, nli) : { verdicts }); }
 const HANG = () => new Promise(() => {});                                                 // never settles
 function textCand(over) {
   return Object.assign({ code: 'T', framework: 'FW', description: 'the obligation',
@@ -76,6 +84,30 @@ test('no llmCall injected -> every text candidate abstains to needs_review (Rule
 
 test('a valid breach verdict -> violation', async () => {
   assert.equal(await stateOf(textCand(), { llmCall: gate([{ id: 0, verdict: 'breach', reason: 'prohibited claim present' }]) }), 'violation');
+});
+
+// ── Rule 12 GATE 3 (NLI entailment): a breach only ships if the verified quote entails the claim ────────
+test('GATE 3: a breach whose verified quote does NOT entail the claim is DEMOTED to needs_review (nli:neutral)', async () => {
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate([{ id: 0, verdict: 'breach' }], 'neutral') });
+  assert.equal(findings[0].state, 'needs_review', 'a neutral NLI verdict must never ship as a violation (Rule 12 gate 3)');
+  assert.equal(findings[0].adjudication, 'nli_demoted');
+  assert.match(findings[0].adjudication_reason, /^nli:neutral/);
+});
+
+test('GATE 3: a contradiction NLI verdict also demotes to needs_review', async () => {
+  const state = await stateOf(textCand(), { llmCall: gate([{ id: 0, verdict: 'breach' }], 'contradiction') });
+  assert.equal(state, 'needs_review');
+});
+
+test('GATE 3: a breach whose verified quote ENTAILS the claim stays a violation', async () => {
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate([{ id: 0, verdict: 'breach' }], 'entailment') });
+  assert.equal(findings[0].state, 'violation');
+  assert.equal(findings[0].adjudicated, true);
+  assert.equal(findings[0].adjudication, 'breach');
+});
+
+test('GATE 3: the default scripted gate answers NLI with entailment, so a breach ships as a violation', async () => {
+  assert.equal(await stateOf(textCand(), { llmCall: gate([{ id: 0, verdict: 'breach' }]) }), 'violation');
 });
 
 test('a valid no_breach WITH a verbatim disproof -> pass', async () => {
@@ -165,8 +197,11 @@ test('empty input -> empty findings, total 0', async () => {
 test('batching: more than one batch of text candidates all get adjudicated', async () => {
   const input = Array.from({ length: 23 }, (_, i) => textCand({ code: 'T' + i }));
   // Return a breach for every batch-local id 0..9. The short final batch (3 candidates) receives ids
-  // 3..9 that map to nothing - harmlessly ignored, which is itself the filter-only property.
-  const llmCall = async () => ({ ok: true, out: { verdicts: Array.from({ length: 10 }, (_, i) => ({ id: i, verdict: 'breach' })) } });
+  // 3..9 that map to nothing - harmlessly ignored, which is itself the filter-only property. NLI
+  // requests (Rule 12 gate 3) are answered with entailment so every breach survives to a violation.
+  const llmCall = async (request) => (request && request.schema
+    ? JSON.stringify({ source_id: (request.allowedSourceIds || ['S'])[0], verdict: 'entailment' })
+    : { ok: true, out: { verdicts: Array.from({ length: 10 }, (_, i) => ({ id: i, verdict: 'breach' })) } });
   const { findings, report } = await adjudicate(input, BUNDLE, { llmCall });
   assert.equal(findings.length, 23);
   assert.equal(report.violation, 23);

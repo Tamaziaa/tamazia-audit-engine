@@ -66,6 +66,9 @@ function textCandidate() {
     artifact: { type: 'absence' },
     description: 'a required disclosure is claimed missing',
     evidence_quote: 'we process your personal data in accordance with our privacy policy',
+    // Real candidates always carry a locator; Gate 3's premise_source_id derives from it and an
+    // absent locator abstain-demotes before the scripted breach can survive to violation.
+    page_url: 'https://x.test/privacy',
   };
 }
 

@@ -45,7 +45,20 @@ function classificationResult(fx, passed, shipped, detail) {
 }
 
 async function runAdjudication(fx) {
-  const llmCall = fx.scripted_verdicts ? async () => fx.scripted_verdicts : null;
+  // The adjudicator now runs Gate 3 (checkEntailment) AFTER a breach verdict: an entailment request
+  // (recognisable by its closed 3-label verdict enum) must be answered with a gate-valid pass, or a
+  // scripted breach would demote to needs_review and the known-breach fixtures could never ship.
+  // Entailment-FAILURE behaviour is exercised by the dedicated entailment fixtures, not here.
+  const llmCall = fx.scripted_verdicts
+    ? async (request) => {
+      const enumSet = request && request.schema && request.schema.properties
+        && request.schema.properties.verdict && request.schema.properties.verdict.enum;
+      if (Array.isArray(enumSet) && enumSet.includes('entailment')) {
+        return { source_id: (request.allowedSourceIds || [])[0] || '', verdict: 'entailment' };
+      }
+      return fx.scripted_verdicts;
+    }
+    : null;
   const { findings } = await adjudicate(fx.candidates, fx.bundle, { llmCall, deadlineMs: SHELL_DEADLINE_MS });
   const states = findings.map((f) => f.state);
   return classificationResult(fx, arraysEqual(states, fx.expect.states), states.includes('violation'), 'states=[' + states.join(',') + ']');

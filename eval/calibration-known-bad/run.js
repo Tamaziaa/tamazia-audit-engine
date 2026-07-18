@@ -199,6 +199,7 @@ const CALIBRATIONS = [
       'p3-verifier-fabricated-network-event.json',
       'p3-verifier-register-row-mismatch.json',
       'p3-verifier-coverage-proof-missing.json',
+      'p3-verifier-register-absence-unproven.json',
     ],
     checkerCandidates: ['breach/verifiers/quote-match.js'],
   },
