@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-neutral",
+  "class": "gate",
+  "note": "a fluent hypothesis the premise does NOT actually support is NEUTRAL, not entailment - the classic grounded hallucination. Gate 3 abstains.",
+  "claims": [
+    { "claim": "the firm holds professional indemnity insurance", "premise_source_id": "s1", "premise": "Authorised and regulated by the Financial Conduct Authority, firm reference number 123456." }
+  ],
+  "scripted_response": { "source_id": "s1", "verdict": "neutral", "rationale": "FCA authorisation does not state PII cover" },
+  "expect": { "ok": [false] }
+}

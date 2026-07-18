@@ -1,0 +1,57 @@
+{
+  "comment": "C-029 calibration for the breach proposer (breach/proposers/propose.js). The reconciliation gate in the old estate checked SITE reachability, not per-rule PAGE coverage, so absence rules fired on pages nobody read (coverage-contract as reporting theatre instead of blocking data). Here the required complaints-procedure disclosure is genuinely absent from the crawl, which WOULD yield an absence-breach if the complaints page-class were covered - but the crawl read only the homepage, so coverage-contract.coverageFor() marks the rule 'screened'. propose() must therefore emit NO FIRING candidate for FAKE_ACT_2099_SCREENED_COMPLAINTS: a screened rule never proposes. A recorded suppression entry (suppressed_reason set, artifact null) is the correct, visible abstention (C-037) and is not a fired candidate. No real law text: FAKE_ACT_2099 id only (C-071). The record is nested under 'catalogue' (never a top-level 'records' array) so the catalogue linters' glob-load correctly skips this non-pack fixture.",
+  "catalogue": {
+    "records": [
+      {
+        "id": "FAKE_ACT_2099_SCREENED_COMPLAINTS",
+        "regulator": { "register_url": "https://register.fake.example/frb" },
+        "citation": { "url": "https://fake.example/act/2099" },
+        "website_obligations": [
+          {
+            "duty": "Publish the firm complaints procedure and how to escalate a complaint to the ombudsman",
+            "elements": [
+              "complaints procedure findable on the website",
+              "ombudsman escalation route named"
+            ],
+            "evidence_type": "presence"
+          }
+        ]
+      }
+    ]
+  },
+  "bundle": {
+    "domain": "screened.example",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://screened.example/",
+          "title": "Home",
+          "text": "Welcome to our firm. We are a friendly team helping clients across the region every day with real dedication.",
+          "jsonLd": []
+        },
+        {
+          "url": "https://screened.example/about",
+          "title": "About",
+          "text": "About our firm. We were founded in the year two thousand and one and take pride in careful, honest work.",
+          "jsonLd": []
+        },
+        {
+          "url": "https://screened.example/services",
+          "title": "Services",
+          "text": "Our services span many areas of practice and we always aim to help every client we possibly can here.",
+          "jsonLd": []
+        }
+      ],
+      "footerText": "Contact us at the front desk during opening hours.",
+      "truncated": false
+    },
+    "registers": { "notes": [] },
+    "browser": { "observed": [], "consentControl": { "found": false, "healthy": null, "url": null }, "lane": { "ran": false, "reason": "playwright-unavailable" } }
+  },
+  "expect": {
+    "record_id": "FAKE_ACT_2099_SCREENED_COMPLAINTS",
+    "coverage_state": "screened",
+    "fired_candidates_for_record": 0,
+    "note": "coverage is computed by the test via evidence/crawler/coverage-contract.coverageFor(records, pages); the complaints page-class is never crawled, so the rule is screened and propose() yields no fired candidate."
+  }
+}

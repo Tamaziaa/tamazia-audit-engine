@@ -1,0 +1,15 @@
+{
+  "note": "SEEDED KNOWN-BAD (P3, caution.md C-044). coverage-contract.classify substring-matched 'cost'->pricing and 'feedback'->fees, over-crediting coverage so breaches fired on unread content. classify() must use anchored path tokens: each trap URL must resolve to its 'expect' class, never the 'trap' class. Consumed by evidence/crawler/coverage-contract.test.js.",
+  "cases": [
+    { "url": "https://x.example/cost-of-living-guide", "expect": "other", "trap": "pricing" },
+    { "url": "https://x.example/feedback", "expect": "other", "trap": "fees" },
+    { "url": "https://x.example/returning-customers", "expect": "other", "trap": "returns" },
+    { "url": "https://x.example/termination-of-employment", "expect": "other", "trap": "terms" },
+    { "url": "https://x.example/privacy-policy", "expect": "privacy" },
+    { "url": "https://x.example/our-fees", "expect": "fees" },
+    { "url": "https://x.example/pricing", "expect": "pricing" },
+    { "url": "https://x.example/complaints-procedure", "expect": "complaints" },
+    { "url": "https://x.example/terms-and-conditions", "expect": "terms" },
+    { "url": "https://x.example/returns", "expect": "returns" }
+  ]
+}

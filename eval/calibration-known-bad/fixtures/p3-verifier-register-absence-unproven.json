@@ -1,0 +1,23 @@
+{
+  "comment": "P3 verifier calibration (caution.md C-004: a name-match failure is the only evidence of non-appearance; a lookup that never ran proves nothing). The candidate claims a register_absence (the firm does not appear on the SRA register) but the register lane was DEGRADED (a missing API key), so it never ran a real name-match. breach/verifiers/register-absence.js must refuse this: a degraded lane proves nothing about registration, exactly as C-004 requires. verifyCandidate must return verified:false with code register_absence_not_proven. Run via: node breach/verifiers/quote-match.js --calibrate.",
+  "candidate": {
+    "rule_id": "SRA_AUTHORISATION_DISCLOSURE",
+    "artifact": {
+      "type": "register_absence",
+      "register": "sra",
+      "query": "Example Law Firm LLP",
+      "lane": "no_match",
+      "note": { "register": "sra", "kind": "degraded", "reason": "missing SRA api key", "detail": null }
+    }
+  },
+  "bundle": {
+    "registers": {
+      "notes": [
+        { "register": "sra", "kind": "degraded", "reason": "missing SRA api key", "detail": null }
+      ]
+    }
+  },
+  "poison": {
+    "expected_code": "register_absence_not_proven"
+  }
+}

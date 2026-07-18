@@ -13,10 +13,14 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+const safePath = require('../lib/safe-path');
+
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = path.join(ROOT, 'tools', 'sweep', 'out', 'sarif');
 const OUT_FILE = path.join(OUT_DIR, 'eslint.local.json');
-const TARGETS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof', 'eval', 'tools'].filter((d) => fs.existsSync(path.join(ROOT, d)));
+// d is always one of the hardcoded literal directory names below: safeJoin makes that a checked
+// PATH COMPONENT at the site (Rule 1) rather than trusting the literal-array shape silently.
+const TARGETS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof', 'eval', 'tools'].filter((d) => fs.existsSync(safePath.safeJoin(ROOT, [d], { label: 'eslint scan target' })));
 
 function eslintBin() {
   const local = path.join(ROOT, 'node_modules', '.bin', 'eslint');

@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-entailed",
+  "class": "known-breach",
+  "note": "the premise, on its own, makes the hypothesis necessarily true; the NLI gate returns entailment and the claim is ok. The only path to ok:true (Gate 3).",
+  "claims": [
+    { "claim": "the firm is authorised by the Financial Conduct Authority", "premise_source_id": "s1", "premise": "Authorised and regulated by the Financial Conduct Authority, firm reference number 123456." }
+  ],
+  "scripted_response": { "source_id": "s1", "verdict": "entailment", "rationale": "explicit statement of FCA authorisation" },
+  "expect": { "ok": [true] }
+}

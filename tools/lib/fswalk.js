@@ -4,7 +4,8 @@
  * through this door; a second walker is exactly the clone class jscpd exists to catch.
  */
 const fs = require('fs');
-const path = require('path');
+
+const { safeJoinEntry } = require('./safe-path');
 
 const DEFAULT_SKIP = /^(node_modules|\.git|out)$/;
 
@@ -20,7 +21,11 @@ function listJsFiles(absDir, opts) {
   if (!fs.existsSync(absDir)) return files;
   (function walk(d) {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-      const p = path.join(d, e.name);
+      // e.name is a directory-entry name straight from fs.readdirSync (may legitimately be a
+      // dotfile - .gitkeep, .gitignore both exist under this repo's own scanned trees):
+      // safeJoinEntry makes that validation visible at the site (Rule 1) instead of relying on
+      // readdirSync's own no-separator guarantee going unstated.
+      const p = safeJoinEntry(d, e.name, { label: 'fswalk directory entry' });
       if (e.isDirectory()) {
         if (skipDirs.test(e.name)) continue;
         if (o.skipTests && /^tests?$/.test(e.name)) continue;

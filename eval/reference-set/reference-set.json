@@ -745,6 +745,149 @@
       "notes": "Matrix cell intent (unverified): AE x healthcare. No hand-verified verdict in the discovery digests.",
       "provenance": "PRD reference-set matrix (membership only)",
       "verified_date": null
+    },
+    {
+      "domain": "munsch.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "legal",
+        "sub_sector": "law firm (attorneys, professional corporation)",
+        "jurisdictions_bound": ["US"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "US_ABA_RULE_7_1",
+          "US_ABA_RULE_7_2",
+          "US_ABA_RULE_7_3",
+          "US_ABA_FIRM_NAMES",
+          "US_ABA_RULE_1_18_INTAKE",
+          "TX_TDRPC_7_01",
+          "US_TDPSA",
+          "US_FTC_ACT_S5_UDAP",
+          "US_ADA_TITLE_III_WEB"
+        ],
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "MUN-OTHER-STATE-BAR",
+            "framework": "Another US state's bar advertising rules (NY / CA / FL / IL)",
+            "description": "Munsch Hardt is established and admitted in Texas only (Austin, Dallas, Fort Worth, Houston). US state bar advertising rules are node-exclusive: each requires establishment/admission in that state (required_nexus established_in). Attaching the New York (NY_RPC_7_1 / NY_RPC_7_3_7_4), California (CA_RPC_CH7 / CA_BPC_6157), Florida (FL_BAR_4_7_CONTENT / FL_BAR_4_7_19) or Illinois (IL_RPC_7) bar rules to a Texas-only firm is the wrong-node contradiction (the SRA-vs-BSB class, caution C-052). Texas TDRPC Part VII is the correct instrument.",
+            "match_any": ["NY_RPC", "New York Rule 7", "CA_RPC", "California Rules of Professional Conduct", "CA_BPC", "FL_BAR_4_7", "Florida Bar", "IL_RPC", "Illinois Rules of Professional Conduct"]
+          },
+          {
+            "id": "MUN-CCPA-NEXUS",
+            "framework": "California Consumer Privacy Act (CCPA/CPRA)",
+            "description": "The firm is Texas-established with no California office. CCPA attaches only on a California nexus at threshold: doing business in California AND over 26,625,000 USD revenue, or 100,000+ CA consumers/households, or 50%+ revenue from selling data (US_CCPA_CPRA excluded_when). There is no evidence of a California establishment or CA-resident processing at threshold, and a law firm's website does not sell personal data. Attaching CCPA here is the blanket US-state-privacy false positive (caution C-055). Exact figures are needs_verification.",
+            "match_any": ["US_CCPA_CPRA", "CCPA", "CPRA", "California Consumer Privacy Act"]
+          },
+          {
+            "id": "MUN-UKLAW",
+            "framework": "Any UK or other foreign framework",
+            "description": "A US (Texas) firm assessed under UK law is the immigrationlawyersusa catastrophe (caution C-006, class A1). Attaching UK GDPR, PECR, the SRA, the Companies Act or the Modern Slavery Act to this firm is a contradiction.",
+            "match_any": ["UK GDPR", "PECR", "SRA", "Companies Act", "Modern Slavery", "Data Protection Act 2018", "ICO"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Watch-list member scoped with verified cell facts (following the russell-cooke matrix pattern of adding verified sector/jurisdiction to a non-forensic entry). Verified legal name from the munsch.com footer copyright: 'Munsch Hardt Kopf & Harr, P.C.', a Texas professional corporation; offices Austin, Dallas, Fort Worth and Houston (Texas only), so the sub_jurisdiction is TX. Cell: us-legal. legal_name and company_number are left null per the set convention (exact-match ground truth deferred; verify the P.C. registration via the Texas SoS / Comptroller and admissions via the State Bar of Texas before filling). expected_frameworks_min uses compiled catalogue ids (us-legal + us-universal). US_TDPSA is included because a firm of this size is not an SBA small business and processes Texas residents' personal data, so the small-business gate does not exempt it (needs_verification on the SBA determination). TX_TDRPC_7_04 (mandatory advertisement filing) is deliberately NOT in the minimum set: a firm's own website content is largely exempt from filing under Rule 7.05. US_ADA_TITLE_III_WEB carries a genuine circuit split (us-universal excluded_when), so it is an advisory minimum, not a certainty.",
+      "provenance": "Official firm site https://www.munsch.com/ (legal name in footer copyright '© 2026 Munsch Hardt Kopf & Harr, P.C.', Texas office locations, law-firm identity) fetched via WebFetch 2026-07-18; framework ids cross-checked against catalogue/dist/catalogue.v1.json (us-legal + us-universal cells).",
+      "verified_date": "2026-07-18"
+    },
+    {
+      "domain": "cedars-sinai.org",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": "healthcare",
+        "sub_sector": "nonprofit hospital / academic medical center",
+        "jurisdictions_bound": ["US"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "US_HIPAA_MKT",
+          "US_HIPAA_TRACKING",
+          "US_FTC5_HEALTH",
+          "US_ADA3",
+          "US_HHS_504_WEB",
+          "US_MEDBOARD_ADV_CA",
+          "US_CURES_INFOBLOCK",
+          "US_FTC_ACT_S5_UDAP"
+        ],
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "CS-CCPA-EXEMPT",
+            "framework": "California Consumer Privacy Act (CCPA/CPRA)",
+            "description": "Cedars-Sinai is a California NONPROFIT hospital. CCPA applies only to a for-profit 'business', so a nonprofit is outside its definition; and CCPA/state-privacy law exempts HIPAA protected health information and HIPAA-covered entities (US_CCPA_CPRA excluded_when: exempts data/entities already covered by HIPAA). A hospital's patient data is HIPAA PHI. Asserting a CCPA/CPRA breach is a contradiction on both the nonprofit and the HIPAA-PHI grounds. The exact for-profit/nonprofit registration is needs_verification.",
+            "match_any": ["US_CCPA_CPRA", "CCPA", "CPRA", "California Consumer Privacy Act"]
+          },
+          {
+            "id": "CS-OTHER-STATE-MEDBOARD",
+            "framework": "New York or Florida state medical board advertising rules",
+            "description": "Cedars-Sinai is licensed and located in California (Los Angeles). State medical board advertising rules are node-exclusive (required_nexus established_in that state). The Medical Board of California (US_MEDBOARD_ADV_CA) is the correct instrument; attaching the New York (US_MEDBOARD_ADV_NY) or Florida (US_MEDBOARD_ADV_FL) board rules to a California-only provider is a wrong-node contradiction.",
+            "match_any": ["US_MEDBOARD_ADV_NY", "US_MEDBOARD_ADV_FL", "Medical Board Advertising Rules - New York", "Medical Board Advertising Rules - Florida"]
+          },
+          {
+            "id": "CS-UKLAW",
+            "framework": "Any UK or other foreign framework",
+            "description": "A US (California) hospital assessed under UK law is the immigrationlawyersusa catastrophe (caution C-006, class A1). Attaching UK GDPR, the Data Protection Act 2018, PECR or the Modern Slavery Act is a contradiction.",
+            "match_any": ["UK GDPR", "PECR", "Companies Act", "Modern Slavery", "Data Protection Act 2018", "ICO"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Watch-list member scoped with verified cell facts. Verified trading name 'Cedars-Sinai Medical Center' - a nonprofit academic medical center / teaching hospital in Los Angeles, California, and a HIPAA covered entity. The cedars-sinai.org header now also brands as 'Cedars-Sinai Health Sciences University', so the exact current legal entity name is left null and needs_verification (confirm via the California SoS / IRS Tax Exempt Organization Search before filling). Cell: us-healthcare. expected_frameworks_min uses compiled catalogue ids (us-healthcare + us-universal). US_HHS_504_WEB assumes the hospital receives HHS financial assistance (Medicare/Medicaid), which is near-certain for a hospital of this scale but marked needs_verification; US_CURES_INFOBLOCK applies because a healthcare provider is an actor under 45 CFR 171.102.",
+      "provenance": "Official site https://www.cedars-sinai.org/ ('A Nonprofit Hospital in Los Angeles') fetched via WebFetch 2026-07-18, corroborated by the public record (academic medical center, Los Angeles, California; HIPAA covered entity); framework ids cross-checked against catalogue/dist/catalogue.v1.json (us-healthcare + us-universal cells).",
+      "verified_date": "2026-07-18"
+    },
+    {
+      "domain": "kabodcoffee.com",
+      "role": "watch",
+      "expected": {
+        "legal_name": null,
+        "company_number": null,
+        "sector": null,
+        "sub_sector": "specialty coffee retailer (direct-to-consumer e-commerce)",
+        "jurisdictions_bound": ["US"],
+        "jurisdictions_serves": null,
+        "expected_frameworks_min": [
+          "US_FTC_ACT_S5_UDAP",
+          "US_FTC_GREEN_GUIDES",
+          "US_ADA_TITLE_III_WEB"
+        ],
+        "known_breaches": null,
+        "known_non_breaches": [
+          {
+            "id": "KAB-CPA-THRESHOLD",
+            "framework": "Colorado Privacy Act (US_CPA)",
+            "description": "Kabod Coffee LLC is a small Denver specialty-coffee brand. The Colorado Privacy Act attaches only above a volume threshold: controlling/processing personal data of 100,000+ Colorado consumers, OR 25,000+ CO consumers while deriving revenue from selling personal data (US_CPA excluded_when). A small coffee roaster plausibly meets neither and does not sell personal data. Reporting a CPA breach is the threshold false positive (the Modern-Slavery-on-SMEs class, caution C-071 / C-055). Exact consumer counts are needs_verification.",
+            "match_any": ["US_CPA", "Colorado Privacy Act"]
+          },
+          {
+            "id": "KAB-CCPA-STATE-THRESHOLD",
+            "framework": "CCPA/CPRA and peer state privacy acts",
+            "description": "The same small-scale threshold reasoning excludes CCPA/CPRA (26,625,000 USD revenue, or 100,000 CA consumers, or 50% data-sales - US_CCPA_CPRA excluded_when) and the peer state acts US_VCDPA, US_CTDPA and US_UCPA (each a 100,000-consumer / revenue threshold). A Denver coffee retailer below every applicability threshold is exempt; attaching them is the blanket US-state-privacy false positive (caution C-055).",
+            "match_any": ["US_CCPA_CPRA", "CCPA", "CPRA", "California Consumer Privacy Act", "US_VCDPA", "Virginia Consumer Data Protection", "US_CTDPA", "Connecticut Data Privacy", "US_UCPA", "Utah Consumer Privacy"]
+          },
+          {
+            "id": "KAB-MADEINUSA",
+            "framework": "FTC Made in USA Labeling Rule (US_FTC_MADE_IN_USA)",
+            "description": "Kabod makes no US-origin claim; it markets Ethiopian single-source beans, and 'roasted in Denver, Colorado' is a processing statement, not a product-origin 'Made in USA' claim. US_FTC_MADE_IN_USA excluded_when is 'no US-origin claims made'. Attaching it is a subject-trigger false positive (based on the pages fetched 2026-07-18).",
+            "match_any": ["US_FTC_MADE_IN_USA", "Made in USA"]
+          },
+          {
+            "id": "KAB-UKLAW",
+            "framework": "Any UK or other foreign framework",
+            "description": "A US (Colorado) retailer assessed under UK law is the immigrationlawyersusa catastrophe (caution C-006, class A1). Attaching UK GDPR, PECR or the Modern Slavery Act is a contradiction.",
+            "match_any": ["UK GDPR", "PECR", "Companies Act", "Modern Slavery", "Data Protection Act 2018"]
+          }
+        ],
+        "needs_verification": true
+      },
+      "notes": "Watch-list member scoped with verified cell facts, chosen as the us-universal cell exemplar (a general commercial e-commerce business whose relevant frameworks are the sector-agnostic us-universal pack). Verified from the site footer '© 2026 KABOD COFFEE LLC'; a Denver, Colorado specialty-coffee brand selling roasted beans direct-to-consumer via a Shopify store, with 100% organic / ethically sourced / fair-trade marketing claims and no reviews or subscriptions displayed on the pages fetched. sector is left null (the cell is universal, not a specific sector family) and legal_name/company_number null per the set convention. expected_frameworks_min: US_FTC_ACT_S5_UDAP over the marketing claims, US_FTC_GREEN_GUIDES for the sustainability/organic claims (advisory - applies to the environmental limb of those claims), and US_ADA_TITLE_III_WEB for the e-commerce site (which carries a circuit split). The known_non_breaches are the load-bearing threshold class: a small firm below the CCPA/CPA consumer and revenue thresholds. Note: Kabod recently opened a cafe in Ethiopia; the audited US web presence remains Colorado-established so jurisdictions_bound stays US.",
+      "provenance": "Official site https://kabodcoffee.com/ (footer '© 2026 KABOD COFFEE LLC'; Denver, Colorado; specialty coffee e-commerce; organic / ethically sourced / fair-trade claims; no reviews or subscriptions on the fetched pages) fetched via WebFetch 2026-07-18. Colorado SoS entity search (https://www.sos.state.co.us/) was attempted for corroboration but returned HTTP 403 (bot wall), so the Colorado registration is needs_verification. Framework ids cross-checked against catalogue/dist/catalogue.v1.json (us-universal cell).",
+      "verified_date": "2026-07-18"
     }
   ]
 }

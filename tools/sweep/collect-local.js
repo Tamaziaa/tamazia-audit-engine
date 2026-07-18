@@ -19,6 +19,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const { listJsFiles } = require('../lib/fswalk');
+const safePath = require('../lib/safe-path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = path.join(ROOT, 'tools', 'sweep', 'out', 'sarif');
@@ -29,14 +30,22 @@ const ENTRIES = ['mint/worker.js', 'mint/index.js'];
 const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload'];
 // Clone and dependency hygiene also cover the tool fleet itself: the tools eat their own cooking.
 const HYGIENE_DIRS = [...SCAN_DIRS, 'mint', 'render-proof', 'tools'];
-const nonEmpty = (dirs) => dirs.filter((d) => listJsFiles(path.join(ROOT, d)).length > 0);
+// dirs is always one of SCAN_DIRS/HYGIENE_DIRS above (single-segment, repo-defined literal
+// names): safeJoin makes that a checked PATH COMPONENT at the site (Rule 1) rather than trusting
+// the literal-array shape silently.
+const nonEmpty = (dirs) => dirs.filter((d) => listJsFiles(safePath.safeJoin(ROOT, [d], { label: 'sweep hygiene dir' })).length > 0);
 
 const out = [];
 const add = (o) => out.push(o);
-const hasBin = (name) => fs.existsSync(path.join(ROOT, 'node_modules', '.bin', name));
+// BIN_DIR is built from all-literal segments (path.join with no dynamic argument, so it is not
+// itself a traversal-scanner sink); only `name` - always a literal devDependency bin name at the
+// call sites below ('jscpd', 'depcruise') - is the dynamic PATH COMPONENT, and safeJoin routes it
+// through the door instead of trusting that by convention alone.
+const BIN_DIR = path.join(ROOT, 'node_modules', '.bin');
+const hasBin = (name) => fs.existsSync(safePath.safeJoin(BIN_DIR, [name], { label: 'sweep bin lookup' }));
 const runBin = (name, argsStr) => {
   try {
-    return execSync(path.join(ROOT, 'node_modules', '.bin', name) + ' ' + argsStr, { cwd: ROOT, encoding: 'utf8', maxBuffer: 128e6, stdio: ['ignore', 'pipe', 'ignore'] });
+    return execSync(safePath.safeJoin(BIN_DIR, [name], { label: 'sweep bin lookup' }) + ' ' + argsStr, { cwd: ROOT, encoding: 'utf8', maxBuffer: 128e6, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     return (e.stdout || '').toString(); /* FAIL-OPEN: these analysers exit non-zero when they FIND things; their findings are on stdout and are ingested below. */
   }
@@ -57,15 +66,26 @@ function requiresOf(file) {
 
 function resolveSpec(from, spec) {
   if (!spec.startsWith('.')) return null;
-  const base = path.resolve(path.dirname(from), spec);
-  for (const c of [base, base + '.js', base + '.cjs', path.join(base, 'index.js')]) {
+  let base;
+  try {
+    // A require() specifier legitimately climbs directories ("../lib/foo") - resolveRepoRelative
+    // is the require-specifier shape (unlike safeJoin/assertSafeRelativePath, it does not reject
+    // "..") but still refuses a resolution that lands outside ROOT.
+    base = safePath.resolveRepoRelative(ROOT, from, spec, { label: 'reachability require specifier' });
+  } catch (e) {
+    return null; // FAIL-OPEN: a specifier resolving outside the repo tree is not a live edge; treat as unresolved rather than crash the reachability walk.
+  }
+  for (const c of [base, base + '.js', base + '.cjs', safePath.safeJoin(base, ['index.js'], { label: 'reachability require specifier' })]) {
     if (fs.existsSync(c) && fs.statSync(c).isFile()) return c;
   }
   return null;
 }
 
 function reachability() {
-  const entries = ENTRIES.map((e) => path.join(ROOT, e)).filter((p) => fs.existsSync(p));
+  // ENTRIES is a hardcoded literal array of repo-relative paths ('mint/worker.js', ...):
+  // resolveSafeRelativePath makes that validation visible instead of trusting the literal-array
+  // shape silently.
+  const entries = ENTRIES.map((e) => safePath.resolveSafeRelativePath(ROOT, e, { label: 'mint entrypoint' })).filter((p) => fs.existsSync(p));
   if (entries.length === 0) {
     console.log('  reachability: SKIPPED (no mint entrypoint exists yet: ' + ENTRIES.join(', ') + '). Armed the moment one lands.');
     return 0;

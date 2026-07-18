@@ -314,8 +314,6 @@ function titleCandidates(title, domain) {
 }
 
 // Footer identity block: "(c) 2026 X Ltd", "X LLP is authorised and regulated by...".
-const SUFFIX_ALT = V.LEGAL_ENTITY_SUFFIXES
-  .map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
 const COPYRIGHT_RX = new RegExp(
   '(?:\\u00a9|\\(c\\)|copyright)\\s*(?:\\d{4}(?:\\s*[\\u2013-]\\s*\\d{4})?)?\\s*(?:by\\s+)?'
   + '([A-Za-z0-9][^|\\n]{1,119}?)'
@@ -413,6 +411,96 @@ function readCompaniesHouseRow(registers) {
   );
   if (!name && !number) return null;
   return { name: name || null, number, office };
+}
+
+// Canonical strong incorporation forms for the KYB entity-form contradiction check (C-004/
+// C-072). Ambiguous suffixes (co, company) are omitted; only a clear differing form contradicts.
+const STRONG_FORM = Object.freeze({
+  ltd: 'LTD', limited: 'LTD', llp: 'LLP', plc: 'PLC', llc: 'LLC', lp: 'LP', inc: 'INC', incorporated: 'INC',
+  cic: 'CIC', cio: 'CIO', pllc: 'PLLC', gmbh: 'GMBH', sarl: 'SARL', bv: 'BV', pty: 'PTY',
+});
+// entityForm(name) -> the canonical strong incorporation form ONLY when it is the TERMINAL token of the
+// name. A legal-form WORD used as ordinary vocabulary earlier in the name ("Limited Edition Legal", where
+// "Limited" is the trading name, not a suffix) must NOT be read as an entity form: the old backward scan
+// returned the rightmost form-token anywhere in the name and so mis-read that leading "Limited" as LTD,
+// which could fabricate an entity-form contradiction against a register row (C-004/C-072). Only a suffix
+// AT THE END is an entity form.
+function entityForm(name) {
+  const toks = String(name || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  if (!toks.length) return null;
+  const last = toks[toks.length - 1];
+  return Object.prototype.hasOwnProperty.call(STRONG_FORM, last) ? STRONG_FORM[last] : null;
+}
+
+// tokensOf(text): lowercase, punctuation-stripped word tokens. Shared by the name-core and surface
+// tokenisation below so both sides of the comparison are tokenised identically (one door).
+function tokensOf(text) {
+  return String(text || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+}
+// coreTokensOf(regName): the register name's suffix-stripped token run (the "core" a raw surface must
+// carry verbatim, immediately followed by a strong-form token, to establish an on-page entity form).
+function coreTokensOf(regName) {
+  return tokensOf(stripLegalSuffixes(tokensOf(regName).join(' ')));
+}
+// tokenRunMatches(toks, start, run): does `run` occur verbatim in `toks` starting at `start`. Split out
+// so the inner comparison loop is its own unit (the health-gate Deep Nesting / Bumpy Road caps).
+function tokenRunMatches(toks, start, run) {
+  for (let j = 0; j < run.length; j += 1) {
+    if (toks[start + j] !== run[j]) return false;
+  }
+  return true;
+}
+// formAfterRun(toks, start, runLength): the canonical strong form immediately following a matched
+// token run, or null when the following token is not a recognised entity-form suffix.
+function formAfterRun(toks, start, runLength) {
+  const next = toks[start + runLength];
+  return Object.prototype.hasOwnProperty.call(STRONG_FORM, next) ? STRONG_FORM[next] : null;
+}
+// formsInSurface(surface, stripped): every strong form found immediately after a verbatim run of
+// `stripped` tokens inside one raw surface. Split out of pageFormsFromRaw so the double loop over
+// surfaces x positions is not itself nested inside a third, per-token comparison loop.
+function formsInSurface(surface, stripped) {
+  const toks = tokensOf(surface);
+  const forms = [];
+  for (let i = 0; i + stripped.length < toks.length; i += 1) {
+    if (!tokenRunMatches(toks, i, stripped)) continue;
+    const form = formAfterRun(toks, i, stripped.length);
+    if (form) forms.push(form);
+  }
+  return forms;
+}
+// pageFormsFromRaw(regName, rawSurfaces): the entity forms that appear IMMEDIATELY AFTER the register
+// name-core in any raw surface text. A register name-core can be established on-page via RAW TEXT alone
+// (nameOnPage below matches the suffix-stripped core against footer/page text, not only structured name
+// candidates); the differing legal form ("Acme LLP" on the register vs "Acme Ltd" in the page body) then
+// sits in that raw text and would never reach the contradiction check via nameGroup. Requiring the full
+// name-core as a consecutive token run immediately followed by a strong-form token keeps this specific
+// (low false-positive); and a false positive here only ABSTAINS (the safe direction, C-004/C-072).
+function pageFormsFromRaw(regName, rawSurfaces) {
+  const stripped = coreTokensOf(regName);
+  if (!stripped.length || stripped.join('').length < 6) return [];
+  const forms = new Set();
+  for (const surface of rawSurfaces || []) {
+    for (const f of formsInSurface(surface, stripped)) forms.add(f);
+  }
+  return [...forms];
+}
+
+// A name-core match does NOT corroborate a register row an on-page IDENTIFIER contradicts.
+// A matching on-page number is decisive; a DIFFERING number, or - absent a matching number -
+// a differing on-page legal form (Ltd vs LLP), contradicts (C-004/C-005/C-072). The on-page forms are
+// gathered from BOTH the structured name candidates (nameGroup) AND the raw surfaces that can establish
+// nameOnPage, so a raw-text-only name match cannot silently corroborate a register row the page contradicts.
+function registerContradiction(reg, onPageNumbers, nameGroup, rawSurfaces) {
+  if (reg.number && onPageNumbers.has(reg.number)) return null;
+  if (reg.number && onPageNumbers.size > 0) return 'company_number_mismatch';
+  const regForm = entityForm(reg.name);
+  if (regForm) {
+    const pageForms = new Set((nameGroup || []).map((e) => entityForm(e.value)).filter(Boolean));
+    for (const f of pageFormsFromRaw(reg.name, rawSurfaces)) pageForms.add(f);
+    if (pageForms.size > 0 && !pageForms.has(regForm)) return 'entity_form_mismatch';
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------------
@@ -549,7 +637,8 @@ function resolveIdentity(bundle) {
 
   // ------------------------------- register rung ---------------------------------
   const reg = readCompaniesHouseRow(bundle.registers);
-  let regAttachment = 'none'; // 'register' | 'weak' | 'none'
+  let regAttachment = 'none'; // 'register' | 'weak' | 'contradicted' | 'none'
+  let contradictedRegNumber = null;
   const regEvidence = [];
   if (reg && reg.name) {
     const regReject = rejectReason(reg.name, domain, { fromRegister: true });
@@ -572,7 +661,16 @@ function resolveIdentity(bundle) {
         const first = groups.get(regNorm)[0];
         regEvidence.push({ kind: first.rung, source: first.source, quote: first.quote || first.value });
       }
-      if (numberOnPage || nameOnPage) {
+      const contradiction = (numberOnPage || nameOnPage)
+        ? registerContradiction(reg, onPageNumbers, regNorm ? groups.get(regNorm) : null,
+          [footerText].concat(pages.map((p) => p.text)))
+        : null;
+      if (contradiction) {
+        regAttachment = 'contradicted';
+        contradictedRegNumber = reg.number || null;
+        notes.push('companiesHouse: on-page evidence CONTRADICTS the register row (' + contradiction
+          + '); a name-core match does not corroborate it, so legal identifiers abstain and display_name falls to on-page evidence (a wrong register match is worse than none, C-004/C-005)');
+      } else if (numberOnPage || nameOnPage) {
         regAttachment = 'register';
       } else if (sharesTokenWithDomain(reg.name, domain)) {
         regAttachment = 'weak';
@@ -660,7 +758,9 @@ function resolveIdentity(bundle) {
     companyNumber = fact(reg.number, CONFIDENCE.WEAK, regEvidence.slice(0, 2));
   } else {
     const distinct = Array.from(onPageNumbers.keys());
-    if (distinct.length === 1) {
+    if (contradictedRegNumber && distinct.length >= 1 && !distinct.includes(contradictedRegNumber)) {
+      notes.push('company_number: on-page number(s) conflict with the register row number ' + contradictedRegNumber + '; neither is safe, abstaining (conflict is not evidence, C-004)');
+    } else if (distinct.length === 1) {
       const sightings = onPageNumbers.get(distinct[0]);
       const distinctSources = new Set(sightings.map((s) => s.source));
       companyNumber = fact(
@@ -718,18 +818,17 @@ function resolveIdentity(bundle) {
 function runCalibration(fixturesDir) {
   const fs = require('fs');
   const path = require('path');
+  const safePath = require('../tools/lib/safe-path.js');
   const dir = fixturesDir
     || path.join(__dirname, '..', 'eval', 'calibration-known-bad', 'fixtures');
   const findings = [];
   const files = fs.readdirSync(dir).filter((f) => /^p1-identity-.*\.json$/.test(f)).sort();
   for (const f of files) {
-    // Fail closed on an unsafe path component before it ever reaches path.join (traversal
-    // guard); every fixture name comes from the already-filtered p1-identity-*.json glob above,
-    // so this never fires in practice.
-    if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(f)) {
-      throw new Error('unsafe path component: ' + JSON.stringify(f));
-    }
-    const abs = path.join(dir, f);
+    // Fail closed on an unsafe path component before it ever reaches the join (traversal guard);
+    // every fixture name comes from the already-filtered p1-identity-*.json glob above, so this
+    // never fires in practice. safeJoin is the shared door (Rule 1) rather than a bespoke inline
+    // regex + path.join repeated at this call site.
+    const abs = safePath.safeJoin(dir, [f], { label: 'identity calibration fixture' });
     const fixture = JSON.parse(fs.readFileSync(abs, 'utf8'));
     const poison = fixture.poison || {};
     const result = resolveIdentity(fixture.bundle);
@@ -791,6 +890,7 @@ module.exports = {
   findCompanyNumbers,
   collectJsonLdOrgs,
   readCompaniesHouseRow,
+  entityForm,
   domainStem,
   titleCase,
   normName,

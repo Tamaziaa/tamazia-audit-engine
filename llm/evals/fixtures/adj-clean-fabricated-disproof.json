@@ -1,0 +1,17 @@
+{
+  "kind": "adjudication",
+  "name": "adj-clean-fabricated-disproof",
+  "class": "known-clean",
+  "note": "the model tries to CLEAR an absence claim with a disproof that is NOT verbatim in the evidence it was shown. The disproof-anchor gate rejects it, so it abstains to needs_review, never a pass on the model's bare say-so (C-092). PRECISION on the clearance side.",
+  "bundle": { "domain": "example-care.co.uk", "sector": "healthcare", "country": "GB" },
+  "candidates": [
+    {
+      "id": "c6",
+      "description": "no cookie policy detected on the crawled surface",
+      "absence_evidence": { "pages_checked": 7, "nearest_quote": "Welcome to our practice." },
+      "artifact": { "type": "coverage_proof", "coverage": { "pages": 7, "tier1_fetched": true, "truncated": false } }
+    }
+  ],
+  "scripted_verdicts": { "verdicts": [{ "id": 0, "verdict": "no_breach", "reason": "I am sure it is fine", "disproof": "the site clearly has a full cookie policy somewhere" }] },
+  "expect": { "states": ["needs_review"] }
+}

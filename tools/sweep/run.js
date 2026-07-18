@@ -25,6 +25,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const safePath = require('../lib/safe-path');
+
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'tools', 'sweep', 'out');
 const SARIF = path.join(OUT, 'sarif');
@@ -33,7 +35,10 @@ const CALIBRATE = process.argv.includes('--calibrate');
 function step(title) { console.log('\n== ' + title + ' =='); }
 
 function runNode(script, args) {
-  const r = spawnSync(process.execPath, [path.join(ROOT, script), ...(args || [])], { cwd: ROOT, stdio: 'inherit' });
+  // script is always a literal repo-relative path from the LANES table below ('tools/one-door/
+  // check.js', ...): resolveSafeRelativePath makes that validation visible at the site.
+  const abs = safePath.resolveSafeRelativePath(ROOT, script, { label: 'sweep lane script' });
+  const r = spawnSync(process.execPath, [abs, ...(args || [])], { cwd: ROOT, stdio: 'inherit' });
   return r.status === null ? 1 : r.status;
 }
 
@@ -47,6 +52,9 @@ const LANES = [
   ['one-door', 'tools/one-door/check.js', ['--json', path.join(SARIF, 'one-door.local.json')]],
   ['swallow-gate', 'tools/swallow-gate/check.js', ['--json', path.join(SARIF, 'swallow-gate.local.json')]],
   ['fact-lineage', 'tools/fact-lineage/check.js', ['--json', path.join(SARIF, 'fact-lineage.local.json')]],
+  // P3 domain gates (self-testing acorn gates; exit 2 aborts the sweep, exit 1 is collected):
+  ['deadline-audit', 'tools/domain-gates/deadline-audit.js', ['--json', path.join(SARIF, 'deadline-audit.local.json')]],
+  ['no-module-state', 'tools/no-module-state/check.js', ['--json', path.join(SARIF, 'no-module-state.local.json')]],
 ];
 
 // runSelfTestsOrAbort() -> step 0. In-process, synthetic input, no files: one-door and

@@ -212,118 +212,17 @@ function looksLikeSpaShell(bodyHtml, visibleText) {
 }
 
 // ---------------------------------------------------------------------------
-// URL-safety single door: every fetch target (the homepage attempts AND every redirect hop) is
-// parsed through here. Hosts are PARSED via new URL, never substring-matched, so localhost,
-// loopback, link-local and RFC1918 / CGNAT / ULA private ranges cannot be reached even via a
-// crafted redirect (an offline dev tool must not become an SSRF pivot). This is the ONE place host
-// safety is decided; both isFetchableDomain and the network layer route through it.
+// URL-safety single door: PROMOTED to tools/lib/safe-fetch.js in P3 so the fixture builder here and
+// the P3 evidence crawler share ONE implementation of host safety (parsed-host, never substring) and
+// SSRF/DNS-rebinding blocking. These four are re-exported below under their original names so this
+// module's public API (and build-fixtures.js, which re-requires them) is unchanged.
 // ---------------------------------------------------------------------------
-
-// Blocked IPv4 ranges as [firstOctet, secondOctetLow, secondOctetHigh]: "this network", loopback,
-// the three RFC1918 blocks, link-local, and CGNAT. A /8 block uses the full 0..255 second-octet span.
-const BLOCKED_IPV4_RANGES = [
-  [0, 0, 255], [127, 0, 255], [10, 0, 255], [172, 16, 31],
-  [192, 168, 168], [169, 254, 254], [100, 64, 127],
-];
-
-// isPrivateIPv4(host) -> true for a loopback/private/link-local/CGNAT IPv4 literal or a malformed
-// one (an octet > 255). A non-IPv4-literal host returns false here (the caller handles those).
-function isPrivateIPv4(host) {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (!m) return false;
-  const o = m.slice(1).map(Number);
-  if (o.some((n) => n > 255)) return true; // malformed octet: refuse
-  const [a, b] = o;
-  return BLOCKED_IPV4_RANGES.some((r) => a === r[0] && b >= r[1] && b <= r[2]);
-}
-
-// Wildcard/loopback literals that are never a fetch target, in either IPv4 or IPv6 form.
-const WILDCARD_LOOPBACK_LITERALS = new Set(['0.0.0.0', '::', '::1']);
-
-// isBlockedIpv6(h) -> true for an IPv6 ULA (fc00::/7) or link-local (fe80::/10) literal.
-function isBlockedIpv6(h) {
-  if (/^f[cd][0-9a-f]{2}:/.test(h)) return true; // fc00::/7 ULA
-  return /^fe[89ab][0-9a-f]:/.test(h); // fe80::/10 link-local
-}
-
-// normaliseHost(host) -> lowercased host with any surrounding IPv6 brackets stripped.
-function normaliseHost(host) {
-  return String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
-}
-
-// V4_MAPPED_RX: an IPv4-mapped IPv6 literal, compressed (::ffff:1.2.3.4) or expanded
-// (0:0:0:0:0:ffff:1.2.3.4). Node's URL/dns layers can emit either spelling for the same address.
-const V4_MAPPED_RX = /^(?:::|(?:0+:){5})ffff:(\d{1,3}(?:\.\d{1,3}){3})$/;
-
-// unmapIpv4(h) -> the embedded dotted IPv4 when h is an IPv4-mapped IPv6 literal, else h unchanged.
-// Without this, ::ffff:10.0.0.1 is "IPv6" to every IPv4 range check and sails through the door.
-function unmapIpv4(h) {
-  const m = V4_MAPPED_RX.exec(h);
-  return m ? m[1] : h;
-}
-
-// isBlockedAddress(ip) -> true for a loopback/private/link-local/CGNAT IP LITERAL (v4 or v6). This is
-// the resolved-IP door: a DNS answer is an IP literal, and it is validated here against the SAME
-// ranges as the hostname door, so a name that resolves to a private address cannot slip through
-// (DNS-rebinding SSRF). isBlockedHost delegates its literal checks here so there is one door, not two.
-function isBlockedAddress(ip) {
-  const h = unmapIpv4(normaliseHost(ip));
-  if (WILDCARD_LOOPBACK_LITERALS.has(h)) return true;
-  if (isPrivateIPv4(h)) return true;
-  return isBlockedIpv6(h);
-}
-
-// isBlockedHost(host) -> true for any host this tool must never fetch: localhost, loopback, private
-// or link-local literals, IPv6 ULA/link-local, and bare dot-less names (not a public DNS target).
-function isBlockedHost(host) {
-  const h = normaliseHost(host);
-  if (!h) return true;
-  if (h === 'localhost' || h.endsWith('.localhost')) return true;
-  if (isBlockedAddress(h)) return true;
-  return !h.includes('.'); // a dot-less name is an internal/unqualified host, not fetchable
-}
-
-// parseSafeFetchTarget(rawUrl) -> a parsed URL when it is a public http(s) target, else null.
-function parseSafeFetchTarget(rawUrl) {
-  let u;
-  try { u = new URL(rawUrl); } catch (e) { return null; /* malformed URL: refuse (return null; caller rejects) */ }
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
-  if (isBlockedHost(u.hostname)) return null;
-  return u;
-}
-
-// makeLookupCallback(hostname, wantAll, cb) -> the dns.lookup callback that validates the resolved
-// addresses. Every resolved address is checked against isBlockedAddress (the same door the hostname
-// check uses); if ANY resolved address is private/loopback/link-local the whole lookup is refused, so
-// a name that resolves (or re-resolves, mid-redirect) to an internal address never reaches a socket.
-// Only when every address is public is the connection allowed to proceed.
-function makeLookupCallback(hostname, wantAll, cb) {
-  return function onResolved(err, addresses) {
-    if (err) return cb(err);
-    const list = Array.isArray(addresses) ? addresses : [];
-    const blocked = list.find((a) => isBlockedAddress(a.address));
-    if (blocked) return cb(new Error('refused: ' + hostname + ' resolved to blocked address ' + blocked.address + ' (SSRF/DNS-rebinding guard)'));
-    if (wantAll) return cb(null, list);
-    if (!list.length) return cb(new Error('refused: no address resolved for ' + hostname));
-    return cb(null, list[0].address, list[0].family);
-  };
-}
-
-// makeSafeLookup(dnsLookup) -> a Node `lookup`-option callback that resolves via the injected
-// dnsLookup (dns.lookup), validates EVERY resolved address against the private/loopback/link-local
-// blocklist, and only then allows the connection. Passed as the request `lookup` option so the
-// approved address is re-checked on the initial hop AND on every redirect hop. The dns dependency is
-// injected (not required here) so this module stays pure/offline and the factory is unit-testable
-// with a stubbed lookup that returns a private address (which must be refused).
-function makeSafeLookup(dnsLookup) {
-  return function safeLookup(hostname, options, callback) {
-    const optionsIsCallback = typeof options === 'function';
-    const cb = optionsIsCallback ? options : callback;
-    const opts = optionsIsCallback ? {} : (options || {});
-    const wantAll = Boolean(opts.all);
-    dnsLookup(hostname, Object.assign({}, opts, { all: true }), makeLookupCallback(hostname, wantAll, cb));
-  };
-}
+const {
+  isBlockedHost,
+  isBlockedAddress,
+  parseSafeFetchTarget,
+  makeSafeLookup,
+} = require("../../tools/lib/safe-fetch.js");
 
 const fixtureByteSize = (o) => Buffer.byteLength(JSON.stringify(o), 'utf8');
 

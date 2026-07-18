@@ -1,0 +1,17 @@
+{
+  "kind": "adjudication",
+  "name": "adj-clean-practice-area",
+  "class": "known-clean",
+  "note": "the single most common false positive: a firm WRITING ABOUT a topic is not committing it. The model clears it with a verbatim disproof, so it ships as pass, never a violation (C-092). PRECISION.",
+  "bundle": { "domain": "example-law.co.uk", "sector": "legal", "country": "GB" },
+  "candidates": [
+    {
+      "id": "c4",
+      "description": "page appears to admit involvement in money laundering",
+      "evidence_quote": "We defend clients accused of fraud and money laundering across the United Kingdom.",
+      "artifact": { "type": "quote", "quote": "We defend clients accused of fraud and money laundering across the United Kingdom." }
+    }
+  ],
+  "scripted_verdicts": { "verdicts": [{ "id": 0, "verdict": "no_breach", "reason": "practice area, not an admission", "disproof": "We defend clients accused of fraud and money laundering" }] },
+  "expect": { "states": ["pass"] }
+}

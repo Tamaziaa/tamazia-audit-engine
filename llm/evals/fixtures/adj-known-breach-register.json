@@ -1,0 +1,16 @@
+{
+  "kind": "adjudication",
+  "name": "adj-known-breach-register",
+  "class": "known-breach",
+  "note": "a PRESENT public-register row is a FACT (register_row artifact); it bypasses the model and ships as a violation.",
+  "bundle": { "domain": "example-firm.co.uk", "sector": "legal", "country": "GB" },
+  "candidates": [
+    {
+      "id": "c2",
+      "description": "registered entity status confirmed against the public register",
+      "artifact": { "type": "register_row", "register": "companies_house", "row": { "company_number": "01234567" } }
+    }
+  ],
+  "scripted_verdicts": null,
+  "expect": { "states": ["violation"] }
+}

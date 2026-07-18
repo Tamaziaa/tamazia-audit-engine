@@ -112,6 +112,117 @@ test('register row tied to the domain but with no on-page identifier attaches at
 });
 
 // ---------------------------------------------------------------------------------
+// RT-F-CONTRADICTORY-ENTITY: a name-core match must NOT corroborate a register row that
+// an on-page identifier contradicts (number mismatch or Ltd-vs-LLP form). C-004/C-005.
+// ---------------------------------------------------------------------------------
+test('RT-F: on-page number contradicting the register number is not register confidence; number abstains', () => {
+  const result = resolveIdentity(bundleOf({
+    domain: 'contradict-legal.co.uk',
+    corpus: {
+      pages: [{
+        url: 'https://contradict-legal.co.uk/',
+        title: 'Contradict Legal Ltd',
+        text: 'Contradict Legal Ltd is a firm of solicitors based in Leeds.',
+        jsonLd: [],
+        ogSiteName: 'Contradict Legal Ltd',
+      }],
+      footerText: 'Contradict Legal Ltd, a private limited company registered in England and Wales. Company No. 09999999.',
+    },
+    registers: {
+      companiesHouse: { legal_name: 'CONTRADICT LEGAL LLP', company_number: 'OC399999', type: 'llp', status: 'active' },
+    },
+  }));
+  assertFactShape(result);
+  // the register row (OC399999) is contradicted by the on-page number (09999999): not corroborated
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.REGISTER);
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.CORROBORATED);
+  assert.equal(result.company_number.confidence, CONFIDENCE.ABSTAIN);
+  assert.equal(result.company_number.value, null);
+  assert.ok(result.notes.some((n) => n.includes('CONTRADICTS')), 'the contradiction is recorded, never silent');
+});
+
+test('RT-F: register form (LLP) contradicting the on-page form (Ltd) demotes off register even with no on-page number', () => {
+  const result = resolveIdentity(bundleOf({
+    domain: 'harptonlegal.co.uk',
+    corpus: {
+      pages: [{
+        url: 'https://harptonlegal.co.uk/',
+        title: 'Harpton Legal Ltd',
+        text: 'Harpton Legal Ltd advises businesses.',
+        jsonLd: [],
+        ogSiteName: 'Harpton Legal Ltd',
+      }],
+      footerText: '',
+    },
+    registers: {
+      companiesHouse: { company_name: 'HARPTON LEGAL LLP', company_number: 'OC556677' },
+    },
+  }));
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.REGISTER);
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.CORROBORATED);
+  assert.equal(result.company_number.value, null);
+  assert.ok(result.notes.some((n) => n.includes('entity_form_mismatch')));
+});
+
+test('RT-F raw-text: a differing legal form found ONLY in raw page text (no structured name candidate) still contradicts', () => {
+  // The register name-core ("Harpton Legal") appears only in the page BODY as "...Ltd", never as an
+  // accepted title/OG/footer/JSON-LD candidate. A raw-text name match must not silently corroborate a
+  // register row (LLP) the page contradicts (Ltd): the on-page form is gathered from the raw surface too.
+  const result = resolveIdentity(bundleOf({
+    domain: 'harptonlegal.co.uk',
+    corpus: {
+      pages: [{
+        url: 'https://harptonlegal.co.uk/',
+        title: 'Welcome to our website',
+        text: 'For expert advice contact Harpton Legal Ltd, a firm based in Leeds serving clients nationwide.',
+        jsonLd: [],
+      }],
+      footerText: '',
+    },
+    registers: {
+      companiesHouse: { company_name: 'HARPTON LEGAL LLP', company_number: 'OC556677' },
+    },
+  }));
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.REGISTER, 'a raw-text-only name match must not attach the contradicted register row');
+  assert.notEqual(result.legal_name.confidence, CONFIDENCE.CORROBORATED);
+  assert.equal(result.company_number.value, null);
+  assert.ok(result.notes.some((n) => n.includes('entity_form_mismatch')), 'the raw-text differing form is recorded as a contradiction');
+});
+
+test('RT-F guard is not over-eager: a matching on-page number keeps register confidence', () => {
+  const result = resolveIdentity(bundleOf({
+    domain: 'kingsleynapley.co.uk',
+    corpus: {
+      pages: [{
+        url: 'https://kingsleynapley.co.uk/',
+        title: 'Kingsley Napley | Top London Law Firm',
+        text: 'We advise individuals and businesses.',
+        jsonLd: [],
+      }],
+      footerText: '© 2026 Kingsley Napley LLP. Registered in England and Wales, company number OC311168.',
+    },
+    registers: {
+      companiesHouse: { company_name: 'KINGSLEY NAPLEY LLP', company_number: 'OC311168', registered_office: '20 Bonhill Street, London, EC2A 4DN' },
+    },
+  }));
+  assert.equal(result.legal_name.confidence, CONFIDENCE.REGISTER);
+  assert.equal(result.company_number.value, 'OC311168');
+  assert.equal(result.company_number.confidence, CONFIDENCE.REGISTER);
+});
+
+test('entityForm reads the canonical strong incorporation form and ignores ambiguous suffixes', () => {
+  assert.equal(identity.entityForm('CONTRADICT LEGAL LLP'), 'LLP');
+  assert.equal(identity.entityForm('Contradict Legal Ltd'), 'LTD');
+  assert.equal(identity.entityForm('Some Firm Limited'), 'LTD');
+  assert.equal(identity.entityForm('Widget Trading Company'), null);
+  assert.equal(identity.entityForm('Just A Name'), null);
+  // a legal-form WORD used as ordinary vocabulary earlier in the name is NOT a terminal entity form:
+  assert.equal(identity.entityForm('Limited Edition Legal'), null, 'a leading "Limited" is a trading-name word, not a suffix');
+  assert.equal(identity.entityForm('Limited Edition Design Studios'), null);
+  assert.equal(identity.entityForm('Limited Edition Design Ltd'), 'LTD', 'but a genuine TRAILING Ltd is still read');
+});
+
+// ---------------------------------------------------------------------------------
 // Rungs 2-3: on-page corroboration grading
 // ---------------------------------------------------------------------------------
 test('jsonLd Organization + ogSiteName agreeing -> corroborated', () => {

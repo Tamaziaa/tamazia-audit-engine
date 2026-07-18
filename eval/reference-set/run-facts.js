@@ -42,6 +42,7 @@ const sector = require('../../facts/sector.js');
 const capabilities = require('../../facts/capabilities.js');
 const vocabulary = require('../../facts/vocabulary.js');
 const { verifyPayload, loadReferenceSet, findFirm } = require('./verify.js');
+const safePath = require('../../tools/lib/safe-path.js');
 
 const DEFAULT_SET = path.join(__dirname, 'reference-set.json');
 const DEFAULT_FIXTURES = path.join(__dirname, 'fixtures');
@@ -233,7 +234,9 @@ function assertSafeDomain(domain) {
 
 function runFirm(firm, fixturesDir) {
   assertSafeDomain(firm.domain);
-  const fixturePath = path.join(fixturesDir, firm.domain + '.json');
+  // firm.domain has just been asserted domain-shaped (no separators, no traversal); safeJoin
+  // additionally checks it as a PATH COMPONENT at the actual join site (Rule 1).
+  const fixturePath = safePath.safeJoin(fixturesDir, [firm.domain + '.json'], { label: 'reference-set fixture' });
   if (!fs.existsSync(fixturePath)) {
     // A verified firm with NO captured artefact on disk is an uncovered gap, not an abstention. Only
     // an explicitly captured unreachable bundle (a fixture that exists and is bot-walled / a SPA

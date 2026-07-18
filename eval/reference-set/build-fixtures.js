@@ -34,6 +34,8 @@ const https = require('https');
 const http = require('http');
 const dns = require('dns');
 
+const safePath = require('../../tools/lib/safe-path.js');
+
 const USER_AGENT =
   'TamaziaReferenceFixtureBot/1.0 (compliance-audit reference fixtures; contact: hello@tamazia.co.uk)';
 const FETCH_DEADLINE_MS = 10000; // hard cap per fetch (never a floor)
@@ -305,7 +307,8 @@ function cleanExistingFixtures(dir) {
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
   let changed = 0;
   for (const f of files) {
-    const fp = path.join(dir, f);
+    // f is always a filename from fs.readdirSync() output above: a safe single PATH COMPONENT.
+    const fp = safePath.safeJoin(dir, [f], { label: 'reference-set fixture clean target' });
     const before = fs.readFileSync(fp, 'utf8');
     const parsed = JSON.parse(before);
     const cleaned = deepStripControlChars(parsed);

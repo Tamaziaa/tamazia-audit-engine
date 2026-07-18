@@ -440,10 +440,17 @@ const SECTORS = {
 
 function compileDetectGlobal(detect) {
   if (detect instanceof RegExp) {
+    // detect.source already compiled successfully once (it is a live RegExp instance from the
+    // shipped SECTORS tree or an injected test vocabulary, never a raw untrusted string here);
+    // re-deriving the global+case-insensitive variant cannot introduce a new failure mode.
     const flags = detect.flags.includes('g') ? detect.flags : detect.flags + 'g';
     return new RegExp(detect.source, flags.includes('i') ? flags : flags + 'i');
   }
   if (typeof detect === 'string' && detect) {
+    // detect is vocabulary-controlled (the shipped SECTORS tree or an injected test tree), never
+    // network/runtime input: compiling it here is this function's whole purpose (deriving the
+    // global scorer variant facts/sector.js needs). A malformed pattern fails loud and typed
+    // (E_VOCABULARY_BAD_DETECT below), never silently, per Constitution Rule 4.
     try {
       return new RegExp(detect, 'gi');
     } catch (err) {

@@ -1,0 +1,16 @@
+{
+  "kind": "adjudication",
+  "name": "adj-known-breach-cookie",
+  "class": "known-breach",
+  "note": "an observed pre-consent tracker cookie is a FACT (network_event artifact); it bypasses the model and ships as a violation carrying its artifact (C-084).",
+  "bundle": { "domain": "example-clinic.co.uk", "sector": "healthcare", "country": "GB" },
+  "candidates": [
+    {
+      "id": "c1",
+      "description": "a non-essential analytics cookie was set before consent",
+      "artifact": { "type": "network_event", "url": "https://example-clinic.co.uk/", "event": "cookie _ga set pre-consent" }
+    }
+  ],
+  "scripted_verdicts": null,
+  "expect": { "states": ["violation"] }
+}

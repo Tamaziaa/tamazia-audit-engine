@@ -58,7 +58,6 @@ test('selfTest: every seeded violation kind is caught exactly', () => {
 
 test('realGateExists: a SYMLINK never counts as a live gate, even pointing at a real file (CR round-5)', () => {
   const { realGateExists } = require('./check');
-  const os = require('node:os');
   const fs = require('node:fs');
   const path = require('node:path');
   const ROOT = path.resolve(__dirname, '..', '..');

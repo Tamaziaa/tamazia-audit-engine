@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-garbage",
+  "class": "gate",
+  "note": "a non-JSON model reply is refused by llm/gate.js and never coerced; Gate 3 abstains (C-137).",
+  "claims": [
+    { "claim": "the firm is authorised by the FCA", "premise_source_id": "s1", "premise": "Authorised and regulated by the Financial Conduct Authority, firm reference number 123456." }
+  ],
+  "scripted_response": "Yes, absolutely, this is definitely entailment, you can trust me on this one.",
+  "expect": { "ok": [false] }
+}

@@ -1,0 +1,39 @@
+{
+  "domain": "example-synthetic-breach.test",
+  "role": "synthetic",
+  "bundle": {
+    "domain": "example-synthetic-breach.test",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://example-synthetic-breach.test/",
+          "title": "Example Synthetic Breach Ltd",
+          "text": "Example Synthetic Breach Ltd sells widgets online. We guarantee you will win every case, no exceptions, or your money back.",
+          "jsonLd": []
+        }
+      ],
+      "footerText": "Example Synthetic Breach Ltd. Company number 09999999."
+    },
+    "registers": {}
+  },
+  "expected": {
+    "known_breaches": [
+      {
+        "id": "SYN-GUARANTEE",
+        "framework": "synthetic test framework (harness self-test only)",
+        "description": "Planted, verbatim-quotable claim for the eval/e2e harness self-test: a guarantee-of-outcome statement. This is NOT a real firm and NOT a real legal claim.",
+        "match_any": ["guarantee you will win every case"]
+      }
+    ],
+    "known_non_breaches": [
+      {
+        "id": "SYN-TRAP",
+        "framework": "synthetic-non-breach-trap-framework (harness self-test only)",
+        "description": "Nothing in this fixture should ever be read as this trap framework. Asserting it is a contradiction and must fail the harness (the P3 zero-false-accusation bar, exercised here as a self-test).",
+        "match_any": ["synthetic-trap-framework-xyz-should-never-match"]
+      }
+    ],
+    "needs_verification": false
+  },
+  "notes": "eval/e2e synthetic fixture, NOT a real firm - fabricated domain and text (Constitution Rule 16: no real prospect data). Demonstrates the '+ synthetic additions' fixtureBundle path (docs/P3-ACCEPTANCE.md wave 3) and the reproduced/missed/skipped honesty doctrine: today (the breach/proposers lane has not landed yet) SYN-GUARANTEE correctly reports 'skipped', never 'reproduced' or 'missed', because no proposer ever ran to find it. Once breach/proposers lands and a real proposer/verifier/adjudicator chain picks up the guarantee-of-outcome language, SYN-GUARANTEE should flip to 'reproduced' - at that point this fixture becomes a genuine regression check, not only a wiring demonstration. Deliberately carries no sector/jurisdiction expectations so this fixture can never itself create a false contradiction unrelated to its purpose."
+}

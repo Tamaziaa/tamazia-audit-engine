@@ -130,3 +130,49 @@ test('safeJoin: throws with the caller-supplied ErrorClass and label', () => {
     CompileError
   );
 });
+
+// ---------------------------------------------------------------------------------
+// resolveSafeRelativePath / resolveSafeScanPath / resolveRepoRelative (FIX-A: the multi-segment
+// and require-specifier resolve helpers that move the actual path.resolve call behind this door,
+// so external call sites no longer write path.join/path.resolve with a non-literal argument
+// themselves - see the file-level FIX-A NOTE).
+// ---------------------------------------------------------------------------------
+
+test('resolveSafeRelativePath: resolves a clean nested relative path against baseDir', () => {
+  const base = path.resolve('/tmp/base');
+  assert.equal(safePath.resolveSafeRelativePath(base, 'out/catalogue.v1.json'), path.resolve(base, 'out/catalogue.v1.json'));
+});
+
+test('resolveSafeRelativePath: throws on an absolute path or a traversal segment (never reaches path.resolve)', () => {
+  const base = path.resolve('/tmp/base');
+  assert.throws(() => safePath.resolveSafeRelativePath(base, '/etc/passwd', { label: '--out' }), /--out/);
+  assert.throws(() => safePath.resolveSafeRelativePath(base, '../../etc/passwd', { label: '--out' }), /--out/);
+});
+
+test('resolveSafeScanPath: resolves a relative path against baseDir and passes an absolute one through unchanged', () => {
+  const base = path.resolve('/tmp/base');
+  assert.equal(safePath.resolveSafeScanPath(base, 'catalogue/packs'), path.resolve(base, 'catalogue/packs'));
+  const abs = path.resolve('/tmp/elsewhere/bundle.json');
+  assert.equal(safePath.resolveSafeScanPath(base, abs), path.resolve(base, abs));
+  assert.equal(safePath.resolveSafeScanPath(base, abs), abs);
+});
+
+test('resolveSafeScanPath: throws on a relative traversal segment', () => {
+  const base = path.resolve('/tmp/base');
+  assert.throws(() => safePath.resolveSafeScanPath(base, '../../etc/passwd', { label: 'scan dir' }), /scan dir/);
+});
+
+test('resolveRepoRelative: resolves an ordinary relative require() specifier, including one that climbs directories', () => {
+  const root = path.resolve('/tmp/repo');
+  const fromFile = path.join(root, 'tools', 'sweep', 'collect-local.js');
+  assert.equal(
+    safePath.resolveRepoRelative(root, fromFile, '../lib/fswalk'),
+    path.resolve(path.dirname(fromFile), '../lib/fswalk')
+  );
+});
+
+test('resolveRepoRelative: throws when the specifier would resolve outside rootDir', () => {
+  const root = path.resolve('/tmp/repo');
+  const fromFile = path.join(root, 'tools', 'sweep', 'collect-local.js');
+  assert.throws(() => safePath.resolveRepoRelative(root, fromFile, '../../../../../../etc/passwd', { label: 'require spec' }), /require spec/);
+});

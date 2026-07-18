@@ -1,8 +1,11 @@
 # eval/reference-set - hand-verified ground truth
 
-`reference-set.json` holds verified expectations for 27 real firms (9 forensic-audit
-firms, 10 watch-list, 8 legal/health x UK/IE/US/AE matrix). `verify.js` checks an
-engine payload against them under one law: **match or abstain, never contradict**.
+`reference-set.json` holds verified expectations for 30 real firms (9 forensic-audit
+firms, 13 watch-list, 8 legal/health x UK/IE/US/AE matrix). The watch-list includes
+3 US cell exemplars added 2026-07-18 (munsch.com for us-legal, cedars-sinai.org for
+us-healthcare, kabodcoffee.com for us-universal), each scoped with verified sector,
+jurisdiction and catalogue-id frameworks. `verify.js` checks an engine payload against
+them under one law: **match or abstain, never contradict**.
 
 - **Match**: the engine asserts a value that agrees with a verified expectation.
 - **Abstain**: the engine omits it, or ships it as needs-review. Allowed and logged -
@@ -28,3 +31,12 @@ verified false positives from `AUDIT-ENGINE-FAILURE-CATALOGUE.md` as `known_non_
 those are the regressions the old engine actually shipped, and re-asserting any of them
 fails the harness. P1's exit gate is 100% on this set (abstentions allowed,
 contradictions not).
+
+## Adversarial complement
+
+This set is the hand-verified POSITIVE ground truth (real firms, match or abstain). Its
+adversarial counterpart is `eval/red-team/` (see `eval/red-team/README.md`): synthetic hostile
+inputs that try to make the engine fabricate (fake statutes, injected prompts, hallucinated ids,
+bot walls, foreign-language corpora, contradictory evidence, false-positive traps, quote drift).
+Together they bound the engine from both sides - it must find the real problems, honour the
+verified non-breaches, and never be provoked into a fabrication.

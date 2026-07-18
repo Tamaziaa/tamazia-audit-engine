@@ -65,19 +65,18 @@ function resolveJsonFiles(patternOrDir) {
   const { dir, ext } = parseDirAndExt(raw);
   // dir/raw are caller-supplied SCAN targets: a CLI positional, DEFAULT_PACK_GLOB, CALIBRATE_DIR,
   // OR the ABSOLUTE per-pack paths catalogue/compile.js hands its linter fleet (already safeJoin-
-  // validated from PACKS_DIR). Allowlist them as safe SCAN paths (absolute is accepted and used
-  // directly; a relative one is traversal-guarded and resolved against REPO_ROOT) before they ever
-  // reach path.resolve - CR safe-path.js:43 consumer audit: a read-scan target legitimately arrives
-  // absolute and must not be rejected the way a base-relative WRITE arg is. An empty string is a
-  // legitimate "no directory named" case (falls through to the empty [] return below) so it is
-  // exempted from the check rather than treated as unsafe.
-  if (dir) safePath.assertSafeScanPath(dir, { label: 'catalogue linter scan directory' });
-  const absDir = path.resolve(REPO_ROOT, dir);
+  // validated from PACKS_DIR). resolveSafeScanPath allowlists them (absolute is accepted and used
+  // directly; a relative one is traversal-guarded and resolved against REPO_ROOT) AND performs the
+  // actual path.resolve call inside the shared door (CR safe-path.js:43 consumer audit: a read-scan
+  // target legitimately arrives absolute and must not be rejected the way a base-relative WRITE arg
+  // is). An empty string is a legitimate "no directory named" case (falls through to the empty []
+  // return below) so it is exempted from the check rather than treated as unsafe - REPO_ROOT itself
+  // is what path.resolve(REPO_ROOT, '') would have produced anyway.
+  const absDir = dir ? safePath.resolveSafeScanPath(REPO_ROOT, dir, { label: 'catalogue linter scan directory' }) : REPO_ROOT;
   if (fs.existsSync(absDir) && fs.statSync(absDir).isDirectory()) {
     return listDirJsonFiles(absDir, ext);
   }
-  if (raw) safePath.assertSafeScanPath(raw, { label: 'catalogue linter scan file' });
-  const absFile = path.resolve(REPO_ROOT, raw);
+  const absFile = raw ? safePath.resolveSafeScanPath(REPO_ROOT, raw, { label: 'catalogue linter scan file' }) : REPO_ROOT;
   if (fs.existsSync(absFile) && fs.statSync(absFile).isFile()) return [absFile];
   return [];
 }

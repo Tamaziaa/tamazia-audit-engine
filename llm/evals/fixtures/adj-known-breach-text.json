@@ -1,0 +1,38 @@
+{
+  "kind": "adjudication",
+  "name": "adj-known-breach-text",
+  "class": "known-breach",
+  "note": "a text-derived candidate (quote artifact) the model rules a genuine breach ships as a violation.",
+  "bundle": {
+    "domain": "example-shop.co.uk",
+    "sector": "ecommerce",
+    "country": "GB"
+  },
+  "candidates": [
+    {
+      "id": "c3",
+      "description": "the checkout page states a non-refundable deposit with no cancellation rights",
+      "evidence_quote": "All deposits are strictly non-refundable and you waive any right to cancel.",
+      "artifact": {
+        "type": "quote",
+        "quote": "All deposits are strictly non-refundable and you waive any right to cancel.",
+        "page_url": "https://example-shop.co.uk/checkout"
+      },
+      "page_url": "https://example-shop.co.uk/checkout"
+    }
+  ],
+  "scripted_verdicts": {
+    "verdicts": [
+      {
+        "id": 0,
+        "verdict": "breach",
+        "reason": "waiver of statutory cancellation rights"
+      }
+    ]
+  },
+  "expect": {
+    "states": [
+      "violation"
+    ]
+  }
+}

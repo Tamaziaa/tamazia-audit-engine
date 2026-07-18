@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { runGateCli, ROOT } = require('../lib/gate-cli');
+const safePath = require('../lib/safe-path');
 
 const FACTS_PATH = path.join(__dirname, 'facts.json');
 const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof'];
@@ -35,7 +36,17 @@ function loadFacts(factsPath) {
     id: f.id,
     label: f.label,
     allowed: f.allowed_producers || [],
-    patterns: f.patterns.map((p) => new RegExp(p, 'm')),
+    // Patterns are catalogue-controlled (this repo's own committed tools/one-door/facts.json,
+    // never network/runtime input): compiling them IS this gate's whole purpose (detecting a
+    // second door for each declared fact). A malformed pattern must fail loud and typed here,
+    // not bubble up as an opaque SyntaxError several stack frames away from its cause.
+    patterns: f.patterns.map((p) => {
+      try {
+        return new RegExp(p, 'm');
+      } catch (e) {
+        throw new Error('tools/one-door/facts.json: fact ' + JSON.stringify(f.id) + ' has a pattern that does not compile: ' + JSON.stringify(p) + ' (' + e.message + ')');
+      }
+    }),
   }));
 }
 
@@ -74,7 +85,11 @@ function scanTree(dirs, facts) {
   const violations = [];
   let scanned = 0;
   for (const dir of dirs) {
-    for (const abs of listJsFiles(path.join(ROOT, dir), { skipTests: true })) {
+    // dir is either one of SCAN_DIRS above (a single-segment literal name) or gate-cli's
+    // multi-segment CALIBRATE_DIR ('eval/calibration-known-bad/fixtures') under --calibrate:
+    // resolveSafeRelativePath covers both (safeJoin's single-PATH-COMPONENT contract would wrongly
+    // reject the multi-segment calibrate path).
+    for (const abs of listJsFiles(safePath.resolveSafeRelativePath(ROOT, dir, { label: 'one-door scan dir' }), { skipTests: true })) {
       scanned++;
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       violations.push(...scanContent(rel, fs.readFileSync(abs, 'utf8'), facts));

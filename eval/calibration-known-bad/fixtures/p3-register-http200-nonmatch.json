@@ -1,0 +1,30 @@
+{
+  "comment": "P3 register calibration (Constitution C-004: the old register-grounding.js/register-check.js accepted any HTTP-200-with-rows response as a firm match). Companies House answers a NON-EMPTY, HTTP 200 search response for the query 'Kingsley Napley LLP', but the only candidate is 'KINGSLEY CARPETS LTD' -- a real, unrelated company that merely shares the firm's first (generic) name token. evidence/registers/registers.js must refuse this candidate: no companiesHouse row may be returned. Run via: node evidence/registers/registers.js --calibrate. A finding is emitted only when the poison is correctly refused; zero findings fails eval/calibration-known-bad/run.js (earn-your-zero).",
+  "hints": {
+    "domain": "kingsleynapley-example.co.uk",
+    "company": "Kingsley Napley LLP",
+    "country": "UK",
+    "sector": "law-firms"
+  },
+  "keys": {
+    "companiesHouse": "CALIBRATION_FIXTURE_NOT_A_REAL_KEY"
+  },
+  "fetchResponses": {
+    "companies_house.search": {
+      "status": 200,
+      "json": {
+        "items": [
+          { "title": "KINGSLEY CARPETS LTD", "company_number": "01234567", "company_status": "active" }
+        ],
+        "items_per_page": 5,
+        "total_results": 1
+      }
+    },
+    "gleif.lei_records": { "status": 200, "json": { "data": [] } },
+    "sra.organisations": { "status": 200, "json": [] }
+  },
+  "poison": {
+    "forbidden_registers": ["companiesHouse"],
+    "forbidden_names": ["KINGSLEY CARPETS LTD", "Kingsley Carpets Ltd"]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "comment": "P3 register calibration (Constitution C-004), broader coverage: Companies House, GLEIF and the FCA each answer a NON-EMPTY, HTTP 200 response for the query 'Northgate Wealth Management LLP', but every candidate is an unrelated, real-shaped company/entity/firm sharing only a generic token ('northgate' or 'wealth'). No row may be returned for any of them. Proves the C-004 name-match gate holds across register modules, not only Companies House. Run via: node evidence/registers/registers.js --calibrate.",
+  "hints": {
+    "domain": "northgate-wealth-example.co.uk",
+    "company": "Northgate Wealth Management LLP",
+    "country": "UK",
+    "sector": "finance"
+  },
+  "keys": {
+    "companiesHouse": "CALIBRATION_FIXTURE_NOT_A_REAL_KEY",
+    "fca": { "email": "calibration@example.invalid", "key": "CALIBRATION_FIXTURE_NOT_A_REAL_KEY" }
+  },
+  "fetchResponses": {
+    "companies_house.search": {
+      "status": 200,
+      "json": {
+        "items": [
+          { "title": "NORTHGATE PROPERTY SERVICES LTD", "company_number": "09876543", "company_status": "active" }
+        ],
+        "total_results": 1
+      }
+    },
+    "gleif.lei_records": {
+      "status": 200,
+      "json": {
+        "data": [
+          {
+            "id": "549300ABCDEF1234ZZ99",
+            "type": "lei-records",
+            "attributes": {
+              "entity": {
+                "legalName": { "name": "Wealth Analytics Holdings BV" },
+                "status": "ACTIVE",
+                "legalAddress": { "addressLines": ["1 Example Street"], "city": "Amsterdam", "country": "NL", "postalCode": "1011AB" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "sra.organisations": { "status": 200, "json": [] },
+    "fca.search": {
+      "status": 200,
+      "json": {
+        "Data": [
+          { "Reference Number": "555123", "Organisation Name": "Northgate Insurance Brokers Ltd", "Status": "Authorised" }
+        ]
+      }
+    }
+  },
+  "poison": {
+    "forbidden_registers": ["companiesHouse", "gleif", "fca"],
+    "forbidden_names": ["NORTHGATE PROPERTY SERVICES LTD", "Wealth Analytics Holdings BV", "Northgate Insurance Brokers Ltd"]
+  }
+}

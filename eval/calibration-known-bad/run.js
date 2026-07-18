@@ -31,6 +31,8 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+const safePath = require('../../tools/lib/safe-path.js');
+
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
@@ -140,11 +142,96 @@ const CALIBRATIONS = [
     fixtures: ['payload-missing-fields.json'],
     internal: true, // runs payload/contract directly; live from commit 1
   },
+
+  // ---- P3 Wave additions (evidence/registers, evidence/browser, tools/domain-gates) ----
+  {
+    name: 'register-nonmatch-rejected',
+    description: 'a non-empty HTTP-200 register response that is not a real name match must yield no row (C-004)',
+    fixtures: ['p3-register-http200-nonmatch.json', 'p3-register-multi-register-nonmatch.json'],
+    checkerCandidates: ['evidence/registers/registers.js'],
+  },
+  {
+    name: 'p3-browser-deadline',
+    description:
+      'a hanging browser goto must be refused by the ONE outer Promise.race deadline, never hang the mint (the 752s stuck-Chromium class, C-040 / Rule 9); self-driving fixture races evidence/browser/observe.js against a wall-clock guard',
+    fixtures: ['p3-browser-deadline.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-browser-deadline.js'],
+  },
+  {
+    name: 'p3-browser-preconsent-breach',
+    description:
+      'a pre-consent tracker cookie and GA request must be flagged with artifacts; the essential session cookie must never be flagged (PECR reg.6 behavioural evidence, C-039 / Rule 3 / Rule 10); self-driving fixture drives evidence/browser/observe.js against a scripted browser',
+    fixtures: ['p3-browser-preconsent-breach.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-browser-preconsent-breach.js'],
+  },
+  {
+    name: 'p3-adjudicator-invented-finding',
+    description:
+      'the adjudicator is filter-only (Rule 11 / C-083): a hostile llmCall that tries to inject a fabricated finding and clear a real one with an unproven no_breach must be structurally incapable of doing either; self-driving fixture drives breach/adjudicator/adjudicate.js against a scripted hostile llmCall',
+    fixtures: ['p3-adjudicator-invented-finding.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-adjudicator-invented-finding.js'],
+  },
+  {
+    name: 'host-substring',
+    description:
+      'a URL/host compared by substring or token instead of a parsed host (GAPS.md host-substring; the Mills & Reeve nexus class, caution.md C-009)',
+    fixtures: ['p3-crawl-host-substring.js'],
+    checkerCandidates: ['tools/domain-gates/host-parse.js'],
+  },
+  {
+    name: 'budget-floor',
+    description:
+      'a Math.max FLOOR on a time/budget value, or a deadline literal above the 120s hard cap (GAPS.md budget-floor; the E-236 SPA-render-tail class, Constitution Rule 8, caution.md C-185)',
+    fixtures: ['p3-crawl-floor.js'],
+    checkerCandidates: ['tools/domain-gates/budget-caps.js'],
+  },
+  {
+    name: 'llm-gate',
+    description:
+      'the LLM structural gate must HARD-REJECT an out-of-set citation (Rule 12 gate 1) and a drifted verbatim quote (Rule 12 gate 2); GAPS.md llm-unverified. The module IS the checker (like facts/identity.js): llm/gate.js --calibrate replays every p3-llm-*.json fixture and a wrongly-accepted poison emits no finding',
+    fixtures: ['p3-llm-outofset-citation.json', 'p3-llm-quote-drift.json'],
+    checkerCandidates: ['llm/gate.js'],
+  },
+  {
+    name: 'breach-artifact-rejected',
+    description:
+      'Constitution Rule 3 (no artifact, no breach): a candidate finding whose cited artifact does not actually support it (a drifted quote, a network event never observed, a mismatched register row, or coverage that is truncated) must be refused, never adjudicated. GAPS.md breach-artifact. The module IS the checker (like facts/identity.js / evidence/registers/registers.js): breach/verifiers/quote-match.js --calibrate replays every p3-verifier-*.json fixture (caution.md C-024/C-080/C-089)',
+    fixtures: [
+      'p3-verifier-drifted-quote.json',
+      'p3-verifier-fabricated-network-event.json',
+      'p3-verifier-register-row-mismatch.json',
+      'p3-verifier-coverage-proof-missing.json',
+      'p3-verifier-register-absence-unproven.json',
+    ],
+    checkerCandidates: ['breach/verifiers/quote-match.js'],
+  },
+  {
+    name: 'deadline-hang',
+    description:
+      'Constitution Rule 9 (every external step has a hard deadline): an injected external call (fetchFn / launchBrowser / llmCall / a provider .call) awaited with no raceWithDeadline/withDeadline wrapper and no deadline arg, or a spawn shelling out to http, must be flagged - the 752s stuck-Chromium / exhausted-free-tier hang class (GAPS.md deadline-hang, caution.md C-040/C-138). The module IS the checker: tools/domain-gates/deadline-audit.js --calibrate replays the seeded undeadlined awaits',
+    fixtures: ['p3-gate-deadline-audit.js'],
+    checkerCandidates: ['tools/domain-gates/deadline-audit.js'],
+  },
+  {
+    name: 'module-scope-state',
+    description:
+      'caution.md C-153 (no mutable module-scope state in the mint path): a module-scope binding mutated per audit from a function (the _WARN/_SWARN counter/accumulator that was never reset between builds, so warning counts were wrong for every audit after the first) must be flagged; guarded write-once memoisation and module-init IIFEs are spared. GAPS.md module-scope-state. The module IS the checker: tools/no-module-state/check.js --calibrate replays the seeded accumulator',
+    fixtures: ['p3-gate-module-state.js'],
+    checkerCandidates: ['tools/no-module-state/check.js'],
+  },
 ];
 
 function findChecker(candidates) {
   for (const rel of candidates || []) {
-    const abs = path.join(REPO_ROOT, rel);
+    // rel is always a literal repo-relative path from the CALIBRATIONS table above
+    // ('tools/one-door/check.js', ...): resolveSafeRelativePath makes that validation visible at
+    // the site (Rule 1) instead of trusting the literal-table shape silently.
+    let abs;
+    try {
+      abs = safePath.resolveSafeRelativePath(REPO_ROOT, rel, { label: 'calibration checker candidate' });
+    } catch (e) {
+      continue; // FAIL-OPEN: a malformed checkerCandidates entry is not a valid path to probe; try the next candidate rather than crash the whole calibration run.
+    }
     if (fs.existsSync(abs)) return abs;
   }
   return null;
@@ -311,7 +398,8 @@ function runExternalCalibration(cal, strict) {
 // already equivalent to testing only the entries just pushed for THIS calibration, which is what
 // checkMissingFixtures's own (per-calibration) entries list does directly.
 function runOneCalibration(cal, strict) {
-  const fixtureAbs = cal.fixtures.map((f) => path.join(FIXTURES_DIR, f));
+  // f is always a literal fixture filename from the CALIBRATIONS table above.
+  const fixtureAbs = cal.fixtures.map((f) => safePath.safeJoin(FIXTURES_DIR, [f], { label: 'calibration fixture' }));
   const missing = checkMissingFixtures(cal, fixtureAbs);
   if (missing.entries.length > 0) return missing;
   if (cal.internal) return runInternalCalibration(cal, fixtureAbs);

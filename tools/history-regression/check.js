@@ -71,8 +71,10 @@ function realGateExists(rel) {
   // statSync FOLLOWS symlinks, so a repo-local link pointing at an external file would still count
   // (CR round-5). lstatSync stats the entry ITSELF - a symlink's lstat is never isFile(), so only a
   // genuine in-tree regular file satisfies the claim. throwIfNoEntry:false makes a MISSING path
-  // return undefined (fail closed) with no swallowing catch to justify.
-  const st = fs.lstatSync(path.resolve(ROOT, rel), { throwIfNoEntry: false });
+  // return undefined (fail closed) with no swallowing catch to justify. resolveSafeRelativePath
+  // re-asserts (already known true above) and performs the actual resolve inside the shared door.
+  const abs = safePath.resolveSafeRelativePath(ROOT, rel, { label: 'history-regression catching_gate' });
+  const st = fs.lstatSync(abs, { throwIfNoEntry: false });
   return Boolean(st) && st.isFile();
 }
 

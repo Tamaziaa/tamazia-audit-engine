@@ -1,0 +1,35 @@
+{
+  "comment": "P3 verifier calibration (Constitution Rule 3 / caution.md C-039 PECR pre-consent lane). The candidate cites a tracker_request_pre_consent network event for connect.facebook-pixel.example that the browser lane never actually observed: bundle.browser.observed contains only a www.google-analytics.com entry. breach/verifiers/network-event.js must refuse this fabricated event: verifyCandidate must return verified:false with code network_event_not_found. Run via: node breach/verifiers/quote-match.js --calibrate. A finding is emitted only when the fabrication is correctly rejected.",
+  "candidate": {
+    "rule_id": "PECR_PRE_CONSENT_TRACKING",
+    "artifact": {
+      "type": "network_event",
+      "kind": "tracker_request_pre_consent",
+      "host": "connect.facebook-pixel.example",
+      "name": "connect.facebook-pixel.example"
+    }
+  },
+  "bundle": {
+    "browser": {
+      "observed": [
+        {
+          "kind": "tracker_request_pre_consent",
+          "name": "www.google-analytics.com",
+          "host": "www.google-analytics.com",
+          "essential": false,
+          "networkEvent": {
+            "host": "www.google-analytics.com",
+            "url": "https://www.google-analytics.com/collect",
+            "resourceType": "xhr"
+          },
+          "ts": 1000
+        }
+      ],
+      "consentControl": { "found": false, "healthy": null, "url": null },
+      "lane": { "ran": true, "reason": null }
+    }
+  },
+  "poison": {
+    "expected_code": "network_event_not_found"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "note": "SEEDED KNOWN-BAD (P3, Constitution Rule 12 gate 2, caution.md C-035/C-089). An adjudicator model cites an IN-SET source_id (S1) but the quote it puts in quotation marks is PARAPHRASED - it is not a verbatim substring of S1. Models fabricate pincites and paraphrase inside quotation marks (Stanford HAI); on the old estate the corpus regex ran on raw HTML while the quote came from stripped text, so hit and quote disagreed (caution.md C-035). llm/gate.js validateResponse() must HARD-REJECT it with a quote_drift violation (verbatim re-match). The source_id is in-set and the schema is valid, so ONLY gate 2 can catch this: if the quote re-match is removed, the response is wrongly accepted and the calibration correctly fails. Run: node llm/gate.js --calibrate. A finding is emitted only when the poison is refused; zero findings fails eval/calibration-known-bad/run.js (earn-your-zero).",
+  "response": "{\"finding_id\":\"F-CK-102\",\"verdict\":\"violation\",\"source_id\":\"S1\",\"quote\":\"we never use non-essential cookies without consent\",\"rationale\":\"the site admits pre-consent tracking\"}",
+  "schema": {
+    "type": "object",
+    "required": ["finding_id", "verdict"],
+    "additionalProperties": true,
+    "properties": {
+      "finding_id": { "type": "string", "minLength": 1 },
+      "verdict": { "type": "string", "enum": ["violation", "needs_review", "pass"] },
+      "source_id": { "type": "string", "minLength": 1 },
+      "quote": { "type": "string", "minLength": 8 },
+      "rationale": { "type": "string" }
+    }
+  },
+  "allowedSourceIds": ["S1", "S2"],
+  "sources": {
+    "S1": "We do not set any non-essential cookies until you have given your explicit consent through the banner.",
+    "S2": "You can withdraw your consent at any time from the cookie settings link in the footer."
+  },
+  "poison": {
+    "expect_reject": true,
+    "expect_violation": "quote_drift"
+  }
+}

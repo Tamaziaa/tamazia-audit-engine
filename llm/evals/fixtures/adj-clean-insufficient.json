@@ -1,0 +1,17 @@
+{
+  "kind": "adjudication",
+  "name": "adj-clean-insufficient",
+  "class": "known-clean",
+  "note": "thin evidence: the model rules insufficient, which abstains to needs_review. Never a violation. ABSTAIN.",
+  "bundle": { "domain": "example-co.uk", "sector": "b2b", "country": "GB" },
+  "candidates": [
+    {
+      "id": "c5",
+      "description": "possible missing data-protection contact",
+      "evidence_quote": "Contact us using the form on our website.",
+      "artifact": { "type": "quote", "quote": "Contact us using the form on our website." }
+    }
+  ],
+  "scripted_verdicts": { "verdicts": [{ "id": 0, "verdict": "insufficient", "reason": "cannot tell from this fragment" }] },
+  "expect": { "states": ["needs_review"] }
+}

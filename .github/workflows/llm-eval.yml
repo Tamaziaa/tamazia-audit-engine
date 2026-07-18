@@ -1,0 +1,43 @@
+# The LLM-eval gate: the blocking precision + abstain-rate harness for every LLM-touched shell
+# (PRD tool #9; Constitution Rule 11 + Rule 12 gates 3/4/5). It replays a fixture suite through the
+# DETERMINISTIC shells with SCRIPTED providers - no network, no model, no secrets anywhere.
+#
+# A prompt or model change that lowers precision below 1.0 on the seeded set, fires an immunity veto,
+# or regresses a fixture's expectation fails this check.
+name: LLM eval
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llm-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  llm-eval:
+    name: LLM precision + abstain-rate harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: LLM eval harness (precision must be 1.0, no immunity veto)
+        run: node llm/evals/run.js
+
+      - name: LLM gate + entailment unit tests
+        run: node --test llm/entailment.test.js llm/prompts/entailment.test.js llm/evals/run.test.js
