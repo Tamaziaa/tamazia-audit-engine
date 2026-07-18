@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { main, parseArgs, loadFixtureBundle, runOneFirm, runOneSynthetic, exitCodeFor } = require('./run-pipeline');
+const { main, parseArgs, pipelineOptsFrom, loadFixtureBundle, runOneFirm, runOneSynthetic, exitCodeFor, DEFAULT_BREACH_TIMEOUT_MS } = require('./run-pipeline');
 
 test('parseArgs: defaults point at the real reference-set + this directory\'s own fixtures/red-team paths', () => {
   const { opts } = parseArgs(['node', 'run-pipeline.js']);
@@ -60,27 +60,39 @@ test('runOneFirm: a firm with no fixture on disk is an ERROR row (an uncovered g
 test('runOneFirm: a real bundle judges cleanly against an expectation with nothing to check', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-cli-'));
   fs.writeFileSync(path.join(dir, 'blank.example.json'), JSON.stringify({ domain: 'blank.example', corpus: { pages: [] } }));
-  const row = await runOneFirm({ domain: 'blank.example', role: 'test', expected: {} }, dir);
+  const row = await runOneFirm({ domain: 'blank.example', role: 'test', expected: {} }, dir, { noBreach: true });
   assert.strictEqual(row.error, undefined);
   assert.strictEqual(row.contradiction, false);
 });
 
 test('runOneSynthetic: a fixture-load error is passed through as a row error', async () => {
-  const row = await runOneSynthetic({ file: 'broken.json', error: 'unreadable JSON: x' });
+  const row = await runOneSynthetic({ file: 'broken.json', error: 'unreadable JSON: x' }, { noBreach: true });
   assert.strictEqual(row.error, 'unreadable JSON: x');
   assert.strictEqual(row.domain, 'broken.json');
 });
 
-test('runOneSynthetic: a well-formed synthetic bundle runs the real pipeline and judges honestly', async () => {
+test('runOneSynthetic: a well-formed synthetic bundle runs the real pipeline (--no-breach) and judges honestly', async () => {
   const fx = {
     domain: 'synthetic-cli-test.example',
     role: 'synthetic',
     bundle: { domain: 'synthetic-cli-test.example', corpus: { pages: [{ url: 'https://x/', text: 'hello world' }] } },
     expected: { known_breaches: [{ id: 'X', framework: 'X', match_any: ['should-never-appear'] }] },
   };
-  const row = await runOneSynthetic(fx);
+  const row = await runOneSynthetic(fx, { noBreach: true });
   assert.strictEqual(row.error, undefined);
-  assert.strictEqual(row.knownBreaches[0].status, 'skipped', 'the breach lane is not fully wired today, so this must be skipped, never missed or reproduced');
+  assert.strictEqual(row.knownBreaches[0].status, 'skipped', 'with --no-breach the lane did not run, so a known_breach is skipped, never missed or reproduced');
+});
+
+test('runOneSynthetic: with the breach lane RUN on an EMPTY catalogue, a known_breach is MISSED (lane complete, found nothing), never fabricated', async () => {
+  const fx = {
+    domain: 'synthetic-cli-run.example',
+    role: 'synthetic',
+    bundle: { domain: 'synthetic-cli-run.example', corpus: { pages: [{ url: 'https://x/', text: 'hello world' }] } },
+    expected: { known_breaches: [{ id: 'X', framework: 'X', match_any: ['should-never-appear'] }] },
+  };
+  const row = await runOneSynthetic(fx, { catalogueRecords: [], breachInProcess: true });
+  assert.strictEqual(row.error, undefined);
+  assert.strictEqual(row.knownBreaches[0].status, 'missed', 'the lane genuinely ran (empty catalogue) and found nothing -> missed, an honest abstention');
 });
 
 test('exitCodeFor: an ERROR row outranks everything else (exit 2)', () => {
@@ -103,20 +115,42 @@ test('exitCodeFor: clean rows and a fully-caught red-team lane is exit 0', () =>
   assert.strictEqual(exitCodeFor([{ contradiction: false }], { rows: [{ status: 'caught' }, { status: 'skipped' }] }), 0);
 });
 
+test('parseArgs: the new breach flags parse (--no-breach, --breach-inline, --breach-timeout <ms>)', () => {
+  const a = parseArgs(['node', 'run-pipeline.js', '--no-breach']).opts;
+  assert.strictEqual(a.noBreach, true);
+  const b = parseArgs(['node', 'run-pipeline.js', '--breach-inline']).opts;
+  assert.strictEqual(b.breachInline, true);
+  const c = parseArgs(['node', 'run-pipeline.js', '--breach-timeout', '5000']).opts;
+  assert.strictEqual(c.breachTimeoutMs, 5000);
+  const d = parseArgs(['node', 'run-pipeline.js']).opts;
+  assert.strictEqual(d.breachTimeoutMs, DEFAULT_BREACH_TIMEOUT_MS, 'the default is a Rule-9 hard per-firm breach deadline');
+});
+
+test('parseArgs: a negative or non-numeric --breach-timeout fails closed (exit 2)', () => {
+  assert.strictEqual(parseArgs(['node', 'run-pipeline.js', '--breach-timeout', '-1']).exitCode, 2);
+  assert.strictEqual(parseArgs(['node', 'run-pipeline.js', '--breach-timeout', 'abc']).exitCode, 2);
+});
+
+test('pipelineOptsFrom: maps CLI flags to the runPipeline breach opts', () => {
+  const opts = { breachTimeoutMs: 9000, breachInline: true, noBreach: false };
+  assert.deepStrictEqual(pipelineOptsFrom(opts), { breachTimeoutMs: 9000, breachInProcess: true, noBreach: false });
+});
+
 // ---------------------------------------------------------------------------------------------------
-// SMOKE TEST: executes the REAL entry point (caution.md C-148). Runs against the real, committed
-// eval/reference-set/ fixtures and this directory's own real synthetic fixture, with the red-team lane
-// and synthetic additions both exercised (no --no-* flags), --json so the assertions are on structure,
-// not printed text. This is the test that would have caught a ReferenceError/TDZ crash inside main()
-// that a purely-mocked unit test could never see.
+// SMOKE TEST: executes the REAL entry point (caution.md C-148) end-to-end against the real, committed
+// eval/reference-set/ fixtures + this directory's own synthetic fixture + the real red-team lane, --json
+// so the assertions are on structure. Uses --no-breach so the full run stays fast and deterministic (the
+// real 92-record catalogue triggers the propose ReDoS P0 in breach/proposers/, owner R3/W2a; the breach
+// path itself is smoke-tested separately below with a bounded subprocess timeout). This is the test that
+// would have caught a ReferenceError/TDZ crash inside main() that a purely-mocked unit test could not.
 // ---------------------------------------------------------------------------------------------------
-test('SMOKE: node eval/e2e/run-pipeline.js (via its real main()) runs end-to-end against the real fixtures', async () => {
+test('SMOKE: node eval/e2e/run-pipeline.js --no-breach runs end-to-end against the real fixtures + red-team', async () => {
   const originalLog = console.log;
   const lines = [];
   console.log = (...args) => lines.push(args.join(' '));
   let code;
   try {
-    code = await main(['node', 'eval/e2e/run-pipeline.js', '--json']);
+    code = await main(['node', 'eval/e2e/run-pipeline.js', '--no-breach', '--json']);
   } finally {
     console.log = originalLog;
   }
@@ -124,19 +158,27 @@ test('SMOKE: node eval/e2e/run-pipeline.js (via its real main()) runs end-to-end
   assert.strictEqual(lines.length, 1, 'expected exactly one JSON blob on stdout in --json mode');
   const parsed = JSON.parse(lines[0]);
   assert.ok(Array.isArray(parsed.stageWiring) && parsed.stageWiring.length === 5);
-  assert.ok(Array.isArray(parsed.rows) && parsed.rows.length >= 27, 'expected the full 27-firm reference set plus synthetic additions');
+  const wiring = Object.fromEntries(parsed.stageWiring.map((w) => [w.stage, w.status]));
+  assert.strictEqual(wiring.propose, 'wired', 'propose (W2a) must be wired');
+  assert.strictEqual(wiring.adjudicate, 'wired', 'adjudicate (W2c) must be wired');
+  assert.ok(Array.isArray(parsed.rows) && parsed.rows.length >= 27, 'expected the full reference set plus synthetic additions');
   assert.ok(parsed.rows.some((r) => r.domain === 'example-synthetic-breach.test'), 'the synthetic fixture should have run alongside the reference-set firms');
   assert.strictEqual(typeof parsed.redteam.present, 'boolean');
   assert.strictEqual(parsed.summary.errored, 0, 'no firm should ERROR on the real, committed fixtures');
+  assert.strictEqual(parsed.summary.contradicting, 0, 'the P3 exit bar: zero false accusations (zero contradictions)');
+  assert.strictEqual(parsed.summary.redTeamEscapes, 0, 'the P3 exit bar: every red-team entry caught (zero escapes)');
+  // --no-breach -> every firm's breach lane is skipped, never fabricated as complete.
+  assert.strictEqual(parsed.summary.breach.complete, 0);
+  assert.strictEqual(parsed.summary.breach.errored, 0);
 });
 
-test('SMOKE: node eval/e2e/run-pipeline.js --domain <one firm> restricts the run and still executes cleanly', async () => {
+test('SMOKE: node eval/e2e/run-pipeline.js --domain <one firm> --no-breach restricts the run and still executes cleanly', async () => {
   const originalLog = console.log;
   const lines = [];
   console.log = (...args) => lines.push(args.join(' '));
   let code;
   try {
-    code = await main(['node', 'eval/e2e/run-pipeline.js', '--domain', 'neuclinic.co.uk', '--no-synthetic', '--no-red-team', '--json']);
+    code = await main(['node', 'eval/e2e/run-pipeline.js', '--domain', 'neuclinic.co.uk', '--no-synthetic', '--no-red-team', '--no-breach', '--json']);
   } finally {
     console.log = originalLog;
   }
@@ -146,12 +188,35 @@ test('SMOKE: node eval/e2e/run-pipeline.js --domain <one firm> restricts the run
   assert.strictEqual(parsed.rows[0].domain, 'neuclinic.co.uk');
 });
 
+// SMOKE: the REAL breach lane via the subprocess Rule-9 guard. neuclinic triggers the propose ReDoS, so
+// the breach lane is expected to TIME OUT and be recorded as an honest breach error - the firm still
+// judges as OK (no contradiction) and the harness completes, never hangs. A short timeout keeps it fast.
+test('SMOKE: the real breach lane via the subprocess guard completes (times out honestly) and never hangs', async () => {
+  const originalLog = console.log;
+  const lines = [];
+  console.log = (...args) => lines.push(args.join(' '));
+  let code;
+  try {
+    code = await main(['node', 'eval/e2e/run-pipeline.js', '--domain', 'neuclinic.co.uk', '--no-synthetic', '--no-red-team', '--breach-timeout', '4000', '--json']);
+  } finally {
+    console.log = originalLog;
+  }
+  assert.ok(code === 0 || code === 1, 'the harness must COMPLETE (never hang) even when propose hangs; got ' + code);
+  const parsed = JSON.parse(lines[0]);
+  assert.strictEqual(parsed.rows.length, 1);
+  assert.strictEqual(parsed.rows[0].contradiction, false, 'a breach-lane timeout is never a false accusation');
+  const breachStages = ['propose', 'verify', 'adjudicate'].map((s) => (parsed.rows[0].stageTable.find((x) => x.stage === s) || {}).status);
+  // Either the lane errored (timed out - the current ReDoS) or, once propose is fixed, completed. Both honest.
+  assert.ok(breachStages.every((s) => s === 'error') || breachStages.every((s) => s === 'ran'),
+    'the breach lane is uniformly errored (timeout) or uniformly ran, never a fabricated partial pass: ' + JSON.stringify(breachStages));
+});
+
 test('SMOKE: an actual child-process invocation of the file exits with a stable code (proves the file itself is directly runnable, not only its exported main)', async () => {
   const { execFileSync } = require('child_process');
   const repoRoot = path.join(__dirname, '..', '..');
   let status = 0;
   try {
-    execFileSync(process.execPath, [path.join(__dirname, 'run-pipeline.js'), '--domain', 'neuclinic.co.uk', '--no-synthetic', '--no-red-team', '--json'], { cwd: repoRoot, stdio: 'pipe' });
+    execFileSync(process.execPath, [path.join(__dirname, 'run-pipeline.js'), '--domain', 'neuclinic.co.uk', '--no-synthetic', '--no-red-team', '--no-breach', '--json'], { cwd: repoRoot, stdio: 'pipe' });
   } catch (e) {
     status = e.status;
   }

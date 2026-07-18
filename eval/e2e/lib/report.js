@@ -79,6 +79,20 @@ function printRedTeamTable(redteam) {
   for (const r of redteam.rows) console.log('  ' + pad(r.status.toUpperCase(), 10) + r.id + (r.reason ? '  (' + r.reason + ')' : ''));
 }
 
+// breachOutcome(row) -> 'complete' | 'errored' | 'skipped' | 'n/a', the per-firm breach-lane outcome
+// read off its own stageTable (added by run-pipeline.js's judgedRow). A firm that errored before the
+// pipeline ran (no fixture, a facts/coverage throw) has no stageTable -> 'n/a'. This exists so a run
+// where the breach lane timed out on every firm (the current propose ReDoS P0) can NEVER be misread as
+// a clean full assessment: the summary reports the breach outcomes explicitly.
+function breachOutcome(row) {
+  const table = row && row.stageTable;
+  if (!Array.isArray(table)) return 'n/a';
+  const stages = ['propose', 'verify', 'adjudicate'].map((name) => (table.find((s) => s.stage === name) || {}).status);
+  if (stages.every((s) => s === 'ran')) return 'complete';
+  if (stages.some((s) => s === 'error')) return 'errored';
+  return 'skipped';
+}
+
 // summarise(rows, redteam) -> the run's overall counters, used both for the human report and to shape
 // the --json output's top-level summary.
 function summarise(rows, redteam) {
@@ -86,11 +100,17 @@ function summarise(rows, redteam) {
   const contradicting = rows.filter((r) => !r.error && r.contradiction).length;
   const redTeamRows = redteam.rows || [];
   const redTeamEscapes = redTeamRows.filter((r) => r.status === 'escaped' || r.status === 'error').length;
+  const breach = { complete: 0, errored: 0, skipped: 0 };
+  for (const r of rows) {
+    const outcome = breachOutcome(r);
+    if (outcome in breach) breach[outcome]++;
+  }
   return {
     firms: rows.length,
     ok: rows.length - errored - contradicting,
     contradicting,
     errored,
+    breach,
     redTeamEntries: redTeamRows.length,
     redTeamEscapes,
   };
@@ -122,6 +142,8 @@ function printHumanReport(stageTable, rows, redteam, summary) {
   printRedTeamTable(redteam);
   console.log('');
   console.log('summary: ' + summary.firms + ' firms | ' + summary.ok + ' ok | ' + summary.contradicting + ' contradicting | ' + summary.errored + ' errored');
+  const b = summary.breach || { complete: 0, errored: 0, skipped: 0 };
+  console.log('         breach lane: ' + b.complete + ' complete | ' + b.errored + ' errored/timed-out | ' + b.skipped + ' skipped');
   console.log('         red-team: ' + summary.redTeamEntries + ' entries | ' + summary.redTeamEscapes + ' escaped/error');
   console.log('');
   console.log(resultLine(summary));
@@ -132,6 +154,7 @@ module.exports = {
   printFirmTable,
   printRedTeamTable,
   summarise,
+  breachOutcome,
   stageWiringLine,
   knownBreachSummary,
   knownNonBreachSummary,

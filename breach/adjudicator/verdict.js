@@ -23,8 +23,13 @@
 
 // The model's CLOSED verdict enum. Anything outside this set is not a verdict; it is noise -> abstain.
 const LLM_VERDICTS = new Set(['breach', 'no_breach', 'insufficient']);
-// The engine's CLOSED three-state (axe-core doctrine). No fourth "maybe" value exists.
-const STATES = new Set(['violation', 'needs_review', 'pass']);
+// VERDICTS: the engine's CLOSED three-state (axe-core doctrine), the ONE canonical spelling (underscore
+// token in code; CONSTITUTION prose uses hyphenated English). This is the one door for the three-state
+// enum (ledger decision 5): every consumer imports it rather than re-declaring the strings, so a
+// hyphen/underscore drift (llm/prompts/adjudicate.js's old 'needs-review') cannot recur. No fourth
+// "maybe" value exists.
+const VERDICTS = Object.freeze(['violation', 'needs_review', 'pass']);
+const STATES = new Set(VERDICTS);
 // The base mapping. no_breach -> pass is CONDITIONAL on a verbatim disproof (see parseVerdict).
 const VERDICT_TO_STATE = { breach: 'violation', no_breach: 'pass', insufficient: 'needs_review' };
 
@@ -113,6 +118,7 @@ module.exports = {
   disproofMatches,
   normaliseDisproof,
   LLM_VERDICTS,
+  VERDICTS,
   STATES,
   VERDICT_TO_STATE,
   MIN_DISPROOF_CHARS,

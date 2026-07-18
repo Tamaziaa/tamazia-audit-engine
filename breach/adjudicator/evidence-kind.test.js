@@ -33,6 +33,39 @@ test('register-row artifacts -> register, and they BYPASS the model', () => {
   }
 });
 
+// ── the CANONICAL breach/artifact-types.js enum (the one door the proposer/verifier flow emits): each
+//    of the five canonical types must classify correctly, or a real candidate is misrouted (the C-084
+//    disease this reconciliation closes). ─────────────────────────────────────────────────────────────
+test('CANONICAL: network_event -> observation and bypasses (a real PECR observation must not be quarantined)', () => {
+  const c = classifyEvidenceKind(cand({ artifact: { type: 'network_event', kind: 'cookie_pre_consent', host: 'ga.example', name: '_ga' } }));
+  assert.equal(c.kind, 'observation');
+  assert.equal(c.bypass, true);
+  assert.equal(c.valid, true);
+});
+
+test('CANONICAL: register_row -> register and bypasses', () => {
+  const c = classifyEvidenceKind(cand({ artifact: { type: 'register_row', register: 'sra', row: {} } }));
+  assert.equal(c.kind, 'register');
+  assert.equal(c.bypass, true);
+  assert.equal(c.valid, true);
+});
+
+test('CANONICAL: register_absence -> absence and NEVER bypasses (a weak no-match must be quarantined, Rule 6)', () => {
+  const c = classifyEvidenceKind(cand({ artifact: { type: 'register_absence', register: 'sra', lane: 'no_match' } }));
+  assert.equal(c.kind, 'absence', 'a register no-match is adjudicated/quarantined, not a bypassing register fact');
+  assert.equal(c.bypass, false, 'a weak no-match must never bypass to a hard violation');
+  assert.equal(c.valid, true);
+});
+
+test('CANONICAL: quote and coverage_proof are the text/absence class and never bypass', () => {
+  const q = classifyEvidenceKind(cand({ artifact: { type: 'quote', text: 'we guarantee results', surface: 'visible_text' } }));
+  assert.equal(q.kind, 'absence');
+  assert.equal(q.bypass, false);
+  const cp = classifyEvidenceKind(cand({ artifact: { type: 'coverage_proof', page_class: 'complaints', pages_checked: ['https://x/'], tier1_fetched: true, truncated: false } }));
+  assert.equal(cp.kind, 'absence');
+  assert.equal(cp.bypass, false);
+});
+
 test('a verbatim quote (presence) is the text class -> absence, never bypasses', () => {
   const c = classifyEvidenceKind(cand({ artifact: { type: 'corpus_quote' }, evidence_quote: 'we are the number one clinic' }));
   assert.equal(c.kind, 'absence');

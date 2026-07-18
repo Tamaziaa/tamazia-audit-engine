@@ -5,8 +5,10 @@
 // Ported contract from the old estate's breach-adjudicator: "you do not add findings, you RULE."
 //   - The model is a FILTER (Constitution Rule 11): it may confirm, downgrade, or reject a proposed
 //     finding. It may NEVER invent a finding, a law, a fine, a citation, or a source_id.
-//   - Closed verdict enum (Rule 6/10): violation | needs-review | pass. There is no "maybe ships"
-//     branch; the default in doubt is needs-review (abstain-by-default, Rule 12 gate 4).
+//   - Closed verdict enum (Rule 6/10): violation | needs_review | pass. There is no "maybe ships"
+//     branch; the default in doubt is needs_review (abstain-by-default, Rule 12 gate 4). The enum is
+//     the ONE canonical set from breach/adjudicator/verdict.js (imported below, not re-declared here);
+//     CONSTITUTION prose writes it hyphenated as English, code uses the underscore token.
 //   - Every quote must be copied verbatim from a supplied span and cite that span's source_id, so
 //     llm/gate.js can retrieval-gate the citation (gate 1) and re-match the quote (gate 2).
 //   - A pass (a NO_BREACH-style verdict) MUST carry a verbatim disproof quote (caution.md C-092);
@@ -21,14 +23,14 @@
 //   { system, prompt, schema, allowedSourceIds, sources, verdicts }
 // Feed { schema, allowedSourceIds, sources } straight into llm/gate.js validateResponse().
 
-// The closed three-state verdict enum. This MUST stay in step with breach/adjudicator/verdict.js
-// (Wave 2, not yet built); it is duplicated here only because the prompt's response schema needs it
-// before that module exists. Flagged as a coupling to reconcile when the adjudicator lands.
-const VERDICTS = ['violation', 'needs-review', 'pass'];
+// The closed three-state verdict enum, imported from its ONE door (breach/adjudicator/verdict.js) so
+// the model-facing verdict tokens this prompt emits can never drift from the engine's own three-state
+// (ledger decision 5; the earlier hyphenated 'needs-review' copy here was that drift).
+const { VERDICTS } = require('../../breach/adjudicator/verdict.js');
 
 // citationRequiredFor(verdict): the two verdicts that assert something checkable about the site and so
 // MUST carry a verbatim quote - a violation (its proving artifact, caution.md C-080) and a pass (its
-// disproof quote, caution.md C-092). needs-review abstains and may cite nothing. The structural gate
+// disproof quote, caution.md C-092). needs_review abstains and may cite nothing. The structural gate
 // verifies any quote that IS present; this predicate is where the Wave-2 adjudicator enforces PRESENCE.
 function citationRequiredFor(verdict) {
   return verdict === 'violation' || verdict === 'pass';
@@ -60,7 +62,7 @@ function buildDocBlock(rows) {
 }
 
 // responseSchema(): the JSON-Schema subset llm/gate.js validates the reply against. finding_id and
-// verdict are required; source_id and quote are OPTIONAL here (needs-review may cite nothing) but,
+// verdict are required; source_id and quote are OPTIONAL here (needs_review may cite nothing) but,
 // when present, are bounded so an empty citation cannot slip through - and the gate then retrieval-
 // gates the source_id and re-matches the quote verbatim.
 function responseSchema() {
@@ -85,12 +87,12 @@ const SYSTEM_PROMPT = [
   'finding, a law, a citation, a penalty, or a source_id, and you must not use any knowledge beyond',
   'the supplied spans.',
   '',
-  'Return EXACTLY one verdict from this closed set: violation | needs-review | pass.',
+  'Return EXACTLY one verdict from this closed set: violation | needs_review | pass.',
   '- violation: the supplied spans PROVE the proposed finding. Cite the source_id and quote the exact',
   '  verbatim span that proves it.',
   '- pass: the supplied spans DISPROVE the proposed finding. You MUST cite the source_id and quote the',
   '  exact verbatim span that disproves it (a pass with no disproof quote is invalid).',
-  '- needs-review: the spans are insufficient to prove OR disprove the finding. This is the default',
+  '- needs_review: the spans are insufficient to prove OR disprove the finding. This is the default',
   '  whenever you are in doubt; abstaining is always safe and always preferred to guessing.',
   '',
   'Every quote MUST be copied verbatim (character for character) from a supplied span and MUST cite',

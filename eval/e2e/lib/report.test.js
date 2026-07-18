@@ -31,15 +31,30 @@ test('knownNonBreachSummary: all clean renders a plain count', () => {
   assert.strictEqual(knownNonBreachSummary([{ status: 'clean' }, { status: 'clean' }]), '2 clean');
 });
 
-test('summarise: counts firms, ok, contradicting, errored, and red-team escapes/errors together', () => {
+test('summarise: counts firms, ok, contradicting, errored, breach outcomes, and red-team escapes/errors together', () => {
   const rows = [
-    { contradiction: false },
-    { contradiction: true, report: { contradictions: [] } },
+    { contradiction: false, stageTable: [{ stage: 'propose', status: 'ran' }, { stage: 'verify', status: 'ran' }, { stage: 'adjudicate', status: 'ran' }] },
+    { contradiction: true, report: { contradictions: [] }, stageTable: [{ stage: 'propose', status: 'error' }, { stage: 'verify', status: 'error' }, { stage: 'adjudicate', status: 'error' }] },
     { error: 'boom' },
   ];
   const redteam = { rows: [{ status: 'caught' }, { status: 'escaped' }, { status: 'error' }, { status: 'skipped' }] };
   const s = summarise(rows, redteam);
-  assert.deepStrictEqual(s, { firms: 3, ok: 1, contradicting: 1, errored: 1, redTeamEntries: 4, redTeamEscapes: 2 });
+  assert.deepStrictEqual(s, {
+    firms: 3, ok: 1, contradicting: 1, errored: 1,
+    breach: { complete: 1, errored: 1, skipped: 0 },
+    redTeamEntries: 4, redTeamEscapes: 2,
+  });
+});
+
+test('breachOutcome: reads a firm\'s per-firm breach outcome off its stageTable', () => {
+  const { breachOutcome } = require('./report');
+  const complete = { stageTable: [{ stage: 'propose', status: 'ran' }, { stage: 'verify', status: 'ran' }, { stage: 'adjudicate', status: 'ran' }] };
+  const errored = { stageTable: [{ stage: 'propose', status: 'error' }, { stage: 'verify', status: 'error' }, { stage: 'adjudicate', status: 'error' }] };
+  const skipped = { stageTable: [{ stage: 'propose', status: 'skipped' }, { stage: 'verify', status: 'skipped' }, { stage: 'adjudicate', status: 'skipped' }] };
+  assert.strictEqual(breachOutcome(complete), 'complete');
+  assert.strictEqual(breachOutcome(errored), 'errored');
+  assert.strictEqual(breachOutcome(skipped), 'skipped');
+  assert.strictEqual(breachOutcome({ error: 'no fixture' }), 'n/a');
 });
 
 test('summarise: a red-team lane that never ran contributes zero entries and zero escapes', () => {

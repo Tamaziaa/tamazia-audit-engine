@@ -57,6 +57,12 @@
  * it patterns on is READ from the catalogue argument at runtime, never authored here.
  */
 
+// page-class resolution is ONE door (Rule 1): the spec's page_class and the coverage verdict propose.js
+// consumes must be the SAME function, or an on-page duty could be checked on a surface coverage never
+// judged (C-035). It lives in evidence/crawler/coverage-contract.js; this module imports it rather than
+// keeping a second copy (the cross-wave clone the reconciliation pass deletes).
+const coverageContract = require('../../evidence/crawler/coverage-contract.js');
+
 // ── frozen vocabularies (the closed sets validateSpec enforces) ──────────────────────────────────
 const EVIDENCE_TYPES = Object.freeze(['presence', 'absence', 'behavioural', 'register']);
 const SURFACES = Object.freeze(['visible_text', 'raw_html', 'footer', 'register_row', 'browser_lane']);
@@ -190,22 +196,11 @@ function obligationText(obligation) {
   return ((obligation.duty || '') + ' ' + elems);
 }
 
-// pageClassFor(obligation) -> the crawl page-class an on-page presence/absence duty needs, by anchored
-// tokens in its text; 'any' for a general on-page duty; null for register/behavioural (non-crawl lanes).
-// Kept aligned with evidence/crawler/coverage-contract.js pageClassForObligation (one meaning, two
-// readers) so the coverage verdict propose.js consumes and the spec's own page_class never disagree.
-function pageClassFor(obligation) {
-  const et = obligation && obligation.evidence_type;
-  if (et !== 'presence' && et !== 'absence') return null;
-  const text = obligationText(obligation).toLowerCase();
-  if (/\b(privacy|data protection|gdpr|cookie|personal data)\b/.test(text)) return 'privacy';
-  if (/\b(complaint|complaints|ombudsman|redress)\b/.test(text)) return 'complaints';
-  if (/\bfees?\b/.test(text)) return 'fees';
-  if (/\b(pricing|price|tariff|charges|cost of service)\b/.test(text)) return 'pricing';
-  if (/\b(terms|conditions)\b/.test(text)) return 'terms';
-  if (/\b(returns?|refunds?)\b/.test(text)) return 'returns';
-  return 'any';
-}
+// pageClassFor(obligation) -> the crawl page-class an on-page presence/absence duty needs ('any' for a
+// general on-page duty; null for register/behavioural non-crawl lanes). This IS coverage-contract's
+// pageClassForObligation (one door, one meaning): binding the name to the imported function guarantees
+// the spec's page_class and the coverage verdict can never disagree, and deletes the copy that drifted.
+const pageClassFor = coverageContract.pageClassForObligation;
 
 // surfaceFor(obligation) -> the declared detection/evidence surface (C-035/C-036/C-034).
 function surfaceFor(obligation) {

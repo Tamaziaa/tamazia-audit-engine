@@ -39,6 +39,7 @@
  */
 const spec = require('./detection-spec.js');
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
+const { ARTIFACT_TYPES } = require('../artifact-types.js');
 
 // MIN_PAGES_FOR_ABSENCE: the code-clamped floor for any absence claim (C-025: a safety floor lives in
 // code and cannot be forced below itself; matches facts/capabilities.js's own MIN_PAGES_FOR_ABSENCE).
@@ -108,14 +109,18 @@ function pagesOfClass(pages, pageClass) {
   return pages.filter((p) => coverageContract.classify(p.url) === pageClass);
 }
 // surfaceTextForPresence(spec, pages, footer) -> the surface text a REQUIRED-content check scans, plus
-// the pages it covers. The footer is ALWAYS included, never scanned exclusively: it is an ADDITIONAL
-// mandatory statutory-disclosure surface (C-034), so a disclosure in the body OR the footer counts as
-// present. Scanning the footer alone would read a body disclosure as "missing" (the false-positive this
-// fixes). 'raw_html' is unreadable in the stripped bundle; the interlock abstains before reaching here.
+// the REAL crawled page URLs it covers. The footer is ALWAYS included in the scanned TEXT, never scanned
+// exclusively: it is an ADDITIONAL mandatory statutory-disclosure surface (C-034), so a disclosure in
+// the body OR the footer counts as present. Scanning the footer alone would read a body disclosure as
+// "missing" (the false-positive this fixes). coveredPages carries ONLY real page URLs (never a '(footer)'
+// sentinel), because the coverage_proof verifier (breach/verifiers/coverage-proof.js) cross-checks every
+// pages_checked entry against bundle.corpus.pages: a sentinel that is not a crawled URL would fail that
+// check. The footer is a corpus-wide surface represented by the artifact's own `surface` field, not a
+// page. 'raw_html' is unreadable in the stripped bundle; the interlock abstains before reaching here.
 function surfaceTextForPresence(detectionSpec, pages, footer) {
   const scoped = pagesOfClass(pages, detectionSpec.page_class);
   const text = scoped.map((p) => p.text).concat(footer ? [footer] : []).join('\n');
-  const coveredPages = scoped.map((p) => p.url).concat(footer ? ['(footer)'] : []);
+  const coveredPages = scoped.map((p) => p.url);
   return { text, coveredPages };
 }
 
@@ -212,7 +217,7 @@ function evalPresenceBreach(detectionSpec, pages) {
   if (!detectionSpec.patterns.length) return null;
   const found = findProhibitedQuote(detectionSpec, pages);
   if (found.quote) {
-    const artifact = { type: 'quote', text: found.quote, surface: detectionSpec.surface };
+    const artifact = { type: ARTIFACT_TYPES.QUOTE, text: found.quote, surface: detectionSpec.surface };
     return candidate(detectionSpec, KIND.PRESENCE_BREACH, artifact, found.page_url, 'strong');
   }
   if (found.guardedOnly) return suppressed(detectionSpec, KIND.PRESENCE_BREACH, 'all-matches-negated-or-review (compliant self-declaration or testimonial, C-048/C-090)');
@@ -240,12 +245,19 @@ function evalAbsenceBreach(detectionSpec, bundle, coverageState) {
   if (requiredContentPresent(detectionSpec, surface.text, pages)) return null; // present -> no breach
   const block = absenceInterlock(detectionSpec, bundle, coverageState);
   if (block) return suppressed(detectionSpec, KIND.ABSENCE_BREACH, block);
+  // tier1_fetched + truncated ride the artifact at emit (D2, ledger decision 2): the coverage_proof
+  // verifier re-checks them independently (defence in depth, Rule 3/4). tier1_fetched is TRUE here
+  // because absenceInterlock only reaches this point when coverageState==='covered' - the crawler's
+  // proof the needed page-class was fetched before any cap (C-026); truncated is read straight off the
+  // bundle and is FALSE here because the interlock demotes a truncated corpus above (C-024).
   const artifact = {
-    type: 'coverage_proof',
+    type: ARTIFACT_TYPES.COVERAGE_PROOF,
     page_class: detectionSpec.page_class,
     surface: detectionSpec.surface,
     pages_checked: surface.coveredPages,
     searched_patterns: detectionSpec.patterns.map(patternSummary),
+    tier1_fetched: true,
+    truncated: isTruncated(bundle),
   };
   return candidate(detectionSpec, KIND.ABSENCE_BREACH, artifact, null, 'moderate');
 }
@@ -280,30 +292,27 @@ function laneReason(browser) {
 }
 // observedCandidates(detectionSpec, observed) -> a behavioural candidate per observation this obligation
 // concerns (C-039: a pre-consent cookie set is a completed observed breach with the event as artifact).
+// This is the SINGLE door for every browser observation, INCLUDING a broken consent control (C-042):
+// evidence/browser/observe.js pushes a `consent_control_broken` entry into bundle.browser.observed[]
+// with its host derived through the tools/lib/safe-fetch.js parsed-host door (never substring-matched),
+// so wrapping that entry here as a network_event REUSES the observed-entry shape verbatim and verifies
+// unchanged against breach/verifiers/network-event.js (D4, ledger decision 4). There is deliberately no
+// second broken-control path off bundle.browser.consentControl: a divergent path would double-count the
+// same breach (the summary and observed[] both carry it) and its bespoke shape lacked the host/name
+// verifyNetworkEvent matches on, so it could never verify.
 function observedCandidates(detectionSpec, observed) {
   const out = [];
   for (const ev of (Array.isArray(observed) ? observed : [])) {
     if (!ev || !ev.kind || !obligationConcerns(detectionSpec, ev.kind)) continue;
-    out.push(candidate(detectionSpec, KIND.BEHAVIOURAL, { type: 'network_event', ...ev }, ev.host || ev.url || null, 'strong'));
+    out.push(candidate(detectionSpec, KIND.BEHAVIOURAL, { type: ARTIFACT_TYPES.NETWORK_EVENT, ...ev }, ev.host || ev.url || null, 'strong'));
   }
   return out;
-}
-// brokenControlCandidate(detectionSpec, cc) -> a behavioural candidate when a found consent control is
-// unhealthy on a consent-concerned obligation (C-042: a broken control is itself a finding class), else null.
-function brokenControlCandidate(detectionSpec, cc) {
-  if (!cc || cc.found !== true || cc.healthy !== false) return null;
-  if (!obligationConcerns(detectionSpec, 'consent_control_broken')) return null;
-  const artifact = { type: 'network_event', kind: 'consent_control_broken', url: cc.url || null, healthy: false };
-  return candidate(detectionSpec, KIND.BEHAVIOURAL, artifact, cc.url || null, 'strong');
 }
 // evalBehavioural: consume bundle.browser. The lane not running is a recorded suppression (C-041).
 function evalBehavioural(detectionSpec, bundle) {
   const browser = bundle && bundle.browser;
   if (!laneRan(browser)) return [suppressed(detectionSpec, KIND.BEHAVIOURAL, 'browser lane unavailable: ' + laneReason(browser) + ' (C-041)')];
-  const out = observedCandidates(detectionSpec, browser.observed);
-  const broken = brokenControlCandidate(detectionSpec, browser.consentControl);
-  if (broken) out.push(broken);
-  return out;
+  return observedCandidates(detectionSpec, browser.observed);
 }
 
 // registerTargetFor(detectionSpec, record, keys) -> the bundle register key this record's register duty
@@ -315,8 +324,12 @@ function registerTargetFor(record, keys) {
   return keys.find((k) => blob.includes(String(k).toLowerCase())) || null;
 }
 // evalRegister: consume bundle.registers. A present matched row is compliant (no candidate). A DEFINITIVE
-// no_match note (C-004) is a weak candidate carrying that note as its register_row artifact. Any other
-// state (no target resolvable, a degraded/skipped lane, no note at all) is a recorded suppression.
+// no_match note (C-004) is a weak candidate carrying a `register_absence` artifact (its own artifact
+// class, distinct from a register_row which cites a row that is PRESENT - ledger decision 3): the
+// register lane RAN and returned no name-match. Any other state (no target resolvable, a degraded/skipped
+// lane, no note at all) is a recorded suppression. The candidate is WEAK: a no-match is not proof of
+// non-registration (a slightly different registered name can miss the match), so the adjudicator
+// quarantines it to needs_review rather than shipping a hard violation (Rule 6).
 function evalRegister(detectionSpec, bundle, record) {
   const registers = (bundle && bundle.registers) || {};
   const keys = Object.keys(registers).filter((k) => k !== 'notes');
@@ -327,7 +340,8 @@ function evalRegister(detectionSpec, bundle, record) {
   if (registers[target]) return null; // a matched row is present -> compliant on this duty
   const note = notes.find((n) => n && n.register === target);
   if (note && note.kind === 'no_match') {
-    return candidate(detectionSpec, KIND.REGISTER, { type: 'register_row', present: false, register: target, lane: 'no_match', note }, null, 'weak');
+    const artifact = { type: ARTIFACT_TYPES.REGISTER_ABSENCE, register: target, query: (note.query || note.detail) || null, lane: 'no_match', note };
+    return candidate(detectionSpec, KIND.REGISTER, artifact, null, 'weak');
   }
   return suppressed(detectionSpec, KIND.REGISTER, 'register "' + target + '" not definitively checked (' + ((note && note.kind) || 'no note') + '); a no-match is required before a non-appearance claim (C-004)');
 }

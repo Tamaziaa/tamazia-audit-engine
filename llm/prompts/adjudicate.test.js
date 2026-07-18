@@ -28,14 +28,16 @@ test('buildAdjudicationPrompt returns the full package', () => {
   assert.equal(p.sources.S1, EVIDENCE[0].text);
 });
 
-test('the schema pins the closed three-state verdict enum and requires finding_id + verdict', () => {
+test('the schema pins the closed three-state verdict enum (underscore token) and requires finding_id + verdict', () => {
   const s = adj.responseSchema();
   assert.deepEqual(s.required, ['finding_id', 'verdict']);
-  assert.deepEqual(s.properties.verdict.enum, ['violation', 'needs-review', 'pass']);
+  assert.deepEqual(s.properties.verdict.enum, ['violation', 'needs_review', 'pass']);
 });
 
-test('verdicts export is exactly the closed enum', () => {
-  assert.deepEqual(adj.VERDICTS, ['violation', 'needs-review', 'pass']);
+test('verdicts export is exactly the closed enum, imported from the one door breach/adjudicator/verdict.js', () => {
+  const { VERDICTS } = require('../../breach/adjudicator/verdict.js');
+  assert.deepEqual(adj.VERDICTS, ['violation', 'needs_review', 'pass']);
+  assert.deepEqual(adj.VERDICTS, VERDICTS, 'the prompt enum must BE the canonical verdict enum, not a copy');
 });
 
 test('the prompt carries the finding, each DOC-tagged span, and the verbatim instruction', () => {
@@ -71,10 +73,10 @@ test('an injected </DOC> inside evidence text does not appear raw in the prompt'
 
 // ---- citation-required policy ----
 
-test('citationRequiredFor is true for violation and pass, false for needs-review', () => {
+test('citationRequiredFor is true for violation and pass, false for needs_review', () => {
   assert.equal(adj.citationRequiredFor('violation'), true);
   assert.equal(adj.citationRequiredFor('pass'), true);
-  assert.equal(adj.citationRequiredFor('needs-review'), false);
+  assert.equal(adj.citationRequiredFor('needs_review'), false);
 });
 
 // ---- end-to-end composition with the gate ----

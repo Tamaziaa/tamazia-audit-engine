@@ -70,7 +70,7 @@ test('every FIRED candidate carries a non-null artifact (Rule 3: no artifact, no
   assert.ok(firedOnes.length >= 3, 'several lanes fire on this bundle');
   for (const c of firedOnes) {
     assert.ok(c.artifact && typeof c.artifact.type === 'string', 'a fired candidate has a typed artifact: ' + JSON.stringify(c));
-    assert.ok(['quote', 'coverage_proof', 'network_event', 'register_row'].includes(c.artifact.type));
+    assert.ok(['quote', 'coverage_proof', 'network_event', 'register_absence'].includes(c.artifact.type));
   }
 });
 
@@ -110,6 +110,21 @@ test('absence-breach fires when required content is wholly absent, with a covera
   assert.strictEqual(c.confidence_hint, 'moderate');
   assert.ok(Array.isArray(c.artifact.pages_checked) && c.artifact.pages_checked.length > 0, 'the proof names the pages searched');
   assert.ok(Array.isArray(c.artifact.searched_patterns) && c.artifact.searched_patterns.length > 0);
+  // D2: tier1_fetched + truncated ride the artifact and every pages_checked entry is a REAL crawled URL
+  // (no '(footer)' sentinel) so breach/verifiers/coverage-proof.js can cross-check it against the corpus.
+  assert.strictEqual(c.artifact.tier1_fetched, true);
+  assert.strictEqual(c.artifact.truncated, false);
+  const crawledUrls = new Set(b.corpus.pages.map((p) => p.url));
+  assert.ok(c.artifact.pages_checked.every((u) => crawledUrls.has(u)), 'every pages_checked entry is an actually-crawled page URL');
+});
+
+test('a fired coverage_proof candidate VERIFIES end-to-end through breach/verifiers (D2 contract)', () => {
+  const { verifyCandidate } = require('../verifiers/quote-match.js');
+  const b = bundle();
+  const c = fired(propose(b, catalogue(), coverageFor(b)), KIND.ABSENCE_BREACH)[0];
+  const r = verifyCandidate(c, b);
+  assert.strictEqual(r.verified, true, 'the proposer coverage_proof shape must verify against the coverage-proof verifier');
+  assert.strictEqual(r.code, 'coverage_proof_verified');
 });
 
 test('absence-breach does NOT fire when the required content is present (in body or footer)', () => {
@@ -181,15 +196,26 @@ test('behavioural does not attribute a cookie observation to an unrelated (non-c
 });
 
 // ── register (bundle.registers) ─────────────────────────────────────────────────────────────────────
-test('register fires a WEAK candidate on a definitive no_match note (C-004), carrying it as the artifact', () => {
+test('register fires a WEAK candidate on a definitive no_match note (C-004), carrying a register_absence artifact', () => {
   const b = bundle();
   b.registers = { notes: [{ register: 'frb', kind: 'no_match', reason: 'no candidate cleared the name match', detail: null }] };
   const c = fired(propose(b, catalogue(), coverageFor(b)), KIND.REGISTER)[0];
   assert.ok(c, 'a definitive no-match yields a register candidate');
   assert.strictEqual(c.confidence_hint, 'weak', 'a no-match is not proof of non-registration');
-  assert.strictEqual(c.artifact.type, 'register_row');
-  assert.strictEqual(c.artifact.present, false);
+  assert.strictEqual(c.artifact.type, 'register_absence');
+  assert.strictEqual(c.artifact.register, 'frb');
+  assert.strictEqual(c.artifact.lane, 'no_match');
   assert.strictEqual(c.artifact.note.kind, 'no_match');
+});
+
+test('a fired register_absence candidate VERIFIES end-to-end through breach/verifiers (D3 contract)', () => {
+  const { verifyCandidate } = require('../verifiers/quote-match.js');
+  const b = bundle();
+  b.registers = { notes: [{ register: 'frb', kind: 'no_match', reason: 'no candidate cleared the name match', detail: null }] };
+  const c = fired(propose(b, catalogue(), coverageFor(b)), KIND.REGISTER)[0];
+  const r = verifyCandidate(c, b);
+  assert.strictEqual(r.verified, true, 'the proposer register_absence shape must verify against the register-absence verifier');
+  assert.strictEqual(r.code, 'register_absence_verified');
 });
 
 test('register does NOT fire when a matched row is present (compliant)', () => {

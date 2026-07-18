@@ -44,6 +44,22 @@ test('a register-row fact bypasses to a violation too', async () => {
   assert.equal(await stateOf({ code: 'R', description: 'not on the ICO register', artifact: { type: 'register_row' } }, {}), 'violation');
 });
 
+test('CANONICAL: a real network_event observation bypasses to a violation (the C-084 mismatch is closed)', async () => {
+  const cookie = { code: 'PECR', description: 'non-essential cookie before consent',
+    artifact: { type: 'network_event', kind: 'cookie_pre_consent', host: 'ga.example', name: '_ga' } };
+  const { findings, report } = await adjudicate([cookie], BUNDLE, {});
+  assert.equal(findings[0].state, 'violation');
+  assert.equal(findings[0].adjudication, 'observed_fact');
+  assert.equal(report.observed_fact, 1);
+});
+
+test('CANONICAL: a register_absence is quarantined to needs_review, never a bypassed hard violation (Rule 6)', async () => {
+  const absent = { code: 'SRA', description: 'firm does not appear on the SRA register',
+    artifact: { type: 'register_absence', register: 'sra', lane: 'no_match' } };
+  // No llmCall: a text-class candidate abstains to needs_review; it must never bypass to violation.
+  assert.equal(await stateOf(absent, {}), 'needs_review');
+});
+
 test('the hostile model cannot "no_breach" away an observed fact (it never sees it)', async () => {
   // Even a caller that returns no_breach for everything cannot touch the bypassed observation.
   const state = await stateOf(observedCand(), { llmCall: gate([{ id: 0, verdict: 'no_breach', disproof: 'irrelevant span' }]) });

@@ -63,23 +63,29 @@ test('loadVerifyStage: against the real repo tree, breach/verifiers/index.js is 
   assert.strictEqual(typeof r.run, 'function');
 });
 
-test('loadVerifyStage: verifyAll runs cleanly on an empty candidate list (propose is not landed yet)', () => {
+test('loadVerifyStage: verifyAll runs cleanly on an empty candidate list', () => {
   const r = loadVerifyStage();
   const out = r.run([], { corpus: { pages: [] } });
   assert.deepStrictEqual(out, { verified: [], rejected: [] });
 });
 
-// propose/adjudicate against the REAL repo tree are polled truthfully rather than hard-pinned: Wave 2
-// lands in parallel with this harness (docs/P3-ACCEPTANCE.md), so asserting today's exact state would
-// make this test brittle to a landing that is GOOD news. Instead we assert the loader always returns a
-// well-formed, honest {available, reason|source} shape either way - the actual availability is
-// reported by run-pipeline.js's stage-wiring line, not hard-asserted here.
-test('loadProposeStage / loadAdjudicateStage: always return a well-formed {available, ...} shape against the real tree', () => {
-  const propose = loadProposeStage();
-  const adjudicate = loadAdjudicateStage();
-  for (const r of [propose, adjudicate]) {
-    assert.strictEqual(typeof r.available, 'boolean');
-    if (r.available) assert.strictEqual(typeof r.run, 'function');
-    else assert.strictEqual(typeof r.reason, 'string');
-  }
+// propose (W2a) and adjudicate (W2c) have BOTH landed and are wired for real per Rob's ledger decision
+// 6. STAGE_CONTRACT points at breach/proposers/propose.js and breach/adjudicator/adjudicate.js directly.
+test('loadProposeStage: breach/proposers/propose.js exports propose() and is wired', () => {
+  const r = loadProposeStage();
+  assert.strictEqual(r.available, true, 'expected breach/proposers/propose.js to export propose - ' + (r.reason || ''));
+  assert.strictEqual(typeof r.run, 'function');
+  assert.strictEqual(r.source, 'breach/proposers/propose.js');
+});
+
+test('loadAdjudicateStage: breach/adjudicator/adjudicate.js exports adjudicate() and is wired (no index.js barrel)', () => {
+  const r = loadAdjudicateStage();
+  assert.strictEqual(r.available, true, 'expected breach/adjudicator/adjudicate.js to export adjudicate - ' + (r.reason || ''));
+  assert.strictEqual(typeof r.run, 'function');
+  assert.strictEqual(r.source, 'breach/adjudicator/adjudicate.js');
+});
+
+test('STAGE_CONTRACT: adjudicate points at adjudicate.js DIRECTLY, never an index.js barrel (ledger decision 6)', () => {
+  assert.strictEqual(STAGE_CONTRACT.adjudicate.relPath, 'breach/adjudicator/adjudicate.js');
+  assert.strictEqual(STAGE_CONTRACT.propose.relPath, 'breach/proposers/propose.js');
 });

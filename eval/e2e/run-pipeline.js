@@ -72,36 +72,44 @@ function judgedRow(firm, pipelineResult) {
   return Object.assign({ stageTable: pipelineResult.stageTable }, judged);
 }
 
-async function runOneFirm(firm, fixturesDir) {
+// pipelineOptsFrom(opts) -> the breach-lane control opts threaded into every runPipeline call. By
+// default the real breach lane runs in a subprocess bounded by a hard deadline (Rule 9) because
+// breach/proposers/propose.js can hang synchronously on the real catalogue (a ReDoS P0, owner R3/W2a).
+// --breach-inline forces the fast in-process lane (use once the ReDoS is fixed); --no-breach skips it.
+function pipelineOptsFrom(opts) {
+  return { breachTimeoutMs: opts.breachTimeoutMs, breachInProcess: opts.breachInline, noBreach: opts.noBreach };
+}
+
+async function runOneFirm(firm, fixturesDir, pipelineOpts) {
   const loaded = loadFixtureBundle(fixturesDir, firm.domain);
   if (loaded.missing) {
     return { domain: firm.domain, role: firm.role, error: 'no fixture on disk (uncovered gap - a verified firm with no captured artefact)' };
   }
   let pipelineResult;
   try {
-    pipelineResult = await runPipeline(firm.domain, loaded.bundle);
+    pipelineResult = await runPipeline(firm.domain, loaded.bundle, pipelineOpts);
   } catch (e) {
     return { domain: firm.domain, role: firm.role, error: 'pipeline threw: ' + e.message };
   }
   return judgedRow(firm, pipelineResult);
 }
 
-async function runOneSynthetic(fx) {
+async function runOneSynthetic(fx, pipelineOpts) {
   if (fx.error) return { domain: fx.file, role: 'synthetic', error: fx.error };
   const firm = { domain: fx.domain, role: fx.role, expected: fx.expected };
   let pipelineResult;
   try {
-    pipelineResult = await runPipeline(fx.domain, fx.bundle);
+    pipelineResult = await runPipeline(fx.domain, fx.bundle, pipelineOpts);
   } catch (e) {
     return { domain: fx.domain, role: fx.role, error: 'pipeline threw: ' + e.message };
   }
   return judgedRow(firm, pipelineResult);
 }
 
-async function runSyntheticFixtures(dir) {
+async function runSyntheticFixtures(dir, pipelineOpts) {
   const fixtures = loadSyntheticFixtures(dir);
   const rows = [];
-  for (const fx of fixtures) rows.push(await runOneSynthetic(fx));
+  for (const fx of fixtures) rows.push(await runOneSynthetic(fx, pipelineOpts));
   return rows;
 }
 
@@ -114,10 +122,15 @@ function parseOneArg(args, i, opts) {
   if (a === '--json') { opts.json = true; return 1; }
   if (a === '--no-synthetic') { opts.noSynthetic = true; return 1; }
   if (a === '--no-red-team') { opts.noRedteam = true; return 1; }
+  if (a === '--no-breach') { opts.noBreach = true; return 1; }
+  if (a === '--breach-inline') { opts.breachInline = true; return 1; }
+  if (a === '--breach-timeout') { opts.breachTimeoutMs = Number(args[i + 1]); return 2; }
   const key = FLAGS_WITH_VALUE[a];
   if (key) { opts[key] = args[i + 1]; return 2; }
   return 0;
 }
+
+const DEFAULT_BREACH_TIMEOUT_MS = 15000; // Rule 9 hard per-firm breach-lane deadline (a CAP, never a floor)
 
 // parseArgs(argv) -> {opts} on success, or {exitCode} when an unrecognised argument is given.
 function parseArgs(argv) {
@@ -125,11 +138,16 @@ function parseArgs(argv) {
   const opts = {
     json: false, set: DEFAULT_SET, fixtures: DEFAULT_FIXTURES, synthetic: DEFAULT_SYNTHETIC,
     redteam: DEFAULT_REDTEAM, domain: null, noSynthetic: false, noRedteam: false,
+    noBreach: false, breachInline: false, breachTimeoutMs: DEFAULT_BREACH_TIMEOUT_MS,
   };
   for (let i = 0; i < args.length;) {
     const consumed = parseOneArg(args, i, opts);
     if (consumed === 0) { console.error('Unknown argument: ' + args[i]); return { exitCode: 2 }; }
     i += consumed;
+  }
+  if (!Number.isFinite(opts.breachTimeoutMs) || opts.breachTimeoutMs < 0) {
+    console.error('--breach-timeout must be a non-negative number of milliseconds');
+    return { exitCode: 2 };
   }
   return { opts };
 }
@@ -146,13 +164,13 @@ function exitCodeFor(rows, redteam) {
   return (contradicting || escapes) ? 1 : 0;
 }
 
-async function runReferenceSetFirms(opts) {
+async function runReferenceSetFirms(opts, pipelineOpts) {
   const loaded = loadRefSetAndFixtures({ set: opts.set, fixtures: opts.fixtures });
   if (loaded.exitCode) return { exitCode: loaded.exitCode };
   const selected = selectFirms(loaded.refSet, { domain: opts.domain });
   if (selected.exitCode) return { exitCode: selected.exitCode };
   const rows = [];
-  for (const firm of selected.firms) rows.push(await runOneFirm(firm, opts.fixtures));
+  for (const firm of selected.firms) rows.push(await runOneFirm(firm, opts.fixtures, pipelineOpts));
   return { rows };
 }
 
@@ -160,18 +178,19 @@ async function main(argv) {
   const parsed = parseArgs(argv);
   if (parsed.exitCode) return parsed.exitCode;
   const { opts } = parsed;
+  const pipelineOpts = pipelineOptsFrom(opts);
 
-  const referenceRun = await runReferenceSetFirms(opts);
+  const referenceRun = await runReferenceSetFirms(opts, pipelineOpts);
   if (referenceRun.exitCode) return referenceRun.exitCode;
 
-  const syntheticRows = opts.noSynthetic ? [] : await runSyntheticFixtures(opts.synthetic);
+  const syntheticRows = opts.noSynthetic ? [] : await runSyntheticFixtures(opts.synthetic, pipelineOpts);
   const allRows = referenceRun.rows.concat(syntheticRows);
 
   const wiring = probeStageWiring();
   const redteam = opts.noRedteam ? { present: false, rows: [] } : await runRedTeamLane(opts.redteam, {
     stageTable: wiring.map((w) => ({ stage: w.stage, status: w.status === 'wired' ? 'ran' : 'skipped' })),
     fixturesDir: opts.fixtures,
-    runPipelineForBundle: (domain, bundle) => runPipeline(domain, bundle),
+    runPipelineForBundle: (domain, bundle) => runPipeline(domain, bundle, pipelineOpts),
   });
 
   const summary = report.summarise(allRows, redteam);
@@ -187,4 +206,4 @@ if (require.main === module) {
   main(process.argv).then((code) => process.exit(code));
 }
 
-module.exports = { main, parseArgs, runOneFirm, runOneSynthetic, runSyntheticFixtures, loadFixtureBundle, exitCodeFor };
+module.exports = { main, parseArgs, pipelineOptsFrom, runOneFirm, runOneSynthetic, runSyntheticFixtures, loadFixtureBundle, exitCodeFor, DEFAULT_BREACH_TIMEOUT_MS };

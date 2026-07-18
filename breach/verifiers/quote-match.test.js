@@ -206,12 +206,30 @@ test('fabricated network event REJECTED via the full verifyCandidate dispatch pa
   assert.equal(r.code, CODES.NETWORK_EVENT_NOT_FOUND);
 });
 
-test('absence claim without coverage_proof REJECTED via the full verifyCandidate dispatch path', () => {
+test('absence claim without coverage_proof pages REJECTED via the full verifyCandidate dispatch path', () => {
   const bundle = pageBundle([SRA_PAGE]);
   const candidate = { rule_id: 'COMPLAINTS_PROCEDURE_DISCLOSURE', artifact: { type: 'coverage_proof', page_class: 'complaints' } };
   const r = verifyCandidate(candidate, bundle);
   assert.equal(r.verified, false);
-  assert.equal(r.code, CODES.COVERAGE_PROOF_MISSING_FIELDS);
+  assert.equal(r.code, CODES.COVERAGE_PROOF_NO_PAGES);
+});
+
+test('register_absence dispatches to verifyRegisterAbsence: a definitive no_match verifies via the full path', () => {
+  const note = { register: 'sra', kind: 'no_match', reason: 'no name match', detail: null };
+  const bundle = { registers: { notes: [note] } };
+  const candidate = { rule_id: 'SRA_AUTHORISATION', artifact: { type: 'register_absence', register: 'sra', lane: 'no_match', note } };
+  const r = verifyCandidate(candidate, bundle);
+  assert.equal(r.verified, true);
+  assert.equal(r.code, CODES.REGISTER_ABSENCE_VERIFIED);
+});
+
+test('register_absence behind a degraded (non-run) lane is REJECTED via the full dispatch path (C-004)', () => {
+  const note = { register: 'sra', kind: 'degraded', reason: 'missing api key', detail: null };
+  const bundle = { registers: { notes: [note] } };
+  const candidate = { rule_id: 'SRA_AUTHORISATION', artifact: { type: 'register_absence', register: 'sra', lane: 'no_match', note } };
+  const r = verifyCandidate(candidate, bundle);
+  assert.equal(r.verified, false);
+  assert.equal(r.code, CODES.REGISTER_ABSENCE_NOT_PROVEN);
 });
 
 // ── real-proposer shape compatibility (breach/proposers/propose.js, confirmed by direct integration

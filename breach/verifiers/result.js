@@ -33,15 +33,20 @@ const CODES = Object.freeze({
   NETWORK_EVENT_LANE_NOT_RUN: 'network_event_lane_not_run',
   NETWORK_EVENT_NOT_FOUND: 'network_event_not_found',
 
-  // register_row artifacts (breach/verifiers/register-row.js)
+  // register_row artifacts (breach/verifiers/register-row.js) - a row claimed PRESENT
   REGISTER_ROW_VERIFIED: 'register_row_verified',
   REGISTER_ROW_MISSING_FIELDS: 'register_row_missing_fields',
   REGISTER_ROW_ABSENT: 'register_row_absent',
   REGISTER_ROW_MISMATCH: 'register_row_mismatch',
 
+  // register_absence artifacts (breach/verifiers/register-absence.js) - a definitive register NO-MATCH
+  REGISTER_ABSENCE_VERIFIED: 'register_absence_verified',
+  REGISTER_ABSENCE_MISSING_FIELDS: 'register_absence_missing_fields',
+  REGISTER_ABSENCE_ROW_PRESENT: 'register_absence_row_present',
+  REGISTER_ABSENCE_NOT_PROVEN: 'register_absence_not_proven',
+
   // coverage_proof artifacts (breach/verifiers/coverage-proof.js)
   COVERAGE_PROOF_VERIFIED: 'coverage_proof_verified',
-  COVERAGE_PROOF_MISSING_FIELDS: 'coverage_proof_missing_fields',
   COVERAGE_PROOF_NO_PAGES: 'coverage_proof_no_pages',
   COVERAGE_PROOF_PAGES_NOT_IN_BUNDLE: 'coverage_proof_pages_not_in_bundle',
   COVERAGE_PROOF_TIER1_NOT_FETCHED: 'coverage_proof_tier1_not_fetched',

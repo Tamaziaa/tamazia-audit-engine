@@ -11,15 +11,22 @@
 // automatically - no other file needs to change. If a stage lands at a different path/export name,
 // only STAGE_CONTRACT needs editing (one seam, Rule 1 doctrine).
 //
-// STATE AS OF THIS HARNESS'S BUILD (poll again before trusting this list - modules land continuously):
-//   propose     breach/proposers/    only .gitkeep - NOT landed. Stage reports skipped.
+// STATE AS OF THIS HARNESS'S FINAL WIRING (poll again before trusting this list - modules land
+// continuously; the `--json` `stageWiring` block is the live truth):
+//   propose     breach/proposers/propose.js exports propose(bundle, catalogue, coverage) -> candidate[].
+//               LANDED (W2a) - wired for real per Rob's ledger decision 6.
 //   verify      breach/verifiers/index.js re-exports quote-match.js's verifyAll(candidates, bundle) ->
-//               {verified:[{candidate,verified,code,reason}], rejected:[...]}. LANDED - wired for real.
-//   adjudicate  breach/adjudicator/ has evidence-kind.js (classifyEvidenceKind) and verdict.js
-//               (parseVerdict) as pure building blocks, plus llm/gate.js (validateResponse) and
-//               llm/prompts/adjudicate.js (buildAdjudicationPrompt) - but NO composing index.js yet
-//               that takes (verified, {llmCall}) and returns findings[]. Stage reports skipped until
-//               that composing entry point lands.
+//               {verified:[{candidate,verified,code,reason}], rejected:[...]}. LANDED (W2b) - wired for real.
+//   adjudicate  breach/adjudicator/adjudicate.js exports adjudicate(candidates, bundle, {llmCall,...}) ->
+//               {findings, report}. LANDED (W2c) - wired for real per Rob's ledger decision 6 (adjudicate.js
+//               DIRECTLY, NOT an index.js barrel: breach/adjudicator/ is not this task's to add files to).
+//
+// Rob's ledger warns (decisions 2/3/4) that the propose<->verify artifact SHAPES are being reconciled
+// by a parallel agent (R3) as this harness runs. Pre-reconciliation, a shape-mismatched candidate is
+// REJECTED by the verifier (fail-closed) or classified-invalid by the adjudicator's evidence-kind gate,
+// so it becomes needs_review and never a violation. The wiring is tolerant of that: it passes
+// candidates through the REAL functions and reads only what they return, so pre- and post-R3 both run
+// safely - the harness never fabricates a violation, it reports honestly what the real chain produced.
 
 const fs = require('fs');
 const path = require('path');
@@ -27,9 +34,9 @@ const path = require('path');
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 const STAGE_CONTRACT = {
-  propose: { relPath: 'breach/proposers/index.js', exportName: 'propose' },
+  propose: { relPath: 'breach/proposers/propose.js', exportName: 'propose' },
   verify: { relPath: 'breach/verifiers/index.js', exportName: 'verifyAll' },
-  adjudicate: { relPath: 'breach/adjudicator/index.js', exportName: 'adjudicate' },
+  adjudicate: { relPath: 'breach/adjudicator/adjudicate.js', exportName: 'adjudicate' },
 };
 
 // loadOptionalModule(rootDir, relPath, exportName) -> {available, run, source, reason}. A Wave-2

@@ -9,14 +9,16 @@ function bundleWithPages(urls) {
   return { corpus: { pages: urls.map((url) => ({ url, title: '', text: '', jsonLd: [] })) } };
 }
 
+// The FLAT coverage_proof shape the proposer emits (breach/proposers/propose.js): pages_checked,
+// tier1_fetched and truncated sit directly on the artifact, not inside a nested `coverage` object.
 const goodArtifact = {
   type: 'coverage_proof',
   page_class: 'complaints',
-  coverage: {
-    pages: ['https://example.com/', 'https://example.com/complaints'],
-    tier1_fetched: true,
-    truncated: false,
-  },
+  surface: 'visible_text',
+  pages_checked: ['https://example.com/', 'https://example.com/complaints'],
+  searched_patterns: [{ kind: 'token-set', tokens: ['complaints', 'procedure'], mode: 'all' }],
+  tier1_fetched: true,
+  truncated: false,
 };
 
 test('a coverage_proof whose pages are all in the bundle, Tier-1 fetched and not truncated is verified', () => {
@@ -26,18 +28,11 @@ test('a coverage_proof whose pages are all in the bundle, Tier-1 fetched and not
   assert.equal(r.code, CODES.COVERAGE_PROOF_VERIFIED);
 });
 
-test('absence claim without coverage_proof REJECTED: no artifact.coverage at all', () => {
+test('an empty or absent pages_checked list is rejected', () => {
   const bundle = bundleWithPages(['https://example.com/']);
-  const r = verifyCoverageProof({ type: 'coverage_proof', page_class: 'complaints' }, bundle);
-  assert.equal(r.verified, false);
-  assert.equal(r.code, CODES.COVERAGE_PROOF_MISSING_FIELDS);
-});
-
-test('an empty or missing pages list is rejected', () => {
-  const bundle = bundleWithPages(['https://example.com/']);
-  const empty = verifyCoverageProof({ type: 'coverage_proof', coverage: { pages: [], tier1_fetched: true, truncated: false } }, bundle);
+  const empty = verifyCoverageProof({ type: 'coverage_proof', pages_checked: [], tier1_fetched: true, truncated: false }, bundle);
   assert.equal(empty.code, CODES.COVERAGE_PROOF_NO_PAGES);
-  const missing = verifyCoverageProof({ type: 'coverage_proof', coverage: { tier1_fetched: true, truncated: false } }, bundle);
+  const missing = verifyCoverageProof({ type: 'coverage_proof', tier1_fetched: true, truncated: false }, bundle);
   assert.equal(missing.code, CODES.COVERAGE_PROOF_NO_PAGES);
 });
 
@@ -56,9 +51,9 @@ test('an entirely pageless bundle rejects every coverage_proof (nothing to prove
 });
 
 test('tier1_fetched must be literally true; missing/false/truthy-but-not-boolean all reject', () => {
-  const bundle = bundleWithPages(goodArtifact.coverage.pages);
+  const bundle = bundleWithPages(goodArtifact.pages_checked);
   for (const tier1_fetched of [false, undefined, 1, 'true']) {
-    const artifact = { ...goodArtifact, coverage: { ...goodArtifact.coverage, tier1_fetched } };
+    const artifact = { ...goodArtifact, tier1_fetched };
     const r = verifyCoverageProof(artifact, bundle);
     assert.equal(r.verified, false);
     assert.equal(r.code, CODES.COVERAGE_PROOF_TIER1_NOT_FETCHED);
@@ -66,9 +61,9 @@ test('tier1_fetched must be literally true; missing/false/truthy-but-not-boolean
 });
 
 test('truncated must be literally false; missing/true/truthy-but-not-boolean all reject (C-024/C-025)', () => {
-  const bundle = bundleWithPages(goodArtifact.coverage.pages);
+  const bundle = bundleWithPages(goodArtifact.pages_checked);
   for (const truncated of [true, undefined, 1]) {
-    const artifact = { ...goodArtifact, coverage: { ...goodArtifact.coverage, truncated } };
+    const artifact = { ...goodArtifact, truncated };
     const r = verifyCoverageProof(artifact, bundle);
     assert.equal(r.verified, false);
     assert.equal(r.code, CODES.COVERAGE_PROOF_TRUNCATED);

@@ -12,10 +12,14 @@
  * It hosts the quote-artifact gate directly (Gate 2's specific, named concern) and dispatches the
  * other three artifact classes to their sibling modules:
  *
- *   quote artifact           -> verifyQuote (this file)
- *   network_event artifact   -> breach/verifiers/network-event.js
- *   register_row artifact    -> breach/verifiers/register-row.js
- *   coverage_proof artifact  -> breach/verifiers/coverage-proof.js
+ *   quote artifact            -> verifyQuote (this file)
+ *   network_event artifact    -> breach/verifiers/network-event.js
+ *   register_row artifact     -> breach/verifiers/register-row.js
+ *   register_absence artifact -> breach/verifiers/register-absence.js
+ *   coverage_proof artifact   -> breach/verifiers/coverage-proof.js
+ *
+ * The artifact.type vocabulary is the single closed enum in breach/artifact-types.js (Rule 1, one
+ * door): this dispatcher keys its verifier table off those canonical constants, never bare literals.
  *
  * ── the candidate/artifact contract (this module's own; breach/proposers/ must produce it) ────────
  *
@@ -23,7 +27,7 @@
  *     rule_id: string,          // the catalogue rule this candidate proposes evidence for (pass
  *                                // through untouched; never read or judged by this directory)
  *     artifact: {
- *       type: 'quote' | 'network_event' | 'register_row' | 'coverage_proof',
+ *       type: 'quote' | 'network_event' | 'register_row' | 'register_absence' | 'coverage_proof',
  *       ... type-specific fields, see the sibling module or verifyQuote below ...
  *     },
  *   }
@@ -65,8 +69,10 @@
  * never assumed true).
  */
 const { CODES, accepted, rejected } = require('./result');
+const { ARTIFACT_TYPES } = require('../artifact-types');
 const { verifyNetworkEvent } = require('./network-event');
 const { verifyRegisterRow } = require('./register-row');
+const { verifyRegisterAbsence } = require('./register-absence');
 const { verifyCoverageProof } = require('./coverage-proof');
 
 const VALID_SURFACES = new Set(['visible_text', 'raw_html']);
@@ -136,10 +142,11 @@ function verifyQuote(artifact, bundle) {
 }
 
 const VERIFIERS_BY_TYPE = {
-  quote: verifyQuote,
-  network_event: verifyNetworkEvent,
-  register_row: verifyRegisterRow,
-  coverage_proof: verifyCoverageProof,
+  [ARTIFACT_TYPES.QUOTE]: verifyQuote,
+  [ARTIFACT_TYPES.NETWORK_EVENT]: verifyNetworkEvent,
+  [ARTIFACT_TYPES.REGISTER_ROW]: verifyRegisterRow,
+  [ARTIFACT_TYPES.REGISTER_ABSENCE]: verifyRegisterAbsence,
+  [ARTIFACT_TYPES.COVERAGE_PROOF]: verifyCoverageProof,
 };
 
 // resolveQuoteArtifact(candidate, artifact) -> an effective quote artifact with real-proposer shape
@@ -155,7 +162,7 @@ const VERIFIERS_BY_TYPE = {
 // check in verifyQuote is unchanged), only WHERE the same two facts (which page, what quote) may be
 // read from on the way in.
 function resolveQuoteArtifact(candidate, artifact) {
-  if (!artifact || artifact.type !== 'quote') return artifact;
+  if (!artifact || artifact.type !== ARTIFACT_TYPES.QUOTE) return artifact;
   const pageUrl = artifact.page_url == null ? (candidate && candidate.page_url) : artifact.page_url;
   const quote = artifact.quote == null ? artifact.text : artifact.quote;
   if (pageUrl === artifact.page_url && quote === artifact.quote) return artifact;

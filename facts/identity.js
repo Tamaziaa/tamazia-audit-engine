@@ -415,6 +415,34 @@ function readCompaniesHouseRow(registers) {
   return { name: name || null, number, office };
 }
 
+// Canonical strong incorporation forms for the KYB entity-form contradiction check (C-004/
+// C-072). Ambiguous suffixes (co, company) are omitted; only a clear differing form contradicts.
+const STRONG_FORM = Object.freeze({
+  ltd: 'LTD', limited: 'LTD', llp: 'LLP', plc: 'PLC', llc: 'LLC', lp: 'LP', inc: 'INC', incorporated: 'INC',
+  cic: 'CIC', cio: 'CIO', pllc: 'PLLC', gmbh: 'GMBH', sarl: 'SARL', bv: 'BV', pty: 'PTY',
+});
+function entityForm(name) {
+  const toks = String(name || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  for (let i = toks.length - 1; i >= 0; i -= 1) {
+    if (Object.prototype.hasOwnProperty.call(STRONG_FORM, toks[i])) return STRONG_FORM[toks[i]];
+  }
+  return null;
+}
+
+// A name-core match does NOT corroborate a register row an on-page IDENTIFIER contradicts.
+// A matching on-page number is decisive; a DIFFERING number, or - absent a matching number -
+// a differing on-page legal form (Ltd vs LLP), contradicts (C-004/C-005/C-072).
+function registerContradiction(reg, onPageNumbers, nameGroup) {
+  if (reg.number && onPageNumbers.has(reg.number)) return null;
+  if (reg.number && onPageNumbers.size > 0) return 'company_number_mismatch';
+  const regForm = entityForm(reg.name);
+  if (regForm) {
+    const pageForms = new Set((nameGroup || []).map((e) => entityForm(e.value)).filter(Boolean));
+    if (pageForms.size > 0 && !pageForms.has(regForm)) return 'entity_form_mismatch';
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------------
 // Slug: kebab-case of the resolved display_name. NEVER the page title (caution C-003).
 // ---------------------------------------------------------------------------------
@@ -549,7 +577,8 @@ function resolveIdentity(bundle) {
 
   // ------------------------------- register rung ---------------------------------
   const reg = readCompaniesHouseRow(bundle.registers);
-  let regAttachment = 'none'; // 'register' | 'weak' | 'none'
+  let regAttachment = 'none'; // 'register' | 'weak' | 'contradicted' | 'none'
+  let contradictedRegNumber = null;
   const regEvidence = [];
   if (reg && reg.name) {
     const regReject = rejectReason(reg.name, domain, { fromRegister: true });
@@ -572,7 +601,15 @@ function resolveIdentity(bundle) {
         const first = groups.get(regNorm)[0];
         regEvidence.push({ kind: first.rung, source: first.source, quote: first.quote || first.value });
       }
-      if (numberOnPage || nameOnPage) {
+      const contradiction = (numberOnPage || nameOnPage)
+        ? registerContradiction(reg, onPageNumbers, regNorm ? groups.get(regNorm) : null)
+        : null;
+      if (contradiction) {
+        regAttachment = 'contradicted';
+        contradictedRegNumber = reg.number || null;
+        notes.push('companiesHouse: on-page evidence CONTRADICTS the register row (' + contradiction
+          + '); a name-core match does not corroborate it, so legal identifiers abstain and display_name falls to on-page evidence (a wrong register match is worse than none, C-004/C-005)');
+      } else if (numberOnPage || nameOnPage) {
         regAttachment = 'register';
       } else if (sharesTokenWithDomain(reg.name, domain)) {
         regAttachment = 'weak';
@@ -660,7 +697,9 @@ function resolveIdentity(bundle) {
     companyNumber = fact(reg.number, CONFIDENCE.WEAK, regEvidence.slice(0, 2));
   } else {
     const distinct = Array.from(onPageNumbers.keys());
-    if (distinct.length === 1) {
+    if (contradictedRegNumber && distinct.length >= 1 && !distinct.includes(contradictedRegNumber)) {
+      notes.push('company_number: on-page number(s) conflict with the register row number ' + contradictedRegNumber + '; neither is safe, abstaining (conflict is not evidence, C-004)');
+    } else if (distinct.length === 1) {
       const sightings = onPageNumbers.get(distinct[0]);
       const distinctSources = new Set(sightings.map((s) => s.source));
       companyNumber = fact(
@@ -791,6 +830,7 @@ module.exports = {
   findCompanyNumbers,
   collectJsonLdOrgs,
   readCompaniesHouseRow,
+  entityForm,
   domainStem,
   titleCase,
   normName,

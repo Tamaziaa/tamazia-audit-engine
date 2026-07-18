@@ -302,7 +302,7 @@
       "class": "contradictory-evidence bundle",
       "title": "Footer says Ltd (number 09...), the Companies House row says LLP (number OC...); the engine must abstain, never confidently assert.",
       "caution_refs": ["C-004", "C-005", "C-072", "C-082", "C-165"],
-      "current_status": "verified_escapes_live_gate",
+      "current_status": "verified_caught_live",
       "input": {
         "bundle": {
           "domain": "contradict-legal.co.uk",

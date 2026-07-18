@@ -20,6 +20,17 @@ Every module below is real, tested, calibrated, wave-1/wave-2 P3 work. None of i
 and will be wired into `mint/`'s evidence-collection step in P4. They are dormant only in the specific
 sense that no `mint/` entry point exists yet to require them.
 
+## Charter-exit condition FORMALLY DEFERRED to P4
+
+The P3 charter exit **"PECR pre-consent proven in a minted payload"** is **NOT met in P3 and is formally
+deferred to P4 mint wiring** - recorded here rather than silently missed. The whole evidence chain that
+proves it exists and is green (`evidence/browser/observe.js` observes the pre-consent breach, the
+proposer wraps it as a `network_event` candidate, the verifier re-matches it against
+`bundle.browser.observed`, and the adjudicator bypasses it to a `violation` as an observed fact), but
+there is no `mint/` entry point yet to assemble a bundle, run the chain end-to-end and persist the
+resulting payload. "Proven in a minted payload" therefore cannot be demonstrated until `mint/worker.js`
+lands (P4) and the reachability walk arms. The exit condition is owned by P4, not dropped.
+
 ## evidence/browser/ (PECR pre-consent lane, P3 Wave-1c)
 
 | Module | Reason | Owner | Unblocks when |
@@ -37,7 +48,7 @@ sense that no `mint/` entry point exists yet to require them.
 | `evidence/crawler/discover.js` | link + sitemap discovery, consumed only by `crawl.js` | Aman | same as above |
 | `evidence/crawler/extract.js` | page-content classification + footer text extraction, consumed only by `crawl.js` | Aman | same as above |
 | `evidence/crawler/pool.js` | the bounded-concurrency fetch pool; tested (`pool.test.js`, landed mid-pass), consumed only by `crawl.js` | Aman | same as above |
-| `evidence/crawler/coverage-contract.js` | coverage-as-blocking-data (C-029/C-044); real and load-bearing (`crawl.js` already requires and calls it in `buildCoverage()`), but the crawl path itself is unreached from any mint entry point; verified directly (see GAPS.md "Closed this phase") since it has no dedicated `.test.js` yet | Aman | same as above; `evidence/crawler/coverage-contract.test.js` should land regardless of mint timing (test-coverage gap, tracked in GAPS.md, not a reachability gap) |
+| `evidence/crawler/coverage-contract.js` | coverage-as-blocking-data (C-029/C-044); real and load-bearing (`crawl.js` already requires and calls it in `buildCoverage()`, and `breach/proposers/detection-spec.js` imports its `pageClassForObligation` as the one door for page-class), but the crawl path itself is unreached from any mint entry point; now covered by its own `coverage-contract.test.js` (which drives the `p3-crawl-substring-classify.json` C-044 fixture) | Aman | same as above |
 
 ## evidence/documents/ (footer-linked document lane, P3 Wave-1a)
 
@@ -71,22 +82,33 @@ progress (P3 Wave-2e, 2026-07-18); listed here now rather than left stale.
 | `breach/verifiers/quote-match.js` | the Rule 3 / Rule 12 gate 2 artifact verifier (`verifyCandidate`/`verifyAll`); tested (`quote-match.test.js`) and calibrated (4 `p3-verifier-*.json` fixtures, wired into `eval/calibration-known-bad/run.js` as `breach-artifact-rejected`), but no `mint/` entry point calls it yet | Aman | `mint/` requires `breach/verifiers/` for the propose-verify-adjudicate pipeline (Constitution Rule 3) |
 | `breach/verifiers/index.js` | pure re-export shim onto `quote-match.js`, nothing of its own | Aman | same as above |
 | `breach/verifiers/network-event.js` | network-event artifact verification, consumed only by `quote-match.js`'s dispatch | Aman | same as above |
-| `breach/verifiers/register-row.js` | register-row artifact verification, consumed only by `quote-match.js`'s dispatch | Aman | same as above |
+| `breach/verifiers/register-row.js` | register-row artifact verification (a row claimed PRESENT), consumed only by `quote-match.js`'s dispatch | Aman | same as above |
+| `breach/verifiers/register-absence.js` | register NO-MATCH artifact verification (C-004: only a ran-and-no-match note proves non-appearance; a skipped/degraded lane proves nothing), consumed only by `quote-match.js`'s dispatch; calibrated (`p3-verifier-register-absence-unproven.json`) | Aman | same as above |
 | `breach/verifiers/coverage-proof.js` | coverage-truncation interlock (C-024/C-025) on absence claims, consumed only by `quote-match.js`'s dispatch | Aman | same as above |
 | `breach/verifiers/result.js` | the shared accepted/rejected result shape + `CODES` enum, consumed by every verifier submodule | Aman | same as above |
+| `breach/artifact-types.js` | the one-door closed artifact-type enum (Rule 1) imported by the proposer, the verifier dispatch and the adjudicator's evidence-kind classifier; tested (`artifact-types.test.js`) | Aman | same as above |
 | `breach/adjudicator/adjudicate.js` | the adjudicator orchestrator (`adjudicate(candidates, bundle, opts)`; filter-only per Rule 11); tested (`adjudicate.test.js`) and calibrated (self-driving fixture `p3-adjudicator-invented-finding.js`, wired into `eval/calibration-known-bad/run.js`), but no `mint/` entry point calls it yet | Aman | `mint/` requires it for the propose-verify-adjudicate pipeline |
 | `breach/adjudicator/evidence-kind.js` | the evidence-kind classifier (C-085: document-absence/presence, observed-behaviour, register-fact); tested (`evidence-kind.test.js`, including a test named for the exact disease it closes); no `p3-adjudicator-*` fixture targets this file specifically, but the dedicated suite is real and passing, which is why GAPS.md flips `absence-vs-observation` to guarded despite there being no bare `--calibrate` CLI here | Aman | `mint/` requires it |
 | `breach/adjudicator/verdict.js` | the verdict rubric (Rule 6/12 gate 4: abstain-by-default confidence floor); tested (`verdict.test.js`), which directly consumes the real seeded fixture `p3-adjudicator-unparseable-verdict.json` (13 malformed verdict shapes + 2 controls) as one of its cases; GAPS.md flips `adjudication-abstention` to guarded on this evidence | Aman | `mint/` requires it |
 
-`breach/proposers/` still holds only `.gitkeep` - no proposer module has landed as of this pass.
+## breach/proposers/ (P3 Wave-2a, landed mid-pass)
+
+The proposer layer has now landed (it was `.gitkeep`-only when this file was first written; that line is
+corrected here). It is the only producer of breach CANDIDATES (propose -> verify -> adjudicate, C-079),
+tested and reachable from its own `.test.js`, but no `mint/` entry point requires it yet.
+
+| Module | Reason | Owner | Unblocks when |
+|---|---|---|---|
+| `breach/proposers/propose.js` | the breach proposer (`propose(bundle, catalogue, coverage)`); tested (`propose.test.js`) and exercised against the real catalogue, but no `mint/` entry point calls it yet | Aman | `mint/` requires `breach/proposers/propose.js` for the propose-verify-adjudicate pipeline (Constitution Rule 3) |
+| `breach/proposers/detection-spec.js` | the runtime prose-obligation -> DetectionSpec migration consumed only by `propose.js`; page-class resolution is the single door imported from `evidence/crawler/coverage-contract.js` (no second copy); tested (`detection-spec.test.js`) | Aman | same as above |
 
 ## llm/ (P3 Wave-2, landed mid-pass)
 
 | Module | Reason | Owner | Unblocks when |
 |---|---|---|---|
 | `llm/gate.js` | the Rule 12 gates 1+2 structural validator (`validateResponse`); tested (`gate.test.js`) and calibrated (2 `p3-llm-*.json` fixtures, wired into `eval/calibration-known-bad/run.js` as `llm-gate`), but no `mint/` entry point calls it yet | Aman | `mint/` requires `llm/gate.js` to validate every adjudicator response |
-| `llm/router.js` | provider routing/quorum (`route`/`quorum`); has its own `.test.js` (`router.test.js`), which as of this pass has 1 FAILING test (`route returns all_providers_exhausted...` expects `'threw:kaboom'`, gets `'Error: kaboom'` - a synchronous-throw stringification path that bypasses `errText()`); flagged in this pass's report as a defect for whoever owns `llm/router.js`, not fixed here (`llm/` is out of this pass's edit scope) | Aman | `mint/` requires it; the failing test is fixed first |
-| `llm/prompts/adjudicate.js` | prompt/schema builder for the adjudicator (`buildAdjudicationPrompt`); tested (`adjudicate.test.js`) | Aman | `mint/` requires it |
+| `llm/router.js` | provider routing/quorum (`route`/`quorum`); tested (`router.test.js`, all passing - the earlier synchronous-throw stringification defect is fixed) | Aman | `mint/` requires it |
+| `llm/prompts/adjudicate.js` | prompt/schema builder for the adjudicator (`buildAdjudicationPrompt`); tested (`adjudicate.test.js`); its verdict enum is imported from the one door `breach/adjudicator/verdict.js` (no hyphen/underscore drift) | Aman | `mint/` requires it |
 
 `llm/evals/` still holds only `.gitkeep` - no eval-harness module has landed as of this pass.
 

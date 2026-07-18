@@ -114,7 +114,13 @@ test('SMOKE: rtQuoteDrift against the real RT-H fixture catches (drift rejected,
   assert.strictEqual(r.status, 'caught');
 });
 
-test('SMOKE: rtContradictoryEntity against the real RT-F fixture reports xfail (the fixture\'s own declared, tracked escape)', { skip: !hasRealFile }, () => {
+// RT-F is the moving target: its own current_status flips from verified_escapes_live_gate (facts still
+// asserts the contradictory register row -> the handler reports 'xfail', the known tracked escape) to
+// verified_caught_live once facts weighs the contradicting on-page identifier and abstains (-> 'caught').
+// The INVARIANT this smoke test locks, in either world, is that the handler NEVER reports a fresh
+// 'escaped' (nor 'error') on the documented fixture: a known escape is xfail, a fixed one is caught.
+test('SMOKE: rtContradictoryEntity against the real RT-F fixture is caught (fixed) or xfail (known), never a fresh escape', { skip: !hasRealFile }, () => {
   const r = rtContradictoryEntity(realById['RT-F-CONTRADICTORY-ENTITY']);
-  assert.strictEqual(r.status, 'xfail');
+  assert.ok(r.status === 'caught' || r.status === 'xfail', 'expected caught or xfail, got ' + r.status + ' (' + (r.reason || '') + ')');
+  assert.notStrictEqual(r.status, 'escaped');
 });

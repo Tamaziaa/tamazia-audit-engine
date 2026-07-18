@@ -80,6 +80,16 @@ test('INTERLOCK: an absence claim on a truncated corpus is demoted to needs-revi
   assert.match(out.rules[0].reason, /truncated/);
 });
 
+test('pageClassForObligation is the ONE door the breach proposer (detection-spec.js) also imports', () => {
+  // detection-spec.js binds its pageClassFor to THIS function (no second copy), so locking its mapping
+  // here locks the spec's page_class and the coverage verdict to the same meaning (Rule 1, C-035).
+  assert.equal(cov.pageClassForObligation({ evidence_type: 'presence', duty: 'publish the privacy notice', elements: [] }), 'privacy');
+  assert.equal(cov.pageClassForObligation({ evidence_type: 'presence', duty: 'publish the complaints procedure', elements: [] }), 'complaints');
+  assert.equal(cov.pageClassForObligation({ evidence_type: 'presence', duty: 'publish a general disclosure', elements: [] }), 'any');
+  assert.equal(cov.pageClassForObligation({ evidence_type: 'register', duty: 'appears on the register', elements: [] }), null);
+  assert.equal(cov.pageClassForObligation({ evidence_type: 'behavioural', duty: 'cookie consent obtained', elements: [] }), null);
+});
+
 test('applyCoverage drops breach ("miss") findings when the SITE coverage is screened', () => {
   const findings = [{ id: 'a', status: 'miss' }, { id: 'b', status: 'hit' }];
   const screened = { render_class: 'screened' };

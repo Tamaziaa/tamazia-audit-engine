@@ -260,7 +260,15 @@ test('SMOKE: the real eval/red-team/fixtures.json runs clean (zero escapes/error
   const wiring = probeStageWiring();
   const stageTable = wiring.map((w) => ({ stage: w.stage, status: w.status === 'wired' ? 'ran' : 'skipped' }));
   const fixturesDir = path.join(__dirname, '..', '..', 'reference-set', 'fixtures');
-  const lane = await runRedTeamLane(realRedTeamPath, { stageTable, fixturesDir, runPipelineForBundle: (domain, bundle) => runPipeline(domain, bundle) });
+  // The generic red-team entries (RT-A/RT-C) run the pipeline; use the REAL breach modules but an EMPTY
+  // catalogue (breachInProcess) so the run is fast and deterministic and never hits the propose ReDoS
+  // (the fake statute / hallucinated id can never attach regardless of catalogue: the closed-world
+  // membership check is what catches them, and an empty catalogue proves the harness plumbing).
+  const lane = await runRedTeamLane(realRedTeamPath, {
+    stageTable,
+    fixturesDir,
+    runPipelineForBundle: (domain, bundle) => runPipeline(domain, bundle, { catalogueRecords: [], breachInProcess: true }),
+  });
   assert.strictEqual(lane.present, true);
   assert.ok(lane.rows.length > 0);
   const bad = lane.rows.filter((r) => r.status === 'escaped' || r.status === 'error');

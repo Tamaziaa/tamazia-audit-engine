@@ -29,11 +29,32 @@
 //
 // This module is PURE: a function of one candidate object, no I/O, no network, no module-scope mutation.
 
+const { ARTIFACT_TYPES } = require('../artifact-types.js');
+
 // ── artifact.type families (the ground truth). A candidate BYPASSES only on a genuine observed/register
-//    artifact type; everything text-shaped is the adjudicated `absence` class. ──────────────────────────
-const OBSERVED_ARTIFACT_TYPES = new Set(['network_request', 'cookie_jar_entry', 'dom_node', 'failing_dom_node', 'link_health']);
-const REGISTER_ARTIFACT_TYPES = new Set(['register_row', 'register_hit', 'register_check']);
-const TEXT_ARTIFACT_TYPES = new Set(['corpus_quote', 'verbatim_quote', 'presence', 'absence', 'absence_claim']);
+//    artifact type; everything text-shaped is the adjudicated `absence` class. Each set maps FROM the
+//    canonical breach/artifact-types.js enum (the one door the proposer/verifier flow emits) and keeps
+//    the old-estate literals as PORT ALIASES so a ported candidate or a legacy calibration fixture still
+//    classifies correctly (ledger decision 1: "replace/alias its corpus_quote/network_request/
+//    cookie_jar_entry literals"). Before this, the sets held ONLY the port literals, so a real proposer's
+//    `network_event`/`coverage_proof`/`register_absence` candidate matched none of them and was silently
+//    quarantined - the C-084 disease resurrected through a type-name mismatch. ──────────────────────────
+//
+// register_absence is deliberately in the TEXT (adjudicated) family, NOT the bypassing register family:
+// a register no-match is WEAK (a slightly different registered name can miss the match), so it must be
+// quarantined, never bypassed to a hard violation (Rule 6). Only a PRESENT register_row bypasses.
+const OBSERVED_ARTIFACT_TYPES = new Set([
+  ARTIFACT_TYPES.NETWORK_EVENT,
+  'network_request', 'cookie_jar_entry', 'dom_node', 'failing_dom_node', 'link_health', // port aliases
+]);
+const REGISTER_ARTIFACT_TYPES = new Set([
+  ARTIFACT_TYPES.REGISTER_ROW,
+  'register_hit', 'register_check', // port aliases
+]);
+const TEXT_ARTIFACT_TYPES = new Set([
+  ARTIFACT_TYPES.QUOTE, ARTIFACT_TYPES.COVERAGE_PROOF, ARTIFACT_TYPES.REGISTER_ABSENCE,
+  'corpus_quote', 'verbatim_quote', 'presence', 'absence', 'absence_claim', // port aliases
+]);
 
 // Declared `evidence_kind` synonyms -> the canonical three. Presence and absence both canonicalise to
 // `absence` (the adjudicated text class): a matched quote still needs the model to rule out the "firm

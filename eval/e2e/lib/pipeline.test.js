@@ -11,8 +11,13 @@ const {
   runCoverageStage,
   runOptionalStage,
   runBreachLane,
+  runBreachLaneInProcess,
+  runBreachLaneSubprocess,
   buildStageTable,
   probeStageWiring,
+  verifiedCandidatesFrom,
+  adjudicatedFindings,
+  perRuleCoverageArg,
 } = require('./pipeline');
 const { scriptedLlmCall } = require('./scripted-llm');
 
@@ -29,6 +34,11 @@ const MINI_BUNDLE = {
   },
   registers: {},
 };
+
+// Every in-process breach-lane test passes catalogueRecords: [] (an EMPTY catalogue) so the REAL
+// propose/verify/adjudicate modules run for real but finish instantly - the propose ReDoS P0 only bites
+// on the full 92-record catalogue against real corpora (which the subprocess path guards). These tests
+// exercise the wiring, not the catalogue.
 
 function unavailable(reason) {
   return { available: false, reason: reason || 'test: not wired' };
@@ -68,6 +78,30 @@ test('runCoverageStage: real catalogue records produce a real per-rule breakdown
   assert.ok(result.perRule && Array.isArray(result.perRule.rules));
 });
 
+test('perRuleCoverageArg: passes through a real perRule, else an empty-rules object (propose falls back to unknown, never crashes)', () => {
+  assert.deepStrictEqual(perRuleCoverageArg({ perRule: { rules: [{ id: 'X', state: 'covered' }] } }), { rules: [{ id: 'X', state: 'covered' }] });
+  assert.deepStrictEqual(perRuleCoverageArg({ perRule: null, degraded: 'x' }), { rules: [] });
+  assert.deepStrictEqual(perRuleCoverageArg(undefined), { rules: [] });
+});
+
+test('verifiedCandidatesFrom: unwraps the verifier .candidate objects (Rob ledger decision 6)', () => {
+  const c1 = { rule_id: 'A' };
+  const c2 = { rule_id: 'B' };
+  const result = { output: { verified: [{ candidate: c1, verified: true }, { candidate: c2, verified: true }], rejected: [] } };
+  assert.deepStrictEqual(verifiedCandidatesFrom(result), [c1, c2]);
+});
+
+test('verifiedCandidatesFrom: a non-verifyAll shape (unwired/errored stage) yields []', () => {
+  assert.deepStrictEqual(verifiedCandidatesFrom({ output: null }), []);
+  assert.deepStrictEqual(verifiedCandidatesFrom({ output: [1, 2, 3] }), []);
+});
+
+test('adjudicatedFindings: reads .findings off the real adjudicate.js shape, and a bare array off a double', () => {
+  assert.deepStrictEqual(adjudicatedFindings({ output: { findings: [{ id: 1 }], report: {} } }), [{ id: 1 }]);
+  assert.deepStrictEqual(adjudicatedFindings({ output: [{ id: 2 }] }), [{ id: 2 }]);
+  assert.deepStrictEqual(adjudicatedFindings({ output: null }), []);
+});
+
 test('runOptionalStage: an unavailable stage reports skipped, never invokes run', async () => {
   const r = await runOptionalStage('propose', unavailable('not landed'), () => { throw new Error('must not be called'); });
   assert.deepStrictEqual(r, { ran: false, skipped: true, error: null, reason: 'not landed', output: null, source: null });
@@ -93,41 +127,45 @@ test('runOptionalStage: an available ASYNC stage that rejects also reports error
   assert.match(r.error, /async boom/);
 });
 
-test('runBreachLane: today\'s real wiring (propose absent) yields empty findings but a genuine verify run', async () => {
-  const breach = await runBreachLane(MINI_BUNDLE, { site: { render_class: 'assessable' } }, { catalogueRecords: [] });
-  assert.strictEqual(breach.propose.skipped, true);
-  // breach/verifiers/index.js HAS landed (verifyAll) - it genuinely runs, just on an empty candidate list.
-  assert.strictEqual(breach.verify.ran, true);
-  assert.deepStrictEqual(breach.verify.output, { verified: [], rejected: [] });
-  assert.deepStrictEqual(breach.findings, []);
+test('runBreachLaneInProcess: the real chain on an EMPTY catalogue completes cleanly with empty findings', async () => {
+  const breach = await runBreachLaneInProcess(MINI_BUNDLE, { perRule: { rules: [] } }, { catalogueRecords: [] });
+  assert.strictEqual(breach.propose.ran, true, 'propose (W2a) has landed and runs');
+  assert.strictEqual(breach.verify.ran, true, 'verify (W2b) has landed and runs');
+  assert.strictEqual(breach.adjudicate.ran, true, 'adjudicate (W2c) has landed and runs');
+  assert.deepStrictEqual(breach.findings, [], 'an empty catalogue proposes nothing, so there are no findings');
 });
 
-test('runBreachLane: an injected full chain (propose+verify+adjudicate) produces real findings', async () => {
+test('runBreachLane: an injected full chain (propose+verify+adjudicate) produces real findings; adjudicate receives UNWRAPPED candidates', async () => {
   const proposeLoaded = available(() => [{ rule_id: 'TEST_RULE', artifact: { type: 'quote', page_url: 'https://x/', quote: 'q', surface: 'visible_text' } }]);
   const verifyLoaded = available((candidates) => ({
     verified: candidates.map((c) => ({ candidate: c, verified: true, code: 'OK', reason: 'test' })),
     rejected: [],
   }));
-  const adjudicateLoaded = available((verified) => verified.map((v) => ({
-    id: v.candidate.rule_id, framework: 'TEST_FRAMEWORK', state: 'violation', quote: v.candidate.artifact.quote,
-  })));
-  const breach = await runBreachLane(MINI_BUNDLE, {}, { proposeLoaded, verifyLoaded, adjudicateLoaded, llmCall: scriptedLlmCall({ verdict: 'breach' }) });
+  // Rob ledger decision 6: the adjudicate stage now receives the UNWRAPPED candidates [candidate,...],
+  // NOT the verifier's [{candidate,...}] envelopes.
+  const adjudicateLoaded = available((candidates, bundle, opts) => ({
+    findings: candidates.map((c) => ({ id: c.rule_id, framework: 'TEST_FRAMEWORK', state: 'violation', quote: c.artifact.quote })),
+    report: { llmCallSeen: typeof opts.llmCall === 'function' },
+  }));
+  const breach = await runBreachLane(MINI_BUNDLE, {}, { proposeLoaded, verifyLoaded, adjudicateLoaded, llmCall: scriptedLlmCall({ verdicts: [] }) });
   assert.strictEqual(breach.propose.ran, true);
   assert.strictEqual(breach.verify.ran, true);
   assert.strictEqual(breach.adjudicate.ran, true);
   assert.strictEqual(breach.findings.length, 1);
   assert.strictEqual(breach.findings[0].framework, 'TEST_FRAMEWORK');
+  assert.strictEqual(breach.adjudicate.output.report.llmCallSeen, true, 'the scripted llmCall must reach the adjudicate stage');
 });
 
-test('buildStageTable: fixtureBundle/facts/coverage always ran; breach stages reflect their own outcome', async () => {
-  const breach = await runBreachLane(MINI_BUNDLE, {}, { catalogueRecords: [] });
+test('buildStageTable: fixtureBundle/facts/coverage always ran; the landed breach stages all report ran', async () => {
+  const breach = await runBreachLaneInProcess(MINI_BUNDLE, { perRule: { rules: [] } }, { catalogueRecords: [] });
   const table = buildStageTable(breach);
   const byStage = Object.fromEntries(table.map((r) => [r.stage, r.status]));
   assert.strictEqual(byStage.fixtureBundle, 'ran');
   assert.strictEqual(byStage.facts, 'ran');
   assert.strictEqual(byStage.coverage, 'ran');
-  assert.strictEqual(byStage.propose, 'skipped');
+  assert.strictEqual(byStage.propose, 'ran');
   assert.strictEqual(byStage.verify, 'ran');
+  assert.strictEqual(byStage.adjudicate, 'ran');
 });
 
 test('probeStageWiring: reports a well-formed wired/not-wired row for every optional stage', () => {
@@ -137,18 +175,36 @@ test('probeStageWiring: reports a well-formed wired/not-wired row for every opti
   for (const row of wiring) assert.ok(['wired', 'not-wired'].includes(row.status));
 });
 
-test('runPipeline: end-to-end against the real repo wiring produces a tolerant payload with empty findings today', async () => {
-  const result = await runPipeline('pipeline-test.example', MINI_BUNDLE);
+test('probeStageWiring: propose, verify and adjudicate are all WIRED against the real tree', () => {
+  const wiring = probeStageWiring();
+  const byStage = Object.fromEntries(wiring.map((r) => [r.stage, r.status]));
+  assert.strictEqual(byStage.propose, 'wired', 'breach/proposers/propose.js should be wired - ' + JSON.stringify(wiring.find((w) => w.stage === 'propose')));
+  assert.strictEqual(byStage.verify, 'wired');
+  assert.strictEqual(byStage.adjudicate, 'wired', 'breach/adjudicator/adjudicate.js should be wired - ' + JSON.stringify(wiring.find((w) => w.stage === 'adjudicate')));
+});
+
+test('runPipeline: end-to-end (real modules, EMPTY catalogue) completes the breach lane with empty findings', async () => {
+  const result = await runPipeline('pipeline-test.example', MINI_BUNDLE, { catalogueRecords: [] });
   assert.strictEqual(result.domain, 'pipeline-test.example');
   assert.strictEqual(result.payload.meta.domain, 'pipeline-test.example');
   assert.deepStrictEqual(result.payload.findings, []);
-  assert.strictEqual(result.breachLaneComplete, false, 'propose is not landed yet, so the breach lane cannot be complete');
+  assert.strictEqual(result.breachLaneComplete, true, 'all three breach stages have landed and run on an empty catalogue');
+});
+
+test('runPipeline: --no-breach skips the whole breach lane; breachLaneComplete false; every breach stage reports skipped', async () => {
+  const result = await runPipeline('pipeline-test.example', MINI_BUNDLE, { noBreach: true, catalogueRecords: [] });
+  assert.strictEqual(result.breachLaneComplete, false);
+  const byStage = Object.fromEntries(result.stageTable.map((r) => [r.stage, r.status]));
+  assert.strictEqual(byStage.propose, 'skipped');
+  assert.strictEqual(byStage.verify, 'skipped');
+  assert.strictEqual(byStage.adjudicate, 'skipped');
+  assert.deepStrictEqual(result.payload.findings, []);
 });
 
 test('runPipeline: breachLaneComplete is true only when propose+verify+adjudicate ALL genuinely ran', async () => {
   const proposeLoaded = available(() => []);
   const verifyLoaded = available(() => ({ verified: [], rejected: [] }));
-  const adjudicateLoaded = available(() => []);
+  const adjudicateLoaded = available(() => ({ findings: [], report: {} }));
   const result = await runPipeline('complete-test.example', MINI_BUNDLE, { proposeLoaded, verifyLoaded, adjudicateLoaded });
   assert.strictEqual(result.breachLaneComplete, true);
 });
@@ -158,4 +214,34 @@ test('runPipeline: a thrown breach stage keeps breachLaneComplete false and surf
   const result = await runPipeline('erroring-test.example', MINI_BUNDLE, { proposeLoaded });
   assert.strictEqual(result.breachLaneComplete, false);
   assert.match(result.breach.propose.error, /propose exploded/);
+});
+
+// ── the subprocess Rule-9 guard (breach-worker.js) ────────────────────────────────────────────────
+test('runBreachLaneSubprocess: an EMPTY catalogue round-trips through the child and completes with empty findings', async () => {
+  const breach = await runBreachLaneSubprocess(MINI_BUNDLE, { perRule: { rules: [] } }, { catalogueRecords: [], breachTimeoutMs: 10000 });
+  assert.strictEqual(breach.propose.ran, true);
+  assert.strictEqual(breach.verify.ran, true);
+  assert.strictEqual(breach.adjudicate.ran, true);
+  assert.deepStrictEqual(breach.findings, []);
+});
+
+test('runBreachLaneSubprocess: a 1ms deadline KILLS the child and records an honest breach-lane error (Rule 9), never a hang', async () => {
+  const breach = await runBreachLaneSubprocess(MINI_BUNDLE, { perRule: { rules: [] } }, { catalogueRecords: [], breachTimeoutMs: 1 });
+  assert.strictEqual(breach.propose.ran, false);
+  assert.match(breach.propose.error, /deadline|killed|failed/);
+  assert.deepStrictEqual(breach.findings, []);
+});
+
+test('runBreachLane: dispatches to the subprocess when breachTimeoutMs is set and no loader is injected', async () => {
+  // With an empty catalogue the subprocess finishes fast; this proves the dispatcher routes to it.
+  const breach = await runBreachLane(MINI_BUNDLE, { perRule: { rules: [] } }, { catalogueRecords: [], breachTimeoutMs: 10000 });
+  assert.strictEqual(breach.propose.ran, true);
+  assert.deepStrictEqual(breach.findings, []);
+});
+
+test('runBreachLane: an injected loader forces the in-process path even when breachTimeoutMs is set', async () => {
+  const proposeLoaded = available(() => []);
+  const breach = await runBreachLane(MINI_BUNDLE, { perRule: { rules: [] } }, { proposeLoaded, catalogueRecords: [], breachTimeoutMs: 1 });
+  // A 1ms subprocess deadline would have errored; the in-process path with an injected empty propose does not.
+  assert.strictEqual(breach.propose.ran, true);
 });
