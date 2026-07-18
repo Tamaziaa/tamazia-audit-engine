@@ -325,10 +325,12 @@ test('verifyAll never creates, upgrades or edits a candidate: a frozen candidate
   assert.equal(verified[0].candidate, candidate);
 });
 
-test('verifyAll on a non-array input behaves as an empty candidate set rather than throwing', () => {
-  const { verified, rejected } = verifyAll(null, {});
-  assert.deepEqual(verified, []);
-  assert.deepEqual(rejected, []);
+test('verifyAll on a non-array input FAILS CLOSED (throws) rather than reporting a clean empty result', () => {
+  // A non-array candidates list is a broken upstream stage, not "zero breaches". Coercing it to [] would
+  // return zero verified AND zero rejected - a clean bill of health for a check that never ran (Rule 4).
+  assert.throws(() => verifyAll(null, {}), /requires an array of candidates/);
+  assert.throws(() => verifyAll(undefined, {}), /requires an array of candidates/);
+  assert.throws(() => verifyAll({ 0: 'x' }, {}), /requires an array of candidates/);
 });
 
 // ── the earn-your-zero calibration wiring ────────────────────────────────────────────────────────

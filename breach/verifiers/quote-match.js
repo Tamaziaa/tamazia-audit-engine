@@ -219,7 +219,13 @@ function verifyCandidate(candidate, bundle) {
 // candidate reference is carried unmodified in the result envelope, and nothing is ever dropped
 // silently - a rejected entry always carries its code and reason.
 function verifyAll(candidates, bundle) {
-  const list = Array.isArray(candidates) ? candidates : [];
+  if (!Array.isArray(candidates)) {
+    // FAIL-CLOSED (Rule 4): a non-array candidates list is a broken upstream stage, not "zero breaches".
+    // Coercing it to [] would return zero verified AND zero rejected - a clean bill of health for a
+    // check that never ran. Throw so the caller records an ERRORED verify stage, never a false clean.
+    throw new TypeError('breach/verifiers: verifyAll requires an array of candidates; got ' + (candidates === null ? 'null' : typeof candidates));
+  }
+  const list = candidates;
   const verified = [];
   const rejectedList = [];
   for (const candidate of list) {

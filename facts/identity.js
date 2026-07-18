@@ -419,23 +419,57 @@ const STRONG_FORM = Object.freeze({
   ltd: 'LTD', limited: 'LTD', llp: 'LLP', plc: 'PLC', llc: 'LLC', lp: 'LP', inc: 'INC', incorporated: 'INC',
   cic: 'CIC', cio: 'CIO', pllc: 'PLLC', gmbh: 'GMBH', sarl: 'SARL', bv: 'BV', pty: 'PTY',
 });
+// entityForm(name) -> the canonical strong incorporation form ONLY when it is the TERMINAL token of the
+// name. A legal-form WORD used as ordinary vocabulary earlier in the name ("Limited Edition Legal", where
+// "Limited" is the trading name, not a suffix) must NOT be read as an entity form: the old backward scan
+// returned the rightmost form-token anywhere in the name and so mis-read that leading "Limited" as LTD,
+// which could fabricate an entity-form contradiction against a register row (C-004/C-072). Only a suffix
+// AT THE END is an entity form.
 function entityForm(name) {
   const toks = String(name || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
-  for (let i = toks.length - 1; i >= 0; i -= 1) {
-    if (Object.prototype.hasOwnProperty.call(STRONG_FORM, toks[i])) return STRONG_FORM[toks[i]];
+  if (!toks.length) return null;
+  const last = toks[toks.length - 1];
+  return Object.prototype.hasOwnProperty.call(STRONG_FORM, last) ? STRONG_FORM[last] : null;
+}
+
+// pageFormsFromRaw(regName, rawSurfaces): the entity forms that appear IMMEDIATELY AFTER the register
+// name-core in any raw surface text. A register name-core can be established on-page via RAW TEXT alone
+// (nameOnPage below matches the suffix-stripped core against footer/page text, not only structured name
+// candidates); the differing legal form ("Acme LLP" on the register vs "Acme Ltd" in the page body) then
+// sits in that raw text and would never reach the contradiction check via nameGroup. Requiring the full
+// name-core as a consecutive token run immediately followed by a strong-form token keeps this specific
+// (low false-positive); and a false positive here only ABSTAINS (the safe direction, C-004/C-072).
+function pageFormsFromRaw(regName, rawSurfaces) {
+  const coreToks = String(regName || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  const stripped = stripLegalSuffixes(coreToks.join(' ')).replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  if (!stripped.length || stripped.join('').length < 6) return [];
+  const forms = new Set();
+  for (const surface of rawSurfaces || []) {
+    const toks = String(surface || '').toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+    for (let i = 0; i + stripped.length < toks.length; i += 1) {
+      let hit = true;
+      for (let j = 0; j < stripped.length; j += 1) { if (toks[i + j] !== stripped[j]) { hit = false; break; } }
+      if (hit) {
+        const next = toks[i + stripped.length];
+        if (Object.prototype.hasOwnProperty.call(STRONG_FORM, next)) forms.add(STRONG_FORM[next]);
+      }
+    }
   }
-  return null;
+  return [...forms];
 }
 
 // A name-core match does NOT corroborate a register row an on-page IDENTIFIER contradicts.
 // A matching on-page number is decisive; a DIFFERING number, or - absent a matching number -
-// a differing on-page legal form (Ltd vs LLP), contradicts (C-004/C-005/C-072).
-function registerContradiction(reg, onPageNumbers, nameGroup) {
+// a differing on-page legal form (Ltd vs LLP), contradicts (C-004/C-005/C-072). The on-page forms are
+// gathered from BOTH the structured name candidates (nameGroup) AND the raw surfaces that can establish
+// nameOnPage, so a raw-text-only name match cannot silently corroborate a register row the page contradicts.
+function registerContradiction(reg, onPageNumbers, nameGroup, rawSurfaces) {
   if (reg.number && onPageNumbers.has(reg.number)) return null;
   if (reg.number && onPageNumbers.size > 0) return 'company_number_mismatch';
   const regForm = entityForm(reg.name);
   if (regForm) {
     const pageForms = new Set((nameGroup || []).map((e) => entityForm(e.value)).filter(Boolean));
+    for (const f of pageFormsFromRaw(reg.name, rawSurfaces)) pageForms.add(f);
     if (pageForms.size > 0 && !pageForms.has(regForm)) return 'entity_form_mismatch';
   }
   return null;

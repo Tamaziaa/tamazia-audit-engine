@@ -49,6 +49,11 @@ test('missing artifact.register or artifact.row is rejected before any bundle lo
   assert.equal(noRow.code, CODES.REGISTER_ROW_MISSING_FIELDS);
   const arrayRow = verifyRegisterRow({ type: 'register_row', register: 'sra', row: [1, 2, 3] }, bundle);
   assert.equal(arrayRow.code, CODES.REGISTER_ROW_MISSING_FIELDS);
+  // a missing artifact ENVELOPE fails closed with the same code, never a TypeError from reading .register
+  const noArtifact = verifyRegisterRow(undefined, bundle);
+  assert.equal(noArtifact.verified, false);
+  assert.equal(noArtifact.code, CODES.REGISTER_ROW_MISSING_FIELDS);
+  assert.equal(verifyRegisterRow(null, bundle).code, CODES.REGISTER_ROW_MISSING_FIELDS);
 });
 
 test('an entirely absent bundle.registers is rejected, never a crash', () => {

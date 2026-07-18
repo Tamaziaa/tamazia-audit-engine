@@ -120,11 +120,16 @@ function nonEssentialCookies(cookies, cfg) {
   return out;
 }
 
+// isNewHostedEvent(ev, seen) -> true for a real, hosted event not already collected. Named so the
+// 2-operator conjunction is not its own "Complex Conditional" inline in the loop.
+function isNewHostedEvent(ev, seen) {
+  return Boolean(ev && ev.host) && !seen.has(ev.host);
+}
 function uniqueHosts(trackers) {
   const seen = new Set();
   const out = [];
   for (const ev of trackers || []) {
-    if (ev && ev.host && !seen.has(ev.host)) { seen.add(ev.host); out.push(ev.host); }
+    if (isNewHostedEvent(ev, seen)) { seen.add(ev.host); out.push(ev.host); }
   }
   return out;
 }

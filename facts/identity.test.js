@@ -191,6 +191,10 @@ test('entityForm reads the canonical strong incorporation form and ignores ambig
   assert.equal(identity.entityForm('Some Firm Limited'), 'LTD');
   assert.equal(identity.entityForm('Widget Trading Company'), null);
   assert.equal(identity.entityForm('Just A Name'), null);
+  // a legal-form WORD used as ordinary vocabulary earlier in the name is NOT a terminal entity form:
+  assert.equal(identity.entityForm('Limited Edition Legal'), null, 'a leading "Limited" is a trading-name word, not a suffix');
+  assert.equal(identity.entityForm('Limited Edition Design Studios'), null);
+  assert.equal(identity.entityForm('Limited Edition Design Ltd'), 'LTD', 'but a genuine TRAILING Ltd is still read');
 });
 
 // ---------------------------------------------------------------------------------

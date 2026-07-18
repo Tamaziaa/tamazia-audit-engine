@@ -25,6 +25,12 @@ const { CODES, accepted, rejected } = require('./result');
 // provenance field - all count as a mismatch; Rule 12 Gate 2's "exact re-match" ethos applied to
 // structured data, not just prose).
 function verifyRegisterRow(artifact, bundle) {
+  if (!artifact || typeof artifact !== 'object') {
+    // Fail closed on a missing artifact envelope (Rule 3/4): read `artifact.register` off undefined
+    // would THROW, and a thrown verifier is an unhandled path - a missing envelope is simply "no
+    // verifiable register row", so it is a clean REJECT, never an exception into the pipeline.
+    return rejected(CODES.REGISTER_ROW_MISSING_FIELDS, 'artifact envelope is required (no artifact, no breach)');
+  }
   if (typeof artifact.register !== 'string' || !artifact.register) {
     return rejected(CODES.REGISTER_ROW_MISSING_FIELDS, 'artifact.register is required');
   }

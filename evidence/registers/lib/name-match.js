@@ -34,6 +34,10 @@
 // very short names; a one-token query matching a one-token candidate exactly already scores 1.0 and
 // satisfies both conditions, so this changes nothing for the common short-name case.
 
+// The ONE URL-safe door (Rule 5): domainStemFallback parses a domain into a host through inputHost,
+// never a bespoke replace-and-split chain that mishandles credentials/ports/IPv6.
+const { inputHost } = require('../../../tools/lib/safe-fetch.js');
+
 let LEGAL_ENTITY_SUFFIXES;
 let PUBLIC_SUFFIX_SECOND_LEVEL;
 try {

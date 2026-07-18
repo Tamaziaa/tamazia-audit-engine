@@ -24,14 +24,24 @@ function buildRequest(query, fcaKeys) {
   return { url, headers, requestKey: 'fca.search' };
 }
 
+// candidateItemsOf(json) -> the raw row array, whichever of the two casing conventions the API version
+// used. Named (rather than a nested ternary) so it is its own unit, not folded into extractCandidates.
+function candidateItemsOf(json) {
+  if (Array.isArray(json && json.Data)) return json.Data;
+  if (Array.isArray(json && json.data)) return json.data;
+  return [];
+}
+function hasReferenceNumber(it) {
+  return it && (it['Reference Number'] || it.FRN || it.frn);
+}
+function toCandidate(it) {
+  return { name: String(it.Name || it['Organisation Name'] || ''), raw: it };
+}
 // extractCandidates(json) -> [{name, raw}]. The search response carries its rows under Data or data;
 // each row's reference number and organisation name arrive under human-readable, spaced field names
 // as well as compact aliases depending on the API version fetched.
 function extractCandidates(json) {
-  const items = Array.isArray(json && json.Data) ? json.Data : (Array.isArray(json && json.data) ? json.data : []);
-  return items
-    .filter((it) => it && (it['Reference Number'] || it.FRN || it.frn))
-    .map((it) => ({ name: String(it.Name || it['Organisation Name'] || ''), raw: it }));
+  return candidateItemsOf(json).filter(hasReferenceNumber).map(toCandidate);
 }
 
 function buildRow(candidate) {

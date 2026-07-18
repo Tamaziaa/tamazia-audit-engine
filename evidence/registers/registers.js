@@ -85,6 +85,17 @@ function buildLookups(query, hints, opts) {
 // applicable register is looked up IN PARALLEL (Rule 8: no serial rounds where width can widen; each
 // call is independently deadline-bound, so total wall time is bound by the slowest single call, not
 // their sum).
+// assembleBundle(settled) -> the {key: row, notes:[...]} bundle from every settled lookup. Split out of
+// fetchRegisters so the accumulation loop is its own single-purpose unit.
+function assembleBundle(settled) {
+  const bundle = { notes: [] };
+  for (const { key, result } of settled) {
+    if (result.row) bundle[key] = result.row;
+    if (result.note) bundle.notes.push(result.note);
+  }
+  return bundle;
+}
+
 async function fetchRegisters(identityHints, opts) {
   const hints = identityHints || {};
   const options = opts || {};
@@ -97,13 +108,7 @@ async function fetchRegisters(identityHints, opts) {
   const query = resolveQuery(hints);
   const lookups = buildLookups(query, hints, options);
   const settled = await Promise.all(lookups.map((l) => l.run().then((result) => ({ key: l.key, result }))));
-
-  const bundle = { notes: [] };
-  for (const { key, result } of settled) {
-    if (result.row) bundle[key] = result.row;
-    if (result.note) bundle.notes.push(result.note);
-  }
-  return bundle;
+  return assembleBundle(settled);
 }
 
 // ---------------------------------------------------------------------------------

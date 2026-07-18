@@ -55,10 +55,15 @@ function judgeCandidates(spec, json) {
 // judgeOutcome(spec, outcome) -> {row, note}. `outcome` is a withDeadline() result: either
 // {ok:false, reason:'timeout'|'error', ...} or {ok:true, value:{status, json}|null}. Never throws:
 // every branch here is a typed, recorded degrade (never a fabricated or partial row).
+// isWellFormedResponse(res) -> true only for a settled {status:200, json} shape. Named so the 2-operator
+// disjunction is not its own "Complex Conditional" inline in judgeOutcome.
+function isWellFormedResponse(res) {
+  return Boolean(res) && res.status === 200 && res.json != null;
+}
 function judgeOutcome(spec, outcome) {
   if (!outcome.ok) return { row: null, note: noteForFailedFetch(spec, outcome) };
   const res = outcome.value;
-  if (!res || res.status !== 200 || res.json == null) return { row: null, note: noteForBadResponse(spec, res) };
+  if (!isWellFormedResponse(res)) return { row: null, note: noteForBadResponse(spec, res) };
   return judgeCandidates(spec, res.json);
 }
 

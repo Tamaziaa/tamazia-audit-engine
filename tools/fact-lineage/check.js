@@ -53,35 +53,41 @@ function loadManifest(p) {
   throw new Error('facts-lineage.json has no facts key (object or array expected)');
 }
 
+// checkFactProducer(id, f, violations) -> validates one fact's declared producer (string shape,
+// single-producer, in-repo-relative path safety, existence), pushing onto violations directly.
+// Pulled out of check()'s former loop body (Constitution Rule 4/tools/health-gate/check.js caps:
+// the FIX-A path-safety check pushed the inline loop body over the decision-point cap) as its own
+// small, independently readable unit.
+function checkFactProducer(id, f, violations) {
+  const producer = f.producer;
+  if (typeof producer !== 'string' || producer.length === 0) {
+    violations.push({ fact: id, message: 'fact must declare exactly ONE producer as a string; got ' + JSON.stringify(producer) });
+    return;
+  }
+  if (Array.isArray(f.producers) || /,/.test(producer)) {
+    violations.push({ fact: id, message: 'more than one producer declared: that is two doors by construction' });
+  }
+  // producer is a repo-relative path read from a committed manifest (payload/schema/
+  // facts-lineage.json), not network input, but it must still stay inside the repo tree: an
+  // absolute path or a ".." escape is rejected as its own violation rather than silently resolved
+  // outside the tree the lineage is meant to describe.
+  if (!safePath.isSafeRelativePath(producer)) {
+    violations.push({ fact: id, message: 'declared producer is not a safe in-repo relative path: ' + JSON.stringify(producer) });
+    return;
+  }
+  const abs = safePath.resolveSafeRelativePath(ROOT, producer, { label: 'fact-lineage producer' });
+  if (!fs.existsSync(abs)) {
+    violations.push({ fact: id, message: 'declared producer does not exist: ' + producer + ' (a lineage pointing at a ghost is a lie)' });
+  }
+}
+
 function check(manifestPath) {
   const violations = [];
   const facts = loadManifest(manifestPath);
   const ids = Object.keys(facts);
   if (ids.length === 0) violations.push({ fact: '(none)', message: 'lineage manifest exists but declares zero facts: an empty manifest is a confident zero' });
 
-  for (const id of ids) {
-    const f = facts[id];
-    const producer = f.producer;
-    if (typeof producer !== 'string' || producer.length === 0) {
-      violations.push({ fact: id, message: 'fact must declare exactly ONE producer as a string; got ' + JSON.stringify(producer) });
-      continue;
-    }
-    if (Array.isArray(f.producers) || /,/.test(producer)) {
-      violations.push({ fact: id, message: 'more than one producer declared: that is two doors by construction' });
-    }
-    // producer is a repo-relative path read from a committed manifest (payload/schema/
-    // facts-lineage.json), not network input, but it must still stay inside the repo tree: an
-    // absolute path or a ".." escape is rejected as its own violation rather than silently
-    // resolved outside the tree the lineage is meant to describe.
-    if (!safePath.isSafeRelativePath(producer)) {
-      violations.push({ fact: id, message: 'declared producer is not a safe in-repo relative path: ' + JSON.stringify(producer) });
-      continue;
-    }
-    const abs = safePath.resolveSafeRelativePath(ROOT, producer, { label: 'fact-lineage producer' });
-    if (!fs.existsSync(abs)) {
-      violations.push({ fact: id, message: 'declared producer does not exist: ' + producer + ' (a lineage pointing at a ghost is a lie)' });
-    }
-  }
+  for (const id of ids) checkFactProducer(id, facts[id], violations);
 
   // Cross-check against the one-door manifest: the two declarations must agree.
   if (fs.existsSync(ONE_DOOR_FACTS)) {

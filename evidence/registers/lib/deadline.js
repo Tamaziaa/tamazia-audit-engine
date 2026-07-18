@@ -10,48 +10,58 @@
 
 const DEFAULT_DEADLINE_MS = 6000;
 
+// The Promise executor below settles exactly once across three independent triggers (timeout, a
+// synchronous throw, and the thunk's own resolution/rejection). Each settle path is its own named
+// function sharing one small mutable ctx, so no single function's body holds all three (the health-gate
+// Complex Method cap: CodeScene otherwise attributes a deeply-nested inline executor to the enclosing
+// named function, exactly as it did here before this split).
+function settleTimeout(ctx, budget) {
+  if (ctx.settled) return;
+  ctx.settled = true;
+  ctx.resolve({ ok: false, reason: 'timeout', label: ctx.label, ms: budget });
+}
+// FAIL-OPEN: a caller error (synchronous throw or rejection) is captured here, never rethrown or
+// logged, because turning it into the typed {ok:false, reason:'error', error:err} result IS the record
+// (the caller in lib/lookup-runner.js reads it and pushes a loud notes[] entry); resolving instead of
+// rethrowing is this module's entire contract (see the file header).
+function settleError(ctx, err) {
+  if (ctx.settled) return;
+  ctx.settled = true;
+  clearTimeout(ctx.timer);
+  ctx.resolve({ ok: false, reason: 'error', error: err, label: ctx.label });
+}
+function settleValue(ctx, value) {
+  if (ctx.settled) return;
+  ctx.settled = true;
+  clearTimeout(ctx.timer);
+  ctx.resolve({ ok: true, value });
+}
+function startDeadlineTimer(ctx, budget) {
+  const timer = setTimeout(() => settleTimeout(ctx, budget), budget);
+  if (timer && typeof timer.unref === 'function') timer.unref();
+  return timer;
+}
+// runThunk(ctx, fn) -> invoke the thunk exactly once, routing a synchronous throw or an async
+// resolution/rejection to the matching settle function.
+function runThunk(ctx, fn) {
+  let started;
+  try {
+    started = fn();
+  } catch (err) {
+    settleError(ctx, err);
+    return;
+  }
+  Promise.resolve(started).then((value) => settleValue(ctx, value), (err) => settleError(ctx, err));
+}
+
 // withDeadline(fn, ms, label) -> Promise<{ok:true, value} | {ok:false, reason:'timeout'|'error', error?, label}>
 // `fn` is a zero-argument thunk returning a Promise (or a plain value); it is invoked exactly once.
 function withDeadline(fn, ms, label) {
   const budget = Number.isFinite(ms) && ms > 0 ? ms : DEFAULT_DEADLINE_MS;
   return new Promise((resolve) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve({ ok: false, reason: 'timeout', label: label || null, ms: budget });
-    }, budget);
-    if (timer && typeof timer.unref === 'function') timer.unref();
-
-    let started;
-    try {
-      started = fn();
-    } catch (err) {
-      // FAIL-OPEN: a synchronously-thrown thunk is captured here, never rethrown or logged, because
-      // turning it into the typed {ok:false, reason:'error', error:err} result IS the record (the
-      // caller in lib/lookup-runner.js reads it and pushes a loud notes[] entry); resolving instead
-      // of rethrowing is this module's entire contract (see the file header).
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: false, reason: 'error', error: err, label: label || null });
-      }
-      return;
-    }
-    Promise.resolve(started).then(
-      (value) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: true, value });
-      },
-      (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: false, reason: 'error', error: err, label: label || null });
-      }
-    );
+    const ctx = { settled: false, timer: null, resolve, label: label || null };
+    ctx.timer = startDeadlineTimer(ctx, budget);
+    runThunk(ctx, fn);
   });
 }
 
