@@ -138,3 +138,18 @@ U1's census (all 8 firms run): 123-135 candidates proposed per firm, 100% suppre
 - Benchmarks: B-B1 composition test green; B-B2 with a hand-built recording approving the synthetic candidate, the canonical replay invocation reproduces >= 1 and exits 0 once Builder A's candidate flows (coordinate at integration; hermetic version proves it regardless); B-B3 scripted canonical run still exits 1 (vacuity) pre-re-record with ONE result line; B-B4 red-team stays 9 entries 0 escapes; full suite green; zero new health findings in touched files.
 
 ## U1 resume (after A + B): fix the two C-254 findings in its own files (extract modules, never grow), re-run the preflight and the proof with the real chain, refresh recordings (now non-empty), report per the original U1 benchmarks with B1 expected PASS on the synthetic control.
+
+---
+
+# WAVE 2 FINAL UNIT (2026-07-19, appended after the U1 resume): the Gate-3 atomic-claim door
+
+U1's real-model run proved the adjudication verdict correct (the synthetic ruled `breach`) and Gate 3 semantically correct but structurally mis-framed: the hypothesis handed to the NLI is the raw compliance OBLIGATION (the catalogue duty text), which an offending quote CONTRADICTS rather than entails, so Gate 3 demotes every presence-breach. Constitution Rule 12 gate 3 requires the hypothesis to be the ATOMIC CLAIM; the repo's own scripted fixtures already use atomic-claim phrasing. The fix is a framing correction through one door, never a loosening: `contradiction` and `neutral` still demote; the change is WHAT the hypothesis says, not what the gate accepts.
+
+## Builder B resume 2. Owns NEW breach/adjudicator/claim.js, eval/e2e/lib/pipeline.js, the adjudicator claimFor seam (adjudicate.js or prompt.js as the code actually splits), plus tests. Does not touch run-real-proof.js/enrichCandidate (U1 adopts the door afterwards) or breach/proposers/.
+
+- F1: `atomicClaimFor(record, candidate)` in the new one-door module: a deterministic, catalogue-grounded hypothesis per evidence polarity. Presence-breach: the atomic breach claim the verbatim quote must entail, built only from the record's own catalogue fields (Rule 2; no invented law facts, no LLM authorship, Rule 11). Absence and coverage_proof: the existing basis unchanged. Register and observed kinds: unchanged (they bypass text adjudication where C-084 applies).
+- F2: pipeline.js and the adjudicator claimFor seam import the door; the obligation duty text no longer appears as the Gate-3 hypothesis for any presence-breach.
+- F3: tests both directions: (a) hermetic both-kinds replay through the REAL adjudicator now reaches `violation` for the synthetic-shaped candidate when the scripted entailment response affirms the atomic claim; (b) a compliant page string does not entail a constructed breach claim (the C-048 guard direction); (c) the claim text is proven catalogue-derived (no literal law facts originate outside the record).
+- Benchmarks: full suite green (1245+); sweep GREEN ACT 0; calibration --strict OK; zero new health findings (C-254); scripted canonical run still exits 1 (vacuity) with ONE result line; red-team 9 entries 0 escapes.
+
+## U1 resume 3 (after the door lands): adopt `atomicClaimFor` in enrichCandidate, re-record the synthetic and the 4 forensic firms with the real chain under the same Rule 16 discipline, then the canonical replay run must show reproduced >= 1/5 and exit 0. The honesty rule stands: if the real model still declines or Gate 3 still demotes, the verbatim verdicts are reported and the wave stops there.
