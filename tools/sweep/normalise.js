@@ -117,7 +117,11 @@ function fromReviewComments(file) {
     [/nitpick|trivial|style/i, 'note'],
   ];
   return JSON.parse(fs.readFileSync(file, 'utf8')).map((c) => {
-    const body = String(c.body || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+    // Strip HTML comments in two passes: the paired form first (a real <!-- ... --> block), then any
+    // residual UNPAIRED opener or closer the first pass could not match (an opener with no closer
+    // anywhere after it, or a closer with no opener before it) - either would otherwise survive verbatim
+    // into the title/message a reviewer bot's markup convention did not close cleanly.
+    const body = String(c.body || '').replace(/<!--[\s\S]*?-->/g, '').replace(/<!--|-->/g, '').trim();
     const lvl = (LEVEL.find((x) => x[0].test(body)) || [null, 'warning'])[1];
     const title = (body.match(/\*\*(.+?)\*\*/) || [null, body.slice(0, 90)])[1];
     return makeFinding({

@@ -274,11 +274,39 @@ test('CALIBRATION: the screened-never-proposes fixture yields NO fired candidate
 test('a covered rule with the SAME missing disclosure DOES fire (proves the screen is what suppressed it)', () => {
   const file = path.join(FIXTURES, 'p3-proposer-screened-never-proposes.json');
   const fx = JSON.parse(fs.readFileSync(file, 'utf8'));
-  // add a complaints page so the rule flips from screened to covered; the disclosure is still absent.
-  const withComplaints = fx.bundle.corpus.pages.concat([{ url: 'https://screened.example/legal', title: 'Legal', text: 'Our terms and general legal notes live here for reference and record keeping purposes only today.', jsonLd: [] }]);
-  const b = { ...fx.bundle, corpus: { ...fx.bundle.corpus, pages: withComplaints } };
-  const covScreened = coverageContract.coverageFor(fx.catalogue.records, fx.bundle.corpus.pages, {});
-  assert.strictEqual(covScreened.rules.find((r) => r.id === fx.expect.record_id).state, 'screened');
+
+  // direction 1: the ORIGINAL 3-page crawl (home/about/services) never reaches the complaints
+  // page-class, so the record is screened (this is the CALIBRATION test's own baseline, reproved here
+  // so this test stands on its own).
+  const covOriginal = coverageContract.coverageFor(fx.catalogue.records, fx.bundle.corpus.pages, { truncated: fx.bundle.corpus.truncated });
+  assert.strictEqual(covOriginal.rules.find((r) => r.id === fx.expect.record_id).state, 'screened', 'the original crawl never reaches the complaints page-class');
+
+  // direction 2: add a page that classifies to the 'complaints' page-class (evidence/crawler/
+  // coverage-contract.js classify() keys on the path token 'ombudsman', one of the two alternatives in
+  // its complaints rule) - deliberately NOT a literal '/complaints' path. detection-spec.js separately
+  // derives a url-path pattern of EXACTLY '/complaints' for this record's "findable" element, so a page
+  // AT that path would satisfy the presence check by its mere existence and mask whether the disclosure
+  // text itself is what fires the breach (verified against the live coverageContract/propose API,
+  // caution.md C-192, before writing this assertion). The added page's own text still carries none of
+  // the disclosure content, so the SAME missing disclosure this record needs is genuinely still absent.
+  const ombudsmanPage = {
+    url: 'https://screened.example/ombudsman', title: 'Ombudsman scheme',
+    text: 'This page is a placeholder and does not yet contain the information visitors may be looking for here.',
+    jsonLd: [],
+  };
+  const pages = fx.bundle.corpus.pages.concat([ombudsmanPage]);
+  const b = { ...fx.bundle, corpus: { ...fx.bundle.corpus, pages } };
+  const covCovered = coverageContract.coverageFor(fx.catalogue.records, pages, { truncated: b.corpus.truncated });
+  assert.strictEqual(covCovered.rules.find((r) => r.id === fx.expect.record_id).state, 'covered', 'adding a complaints-class page flips the SAME record to covered');
+
+  // ... and now that it is covered, the SAME missing disclosure actually FIRES an absence-breach -
+  // proving the screen (not some other gate) was what suppressed it in direction 1.
+  const forRecord = propose(b, fx.catalogue, covCovered).filter((c) => c.record_id === fx.expect.record_id);
+  const firedOnes = fired(forRecord, KIND.ABSENCE_BREACH);
+  assert.strictEqual(firedOnes.length, 1, 'the covered rule with the still-missing disclosure fires exactly one absence-breach');
+  assert.strictEqual(firedOnes[0].suppressed_reason, null);
+  assert.strictEqual(firedOnes[0].artifact.type, 'coverage_proof');
+  assert.ok(firedOnes[0].artifact.pages_checked.includes(ombudsmanPage.url), 'the coverage_proof cites the actually-crawled complaints-class page');
 });
 
 // ── evaluateSpec unit-level + the real catalogue end-to-end (executes the real entry point, C-148) ───
