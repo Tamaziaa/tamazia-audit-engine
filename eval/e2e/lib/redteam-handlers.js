@@ -110,14 +110,19 @@ function rtQuoteDrift(entry) {
 // RT-F-CONTRADICTORY-ENTITY: a KNOWN, documented, owned-elsewhere escape (facts/identity.js does not
 // yet weigh a contradicting on-page company number/entity form against a name-corroborated register
 // row). Wired as xfail-until-fixed per the fixture's own instruction.
+// hasWeakOrAbstainedIdentity(legalName, companyNumber) -> true when the identity door held back: the
+// legal_name confidence is neither register nor corroborated, AND the company_number abstained. Named
+// so the compound test is not inline in rtContradictoryEntity (the health-gate Complex Method cap).
+function hasWeakOrAbstainedIdentity(legalName, companyNumber) {
+  const confidenceOk = legalName.confidence !== 'register' && legalName.confidence !== 'corroborated';
+  return confidenceOk && companyNumber.value == null;
+}
 function rtContradictoryEntity(entry) {
   const input = entry.input || {};
   const idResult = runFactsDoors(input.bundle || {}).identity;
   const legalName = idResult.legal_name || {};
   const companyNumber = idResult.company_number || {};
-  const confidenceOk = legalName.confidence !== 'register' && legalName.confidence !== 'corroborated';
-  const numberAbstained = companyNumber.value == null;
-  if (confidenceOk && numberAbstained) return { status: 'caught' };
+  if (hasWeakOrAbstainedIdentity(legalName, companyNumber)) return { status: 'caught' };
 
   const reason = 'resolveIdentity asserted legal_name at confidence ' + JSON.stringify(legalName.confidence)
     + ' and company_number ' + JSON.stringify(companyNumber.value)

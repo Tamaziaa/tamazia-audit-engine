@@ -15,18 +15,21 @@ const { assertSafePathComponent } = require('../../../tools/lib/safe-path.js');
 // loadOneSyntheticFixture(dir, f) -> {file, domain, role, bundle, expected, notes} for a well-formed
 // fixture, or {file, error} for a malformed one. Never throws: a bad fixture file is reported as its
 // own row by the caller, not a crash of the whole run.
-function loadOneSyntheticFixture(dir, f) {
-  assertSafePathComponent(f, { label: 'synthetic fixture filename' });
-  const abs = path.join(dir, f);
-  let data;
+// readFixtureJson(abs) -> {data} on a successful parse, or {error} on an unreadable/malformed file.
+function readFixtureJson(abs) {
   try {
-    data = JSON.parse(fs.readFileSync(abs, 'utf8'));
+    return { data: JSON.parse(fs.readFileSync(abs, 'utf8')) };
   } catch (e) {
-    return { file: f, error: 'unreadable JSON: ' + e.message };
+    return { error: 'unreadable JSON: ' + e.message };
   }
-  if (!data || typeof data !== 'object' || !data.bundle || !data.expected) {
-    return { file: f, error: 'fixture missing required "bundle" and/or "expected" fields' };
-  }
+}
+// isMalformedFixture(data) -> true when the parsed fixture lacks its required fields. Named so the
+// 3-term disjunction is not its own "Complex Conditional" inline in loadOneSyntheticFixture.
+function isMalformedFixture(data) {
+  return !data || typeof data !== 'object' || !data.bundle || !data.expected;
+}
+// fixtureRow(f, data) -> the well-formed fixture row, defaults applied.
+function fixtureRow(f, data) {
   return {
     file: f,
     domain: data.domain || f.replace(/\.json$/, ''),
@@ -35,6 +38,15 @@ function loadOneSyntheticFixture(dir, f) {
     expected: data.expected,
     notes: data.notes || null,
   };
+}
+function loadOneSyntheticFixture(dir, f) {
+  assertSafePathComponent(f, { label: 'synthetic fixture filename' });
+  const read = readFixtureJson(path.join(dir, f));
+  if (read.error) return { file: f, error: read.error };
+  if (isMalformedFixture(read.data)) {
+    return { file: f, error: 'fixture missing required "bundle" and/or "expected" fields' };
+  }
+  return fixtureRow(f, read.data);
 }
 
 // loadSyntheticFixtures(dir) -> [{file, domain, role, bundle, expected, notes}|{file, error}, ...] for

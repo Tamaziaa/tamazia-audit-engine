@@ -109,20 +109,36 @@ function loadFixtures() {
   return files.map((f) => JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, f), 'utf8')));
 }
 
+// classifyOutcome(r) -> 'tp'|'fp'|'fn'|null for one classification result. Split out of
+// tallyClassification so the per-result dispatch is not folded into the accumulation loop.
+function classifyOutcome(r) {
+  if (r.expectPositive && r.shipped) return 'tp';
+  if (!r.expectPositive && r.shipped) return 'fp';
+  if (r.expectPositive && !r.shipped) return 'fn';
+  return null;
+}
+function tallyOne(counts, r) {
+  const kind = classifyOutcome(r);
+  if (kind) counts[kind]++;
+  if (r.abstained) counts.abstained++;
+}
+function precisionOf(tp, fp) {
+  return (tp + fp) === 0 ? 1 : tp / (tp + fp);
+}
+function abstainRateOf(abstained, total) {
+  return total ? abstained / total : 0;
+}
 // tallyClassification(results): the precision + abstain-rate numbers over the classification tasks
 // (adjudication/entailment/gate); immunity tasks are counted separately.
 function tallyClassification(results) {
   const cls = results.filter((r) => r.expectPositive !== null);
-  let tp = 0; let fp = 0; let fn = 0; let abstained = 0;
-  for (const r of cls) {
-    if (r.expectPositive && r.shipped) tp++;
-    else if (!r.expectPositive && r.shipped) fp++;
-    else if (r.expectPositive && !r.shipped) fn++;
-    if (r.abstained) abstained++;
-  }
-  const precision = (tp + fp) === 0 ? 1 : tp / (tp + fp);
-  const abstainRate = cls.length ? abstained / cls.length : 0;
-  return { total: cls.length, tp, fp, fn, precision, abstainRate };
+  const counts = { tp: 0, fp: 0, fn: 0, abstained: 0 };
+  for (const r of cls) tallyOne(counts, r);
+  return {
+    total: cls.length, tp: counts.tp, fp: counts.fp, fn: counts.fn,
+    precision: precisionOf(counts.tp, counts.fp),
+    abstainRate: abstainRateOf(counts.abstained, cls.length),
+  };
 }
 
 // evaluate(): run every fixture and reduce to the blocking verdict object. No process side effects, so

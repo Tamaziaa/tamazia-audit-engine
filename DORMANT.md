@@ -110,8 +110,9 @@ tested and reachable from its own `.test.js`, but no `mint/` entry point require
 | `llm/gate.js` | the Rule 12 gates 1+2 structural validator (`validateResponse`); tested (`gate.test.js`) and calibrated (2 `p3-llm-*.json` fixtures, wired into `eval/calibration-known-bad/run.js` as `llm-gate`), but no `mint/` entry point calls it yet | Aman | `mint/` requires `llm/gate.js` to validate every adjudicator response |
 | `llm/router.js` | provider routing/quorum (`route`/`quorum`); tested (`router.test.js`, all passing - the earlier synchronous-throw stringification defect is fixed) | Aman | `mint/` requires it |
 | `llm/prompts/adjudicate.js` | prompt/schema builder for the adjudicator (`buildAdjudicationPrompt`); tested (`adjudicate.test.js`); its verdict enum is imported from the one door `breach/adjudicator/verdict.js` (no hyphen/underscore drift) | Aman | `mint/` requires it |
+| `llm/evals/run.js` | the blocking LLM-eval harness (precision/abstain-rate over `llm/evals/fixtures/`); tested (`run.test.js`) and runnable from CI (`.github/workflows/llm-eval.yml`), but no `mint/` entry point calls it - it is a gate CI drives, not a mint step | Aman | it stays a CI gate; the mint never calls it, so it remains dormant to `mint/` by design |
 
-`llm/evals/` still holds only `.gitkeep` - no eval-harness module has landed as of this pass.
+`llm/evals/run.js` + `run.test.js` have now landed (the earlier `.gitkeep`-only note is stale); the harness is reached by CI / `node --test`, never by a `mint/` entry point, so it is declared dormant above ahead of the reachability walk arming.
 
 ## Not in this file's scope
 

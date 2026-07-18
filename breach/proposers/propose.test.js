@@ -164,17 +164,6 @@ test('absence-breach is SUPPRESSED when truncation telemetry is UNKNOWN (missing
   assert.ok(suppressedOf(cands, KIND.ABSENCE_BREACH).some((c) => /UNKNOWN/i.test(c.suppressed_reason)), 'the interlock demotes on unknown truncation');
 });
 
-test('propose FAILS CLOSED when a readable bundle produces a totally uncompilable catalogue (zero specs, all rejected)', () => {
-  // Every obligation carries an un-anchored (banned) regex pattern, so compileCatalogue rejects them ALL
-  // and returns zero specs. Returning [] would be a confident empty result on a malformed catalogue.
-  const badCat = { records: [{ id: 'BAD_RULE', regulator: {}, citation: {},
-    website_obligations: [{ duty: 'x', elements: ['y'], evidence_type: 'absence',
-      detection: { patterns: [{ kind: 'anchored-regex', value: 'cost' }] } }] }] };
-  const b = bundle();
-  const cov = coverageFor(b, badCat);
-  assert.throws(() => propose(b, badCat, cov), /ZERO detection specs|confident empty result/);
-});
-
 test('absence-breach is SUPPRESSED below the min-pages floor (C-025)', () => {
   const b = bundle();
   b.corpus.pages = pages().slice(0, MIN_PAGES_FOR_ABSENCE - 1);

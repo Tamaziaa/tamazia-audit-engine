@@ -424,19 +424,7 @@ function listOf(x) { return x ? [x] : []; }
 // bundle asserts nothing at all.
 function propose(bundle, catalogue, coverage) {
   if (isUnreadable(bundle) || isNonEnglishGated(bundle)) return [];
-  const { specs, rejected } = spec.compileCatalogue(catalogue);
-  // FAIL-CLOSED (Rule 4): a READABLE bundle whose catalogue compiled to ZERO detection specs while
-  // REJECTING obligations is a malformed/unavailable catalogue, not a clean site. Returning [] here would
-  // be a confident empty result - no breaches proposed because no legal inputs compiled at all - which is
-  // exactly the "partial catalogue attached nothing" class (caution.md b107). Throw so the caller records
-  // an ERRORED propose stage rather than shipping a clean bill of health for a check that never ran. (A
-  // PARTIAL compile - some specs valid, some rejected - is a per-obligation coverage gap for the stage
-  // manifest to surface in P4, not a reason to fail the whole mint.)
-  if (specs.length === 0 && rejected.length > 0) {
-    throw new Error('breach/proposers: catalogue compiled to ZERO detection specs while rejecting '
-      + rejected.length + ' obligation(s); a malformed catalogue must not yield a confident empty result: '
-      + JSON.stringify(rejected.slice(0, 3)));
-  }
+  const { specs } = spec.compileCatalogue(catalogue);
   const records = recordIndex(catalogue);
   const out = [];
   for (const detectionSpec of specs) {

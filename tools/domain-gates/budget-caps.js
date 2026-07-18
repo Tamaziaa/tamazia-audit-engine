@@ -33,7 +33,19 @@ const SCAN_DIRS = ['evidence'];
 const SKIP_DIRS = /^(node_modules|\.git|out|packs|dist|fixtures)$/;
 
 const THRESHOLD_MS = 120000; // 120s. A time budget above this is a hang budget, not a cap.
-const BUDGET_NAME_RX = /(timeout|budget|deadline|delay|backoff|linger|wait|ttl|sleep)/i;
+const BUDGET_WORD_RX = /(timeout|budget|deadline|delay|backoff|linger|wait|ttl|sleep)/i;
+// A millisecond-budget suffix the word list misses: camelCase `*Ms` (closeMs, settleMs, deadlineMs) or
+// SCREAMING_SNAKE `*_MS` (DEFAULT_CLOSE_MS, DEFAULT_SETTLE_MS). Matched CASE-SENSITIVELY so ordinary
+// words ending in lowercase "ms" (forms, terms, items, params) are never swept in - only the deliberate
+// ms-budget spelling is a budget. Without this the gate reported a CONFIDENT ZERO on `const
+// DEFAULT_CLOSE_MS = 200000` (caution.md C-203: a gate that encodes one spelling of a defect is theatre).
+const BUDGET_MS_RX = /(?:[a-z0-9]Ms|_MS)$/;
+// isBudgetName(name): the ONE door for "is this identifier a time/ms budget" (both spellings), so the
+// three call sites below cannot drift apart on which names count.
+function isBudgetName(name) {
+  const n = String(name || '');
+  return BUDGET_WORD_RX.test(n) || BUDGET_MS_RX.test(n);
+}
 
 let acorn = null;
 try { acorn = require('acorn'); }
@@ -80,7 +92,7 @@ function anyChildRefsBudget(node) {
 // subtree (so Math.max(20000, Math.floor(deadlineMs*0.6)) is recognised as a floor on deadlineMs).
 function refsBudgetIdent(node) {
   if (!node || typeof node !== 'object') return false;
-  if (node.type === 'Identifier') return BUDGET_NAME_RX.test(node.name);
+  if (node.type === 'Identifier') return isBudgetName(node.name);
   return anyChildRefsBudget(node);
 }
 
@@ -89,7 +101,7 @@ function refsBudgetIdent(node) {
 function isBudgetFloor(callNode, binding) {
   const args = callNode.arguments || [];
   if (!args.some(isNumericLiteral)) return false;
-  if (binding && BUDGET_NAME_RX.test(binding)) return true;
+  if (binding && isBudgetName(binding)) return true;
   return args.some(refsBudgetIdent);
 }
 
@@ -147,7 +159,7 @@ function flagCall(node, binding, relPath, line) {
 }
 function flagLiteral(node, binding, relPath, line) {
   if (!isOversizeLiteral(node)) return [];
-  if (!binding || !BUDGET_NAME_RX.test(binding)) return [];
+  if (!binding || !isBudgetName(binding)) return [];
   return [{ file: relPath, line, kind: 'oversize-deadline', message: 'budget "' + binding + '" is set to a literal ' + node.value + 'ms, exceeding the 120s hard-deadline cap (Rule 9)' }];
 }
 
@@ -208,7 +220,9 @@ function selfTest() {
     'f(a, Math.max(20000, Math.floor(deadlineMs * 0.6)), b);',       // floor via referenced identifier
     'setTimeout(fn, 130000);',                                       // oversize setTimeout
     'AbortSignal.timeout(200000);',                                  // oversize abort deadline
-    'const DEADLINE_MS = 200000;',                                   // oversize budget constant
+    'const DEADLINE_MS = 200000;',                                   // oversize budget constant (word 'deadline')
+    'const CLOSE_MS = 200000;',                                      // oversize budget: caught ONLY by the _MS suffix (no budget word)
+    'const closeMs = Math.max(3000, x);',                            // floor: caught ONLY by the camelCase Ms suffix
   ];
   const good = [
     'const width = Math.min(12, concurrency);',   // a cap, not a floor
@@ -216,6 +230,8 @@ function selfTest() {
     'setTimeout(fn, 5000);',                       // in-budget timeout
     'const CORPUS_MAX_CHARS = 500000;',            // a char ceiling, not a time budget
     'AbortSignal.timeout(12000);',                 // in-budget deadline
+    'const forms = 200000;',                       // a word ending in lowercase "ms" is NOT a budget (case-sensitive suffix)
+    'const maxItems = Math.max(3000, x);',         // 'maxItems' is not a budget name -> not a floor
   ];
   const badOk = bad.every((s) => scanContent('t.js', s).violations.length === 1);
   const goodOk = good.every((s) => scanContent('t.js', s).violations.length === 0);
@@ -249,4 +265,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { scanContent, scanTree, selfTest, toFindings, isBudgetFloor, isMathMax, THRESHOLD_MS };
+module.exports = { scanContent, scanTree, selfTest, toFindings, isBudgetFloor, isMathMax, isBudgetName, THRESHOLD_MS };

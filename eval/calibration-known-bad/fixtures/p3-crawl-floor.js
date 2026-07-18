@@ -23,4 +23,12 @@ function slowStep(fn) {
   return setTimeout(fn, 200000);
 }
 
-module.exports = { renderTail, perStepTimeout, slowStep };
+// (4) An oversize ms-budget named with the `*_MS` / `*Ms` SUFFIX and NO budget word (close/settle are not
+//     in the word list): the exact CONFIDENT-ZERO class the gate missed before isBudgetName recognised
+//     the millisecond suffix (caution.md C-203). A gate that reports zero on these has not earned its green.
+const DEFAULT_CLOSE_MS = 200000;
+function forceCloseCeiling(closeMs) {
+  return closeMs || DEFAULT_CLOSE_MS;
+}
+
+module.exports = { renderTail, perStepTimeout, slowStep, forceCloseCeiling, DEFAULT_CLOSE_MS };

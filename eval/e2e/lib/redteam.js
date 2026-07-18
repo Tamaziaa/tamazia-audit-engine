@@ -62,10 +62,15 @@ const STAGE_NAMES = new Set(['facts', 'coverage', 'propose', 'verify', 'adjudica
 // pendingGateReason(entry) -> a reason string when the fixture ITSELF declares its target gate is not
 // on disk yet (current_status:'pending_gate', or target_gate.status:'pending_gate'), else null. This
 // reads the real file's own authoritative status rather than guessing.
+// isPendingTargetGate(tg) -> true for a target_gate object explicitly declaring itself not-yet-landed.
+// Named so the 3-term conjunction is not its own "Complex Conditional" inline in pendingGateReason.
+function isPendingTargetGate(tg) {
+  return Boolean(tg) && typeof tg === 'object' && tg.status === 'pending_gate';
+}
 function pendingGateReason(entry) {
   if (entry.current_status === 'pending_gate') return 'fixture declares current_status: pending_gate';
   const tg = entry.target_gate;
-  if (tg && typeof tg === 'object' && tg.status === 'pending_gate') {
+  if (isPendingTargetGate(tg)) {
     return 'fixture declares target_gate.status: pending_gate (' + (tg.gate || 'unnamed gate') + ')';
   }
   return null;
@@ -75,28 +80,46 @@ function pendingGateReason(entry) {
 // BARE STRING naming one of this harness's own stage names and that stage did not run (the harness's
 // originally-documented, generic contract - kept as a forward-compatible fallback since the real file
 // uses a richer object shape handled by pendingGateReason() above instead).
+function firstTargetGateName(entry) {
+  return entry.target_gate || entry.gate || entry.target || null;
+}
+function isUnknownStageGate(gate) {
+  return typeof gate !== 'string' || !STAGE_NAMES.has(gate);
+}
+function stageDidNotRun(row) {
+  return !row || row.status !== 'ran';
+}
 function targetGateUnavailable(entry, stageTable) {
-  const gate = entry.target_gate || entry.gate || entry.target || null;
-  if (typeof gate !== 'string' || !STAGE_NAMES.has(gate)) return null;
+  const gate = firstTargetGateName(entry);
+  if (isUnknownStageGate(gate)) return null;
   const row = (stageTable || []).find((s) => s.stage === gate);
-  if (!row || row.status !== 'ran') return gate;
-  return null;
+  return stageDidNotRun(row) ? gate : null;
 }
 
 // resolveBundle(entry, fixturesDir) -> an EvidenceBundle, or null when the entry carries none this
 // harness knows how to resolve. entry.input.bundle (the real landed file's shape) is tried first.
+// Each of resolveBundle's four resolution strategies is its own named function tried in order, so the
+// composed function is a flat disjunction with no branch structure left to fold (the health-gate
+// Complex Method / Bumpy Road caps: one conditional block per function).
+function bundleFromInput(entry) {
+  return (entry.input && entry.input.bundle && typeof entry.input.bundle === 'object') ? entry.input.bundle : null;
+}
+function bundleFromField(entry) {
+  return (entry.bundle && typeof entry.bundle === 'object') ? entry.bundle : null;
+}
+function bundleFromFixtureFile(entry, fixturesDir) {
+  if (!entry.fixture) return null;
+  const p = path.isAbsolute(entry.fixture) ? entry.fixture : path.join(fixturesDir, entry.fixture);
+  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
+}
+function bundleFromDomainFile(entry, fixturesDir) {
+  if (!entry.domain) return null;
+  const p = path.join(fixturesDir, entry.domain + '.json');
+  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
+}
 function resolveBundle(entry, fixturesDir) {
-  if (entry.input && entry.input.bundle && typeof entry.input.bundle === 'object') return entry.input.bundle;
-  if (entry.bundle && typeof entry.bundle === 'object') return entry.bundle;
-  if (entry.fixture) {
-    const p = path.isAbsolute(entry.fixture) ? entry.fixture : path.join(fixturesDir, entry.fixture);
-    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
-  }
-  if (entry.domain) {
-    const p = path.join(fixturesDir, entry.domain + '.json');
-    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
-  }
-  return null;
+  return bundleFromInput(entry) || bundleFromField(entry)
+    || bundleFromFixtureFile(entry, fixturesDir) || bundleFromDomainFile(entry, fixturesDir);
 }
 
 // mustNotTerms(entry) -> every forbidden token this generic harness can search for: any STRING value
@@ -104,13 +127,18 @@ function resolveBundle(entry, fixturesDir) {
 // majority of this fixture file's must_not clauses) describe a behavioural invariant no generic token
 // search can check; they contribute nothing, and an entry with only boolean flags falls through to an
 // honest 'skipped' rather than a false 'caught' on a check that never ran.
+// collectTermsFromValue(value, terms) -> pushes value (a string) or every string inside value (an
+// array) onto terms. Split out of mustNotTerms so the two shapes are not one function's two branches
+// (the health-gate "Bumpy Road" cap).
+function collectTermsFromValue(value, terms) {
+  if (typeof value === 'string') { terms.push(value); return; }
+  if (!Array.isArray(value)) return;
+  for (const v of value) if (typeof v === 'string') terms.push(v);
+}
 function mustNotTerms(entry) {
   const mn = (entry && entry.must_not) || {};
   const terms = [];
-  for (const value of Object.values(mn)) {
-    if (typeof value === 'string') terms.push(value);
-    else if (Array.isArray(value)) { for (const v of value) if (typeof v === 'string') terms.push(v); }
-  }
+  for (const value of Object.values(mn)) collectTermsFromValue(value, terms);
   return terms;
 }
 

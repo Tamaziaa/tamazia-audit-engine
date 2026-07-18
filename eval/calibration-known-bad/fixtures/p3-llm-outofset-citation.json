@@ -7,7 +7,7 @@
     "additionalProperties": true,
     "properties": {
       "finding_id": { "type": "string", "minLength": 1 },
-      "verdict": { "type": "string", "enum": ["violation", "needs-review", "pass"] },
+      "verdict": { "type": "string", "enum": ["violation", "needs_review", "pass"] },
       "source_id": { "type": "string", "minLength": 1 },
       "quote": { "type": "string", "minLength": 8 },
       "rationale": { "type": "string" }
