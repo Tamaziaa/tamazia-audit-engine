@@ -23,7 +23,18 @@ node eval/e2e/run-pipeline.js --no-synthetic --no-red-team       # reference-set
 node eval/e2e/run-pipeline.js --breach-timeout 8000              # tune the per-firm breach deadline (ms)
 node eval/e2e/run-pipeline.js --breach-inline                    # run the breach lane in-process (fast, no subprocess) - use ONCE the propose ReDoS below is fixed
 node eval/e2e/run-pipeline.js --set <file> --fixtures <dir> --synthetic <dir> --red-team <file>
+node eval/e2e/run-pipeline.js --breach-inline --llm replay:eval/e2e/fixtures/recorded   # THE CANONICAL FULL-ASSESSMENT INVOCATION
 ```
+
+**The canonical full-assessment invocation** (docs/P3-TAIL-ACCEPTANCE.md U2) is now
+`node eval/e2e/run-pipeline.js --breach-inline --llm replay:eval/e2e/fixtures/recorded`. `--llm
+replay:<dir>` plays back committed, sanitised recordings (`eval/e2e/lib/replay-llm.js`'s frozen
+recorded-response contract) for the breach-lane adjudication and entailment `llmCall` seams only;
+red-team handlers keep their own injected calls, untouched. Scripted mode (no `--llm` at all, the
+default) remains available for safety-property runs but is **no longer a full assessment**: every
+text-derived candidate abstains by construction (`scripted-llm.js`'s `defaultScriptedLlmCall` always
+declines), so a scripted run over the current fixture set now honestly **fails the vacuity clause**
+below rather than reading as a clean pass.
 
 **Suggested `package.json` script** (this task does not own `package.json`; add by hand):
 
@@ -45,12 +56,21 @@ run in-process.
 
 ### Exit codes
 
-- `0` - zero contradictions AND zero red-team escapes/errors among entries that actually ran. (A breach-
-  lane timeout is neither a contradiction nor a red-team escape - it is surfaced in the summary's
-  `breach lane: N complete | N errored/timed-out | N skipped` line so a timed-out run is never misread as
-  a clean full assessment.)
+- `0` - zero contradictions AND zero red-team escapes/errors among entries that actually ran, AND the
+  vacuity clause below does not fire. (A breach-lane timeout is neither a contradiction nor a red-team
+  escape - it is surfaced in the summary's `breach lane: N complete | N errored/timed-out | N skipped`
+  line so a timed-out run is never misread as a clean full assessment.)
 - `1` - at least one contradiction (a known-verified fact disagreed with, a binding jurisdiction outside
-  the verified list, or a `known_non_breach` asserted as a finding), or at least one red-team escape/error.
+  the verified list, or a `known_non_breach` asserted as a finding), or at least one red-team
+  escape/error, OR **the vacuity clause fires** (caution.md C-236): among firms whose breach lane is
+  COMPLETE (propose, verify and adjudicate all genuinely ran - not skipped, not errored, not timed out)
+  and which declare at least one `known_breach`, the total reproduced-as-violation count is 0. "Zero
+  false accusations" on an engine that finds nothing is vacuously true, so the bar also requires a
+  positive control to actually reproduce. A run with zero complete+declaring lanes (every firm timed out,
+  or `--no-breach`) does NOT trip this clause - there is no tested population to be vacuous about, and
+  that degradation is instead loudly reported via the existing breach-lane completeness counters plus
+  the always-on `reproduced: k/n` line. When it fires, a `vacuous: 0 known_breach reproduced across N
+  complete lanes` line and an explicit `RESULT: FAIL` line print.
 - `2` - usage/data error: a bad argument, an unreadable reference set, an empty/missing fixtures
   directory, a reference-set firm with no fixture on disk (an uncovered gap, not an abstention), or a
   facts/coverage door that threw (a real integration bug, never silently downgraded).
@@ -200,7 +220,8 @@ eval/e2e/
     pipeline.js                  runs ONE bundle through facts -> coverage -> propose -> verify -> adjudicate
     breach-stages.js             the stage loader (STAGE_CONTRACT: propose.js / verifiers/index.js / adjudicate.js)
     breach-worker.js              the subprocess breach-lane worker (Rule-9 hard-deadline guard for the propose ReDoS)
-    scripted-llm.js               the only llmCall this harness ever injects ({verdicts}/{ok:false}, never real network)
+    scripted-llm.js               the DEFAULT llmCall this harness injects ({verdicts}/{ok:false}, never real network)
+    replay-llm.js                  --llm replay:<dir>'s llmCall: plays back committed recordings (the frozen contract), fail-closed on a missing key
     catalogue-records.js          loads catalogue/dist/catalogue.v1.json's records[] for coverage
     judge.js                     reference-set comparison overlay (reproduced/missed/skipped, contradiction/clean)
     synthetic-fixtures.js         loads eval/e2e/fixtures/*.json
