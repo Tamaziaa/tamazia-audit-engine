@@ -16,19 +16,19 @@
     {
       "key": "989c5cd3060163a0f206a1fad6e86242667c4bc930ab9ba31ceb101a6d50d75e",
       "kind": "adjudicate",
-      "raw": "{\"id\":0,\"verdict\":\"breach\",\"reason\":\"advertising prescription-only medicine\",\"disproof\":null}",
+      "raw": "{\"id\":0,\"verdict\":\"breach\",\"reason\":\"Text advertises prescription only medicine\",\"disproof\":null}",
       "meta": {
-        "provider": "cloudflare",
-        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
       }
     },
     {
       "key": "c43b7f0e99fdf67c61340c3297bf83fd0e9bd8da1e96a17c0be57aa0eca2648b",
       "kind": "entailment",
-      "raw": "{\"source_id\": \"https://example-synthetic-breach.test/\", \"verdict\": \"contradiction\", \"rationale\": \"The page evidence mentions 'wrinkle-relaxing injections', which the rule text identifies as an indirect reference to prescription only medicine, indicating that the website does advertise such medicine to the public, contrary to the hypothesis that it does not.\"}",
+      "raw": "{\n  \"source_id\": \"https://example-synthetic-breach.test/\",\n   \"verdict\": \"entailment\",\n   \"rationale\": \"The page evidence mentions 'wrinkle-relaxing injections', which the rule text defines as an indirect reference to prescription only medicine, thus the website does advertise prescription only medicine to the public.\"\n}",
       "meta": {
-        "provider": "cloudflare",
-        "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
       }
     }
   ]

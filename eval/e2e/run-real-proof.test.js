@@ -16,7 +16,8 @@ const { loadCatalogueRecords } = require('./lib/catalogue-records.js');
 // ── arg parsing ──────────────────────────────────────────────────────────────────────────────────────
 test('parseArgs reads the flags and rejects the unknown', () => {
   assert.deepStrictEqual(D.parseArgs(['node', 's', '--dry', '--clean', '--no-preflight', '--json']).opts,
-    { json: true, clean: true, dry: true, preflight: false, domain: null });
+    { json: true, clean: true, dry: true, preflight: false, domain: null, all: false });
+  assert.strictEqual(D.parseArgs(['node', 's', '--all']).opts.all, true, '--all selects every reference firm (the multi-sector run)');
   assert.strictEqual(D.parseArgs(['node', 's', '--nope']).exitCode, 2);
 });
 

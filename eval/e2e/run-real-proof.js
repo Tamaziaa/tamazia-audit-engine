@@ -291,12 +291,13 @@ function printPreflightHuman(rows) {
 // ── main ──────────────────────────────────────────────────────────────────────────────────────────────
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const opts = { json: false, clean: false, dry: false, preflight: true, domain: null };
+  const opts = { json: false, clean: false, dry: false, preflight: true, domain: null, all: false };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--json') opts.json = true;
     else if (a === '--clean') opts.clean = true;
     else if (a === '--dry') opts.dry = true;
+    else if (a === '--all') opts.all = true;
     else if (a === '--no-preflight') opts.preflight = false;
     else if (a === '--domain') opts.domain = args[++i];
     else { console.error('Unknown argument: ' + a); return { exitCode: 2 }; }
@@ -304,10 +305,28 @@ function parseArgs(argv) {
   return { opts };
 }
 
+// allReferenceFirms(refSet): every reference-set firm that has a fixture on disk (a fixtureless firm is
+// SKIPPED with a note, never a fatal error - the multi-sector --all run must not abort on one stub firm).
+function allReferenceFirms(refSet) {
+  const out = [];
+  for (const f of (refSet.firms || [])) {
+    const loaded = loadReferenceFirm(f.domain, refSet);
+    if (loaded.error) { console.error('run-real-proof: --all skipping ' + f.domain + ' (' + loaded.error + ')'); continue; }
+    out.push(loaded);
+  }
+  return out;
+}
+// loadFirms(opts, refSet): the synthetic control first, then either every reference firm (--all, the
+// multi-sector absence run) or the 5 known_breach set (+ 3 clean matrix firms under --clean). --domain
+// filters to one firm from whichever set was selected.
 function loadFirms(opts, refSet) {
   const firms = [loadSyntheticFirm()];
-  for (const d of KNOWN_BREACH_FIRMS) firms.push(loadReferenceFirm(d, refSet));
-  if (opts.clean) for (const d of CLEAN_FIRMS) firms.push(loadReferenceFirm(d, refSet));
+  if (opts.all) {
+    for (const f of allReferenceFirms(refSet)) firms.push(f);
+  } else {
+    for (const d of KNOWN_BREACH_FIRMS) firms.push(loadReferenceFirm(d, refSet));
+    if (opts.clean) for (const d of CLEAN_FIRMS) firms.push(loadReferenceFirm(d, refSet));
+  }
   if (opts.domain) return firms.filter((f) => f.domain === opts.domain);
   return firms;
 }
