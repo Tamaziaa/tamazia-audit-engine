@@ -6,7 +6,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { checkEntailment, ENTAILMENT, ABSTAIN_LABEL } = require('./entailment.js');
+const { checkEntailment, numOr, DEFAULT_DEADLINE_MS, ENTAILMENT, ABSTAIN_LABEL } = require('./entailment.js');
 
 const PREMISE = 'Authorised and regulated by the Financial Conduct Authority, firm reference 123456.';
 const CLAIM = { claim: 'the firm is authorised by the FCA', premise_source_id: 'src-1', premise: PREMISE };
@@ -79,6 +79,26 @@ test('a claim with no premise/source_id abstains WITHOUT calling the model', asy
   const [r] = await checkEntailment([{ claim: 'unsupported floating claim' }], { llmCall: spy });
   assert.equal(r.ok, false);
   assert.equal(called, false, 'no premise -> nothing to entail -> the model is never consulted');
+});
+
+test('a claim with a premise + source_id but an EMPTY hypothesis abstains WITHOUT calling the model', async () => {
+  // No proposition to entail. Without the !hypothesis guard, a bare 'entailment' reply would score
+  // ok:true for nothing checked. Fail-closed: abstain and never consult the model (Rule 4).
+  let called = false;
+  const spy = async () => { called = true; return jsonReply('entailment'); };
+  const [r] = await checkEntailment([{ claim: '', premise_source_id: 'src-1', premise: PREMISE }], { llmCall: spy });
+  assert.equal(r.ok, false);
+  assert.equal(called, false, 'empty hypothesis -> nothing to entail -> the model is never consulted');
+});
+
+test('numOr clamps an over-large deadline override down to the hard cap and floors misconfig to the cap', () => {
+  // A caller may ask for a SHORTER deadline, never a longer one (Rule 8/9: the cap is a ceiling).
+  assert.equal(numOr(50, DEFAULT_DEADLINE_MS), 50, 'a shorter override is honoured');
+  assert.equal(numOr(3600000, DEFAULT_DEADLINE_MS), DEFAULT_DEADLINE_MS, 'an hour-long override is clamped to the cap');
+  assert.equal(numOr(DEFAULT_DEADLINE_MS + 1, DEFAULT_DEADLINE_MS), DEFAULT_DEADLINE_MS, 'one past the cap clamps to the cap');
+  assert.equal(numOr('nonsense', DEFAULT_DEADLINE_MS), DEFAULT_DEADLINE_MS, 'a non-number falls back to the cap');
+  assert.equal(numOr(0, DEFAULT_DEADLINE_MS), DEFAULT_DEADLINE_MS, 'a non-positive value falls back to the cap');
+  assert.equal(numOr(-5, DEFAULT_DEADLINE_MS), DEFAULT_DEADLINE_MS, 'a negative value falls back to the cap');
 });
 
 test('no llmCall injected -> every claim abstains (Rule 12 gate 4)', async () => {

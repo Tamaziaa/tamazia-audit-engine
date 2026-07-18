@@ -33,9 +33,12 @@ const { resolvePlaywrightLauncher } = require('./playwright-adapter');
 const { isTrackerHost, classifyCookie, oracleMeta } = require('./oracle');
 // HOST is a one-door fact (Rule 1): a hostname is read through the single parsed-host door in
 // tools/lib/safe-fetch.js, never re-derived here and never substring-matched (GAPS host-substring).
-const { hostOf: safeHostOf } = require('../../tools/lib/safe-fetch');
+// parseSafeFetchTarget is the SAME door's SSRF gate: the consent-control URL is DOM-controlled (it comes
+// from page.findConsentControl), so it must clear the door before any link-health fetch touches it.
+const { hostOf: safeHostOf, parseSafeFetchTarget } = require('../../tools/lib/safe-fetch');
 
-// Every budget below is a CAP, never a floor (Rule 8): the outer race takes whichever settles first.
+// Every budget below is a CAP, never a floor (Rule 8): the outer race takes whichever settles first, and
+// a caller may only lower a budget, never raise it past these module ceilings (see capOr).
 const DEFAULT_DEADLINE_MS = 45000; // total launch->close ceiling; well under the 120s mint budget
 const DEFAULT_SETTLE_MS = 3000;    // wait for on-load tags to fire and drop cookies (cap)
 const DEFAULT_CLOSE_MS = 5000;     // force-close ceiling
@@ -43,16 +46,23 @@ const DEFAULT_LINK_MS = 8000;      // consent-control link-health fetch ceiling
 
 // ── option normalisation ───────────────────────────────────────────────────────────────────────
 
-function numOr(v, d) { return Number.isFinite(v) ? v : d; }
 function numOrNull(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+
+// capOr(v, cap): a positive finite override CLAMPED to `cap`, else `cap`. A budget is a hard ceiling
+// (Rule 8): a caller may ask for a SHORTER wall time, never a longer one, so a 3600000ms deadlineMs
+// cannot defeat the documented 45s ceiling and stall a mint (the 752s-hostage class stays impossible).
+function capOr(v, cap) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, cap) : cap;
+}
 
 function normaliseOpts(opts) {
   const o = opts || {};
   return {
-    deadlineMs: numOr(o.deadlineMs, DEFAULT_DEADLINE_MS),
-    settleMs: numOr(o.settleMs, DEFAULT_SETTLE_MS),
-    closeMs: numOr(o.closeMs, DEFAULT_CLOSE_MS),
-    linkMs: numOr(o.linkMs, DEFAULT_LINK_MS),
+    deadlineMs: capOr(o.deadlineMs, DEFAULT_DEADLINE_MS),
+    settleMs: capOr(o.settleMs, DEFAULT_SETTLE_MS),
+    closeMs: capOr(o.closeMs, DEFAULT_CLOSE_MS),
+    linkMs: capOr(o.linkMs, DEFAULT_LINK_MS),
     now: typeof o.now === 'function' ? o.now : Date.now,
     launchBrowser: o.launchBrowser,
     fetchLink: o.fetchLink,
@@ -77,7 +87,7 @@ function trackerHost(cfg, host) {
 
 // ── lane result builders (every non-ran outcome is RECORDED, never silent - C-041/Rule 4) ────────
 
-function unknownControl() { return { found: false, healthy: null, url: null }; }
+function unknownControl() { return { found: false, healthy: null, url: null, status: null }; }
 
 function lanePlaywrightUnavailable(cfg) {
   return { observed: [], consentControl: unknownControl(), lane: { ran: false, reason: 'playwright-unavailable', oracle: oracleMetaOf(cfg) } };
@@ -195,7 +205,10 @@ function addBrokenControl(observed, consentControl, cfg) {
     host: safeHostOf(consentControl.url),
     essential: null,
     networkEvent: null,
-    artifact: { type: 'link_health', url: consentControl.url, healthy: false },
+    // The artifact retains the OBSERVED failing status (Rule 3): a broken-control finding exists ONLY on
+    // a captured HTTP failure. A timeout or a transport error never reaches here - those abstain to
+    // healthy:null in linkHealth (absence vs observation, Rule 8), so this branch cannot fire on them.
+    artifact: { type: 'link_health', url: consentControl.url, healthy: false, status: consentControl.status },
     ts: cfg.now(),
   });
 }

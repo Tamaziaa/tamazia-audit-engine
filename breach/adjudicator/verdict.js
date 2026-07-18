@@ -34,7 +34,6 @@ const STATES = new Set(VERDICTS);
 const VERDICT_TO_STATE = { breach: 'violation', no_breach: 'pass', insufficient: 'needs_review' };
 
 const MIN_DISPROOF_CHARS = 6;   // a sub-6-char "disproof" is a nav fragment, never proof (cf. C-089)
-const DISPROOF_ANCHOR_CHARS = 40; // the leading span that must appear verbatim in the evidence
 
 // verdictWord(raw) -> the lowercased verdict string carried by a raw verdict (a { verdict } object or
 // a bare string), or null when none is present. Non-string verdict fields are null (a wrong type is
@@ -62,16 +61,18 @@ function normaliseDisproof(disproof) {
 
 /**
  * disproofMatches(disproof, evidence) -> true when `disproof` is a real verbatim span of `evidence`.
- * The proven port rubric (C-092): normalise, require a minimum length, and require the evidence
- * haystack to contain the disproof's leading anchor span. A disproof the engine cannot find in the
- * evidence it handed the model is not a disproof.
+ * The proven port rubric (C-092, Rule 12 gate 2): normalise, require a minimum length, and require the
+ * evidence haystack to contain the WHOLE normalised disproof verbatim. An earlier build anchored only
+ * the leading 40 characters, which let a model append fabricated text after a genuine 40-char prefix
+ * and still clear a real breach; the exact-substring re-match closes that escape (a disproof the engine
+ * cannot find, in full, in the evidence it handed the model is not a disproof).
  */
 function disproofMatches(disproof, evidence) {
   const q = normaliseDisproof(disproof);
   if (q.length < MIN_DISPROOF_CHARS) return false;
   const hay = typeof evidence === 'string' ? evidence.toLowerCase() : '';
   if (!hay) return false;
-  return hay.includes(q.slice(0, DISPROOF_ANCHOR_CHARS));
+  return hay.includes(q);
 }
 
 function reasonOf(raw, fallback) {
@@ -122,5 +123,4 @@ module.exports = {
   STATES,
   VERDICT_TO_STATE,
   MIN_DISPROOF_CHARS,
-  DISPROOF_ANCHOR_CHARS,
 };

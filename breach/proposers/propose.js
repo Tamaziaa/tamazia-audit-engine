@@ -185,7 +185,9 @@ function findProhibitedQuote(detectionSpec, pages) {
 }
 
 // ── candidate builders ─────────────────────────────────────────────────────────────────────────────
-function candidate(detectionSpec, kind, artifact, pageUrl, confidence) {
+// candidate({detectionSpec, kind, artifact, pageUrl, confidence}) -> one proposed candidate. An options
+// object (health-gate's <=5 param cap; the P2-proven shape) rather than five positional arguments.
+function candidate({ detectionSpec, kind, artifact, pageUrl, confidence }) {
   return {
     record_id: detectionSpec.record_id,
     duty_idx: detectionSpec.duty_idx,
@@ -220,7 +222,7 @@ function evalPresenceBreach(detectionSpec, pages) {
   const found = findProhibitedQuote(detectionSpec, pages);
   if (found.quote) {
     const artifact = { type: ARTIFACT_TYPES.QUOTE, text: found.quote, surface: detectionSpec.surface };
-    return candidate(detectionSpec, KIND.PRESENCE_BREACH, artifact, found.page_url, 'strong');
+    return candidate({ detectionSpec, kind: KIND.PRESENCE_BREACH, artifact, pageUrl: found.page_url, confidence: 'strong' });
   }
   if (found.guardedOnly) return suppressed(detectionSpec, KIND.PRESENCE_BREACH, 'all-matches-negated-or-review (compliant self-declaration or testimonial, C-048/C-090)');
   return null;
@@ -261,7 +263,7 @@ function evalAbsenceBreach(detectionSpec, bundle, coverageState) {
     tier1_fetched: true,
     truncated: isTruncated(bundle),
   };
-  return candidate(detectionSpec, KIND.ABSENCE_BREACH, artifact, null, 'moderate');
+  return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: null, confidence: 'moderate' });
 }
 function patternSummary(pattern) {
   if (pattern.kind === 'token-set') return { kind: pattern.kind, tokens: pattern.value.tokens, mode: pattern.value.mode };
@@ -302,11 +304,19 @@ function laneReason(browser) {
 // second broken-control path off bundle.browser.consentControl: a divergent path would double-count the
 // same breach (the summary and observed[] both carry it) and its bespoke shape lacked the host/name
 // verifyNetworkEvent matches on, so it could never verify.
+// isRelevantObservation(detectionSpec, ev) -> true when ev is a real, kinded event this obligation
+// concerns. Named so the 3-term disjunction is not its own "Complex Conditional" inline in the loop.
+function isRelevantObservation(detectionSpec, ev) {
+  return Boolean(ev) && Boolean(ev.kind) && obligationConcerns(detectionSpec, ev.kind);
+}
 function observedCandidates(detectionSpec, observed) {
   const out = [];
   for (const ev of (Array.isArray(observed) ? observed : [])) {
-    if (!ev || !ev.kind || !obligationConcerns(detectionSpec, ev.kind)) continue;
-    out.push(candidate(detectionSpec, KIND.BEHAVIOURAL, { type: ARTIFACT_TYPES.NETWORK_EVENT, ...ev }, ev.host || ev.url || null, 'strong'));
+    if (!isRelevantObservation(detectionSpec, ev)) continue;
+    out.push(candidate({
+      detectionSpec, kind: KIND.BEHAVIOURAL, artifact: { type: ARTIFACT_TYPES.NETWORK_EVENT, ...ev },
+      pageUrl: ev.host || ev.url || null, confidence: 'strong',
+    }));
   }
   return out;
 }
@@ -332,18 +342,31 @@ function registerTargetFor(record, keys) {
 // lane, no note at all) is a recorded suppression. The candidate is WEAK: a no-match is not proof of
 // non-registration (a slightly different registered name can miss the match), so the adjudicator
 // quarantines it to needs_review rather than shipping a hard violation (Rule 6).
+function registerNotesOf(registers) {
+  return Array.isArray(registers.notes) ? registers.notes : [];
+}
+// allRegisterKeys(registers, notes) -> every register key the bundle knows about (direct rows + note
+// entries), deduped. Split out so evalRegister's own decision count stays low.
+function allRegisterKeys(registers, notes) {
+  const keys = Object.keys(registers).filter((k) => k !== 'notes');
+  const noteKeys = notes.map((n) => n && n.register).filter(Boolean);
+  return [...new Set([...keys, ...noteKeys])];
+}
+function noteForRegister(notes, target) {
+  return notes.find((n) => n && n.register === target) || null;
+}
+function noMatchArtifact(target, note) {
+  return { type: ARTIFACT_TYPES.REGISTER_ABSENCE, register: target, query: note.query || note.detail || null, lane: 'no_match', note };
+}
 function evalRegister(detectionSpec, bundle, record) {
   const registers = (bundle && bundle.registers) || {};
-  const keys = Object.keys(registers).filter((k) => k !== 'notes');
-  const notes = Array.isArray(registers.notes) ? registers.notes : [];
-  const noteKeys = notes.map((n) => n && n.register).filter(Boolean);
-  const target = registerTargetFor(record, [...new Set([...keys, ...noteKeys])]);
+  const notes = registerNotesOf(registers);
+  const target = registerTargetFor(record, allRegisterKeys(registers, notes));
   if (!target) return suppressed(detectionSpec, KIND.REGISTER, 'no register lane resolvable for this record (unregistered lane / no lookup)');
   if (registers[target]) return null; // a matched row is present -> compliant on this duty
-  const note = notes.find((n) => n && n.register === target);
+  const note = noteForRegister(notes, target);
   if (note && note.kind === 'no_match') {
-    const artifact = { type: ARTIFACT_TYPES.REGISTER_ABSENCE, register: target, query: (note.query || note.detail) || null, lane: 'no_match', note };
-    return candidate(detectionSpec, KIND.REGISTER, artifact, null, 'weak');
+    return candidate({ detectionSpec, kind: KIND.REGISTER, artifact: noMatchArtifact(target, note), pageUrl: null, confidence: 'weak' });
   }
   return suppressed(detectionSpec, KIND.REGISTER, 'register "' + target + '" not definitively checked (' + ((note && note.kind) || 'no note') + '); a no-match is required before a non-appearance claim (C-004)');
 }

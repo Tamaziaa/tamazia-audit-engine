@@ -38,11 +38,13 @@ const DEFAULT_DEADLINE_MS = 9000; // a CAP, never a floor (Rule 8); one NLI call
 const ENTAILMENT = 'entailment';
 const ABSTAIN_LABEL = 'neutral'; // the conservative default label on any refusal (not entailment).
 
-// numOr(v, d): a positive finite number, else the default. A misconfigured deadline never becomes a
-// floor or an unbounded wait; it falls back to the CAP default (Rule 8).
+// numOr(v, d): a positive finite override CLAMPED to the cap `d`, else the default `d`. `d` is the hard
+// ceiling (DEFAULT_DEADLINE_MS), never a floor: a caller may only ask for a SHORTER deadline, never a
+// longer one, so an override of an hour cannot defeat the documented seconds-scale cap (Rule 8/9). A
+// misconfigured deadline (NaN, <=0) falls back to the cap default.
 function numOr(v, d) {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n : d;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, d) : d;
 }
 
 // normaliseClaim(claim): read the hypothesis, its premise span and that span's source_id off one
@@ -102,12 +104,14 @@ function verdictFromResponse(raw, pkg) {
   return { verdict: label, ok: false, reason: 'nli label "' + label + '" is not entailment -> abstain (Rule 12 gate 3)' };
 }
 
-// checkOne(claim, opts): the whole per-claim pipeline. A claim missing its premise or its source_id
-// cannot be verified, so it abstains WITHOUT calling the model (no premise, nothing to entail).
+// checkOne(claim, opts): the whole per-claim pipeline. A claim missing its hypothesis, its premise or
+// its source_id cannot be verified, so it abstains WITHOUT calling the model. An empty hypothesis is
+// no proposition to entail, so a bare 'entailment' reply would be ok:true for nothing checked - that
+// escape is closed here (fail-closed, Rule 4).
 async function checkOne(claim, opts) {
   const { hypothesis, sourceId, premise } = normaliseClaim(claim);
-  if (!sourceId || !premise) {
-    return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, 'no cited premise span/source_id -> cannot verify, abstain (Rule 3)');
+  if (!hypothesis || !sourceId || !premise) {
+    return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, 'no hypothesis, cited premise span or source_id -> cannot verify, abstain (Rule 3/4)');
   }
   if (typeof opts.llmCall !== 'function') {
     return resultFor(hypothesis, sourceId, ABSTAIN_LABEL, false, 'no llmCall injected -> abstain (Rule 12 gate 4)');
@@ -162,6 +166,7 @@ module.exports = {
   checkEntailment,
   normaliseClaim,
   verdictFromResponse,
+  numOr, // exported so the deadline-cap clamp is directly unit-testable (Rule 8/9) without a wall wait
   DEFAULT_DEADLINE_MS,
   ENTAILMENT,
   ABSTAIN_LABEL,

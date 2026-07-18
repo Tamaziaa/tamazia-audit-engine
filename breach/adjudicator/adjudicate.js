@@ -45,17 +45,19 @@ function normaliseOptions(options) {
 }
 
 // ── ctx: READ facts off the bundle for the prompt; never re-derive them (Rule 1, one door). ───────────
-function readField(bundle, keys) {
+// firstStringField(source, keys) -> the first non-empty string value among keys on source, or ''. The
+// one shared loop readField calls twice (bundle, then bundle.facts) so neither call is its own
+// "Bumpy Road" (health-gate decision cap).
+function firstStringField(source, keys) {
+  if (!source) return '';
   for (const k of keys) {
-    const v = bundle && bundle[k];
-    if (typeof v === 'string' && v) return v;
-  }
-  const facts = bundle && bundle.facts;
-  for (const k of keys) {
-    const v = facts && facts[k];
+    const v = source[k];
     if (typeof v === 'string' && v) return v;
   }
   return '';
+}
+function readField(bundle, keys) {
+  return firstStringField(bundle, keys) || firstStringField(bundle && bundle.facts, keys);
 }
 function ctxFromBundle(bundle) {
   return {
@@ -78,9 +80,12 @@ function evidenceText(f) {
 function fieldStr(f, key) {
   return f && f[key] != null ? String(f[key]) : '';
 }
+function hasCheckedUrls(f) {
+  return f && Array.isArray(f.checked_urls) && f.checked_urls.length > 0;
+}
 function firstCheckedUrl(f) {
   if (f && f.evidence_url) return String(f.evidence_url);
-  if (f && Array.isArray(f.checked_urls) && f.checked_urls.length) return String(f.checked_urls[0]);
+  if (hasCheckedUrls(f)) return String(f.checked_urls[0]);
   return '';
 }
 function absenceLine(ae) {
@@ -165,12 +170,18 @@ function scoreEnum(verdicts, defs) {
   defs.push('every verdict must be exactly one of: breach, no_breach, insufficient');
   return 0;
 }
+function verdictClaimsNoBreach(x) {
+  return String((x && x.verdict) || '').toLowerCase() === 'no_breach';
+}
+function noBreachIsAnchored(x, batch) {
+  const f = batch[Number(x && x.id)];
+  return Boolean(f) && disproofMatches(x && x.disproof, evidenceText(f));
+}
 function scoreAnchoring(verdicts, batch, defs) {
   let anchored = true;
   for (const x of verdicts) {
-    if (String((x && x.verdict) || '').toLowerCase() !== 'no_breach') continue;
-    const f = batch[Number(x && x.id)];
-    if (f && disproofMatches(x && x.disproof, evidenceText(f))) continue;
+    if (!verdictClaimsNoBreach(x)) continue;
+    if (noBreachIsAnchored(x, batch)) continue;
     anchored = false;
     defs.push('id ' + (x && x.id) + ': a "no_breach" needs a VERBATIM disproof quoted from the evidence shown');
   }
@@ -232,29 +243,46 @@ function verdictsFrom(out) {
 // keeps the violation; anything else (neutral, contradiction, gate-reject, timeout, no premise, no
 // result) demotes to needs_review. The NLI call is bounded by whatever adjudication budget remains
 // (Rule 8/9: a cap, never a floor); an exhausted budget demotes without calling the model.
-async function gateEntailment(f, parsed, opts) {
+// remainingBudget(opts) -> ms left on the shared adjudication deadline (a cap, never a floor: Rule 8/9).
+function remainingBudget(opts) {
   const deadlineAt = Number.isFinite(opts.deadlineAt) ? opts.deadlineAt : (opts.now() + DEFAULT_DEADLINE_MS);
-  const remaining = deadlineAt - opts.now();
-  if (remaining <= 0) { stampNliDemote(f, { verdict: 'deadline' }); return; }
-  // Premise fields: a P3 candidate carries its verbatim quote on the ARTIFACT (artifact.quote/.text,
-  // Gate 2's string-matched span) and its locator on artifact.page_url/candidate.page_url; the
-  // port-era flat fields (evidence_quote/evidence_source_id/evidence_url) are read first for
-  // compatibility. Missing premise still abstain-demotes inside checkEntailment (never a guess).
+  return deadlineAt - opts.now();
+}
+// Premise fields: a P3 candidate carries its verbatim quote on the ARTIFACT (artifact.quote/.text,
+// Gate 2's string-matched span) and its locator on artifact.page_url/candidate.page_url; the port-era
+// flat fields (evidence_quote/evidence_source_id/evidence_url) are read first for compatibility.
+// Missing premise still abstain-demotes inside checkEntailment (never a guess). Split into two named
+// lookups (guard-claused, no chained || of mixed truthiness/!=null tests) so neither is its own
+// "Complex Conditional".
+function premiseSourceId(f, art) {
+  return f.evidence_source_id || f.evidence_url || art.page_url || f.page_url;
+}
+function premiseQuote(f, art) {
+  const direct = fieldStr(f, 'evidence_quote');
+  if (direct) return direct;
+  if (art.quote != null) return String(art.quote);
+  if (art.text != null) return String(art.text);
+  return '';
+}
+function claimFor(f) {
   const art = f.artifact || {};
-  const claim = {
-    claim: fieldStr(f, 'description'),
-    premise_source_id: f.evidence_source_id || f.evidence_url || art.page_url || f.page_url,
-    premise: fieldStr(f, 'evidence_quote') || (art.quote != null ? String(art.quote) : '') || (art.text != null ? String(art.text) : ''),
-  };
-  let e = null;
+  return { claim: fieldStr(f, 'description'), premise_source_id: premiseSourceId(f, art), premise: premiseQuote(f, art) };
+}
+// runEntailment(claim, opts, remaining) -> the NLI verdict, or null on throw/no-result. FAIL-OPEN
+// (Rule 4/9): a shell that throws demotes the finding to needs_review, never throws into the mint.
+// checkEntailment already captures caller throws internally; this catch is belt-and-braces.
+async function runEntailment(claim, opts, remaining) {
   try {
     const results = await checkEntailment([claim], { llmCall: opts.llmCall, deadlineMs: remaining, log: opts.log });
-    e = results && results[0];
+    return (results && results[0]) || null;
   } catch (_err) {
-    // FAIL-OPEN: an NLI shell that throws demotes the finding to needs_review (Rule 4), never throws
-    // into the mint. checkEntailment already captures caller throws internally; this is belt-and-braces.
-    e = null;
+    return null;
   }
+}
+async function gateEntailment(f, parsed, opts) {
+  const remaining = remainingBudget(opts);
+  if (remaining <= 0) { stampNliDemote(f, { verdict: 'deadline' }); return; }
+  const e = await runEntailment(claimFor(f), opts, remaining);
   if (!e || !e.ok) { stampNliDemote(f, e); return; }
   stampFromVerdict(f, parsed);
 }
@@ -264,19 +292,26 @@ async function gateEntailment(f, parsed, opts) {
 // verdict for an unknown id is simply never looked up. This is why an invented finding cannot be
 // injected. A `breach` verdict is NOT stamped `violation` directly: it must first survive Rule 12 gate
 // 3 (gateEntailment); every other verdict is stamped as-is.
-async function applyVerdicts(batch, verdicts, opts) {
+function buildVerdictIndex(verdicts) {
   const byId = new Map();
   for (const v of verdicts) {
     const id = Number(v && v.id);
     if (Number.isInteger(id) && !byId.has(id)) byId.set(id, v);
   }
-  for (let i = 0; i < batch.length; i++) {
-    const raw = byId.get(i);
-    if (raw === undefined) { stampAbstain(batch[i], 'no verdict returned for this candidate -> abstain'); continue; }
-    const parsed = parseVerdict(raw, evidenceText(batch[i]));
-    if (parsed.state === 'violation') { await gateEntailment(batch[i], parsed, opts); continue; }
-    stampFromVerdict(batch[i], parsed);
-  }
+  return byId;
+}
+// applyVerdictToOne(finding, raw, opts) -> stamp exactly one finding from its (possibly absent) raw
+// verdict. Split out of applyVerdicts so the batch loop is a single delegated call, not a second
+// independent branch structure (the "Bumpy Road" health-gate cap: one conditional block per function).
+async function applyVerdictToOne(finding, raw, opts) {
+  if (raw === undefined) { stampAbstain(finding, 'no verdict returned for this candidate -> abstain'); return; }
+  const parsed = parseVerdict(raw, evidenceText(finding));
+  if (parsed.state === 'violation') { await gateEntailment(finding, parsed, opts); return; }
+  stampFromVerdict(finding, parsed);
+}
+async function applyVerdicts(batch, verdicts, opts) {
+  const byId = buildVerdictIndex(verdicts);
+  for (let i = 0; i < batch.length; i++) await applyVerdictToOne(batch[i], byId.get(i), opts);
 }
 
 // applyAbstain(batch, reason) - the abstain floor: every candidate in a batch the model could not

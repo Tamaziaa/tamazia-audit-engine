@@ -62,6 +62,22 @@ test('isBlockedAddress catches IPv4-mapped IPv6 (::ffff:10.0.0.1) so a private a
   assert.equal(sf.isBlockedAddress('93.184.216.34'), false);
 });
 
+test('isBlockedAddress catches the HEX spelling of an IPv4-mapped IPv6 private/loopback address', () => {
+  // ::ffff:7f00:1 == 127.0.0.1, ::ffff:a00:1 == 10.0.0.1. WHATWG `new URL` canonicalises the dotted
+  // form to this hex spelling, so without unwrapping it a loopback/private target sails through the door.
+  assert.equal(sf.isBlockedAddress('::ffff:7f00:1'), true, '::ffff:7f00:1 is 127.0.0.1');
+  assert.equal(sf.isBlockedAddress('::ffff:a00:1'), true, '::ffff:a00:1 is 10.0.0.1');
+  assert.equal(sf.isBlockedAddress('::ffff:c0a8:1'), true, '::ffff:c0a8:1 is 192.168.0.1');
+  // control: a PUBLIC address in hex-mapped form must NOT be blocked (8.8.8.8).
+  assert.equal(sf.isBlockedAddress('::ffff:808:808'), false, '::ffff:808:808 is public 8.8.8.8');
+});
+
+test('parseSafeFetchTarget refuses a loopback target written as a mapped IPv6 URL (URL canonicalises to hex)', () => {
+  assert.equal(sf.parseSafeFetchTarget('http://[::ffff:127.0.0.1]/'), null);
+  assert.equal(sf.parseSafeFetchTarget('http://[::ffff:7f00:1]/'), null);
+  assert.equal(sf.parseSafeFetchTarget('http://[::ffff:a00:1]/'), null);
+});
+
 test('parseSafeFetchTarget: public http(s) only; null on non-http, blocked host or malformed', () => {
   assert.ok(sf.parseSafeFetchTarget('https://example.com/x'));
   assert.equal(sf.parseSafeFetchTarget('ftp://example.com'), null);

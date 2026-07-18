@@ -121,6 +121,12 @@ test('distinctFamilyProviders picks the first provider of each family only', () 
   assert.deepEqual(jurors, ['cf', 'g1']);
 });
 
+test('distinctFamilyProviders skips providers with an empty or missing family (no fake independence)', () => {
+  const list = [ok('anon1', ''), ok('anon2'), ok('g', 'groq'), makeProvider('nully', null)];
+  const jurors = router.distinctFamilyProviders(router.orderProviders(list), 3).map((p) => p.name);
+  assert.deepEqual(jurors, ['g'], 'only the provider with a real family is a juror; the family-less ones are not counted');
+});
+
 // ---- quorum ----
 
 const violationVote = (name, family) => makeProvider(name, family, () => ({ ok: true, text: 'violation' }));
@@ -140,6 +146,17 @@ test('quorum: rejects when there are fewer independent families than n (C-133 / 
   assert.equal(r.ok, false);
   assert.equal(r.verdict, 'reject');
   assert.ok(r.reason.startsWith('insufficient_independent_families'));
+});
+
+test('quorum: a family-less provider cannot pad the jury - it falls closed (Rule 12 gate 5)', async () => {
+  // One real family (groq) plus a provider that declares no family. The undeclared provider must NOT
+  // count as an independent juror, so a jury of n=2 is short one real family and rejects fail-closed.
+  const anon = makeProvider('anon', '', () => ({ ok: true, text: 'violation' }));
+  const r = await router.quorum({}, { providers: [violationVote('g', 'groq'), anon], n: 2, validate: verdictValidate });
+  assert.equal(r.ok, false);
+  assert.equal(r.verdict, 'reject');
+  assert.ok(r.reason.startsWith('insufficient_independent_families'));
+  assert.equal(anon.calls, 0, 'the family-less provider is never even called');
 });
 
 test('quorum: a unanimous, un-vetoed jury accepts', async () => {

@@ -33,6 +33,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { parseGateArgs, ROOT } = require('../lib/gate-cli');
+const safePath = require('../lib/safe-path');
 
 const MANIFEST = path.join(ROOT, 'payload', 'schema', 'facts-lineage.json');
 const ONE_DOOR_FACTS = path.join(ROOT, 'tools', 'one-door', 'facts.json');
@@ -68,7 +69,15 @@ function check(manifestPath) {
     if (Array.isArray(f.producers) || /,/.test(producer)) {
       violations.push({ fact: id, message: 'more than one producer declared: that is two doors by construction' });
     }
-    const abs = path.join(ROOT, producer);
+    // producer is a repo-relative path read from a committed manifest (payload/schema/
+    // facts-lineage.json), not network input, but it must still stay inside the repo tree: an
+    // absolute path or a ".." escape is rejected as its own violation rather than silently
+    // resolved outside the tree the lineage is meant to describe.
+    if (!safePath.isSafeRelativePath(producer)) {
+      violations.push({ fact: id, message: 'declared producer is not a safe in-repo relative path: ' + JSON.stringify(producer) });
+      continue;
+    }
+    const abs = safePath.resolveSafeRelativePath(ROOT, producer, { label: 'fact-lineage producer' });
     if (!fs.existsSync(abs)) {
       violations.push({ fact: id, message: 'declared producer does not exist: ' + producer + ' (a lineage pointing at a ghost is a lie)' });
     }

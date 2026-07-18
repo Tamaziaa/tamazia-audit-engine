@@ -88,6 +88,13 @@ function legacyObservedKind(candidate) {
   return null;
 }
 
+// carriesUntypedTextEvidence(candidate) -> true when there is no typed artifact but the candidate still
+// carries a verbatim quote or an absence record; named so the untyped-fallback check is not its own
+// "Complex Conditional" inline inside artifactKindOf.
+function carriesUntypedTextEvidence(candidate) {
+  return Boolean(candidate) && Boolean(candidate.evidence_quote || candidate.absence_evidence);
+}
+
 // artifactKindOf(candidate) -> the kind the ARTIFACT establishes, or null when no artifact is
 // recognisable (a Rule-3 reject: no artifact, no breach). Never throws.
 function artifactKindOf(candidate) {
@@ -98,7 +105,7 @@ function artifactKindOf(candidate) {
   const legacy = legacyObservedKind(candidate);
   if (legacy) return legacy;
   // No typed artifact: a verbatim quote or an absence record is still the adjudicated text class.
-  if (candidate && (candidate.evidence_quote || candidate.absence_evidence)) return 'absence';
+  if (carriesUntypedTextEvidence(candidate)) return 'absence';
   return null;
 }
 

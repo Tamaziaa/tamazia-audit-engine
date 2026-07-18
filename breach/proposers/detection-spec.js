@@ -182,12 +182,17 @@ function quotedSpans(text) {
 // salientTokens(text) -> up to MAX_TOKENS distinctive content tokens (>= MIN_TOKEN_LEN, minus STOPWORDS),
 // in first-seen order (deterministic). Digits-with-a-word like "18" are kept only when >= MIN_TOKEN_LEN
 // so a bare short number never becomes a pattern.
+// isSkippableToken(w, seen) -> true when w is too short, a stopword, or already collected. Named so the
+// 3-way disjunction is not its own "Complex Conditional" inline inside the loop.
+function isSkippableToken(w, seen) {
+  return w.length < MIN_TOKEN_LEN || STOPWORDS.has(w) || seen.has(w);
+}
 function salientTokens(text) {
   const raw = String(text || '').toLowerCase().match(/[a-z0-9][a-z0-9'-]*[a-z0-9]|[a-z0-9]/g) || [];
   const out = [];
   const seen = new Set();
   for (const w of raw) {
-    if (w.length < MIN_TOKEN_LEN || STOPWORDS.has(w) || seen.has(w)) continue;
+    if (isSkippableToken(w, seen)) continue;
     seen.add(w);
     out.push(w);
     if (out.length >= MAX_TOKENS) break;
@@ -227,6 +232,12 @@ function topDistinctive(tokens, n) {
 //     right observation/register in propose.js, so a lenient 'any' set is correct.
 // An element that reduces to nothing distinctive is returned as unpatternable: propose.js abstains
 // rather than fire a low-precision pattern (the C-049 "mute or over-broad" trap - refuse to guess).
+// needsFindabilityPattern(evidenceType, pageClass, elementText) -> true when a 'presence' element reads
+// as "a page/section of this class exists" rather than a phrase, so a url-path pattern is warranted.
+// Named so the 4-term conjunction is not its own "Complex Conditional" inline in patternsFromElement.
+function needsFindabilityPattern(evidenceType, pageClass, elementText) {
+  return evidenceType === 'presence' && Boolean(pageClass) && pageClass !== 'any' && FINDABILITY_RX.test(elementText);
+}
 function patternsFromElement(elementText, evidenceType, pageClass) {
   const phrases = quotedSpans(elementText);
   const tokens = salientTokens(elementText);
@@ -235,7 +246,7 @@ function patternsFromElement(elementText, evidenceType, pageClass) {
     .filter(Boolean)
     .map((src) => ({ kind: 'anchored-regex', value: src, negation_guarded: evidenceType === 'absence' }));
   addDerivedTokenPattern(patterns, phrases, tokens, evidenceType);
-  if (evidenceType === 'presence' && pageClass && pageClass !== 'any' && FINDABILITY_RX.test(elementText)) {
+  if (needsFindabilityPattern(evidenceType, pageClass, elementText)) {
     patterns.push({ kind: 'url-path', value: '/' + pageClass, negation_guarded: false });
   }
   return { patterns, unpatternable: patterns.length === 0 };
@@ -244,26 +255,31 @@ function patternsFromElement(elementText, evidenceType, pageClass) {
 // addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) -> pushes the one token-set this
 // element contributes, polarity-aware per the doctrine above. Kept separate so patternsFromElement
 // stays within the health-gate function-length cap.
-function addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) {
-  if (evidenceType === 'absence') {
-    // A quoted prohibited phrase is the precise matcher; do not dilute it with a token-set. Without a
-    // quote, only a DISTINCTIVE multi-token set (matched later within ONE sentence) is safe enough to
-    // pattern a prohibition on; a single or generic token is refused (C-059/C-078). Recall is
-    // deliberately traded for precision here - a missed prohibition is recoverable, a false accusation
-    // is not.
-    if (phrases.length) return;
-    const distinctive = topDistinctive(tokens, 3);
-    if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: true });
-    return;
-  }
-  if (evidenceType === 'presence') {
-    const distinctive = topDistinctive(tokens, 2);
-    if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: false });
-    return;
-  }
-  // behavioural | register: lane-routing tokens, matched leniently in propose.js against the observation
-  // kind / register, never against site prose.
+// A quoted prohibited phrase is the precise matcher; do not dilute it with a token-set. Without a quote,
+// only a DISTINCTIVE multi-token set (matched later within ONE sentence) is safe enough to pattern a
+// prohibition on; a single or generic token is refused (C-059/C-078). Recall is deliberately traded for
+// precision here - a missed prohibition is recoverable, a false accusation is not.
+function addProhibitionTokenPattern(patterns, phrases, tokens) {
+  if (phrases.length) return;
+  const distinctive = topDistinctive(tokens, 3);
+  if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: true });
+}
+function addRequirementTokenPattern(patterns, tokens) {
+  const distinctive = topDistinctive(tokens, 2);
+  if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: false });
+}
+// behavioural | register: lane-routing tokens, matched leniently in propose.js against the observation
+// kind / register, never against site prose.
+function addLaneTokenPattern(patterns, tokens) {
   if (tokens.length) patterns.push({ kind: 'token-set', value: { tokens, mode: 'any' }, negation_guarded: false });
+}
+// addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) -> pushes the one token-set this
+// element contributes, polarity-aware per the doctrine above. Each evidence-type branch is its own named
+// helper (above) so this dispatcher stays a single conditional block (the "Bumpy Road" health-gate cap).
+function addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) {
+  if (evidenceType === 'absence') { addProhibitionTokenPattern(patterns, phrases, tokens); return; }
+  if (evidenceType === 'presence') { addRequirementTokenPattern(patterns, tokens); return; }
+  addLaneTokenPattern(patterns, tokens);
 }
 
 // dedupePatterns(patterns) -> patterns unique by (kind + normalised value), preserving order.
@@ -283,12 +299,14 @@ function dedupePatterns(patterns) {
 // no id/record to bind to. Patterns are derived from the duty + every element; an obligation that yields
 // no anchored pattern still produces a spec (with empty patterns) so it is VISIBLE as an honest
 // coverage gap, never silently dropped - propose.js treats an empty-pattern spec as inert (abstains).
-function specForObligation(record, obligation, dutyIdx) {
-  if (!record || typeof record.id !== 'string' || !obligation) return null;
-  const evidenceType = obligation.evidence_type;
-  const pageClass = pageClassFor(obligation);
-  const surface = surfaceFor(obligation);
-  const sources = [obligation.duty, ...(Array.isArray(obligation.elements) ? obligation.elements : [])];
+// isSpecInputInvalid(record, obligation) -> true when there is nothing to bind a spec to. Named so the
+// 3-term disjunction is not its own "Complex Conditional" inline in specForObligation.
+function isSpecInputInvalid(record, obligation) {
+  return !record || typeof record.id !== 'string' || !obligation;
+}
+// collectPatterns(sources, evidenceType, pageClass) -> { patterns, unpatternable } accumulated across
+// every duty/element source. Split out of specForObligation so the loop is its own single-purpose unit.
+function collectPatterns(sources, evidenceType, pageClass) {
   let patterns = [];
   const unpatternable = [];
   for (const src of sources) {
@@ -297,6 +315,15 @@ function specForObligation(record, obligation, dutyIdx) {
     if (r.unpatternable) unpatternable.push(String(src));
     patterns = patterns.concat(r.patterns);
   }
+  return { patterns, unpatternable };
+}
+function specForObligation(record, obligation, dutyIdx) {
+  if (isSpecInputInvalid(record, obligation)) return null;
+  const evidenceType = obligation.evidence_type;
+  const pageClass = pageClassFor(obligation);
+  const surface = surfaceFor(obligation);
+  const sources = [obligation.duty, ...(Array.isArray(obligation.elements) ? obligation.elements : [])];
+  const { patterns, unpatternable } = collectPatterns(sources, evidenceType, pageClass);
   return {
     record_id: record.id,
     duty_idx: dutyIdx,
@@ -386,13 +413,26 @@ function anchoredRegexOk(value) {
   return { ok: true, reason: null };
 }
 
+// tokensOf(value) -> value.tokens as an array, or null when value carries none.
+function tokensOf(value) {
+  return value && Array.isArray(value.tokens) ? value.tokens : null;
+}
+// oneTokenOk(t) -> { ok, reason } for a single token. Split out of tokenSetOk so the per-token checks
+// are not folded into the loop's own decision count (health-gate Complex Method cap).
+function oneTokenOk(t) {
+  if (typeof t !== 'string' || t.length < MIN_TOKEN_LEN) {
+    return { ok: false, reason: 'token ' + JSON.stringify(t) + ' is shorter than the ' + MIN_TOKEN_LEN + '-char floor (a bare short token substring-matches, C-059)' };
+  }
+  if (!/[a-z0-9]/i.test(t)) return { ok: false, reason: 'token ' + JSON.stringify(t) + ' has no word character' };
+  return { ok: true, reason: null };
+}
 function tokenSetOk(value) {
-  const tokens = value && Array.isArray(value.tokens) ? value.tokens : null;
+  const tokens = tokensOf(value);
   if (!tokens || !tokens.length) return { ok: false, reason: 'token-set has no tokens' };
   if (value.mode !== 'all' && value.mode !== 'any') return { ok: false, reason: 'token-set mode must be "all" or "any"' };
   for (const t of tokens) {
-    if (typeof t !== 'string' || t.length < MIN_TOKEN_LEN) return { ok: false, reason: 'token ' + JSON.stringify(t) + ' is shorter than the ' + MIN_TOKEN_LEN + '-char floor (a bare short token substring-matches, C-059)' };
-    if (!/[a-z0-9]/i.test(t)) return { ok: false, reason: 'token ' + JSON.stringify(t) + ' has no word character' };
+    const r = oneTokenOk(t);
+    if (!r.ok) return r;
   }
   return { ok: true, reason: null };
 }
@@ -406,11 +446,17 @@ function urlPathOk(value) {
 // validateSpec(spec) -> { valid, errors }. Shape gate + the anchoring gate on every pattern. A
 // register/behavioural spec must carry page_class null (the crawl never gates a non-crawl lane); a
 // presence/absence spec must carry a page_class string. Any bad pattern makes the whole spec invalid.
+function isValidRecordId(spec) {
+  return typeof spec.record_id === 'string' && spec.record_id.length > 0;
+}
+function isValidDutyIdx(spec) {
+  return Number.isInteger(spec.duty_idx) && spec.duty_idx >= 0;
+}
 function validateSpec(spec) {
   const errors = [];
   if (!spec || typeof spec !== 'object') return { valid: false, errors: ['spec is not an object'] };
-  if (typeof spec.record_id !== 'string' || !spec.record_id) errors.push('record_id must be a non-empty string');
-  if (!Number.isInteger(spec.duty_idx) || spec.duty_idx < 0) errors.push('duty_idx must be a non-negative integer');
+  if (!isValidRecordId(spec)) errors.push('record_id must be a non-empty string');
+  if (!isValidDutyIdx(spec)) errors.push('duty_idx must be a non-negative integer');
   if (!EVIDENCE_TYPES.includes(spec.evidence_type)) errors.push('evidence_type ' + JSON.stringify(spec.evidence_type) + ' is not one of ' + EVIDENCE_TYPES.join('/'));
   if (!SURFACES.includes(spec.surface)) errors.push('surface ' + JSON.stringify(spec.surface) + ' is not one of ' + SURFACES.join('/'));
   validatePageClass(spec, errors);

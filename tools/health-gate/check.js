@@ -38,6 +38,7 @@ const path = require('path');
 const { runGateCli, ROOT } = require('../lib/gate-cli');
 const { listJsFiles } = require('../lib/fswalk');
 const { refuseHeuristicScan } = require('./heuristic');
+const safePath = require('../lib/safe-path');
 
 // facts, catalogue (minus packs/dist), tools, eval, payload, evidence, breach, llm, mint - the
 // repo's source dirs. catalogue/packs is data (compiled law rows, not builder-authored logic) and is
@@ -282,7 +283,11 @@ function scanTree(dirs) {
   let scanned = 0;
   let functions = 0;
   for (const dir of dirs) {
-    const absDir = path.isAbsolute(dir) ? dir : path.join(ROOT, dir);
+    // dir is either one of SCAN_DIRS above (a single-segment literal name) or gate-cli's
+    // multi-segment, sometimes-absolute CALIBRATE_DIR under --calibrate: resolveSafeScanPath
+    // covers both (absolute is used directly, a relative one is traversal-guarded and resolved
+    // against ROOT), replacing the manual path.isAbsolute ternary this used to do inline.
+    const absDir = safePath.resolveSafeScanPath(ROOT, dir, { label: 'health-gate scan directory' });
     for (const abs of listJsFiles(absDir, { skipDirs: SKIP_DIRS, skipTests: true })) {
       scanned++;
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');

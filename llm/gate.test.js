@@ -178,6 +178,24 @@ test('a deeply nested adversarial value does not crash and its out-of-set id is 
   assert.ok(codes(r).includes('out_of_set_source_id'));
 });
 
+test('a citation nested BEYOND the walk-depth cap fails closed with max_depth_exceeded, never passes clean', () => {
+  // An out-of-set source_id buried past MAX_WALK_DEPTH (12) would previously ride through: the walker
+  // silently stopped and validateResponse saw zero citations. Now the incomplete inspection is refused.
+  let node = { source_id: 'S9' };
+  for (let i = 0; i < 14; i += 1) node = { nested: node };
+  const r = gate.validateResponse({ finding_id: 'F-14', verdict: 'needs-review', deep: node }, { schema: SCHEMA, allowedSourceIds: ALLOWED, sources: SOURCES });
+  assert.equal(r.ok, false);
+  assert.equal(r.value, null);
+  assert.ok(codes(r).includes('max_depth_exceeded'), 'a response deeper than the citation-walk cap must be refused');
+});
+
+test('collectCitations flags depthExceeded only when the value nests beyond the cap', () => {
+  let deep = { source_id: 'S9' };
+  for (let i = 0; i < 14; i += 1) deep = { nested: deep };
+  assert.equal(gate.collectCitations(deep).depthExceeded, true);
+  assert.equal(gate.collectCitations({ source_id: 'S1', quote: 'a shallow node' }).depthExceeded, false);
+});
+
 test('collectCitations gathers both source_id fields and quote pairs', () => {
   const cites = gate.collectCitations({ verdict: 'violation', source_id: 'S1', quote: 'hello world quote', items: [{ source_ids: ['S2'] }] });
   const ids = cites.sourceIds.map((s) => s.id).sort();

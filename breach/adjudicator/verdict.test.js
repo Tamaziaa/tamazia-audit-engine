@@ -42,6 +42,18 @@ test('no_breach with a sub-6-char disproof -> needs_review (a nav fragment is no
   assert.equal(parseVerdict({ verdict: 'no_breach', disproof: 'yes' }, EVIDENCE).state, 'needs_review');
 });
 
+test('no_breach where only the leading 40 chars match, then fabricated text -> needs_review (whole disproof must be verbatim)', () => {
+  // A genuine 40-char verbatim prefix ("we are regulated and the required disc") of the evidence,
+  // followed by a fabricated clause the evidence never contained. The old leading-anchor check would
+  // have cleared this; the whole-span re-match abstains (Rule 12 gate 2).
+  const disproof = 'we are regulated and the required disclosure is present and no consent is ever required';
+  const r = parseVerdict({ verdict: 'no_breach', disproof }, EVIDENCE);
+  assert.equal(r.state, 'needs_review', 'a genuine 40-char prefix plus a fabricated suffix must not clear');
+  assert.equal(r.disproof, null);
+  // The control: the same genuine span WITHOUT the fabricated tail still clears.
+  assert.equal(parseVerdict({ verdict: 'no_breach', disproof: 'we are regulated and the required disclosure is present here in full' }, EVIDENCE).state, 'pass');
+});
+
 test('no_breach with NO evidence supplied can never clear -> needs_review (cannot clear unseen text)', () => {
   assert.equal(parseVerdict({ verdict: 'no_breach', disproof: 'the required disclosure is present here' }).state, 'needs_review');
   assert.equal(parseVerdict({ verdict: 'no_breach', disproof: 'the required disclosure is present here' }, '').state, 'needs_review');

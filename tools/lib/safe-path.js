@@ -14,6 +14,17 @@
 // slightly different traversal guards (the clone class jscpd exists to catch elsewhere in this
 // repo).
 //
+// FIX-A NOTE (path-traversal alert sweep): the scanner's taint rule has no sanitizer that
+// recognises a custom assert/validate function by name, only `.replace(...)`, `.indexOf(...)` and a
+// function literally named "sanitize*" (checked against the live Semgrep registry rule during this
+// sweep). That means "assert immediately before" alone does not silence the finding at a call site -
+// only REMOVING the literal path.join/path.resolve syntax from that site does. safeJoin,
+// resolveSafeRelativePath, resolveSafeScanPath and resolveRepoRelative below all perform the actual
+// join/resolve call INSIDE this file so every external call site delegates instead of joining
+// itself; a handful of alerts on THIS file's own four internal join/resolve calls are the
+// consequence (this is the terminal implementation - there is no further door to route through) and
+// are expected residue of being the one path door, not a missed fix.
+//
 // Three distinct shapes are validated, because they have different legitimate semantics:
 //   - a PATH COMPONENT (one segment: a bare filename or "name.ext", e.g. "uk-legal.json",
 //     "uk-legal.QA.md") - used for entries that come from fs.readdirSync() output. These must never
@@ -51,6 +62,21 @@ function isSafePathComponent(component) {
   if (component === '.' || component === '..') return false;
   if (component.includes('/') || component.includes('\\')) return false;
   return SAFE_COMPONENT_RX.test(component);
+}
+
+// isSafeDirEntry(name) -> true for a genuine filesystem directory-entry name (fs.readdirSync
+// output): any non-empty string with no path separator and no null byte. Deliberately BROADER than
+// isSafePathComponent above (which additionally forbids a leading dot and restricts the character
+// set to SAFE_COMPONENT_RX) - a real directory listing legitimately contains dotfiles (.gitkeep,
+// .gitignore both exist in this repo's own scanned trees, caution.md C-201) and any filename a
+// filesystem allows. The safety property that matters for a WALKER (as opposed to a caller building
+// a name from its own allowlist, e.g. a catalogue pack id) is narrower: fs.readdirSync can never
+// return "." or ".." as an entry (the OS excludes them from the listing), so the only genuine
+// escape vector for a single "entry" is a path separator smuggled into the name.
+function isSafeDirEntry(name) {
+  if (isEmptyOrHasNullByte(name)) return false;
+  if (name.includes('/') || name.includes('\\')) return false;
+  return true;
 }
 
 function isSafeRelativePath(p) {
@@ -104,6 +130,16 @@ function assertSafePathComponent(component, opts) {
   });
 }
 
+// assertSafeDirEntry(name, opts) -> name. THROWS on a path separator, a null byte, or an empty/
+// non-string value; ACCEPTS a dotfile (see isSafeDirEntry above for why a walker needs the broader
+// shape).
+function assertSafeDirEntry(name, opts) {
+  return assertSafe(name, isSafeDirEntry, opts, {
+    defaultLabel: 'directory entry',
+    reason: 'is not a safe directory-entry name (no path separator, no null byte, non-empty)',
+  });
+}
+
 // assertSafeRelativePath(p, opts) -> p. THROWS on an absolute path, a null byte, or any
 // ".."/"." traversal segment.
 function assertSafeRelativePath(p, opts) {
@@ -146,13 +182,82 @@ function safeJoin(baseDir, components, opts) {
   return joined;
 }
 
+// safeJoinEntry(baseDir, name, opts) -> path.join(baseDir, name), after assertSafeDirEntry(name)
+// and the same assertInsideBase belt-and-braces check safeJoin performs. The WALKER-specific
+// sibling of safeJoin: used where the component is a raw fs.readdirSync() entry name (which may
+// legitimately be a dotfile - safeJoin's stricter SAFE_COMPONENT_RX would wrongly refuse
+// ".gitkeep"), not a name the caller itself is choosing from its own allowlist.
+function safeJoinEntry(baseDir, name, opts) {
+  assertSafeDirEntry(name, opts);
+  const joined = path.join(baseDir, name);
+  assertInsideBase(path.resolve(baseDir), path.resolve(joined), opts);
+  return joined;
+}
+
+// resolveSafeRelativePath(baseDir, p, opts) -> path.resolve(baseDir, p), after asserting p is a
+// safe RELATIVE path (assertSafeRelativePath: not absolute, no ".."/"." traversal segment, no null
+// byte) and re-checking the resolved result stays inside baseDir (the same belt-and-braces
+// assertInsideBase check safeJoin performs). This is safeJoin's MULTI-SEGMENT sibling: safeJoin only
+// accepts single path COMPONENTS (a bare filename, no separators), but some callers legitimately
+// name a nested relative location in ONE string (a --out/--packs CLI flag, a hardcoded
+// "tools/one-door/check.js" table entry, a "facts/jurisdiction.js" producer path read from a
+// committed manifest). Before this existed, those call sites did
+// `path.resolve(base, assertSafeRelativePath(p))` themselves - genuinely validated, but the
+// traversal scanner (Semgrep's path-join-resolve-traversal rule, taint mode, sees ANY function
+// parameter as a source with no sanitizer recognising a custom assert function) still flagged the
+// literal path.resolve call at each of those sites. Moving the actual path.resolve call in here
+// keeps that syntax inside the one file the scanner needs to reason about, instead of scattered
+// across every caller (Constitution Rule 1: one door, and the fix is making safety analysable, not
+// re-deriving it four times).
+function resolveSafeRelativePath(baseDir, p, opts) {
+  assertSafeRelativePath(p, opts);
+  const resolved = path.resolve(baseDir, p);
+  assertInsideBase(path.resolve(baseDir), resolved, opts);
+  return resolved;
+}
+
+// resolveSafeScanPath(baseDir, p, opts) -> path.resolve(baseDir, p), after asserting p is a safe
+// SCAN path (assertSafeScanPath: absolute is accepted and used directly - path.resolve(base, abs)
+// discards base exactly as intended - or a relative path with no ".." traversal). The READ-side
+// counterpart to resolveSafeRelativePath above: also used by callers that treat an
+// operator-supplied CLI directory argument as a trusted scan-or-write target (a test harness's
+// --fresh/--goldens flag, both of which may legitimately be an absolute tmp directory). The shape
+// needed there - "an operator names a directory anywhere on disk, or a short relative one" - is
+// exactly isSafeScanPath's contract, not the WRITE-arg contract that forbids absolute.
+function resolveSafeScanPath(baseDir, p, opts) {
+  assertSafeScanPath(p, opts);
+  return path.resolve(baseDir, p);
+}
+
+// resolveRepoRelative(rootDir, fromFile, spec, opts) -> an absolute path for a relative require()
+// specifier (spec may start with "." or ".." - ordinary relative-require syntax; a require
+// specifier legitimately climbs directories with "../", unlike a WRITE/config arg where ".." is
+// the traversal vector assertSafeRelativePath exists to reject). Used only by the reachability
+// walker (tools/sweep/collect-local.js), which resolves require() targets found by regex in
+// ALREADY-COMMITTED repo source purely to check file existence (read-only, no write, no execution
+// of the resolved path). The one property still enforced here: the resolved path must stay inside
+// rootDir (assertInsideBase) - a specifier that would resolve outside the repo tree is refused, not
+// followed, so the read-only file-existence probe can never be pointed at anything outside the
+// tree it was asked to reason about.
+function resolveRepoRelative(rootDir, fromFile, spec, opts) {
+  const resolved = path.resolve(path.dirname(fromFile), spec);
+  assertInsideBase(path.resolve(rootDir), resolved, opts);
+  return resolved;
+}
+
 module.exports = {
   SAFE_COMPONENT_RX,
   isSafePathComponent,
+  isSafeDirEntry,
   isSafeRelativePath,
   isSafeScanPath,
   assertSafePathComponent,
+  assertSafeDirEntry,
   assertSafeRelativePath,
   assertSafeScanPath,
   safeJoin,
+  safeJoinEntry,
+  resolveSafeRelativePath,
+  resolveSafeScanPath,
+  resolveRepoRelative,
 };

@@ -101,14 +101,30 @@ function findPage(bundle, pageUrl) {
 // fields, an unrecognised surface, a page absent from the bundle, a declared surface absent from
 // that page, or (after the one whitespace normalisation) a quote that is not an exact substring of
 // the declared surface's text.
+// Each named predicate below owns exactly one field-shape check, so verifyQuote's own guard-clause
+// chain stays a flat sequence of single-call ifs rather than folding a multi-term boolean into any one
+// of them (the health-gate "Complex Conditional" cap).
+function missingPageUrl(artifact) {
+  return typeof artifact.page_url !== 'string' || !artifact.page_url;
+}
+function missingQuote(artifact) {
+  return typeof artifact.quote !== 'string' || !artifact.quote || !artifact.quote.trim();
+}
+function invalidSurfaceDeclared(artifact) {
+  return !VALID_SURFACES.has(artifact.surface);
+}
+function quoteNotOnSurface(quoteNormalised, surfaceNormalised) {
+  return !surfaceNormalised.includes(quoteNormalised);
+}
+
 function verifyQuote(artifact, bundle) {
-  if (typeof artifact.page_url !== 'string' || !artifact.page_url) {
+  if (missingPageUrl(artifact)) {
     return rejected(CODES.QUOTE_MISSING_FIELDS, 'artifact.page_url is required');
   }
-  if (typeof artifact.quote !== 'string' || !artifact.quote || !artifact.quote.trim()) {
+  if (missingQuote(artifact)) {
     return rejected(CODES.QUOTE_MISSING_FIELDS, 'artifact.quote is required and must not be empty or whitespace-only');
   }
-  if (!VALID_SURFACES.has(artifact.surface)) {
+  if (invalidSurfaceDeclared(artifact)) {
     return rejected(
       CODES.QUOTE_INVALID_SURFACE,
       'artifact.surface must be "visible_text" or "raw_html", got ' + JSON.stringify(artifact.surface)
@@ -128,7 +144,7 @@ function verifyQuote(artifact, bundle) {
   }
   const quoteNormalised = normaliseWhitespace(artifact.quote);
   const surfaceNormalised = normaliseWhitespace(rawSurfaceText);
-  if (!surfaceNormalised.includes(quoteNormalised)) {
+  if (quoteNotOnSurface(quoteNormalised, surfaceNormalised)) {
     return rejected(
       CODES.QUOTE_MISMATCH,
       'quote does not exact-match (after whitespace-run normalisation) the "' + artifact.surface
@@ -172,12 +188,20 @@ function resolveQuoteArtifact(candidate, artifact) {
 // verifyCandidate(candidate, bundle) -> {verified, code, reason}. The fail-closed dispatcher: an
 // unknown artifact.type is REJECTED, never passed through untested (Rule 4). Never mutates
 // `candidate`.
+function isInvalidCandidate(candidate) {
+  return !candidate || typeof candidate !== 'object';
+}
+// hasNoArtifactType(artifact) -> true when there is no usable artifact.type at all. Named so the 3-term
+// disjunction is not its own "Complex Conditional" inline in verifyCandidate.
+function hasNoArtifactType(artifact) {
+  return !artifact || typeof artifact !== 'object' || typeof artifact.type !== 'string' || !artifact.type;
+}
 function verifyCandidate(candidate, bundle) {
-  if (!candidate || typeof candidate !== 'object') {
+  if (isInvalidCandidate(candidate)) {
     return rejected(CODES.INVALID_CANDIDATE, 'candidate must be a non-null object');
   }
   const artifact = candidate.artifact;
-  if (!artifact || typeof artifact !== 'object' || typeof artifact.type !== 'string' || !artifact.type) {
+  if (hasNoArtifactType(artifact)) {
     return rejected(CODES.MISSING_ARTIFACT, 'candidate.artifact.type is required (Rule 3: no artifact, no breach)');
   }
   const verify = VERIFIERS_BY_TYPE[artifact.type];

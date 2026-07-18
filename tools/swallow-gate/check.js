@@ -28,6 +28,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { runGateCli, ROOT } = require('../lib/gate-cli');
+const safePath = require('../lib/safe-path');
 
 const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof', 'tools'];
 
@@ -163,7 +164,11 @@ function scanTree(dirs) {
   let scanned = 0;
   let catches = 0;
   for (const dir of dirs) {
-    for (const abs of listJsFiles(path.join(ROOT, dir))) {
+    // dir is either one of SCAN_DIRS above (a single-segment literal name) or gate-cli's
+    // multi-segment CALIBRATE_DIR ('eval/calibration-known-bad/fixtures') under --calibrate:
+    // resolveSafeRelativePath covers both (safeJoin's single-PATH-COMPONENT contract would wrongly
+    // reject the multi-segment calibrate path).
+    for (const abs of listJsFiles(safePath.resolveSafeRelativePath(ROOT, dir, { label: 'swallow-gate scan dir' }))) {
       scanned++;
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       const r = scanContent(fs.readFileSync(abs, 'utf8'));

@@ -64,18 +64,24 @@ function isOversizeLiteral(node) {
   return isNumericLiteral(node) && node.value > THRESHOLD_MS;
 }
 
+// anyChildRefsBudget(node) -> true when some child (array entry or nested object) references a
+// budget-named identifier. Split out of refsBudgetIdent so the recursive fan-out is not folded into
+// the same function as the base cases (the health-gate "Bumpy Road"/Complex Method caps).
+function anyChildRefsBudget(node) {
+  for (const k of Object.keys(node)) {
+    if (isMetaKey(k)) continue;
+    const v = node[k];
+    if (Array.isArray(v)) { if (v.some(refsBudgetIdent)) return true; continue; }
+    if (v && typeof v === 'object' && refsBudgetIdent(v)) return true;
+  }
+  return false;
+}
 // refsBudgetIdent(node) -> true when a budget-named identifier appears anywhere in this expression
 // subtree (so Math.max(20000, Math.floor(deadlineMs*0.6)) is recognised as a floor on deadlineMs).
 function refsBudgetIdent(node) {
   if (!node || typeof node !== 'object') return false;
   if (node.type === 'Identifier') return BUDGET_NAME_RX.test(node.name);
-  for (const k of Object.keys(node)) {
-    if (k === 'loc' || k === 'start' || k === 'end') continue;
-    const v = node[k];
-    if (Array.isArray(v)) { if (v.some(refsBudgetIdent)) return true; }
-    else if (v && typeof v === 'object' && refsBudgetIdent(v)) return true;
-  }
-  return false;
+  return anyChildRefsBudget(node);
 }
 
 // isBudgetFloor(callNode, binding) -> the Math.max is a FLOOR on a budget: it has a numeric-literal arg
@@ -88,10 +94,15 @@ function isBudgetFloor(callNode, binding) {
 }
 
 // ── binding context: the name a value-carrying child initialises (for the two budget-name rules) ─────
+// isMemberPropertyIdentifier(node) -> true when node is a MemberExpression whose property is itself an
+// Identifier. Named so the 2-term conjunction is not its own "Complex Conditional" inline in targetName.
+function isMemberPropertyIdentifier(node) {
+  return node.type === 'MemberExpression' && node.property && node.property.type === 'Identifier';
+}
 function targetName(node) {
   if (!node) return null;
   if (node.type === 'Identifier') return node.name;
-  if (node.type === 'MemberExpression' && node.property && node.property.type === 'Identifier') return node.property.name;
+  if (isMemberPropertyIdentifier(node)) return node.property.name;
   return null;
 }
 function keyName(key) {
@@ -110,18 +121,29 @@ function valueChildBinding(node, key) {
 }
 
 // ── flaggers ────────────────────────────────────────────────────────────────────────────────────────
+// Each of the three call-shape checks flagCall used to inline is now its own named finder returning a
+// finding or null, so flagCall itself is a flat composition with no branch structure left to fold
+// (the health-gate "Bumpy Road"/Complex Method caps) and no multi-term conditional inline.
+function mathMaxFloorFinding(node, binding, relPath, line) {
+  if (!isMathMax(node.callee) || !isBudgetFloor(node, binding)) return null;
+  return { file: relPath, line, kind: 'budget-floor', message: 'Math.max() imposes a FLOOR on a time/budget value; a budget is a cap, never a minimum (Rule 8, E-236)' };
+}
+function setTimeoutOversizeFinding(node, relPath, line) {
+  const arg = node.arguments && node.arguments[1];
+  if (!isSetTimeout(node.callee) || !isOversizeLiteral(arg)) return null;
+  return { file: relPath, line, kind: 'oversize-deadline', message: 'setTimeout delay literal ' + arg.value + 'ms exceeds the 120s hard-deadline cap (Rule 9)' };
+}
+function abortTimeoutOversizeFinding(node, relPath, line) {
+  const arg = node.arguments && node.arguments[0];
+  if (!isAbortTimeout(node.callee) || !isOversizeLiteral(arg)) return null;
+  return { file: relPath, line, kind: 'oversize-deadline', message: 'AbortSignal.timeout literal ' + arg.value + 'ms exceeds the 120s hard-deadline cap (Rule 9)' };
+}
 function flagCall(node, binding, relPath, line) {
-  const out = [];
-  if (isMathMax(node.callee) && isBudgetFloor(node, binding)) {
-    out.push({ file: relPath, line, kind: 'budget-floor', message: 'Math.max() imposes a FLOOR on a time/budget value; a budget is a cap, never a minimum (Rule 8, E-236)' });
-  }
-  if (isSetTimeout(node.callee) && isOversizeLiteral(node.arguments && node.arguments[1])) {
-    out.push({ file: relPath, line, kind: 'oversize-deadline', message: 'setTimeout delay literal ' + node.arguments[1].value + 'ms exceeds the 120s hard-deadline cap (Rule 9)' });
-  }
-  if (isAbortTimeout(node.callee) && isOversizeLiteral(node.arguments && node.arguments[0])) {
-    out.push({ file: relPath, line, kind: 'oversize-deadline', message: 'AbortSignal.timeout literal ' + node.arguments[0].value + 'ms exceeds the 120s hard-deadline cap (Rule 9)' });
-  }
-  return out;
+  return [
+    mathMaxFloorFinding(node, binding, relPath, line),
+    setTimeoutOversizeFinding(node, relPath, line),
+    abortTimeoutOversizeFinding(node, relPath, line),
+  ].filter(Boolean);
 }
 function flagLiteral(node, binding, relPath, line) {
   if (!isOversizeLiteral(node)) return [];
@@ -134,17 +156,28 @@ function flagLiteral(node, binding, relPath, line) {
 function isMetaKey(k) { return k === 'loc' || k === 'start' || k === 'end'; }
 function lineOf(node) { return (node.loc && node.loc.start.line) || 1; }
 
-function walk(node, binding, relPath, violations) {
-  if (!node || typeof node !== 'object') return;
-  if (Array.isArray(node)) { for (const n of node) walk(n, null, relPath, violations); return; }
-  if (typeof node.type !== 'string') return;
+// visitNodeForViolations(node, binding, relPath, violations) -> the type dispatch (CallExpression /
+// Literal) walk itself used to inline. Split out so walk's own branch count stays low. Re-derives the
+// line from the node rather than taking a 5th argument (the <=4-param house style).
+function visitNodeForViolations(node, binding, relPath, violations) {
   const line = lineOf(node);
   if (node.type === 'CallExpression') violations.push(...flagCall(node, binding, relPath, line));
   else if (node.type === 'Literal') violations.push(...flagLiteral(node, binding, relPath, line));
+}
+// walkChildren(node, relPath, violations) -> recurse into every non-meta child, threading the correct
+// value-carrying binding name. Split out so the child-recursion loop is its own single-purpose unit.
+function walkChildren(node, relPath, violations) {
   for (const k of Object.keys(node)) {
     if (isMetaKey(k)) continue;
     walk(node[k], valueChildBinding(node, k), relPath, violations);
   }
+}
+function walk(node, binding, relPath, violations) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { for (const n of node) walk(n, null, relPath, violations); return; }
+  if (typeof node.type !== 'string') return;
+  visitNodeForViolations(node, binding, relPath, violations);
+  walkChildren(node, relPath, violations);
 }
 
 function scanContent(relPath, src) {

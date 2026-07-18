@@ -44,16 +44,27 @@ function assertDeadline(ms) {
   }
 }
 
+// providerFamily(p): the provider's declared family, or '' when absent. Shared by familyRank and
+// providerTier so neither re-derives the same defaulting logic.
+function providerFamily(p) {
+  return (p && p.family) || '';
+}
+
 // familyRank(p): the free-first index of a provider's family (unknown families sort last-but-stable).
 function familyRank(p) {
-  const idx = FAMILY_ORDER.indexOf(String((p && p.family) || ''));
+  const idx = FAMILY_ORDER.indexOf(String(providerFamily(p)));
   return idx === -1 ? FAMILY_ORDER.length : idx;
 }
 
+// declaresTier(p): true when the provider states its own tier explicitly. Named so the conjunction is
+// not its own "Complex Conditional" inline in providerTier.
+function declaresTier(p) {
+  return Boolean(p) && (p.tier === 'paid' || p.tier === 'free');
+}
 // providerTier(p): 'free' unless the provider declares 'paid' or belongs to a known paid family.
 function providerTier(p) {
-  if (p && (p.tier === 'paid' || p.tier === 'free')) return p.tier;
-  return PAID_FAMILIES.has(String((p && p.family) || '')) ? 'paid' : 'free';
+  if (declaresTier(p)) return p.tier;
+  return PAID_FAMILIES.has(String(providerFamily(p))) ? 'paid' : 'free';
 }
 
 // orderProviders(list): stable free-first ordering (free before paid, then family rank, then the
@@ -76,13 +87,16 @@ function orderProviders(list) {
 
 // distinctFamilyProviders(ordered, n): the first provider of each distinct family, up to n. This is
 // the structural independence guarantee for a quorum (caution.md C-133): two models from the same
-// family can never both sit on the jury.
+// family can never both sit on the jury. A provider with no explicit, non-empty `family` cannot
+// establish independence, so it is NOT a juror: admitting the empty-string family as if it were a real
+// family let one un-declared provider sit alongside a named family and fake a quorum. Skipping it means
+// too few genuinely distinct families falls the quorum CLOSED (Rule 12 gate 5).
 function distinctFamilyProviders(ordered, n) {
   const seen = new Set();
   const jurors = [];
   for (const p of ordered) {
-    const fam = String((p && p.family) || '');
-    if (seen.has(fam)) continue;
+    const fam = (p && typeof p.family === 'string') ? p.family.trim() : '';
+    if (!fam || seen.has(fam)) continue;
     seen.add(fam);
     jurors.push(p);
     if (jurors.length >= n) break;
@@ -106,17 +120,23 @@ function withDeadline(promise, ms, onTimeout) {
   return Promise.race([settled, timeout]).finally(() => { if (timer) clearTimeout(timer); });
 }
 
-// interpretResponse(response): reduce an injected caller's return to { ok, text, error } at the
-// transport level. { ok:false } or empty text is a provider-level failure the chain falls over.
-function interpretResponse(response) {
-  if (response == null) return { ok: false, text: '', error: 'null_response' };
-  if (typeof response === 'string') {
-    return response.trim() ? { ok: true, text: response } : { ok: false, text: '', error: 'empty_text' };
-  }
+// interpretStringResponse/interpretObjectResponse split out of interpretResponse so neither the string
+// nor the object shape folds every check into one function (the health-gate Complex Method cap).
+function interpretStringResponse(response) {
+  return response.trim() ? { ok: true, text: response } : { ok: false, text: '', error: 'empty_text' };
+}
+function interpretObjectResponse(response) {
   if (response.ok === false) return { ok: false, text: '', error: String(response.error || 'provider_error') };
   const text = typeof response.text === 'string' ? response.text : '';
   if (!text.trim()) return { ok: false, text: '', error: 'empty_text' };
   return { ok: true, text };
+}
+// interpretResponse(response): reduce an injected caller's return to { ok, text, error } at the
+// transport level. { ok:false } or empty text is a provider-level failure the chain falls over.
+function interpretResponse(response) {
+  if (response == null) return { ok: false, text: '', error: 'null_response' };
+  if (typeof response === 'string') return interpretStringResponse(response);
+  return interpretObjectResponse(response);
 }
 
 // errText(e): a short message for a rejected provider call (the injected caller threw or its promise
@@ -126,12 +146,14 @@ function errText(e) {
   return String((e && e.message) || e).slice(0, 60);
 }
 
-// callProvider(provider, task, deadlineMs, validate, log): one deadline-bounded attempt at one
-// provider. Returns { ok, value?, text?, response?, record }. `record` is always populated for the
-// attempts ledger (Part B Rule 9: log every routing decision). A structural `validate` (llm/gate.js)
+// callProvider(options): one deadline-bounded attempt at one provider. options = {provider, task,
+// deadlineMs, validate, log} (an options object per the <=4-positional-arg house style; five distinct
+// per-call inputs). Returns { ok, value?, text?, response?, record }. `record` is always populated for
+// the attempts ledger (Part B Rule 9: log every routing decision). A structural `validate` (llm/gate.js)
 // turns a transport success into a routing success ONLY when the response also passes the gate - a
 // fluent-but-hallucinated answer must not win just because the socket returned 200.
-async function callProvider(provider, task, deadlineMs, validate, log) {
+async function callProvider(options) {
+  const { provider, task, deadlineMs, validate, log } = options;
   const t0 = Date.now();
   const controller = new AbortController();
   // withDeadline converts BOTH a fulfilment and a rejection into a resolved result, so a throwing
@@ -148,13 +170,15 @@ async function callProvider(provider, task, deadlineMs, validate, log) {
   if (raced.error !== undefined) return finalize(base, 'threw:' + errText(raced.error), null, log);
   const interp = interpretResponse(raced.value);
   if (!interp.ok) return finalize(base, interp.error, null, log);
-  if (typeof validate === 'function') return validated(base, interp, raced.value, validate, log);
+  if (typeof validate === 'function') return validated({ base, interp, raw: raced.value, validate, log });
   return { ok: true, text: interp.text, response: raced.value, record: logged(base, 'ok', log) };
 }
 
-// validated(base, interp, raw, validate, log): apply the injected structural gate to a transport
-// success. A rejection is recorded as 'gate_reject' and treated as a provider failure (fall over).
-function validated(base, interp, raw, validate, log) {
+// validated(options): apply the injected structural gate to a transport success. options = {base,
+// interp, raw, validate, log}. A rejection is recorded as 'gate_reject' and treated as a provider
+// failure (fall over).
+function validated(options) {
+  const { base, interp, raw, validate, log } = options;
   const verdict = validate(raw != null ? raw : interp.text);
   if (verdict && verdict.ok) {
     return { ok: true, value: verdict.value, text: interp.text, response: raw, record: logged(base, 'ok', log) };
@@ -194,7 +218,7 @@ async function route(task, opts = {}) {
   const attempts = [];
   if (!ordered.length) return { ok: false, reason: 'no_providers', text: '', attempts };
   for (const provider of ordered) {
-    const outcome = await callProvider(provider, task, deadlineMs, validate, log);
+    const outcome = await callProvider({ provider, task, deadlineMs, validate, log });
     attempts.push(outcome.record);
     if (outcome.ok) {
       return {
@@ -233,7 +257,7 @@ function firstVeto(valid, vetoRule) {
 async function collectVotes(jurors, task, deadlineMs, validate, log) {
   const votes = [];
   for (const juror of jurors) {
-    const outcome = await callProvider(juror, task, deadlineMs, validate, log);
+    const outcome = await callProvider({ provider: juror, task, deadlineMs, validate, log });
     if (outcome.ok) votes.push({ provider: juror.name, family: juror.family, value: outcome.value != null ? outcome.value : { text: outcome.text } });
     else votes.push({ provider: juror.name, family: juror.family, value: null, invalid: outcome.record.outcome });
   }
@@ -247,11 +271,22 @@ async function collectVotes(jurors, task, deadlineMs, validate, log) {
 //     reject (an unadjudicated P0/P1 is demoted to needs-review by the consumer, caution.md C-083).
 //   - Every response is gate.js-validated before voting; too few valid votes => fail-closed reject.
 //   - Any single veto rejects; only a unanimous, un-vetoed jury accepts.
+// assertValidJurorCount(n): the requested jury size must be a positive integer; a misconfigured n must
+// throw at the boundary, never silently degrade (mirrors assertDeadline's C-025 doctrine).
+function assertValidJurorCount(n) {
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+    throw new Error('llm/router: quorum n must be a positive integer, got ' + JSON.stringify(n));
+  }
+}
+// isCuratedFact(task): a curated catalogue assertion the jury has no authority to veto (C-131).
+function isCuratedFact(task) {
+  return Boolean(task && task.curated);
+}
 async function quorum(task, opts = {}) {
   const { providers = [], n = 2, vetoRule = defaultVeto, validate = null, deadlineMs = DEFAULT_DEADLINE_MS, log = null } = opts;
   assertDeadline(deadlineMs);
-  if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) throw new Error('llm/router: quorum n must be a positive integer, got ' + JSON.stringify(n));
-  if (task && task.curated) {
+  assertValidJurorCount(n);
+  if (isCuratedFact(task)) {
     return { ok: true, verdict: 'immune', votes: [], reason: 'curated fact: the jury may never veto a catalogue fact (Rule 12 gate 5 immunity)' };
   }
   const jurors = distinctFamilyProviders(orderProviders(providers), n);

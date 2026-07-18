@@ -168,21 +168,39 @@ function checkScalarConstraints(value, schema, path) {
   return out;
 }
 
-function checkObject(value, schema, path) {
+// checkObject's three concerns (required fields present, declared properties recurse, no stray
+// property when closed) are each their own named helper, so the composed function has no independent
+// branch structure of its own left to fold into (the health-gate "Bumpy Road" cap: one conditional
+// block per function).
+function checkRequiredProperties(value, schema, path) {
   const out = [];
   for (const key of schema.required || []) {
     if (!(key in value) || value[key] === undefined) out.push(sv(path + '.' + key, 'required property missing'));
   }
-  const props = schema.properties || {};
+  return out;
+}
+function checkDeclaredProperties(value, props, path) {
+  const out = [];
   for (const [key, sub] of Object.entries(props)) {
     if (key in value) out.push(...validateSchema(value[key], sub, path + '.' + key));
   }
-  if (schema.additionalProperties === false) {
-    for (const key of Object.keys(value)) {
-      if (!(key in props)) out.push(sv(path + '.' + key, 'additional property not permitted'));
-    }
+  return out;
+}
+function checkNoAdditionalProperties(value, schema, props, path) {
+  const out = [];
+  if (schema.additionalProperties !== false) return out;
+  for (const key of Object.keys(value)) {
+    if (!(key in props)) out.push(sv(path + '.' + key, 'additional property not permitted'));
   }
   return out;
+}
+function checkObject(value, schema, path) {
+  const props = schema.properties || {};
+  return [
+    ...checkRequiredProperties(value, schema, path),
+    ...checkDeclaredProperties(value, props, path),
+    ...checkNoAdditionalProperties(value, schema, props, path),
+  ];
 }
 
 function checkArray(value, schema, path) {
@@ -238,9 +256,14 @@ function gatherNodeCitations(node, path, acc) {
 }
 
 // walkCitations(node, path, depth, acc): a single depth-bounded walk of the parsed value, gathering
-// every cited source_id and every quote/source_id pair for the flat checks that follow.
+// every cited source_id and every quote/source_id pair for the flat checks that follow. A response
+// nested deeper than MAX_WALK_DEPTH is NOT silently trusted: the unwalked subtree could hide an
+// out-of-set citation, so the walk records depthExceeded and validateResponse turns that into a hard
+// max_depth_exceeded violation (Rule 4: an incomplete inspection must fail closed, never pass as clean;
+// caution.md C-165 adversarial deep-nesting input).
 function walkCitations(node, path, depth, acc) {
-  if (depth > MAX_WALK_DEPTH || node == null || typeof node !== 'object') return;
+  if (depth > MAX_WALK_DEPTH) { acc.depthExceeded = true; return; }
+  if (node == null || typeof node !== 'object') return;
   if (Array.isArray(node)) {
     node.forEach((el, i) => walkCitations(el, path + '[' + i + ']', depth + 1, acc));
     return;
@@ -250,7 +273,7 @@ function walkCitations(node, path, depth, acc) {
 }
 
 function collectCitations(value) {
-  const acc = { sourceIds: [], quotes: [] };
+  const acc = { sourceIds: [], quotes: [], depthExceeded: false };
   walkCitations(value, '$', 0, acc);
   return acc;
 }
@@ -307,6 +330,9 @@ function validateResponse(response, opts = {}) {
   const violations = [];
   if (schema) violations.push(...validateSchema(value, schema, '$'));
   const cites = collectCitations(value);
+  if (cites.depthExceeded) {
+    violations.push({ code: 'max_depth_exceeded', path: '$', message: 'response nests deeper than the ' + MAX_WALK_DEPTH + '-level citation-walk cap; the unwalked subtree cannot be retrieval-gated, so the response is refused (Rule 4/12 gate 1)' });
+  }
   violations.push(...checkSourceIds(cites.sourceIds, allowedSet));
   violations.push(...checkQuotes(cites.quotes, sources, minQuoteLen, allowedSet));
   if (violations.length) return abstain(violations);

@@ -25,6 +25,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const safePath = require('../lib/safe-path');
+
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'tools', 'sweep', 'out');
 const SARIF = path.join(OUT, 'sarif');
@@ -33,7 +35,10 @@ const CALIBRATE = process.argv.includes('--calibrate');
 function step(title) { console.log('\n== ' + title + ' =='); }
 
 function runNode(script, args) {
-  const r = spawnSync(process.execPath, [path.join(ROOT, script), ...(args || [])], { cwd: ROOT, stdio: 'inherit' });
+  // script is always a literal repo-relative path from the LANES table below ('tools/one-door/
+  // check.js', ...): resolveSafeRelativePath makes that validation visible at the site.
+  const abs = safePath.resolveSafeRelativePath(ROOT, script, { label: 'sweep lane script' });
+  const r = spawnSync(process.execPath, [abs, ...(args || [])], { cwd: ROOT, stdio: 'inherit' });
   return r.status === null ? 1 : r.status;
 }
 

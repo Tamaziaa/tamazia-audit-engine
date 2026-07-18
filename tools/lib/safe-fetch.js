@@ -55,15 +55,34 @@ function normaliseHost(host) {
   return String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
 }
 
-// V4_MAPPED_RX: an IPv4-mapped IPv6 literal, compressed (::ffff:1.2.3.4) or expanded
+// V4_MAPPED_RX: an IPv4-mapped IPv6 literal with a DOTTED tail, compressed (::ffff:1.2.3.4) or expanded
 // (0:0:0:0:0:ffff:1.2.3.4). Node's URL/dns layers can emit either spelling for the same address.
 const V4_MAPPED_RX = /^(?:::|(?:0+:){5})ffff:(\d{1,3}(?:\.\d{1,3}){3})$/;
 
-// unmapIpv4(h) -> the embedded dotted IPv4 when h is an IPv4-mapped IPv6 literal, else h unchanged.
-// Without this, ::ffff:10.0.0.1 is "IPv6" to every IPv4 range check and sails through the door.
+// V4_MAPPED_HEX_RX: the SAME IPv4-mapped IPv6 space written with its low 32 bits as two HEX groups
+// (::ffff:7f00:1 == 127.0.0.1, ::ffff:a00:1 == 10.0.0.1). This spelling is not cosmetic: WHATWG `new URL`
+// CANONICALISES a dotted `::ffff:127.0.0.1` hostname to `::ffff:7f00:1`, and dns.lookup can answer with
+// it, so without unwrapping it every IPv4-range check treats a loopback/private address as generic IPv6
+// and it sails straight through the SSRF door (::ffff:/96 is reserved for IPv4-mapped addresses, so any
+// ::ffff:g1:g2 IS an IPv4 address, never a routable IPv6 host).
+const V4_MAPPED_HEX_RX = /^(?:::|(?:0+:){5})ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
+
+// hexGroupsToDotted(g1, g2) -> the dotted IPv4 encoded by the two 16-bit hex groups of a mapped literal.
+function hexGroupsToDotted(g1, g2) {
+  const hi = parseInt(g1, 16);
+  const lo = parseInt(g2, 16);
+  return [(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.');
+}
+
+// unmapIpv4(h) -> the embedded dotted IPv4 when h is an IPv4-mapped IPv6 literal (dotted OR hex tail),
+// else h unchanged. Without this, ::ffff:10.0.0.1 / ::ffff:a00:1 is "IPv6" to every IPv4 range check
+// and sails through the door.
 function unmapIpv4(h) {
-  const m = V4_MAPPED_RX.exec(h);
-  return m ? m[1] : h;
+  const dotted = V4_MAPPED_RX.exec(h);
+  if (dotted) return dotted[1];
+  const hex = V4_MAPPED_HEX_RX.exec(h);
+  if (hex) return hexGroupsToDotted(hex[1], hex[2]);
+  return h;
 }
 
 // isBlockedAddress(ip) -> true for a loopback/private/link-local/CGNAT IP LITERAL (v4 or v6). This is
