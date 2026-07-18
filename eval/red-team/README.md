@@ -31,20 +31,26 @@ the named gate, and `must_not` / `wiring` state the exact pass condition.
 | RT-E-FOREIGN-LANGUAGE | (e) foreign-language corpus | language -> compliance_unassessed | verified_live_partial |
 | RT-F-CONTRADICTORY-ENTITY | (f) contradictory evidence | `facts/identity.js` | **verified_escapes_live_gate** |
 | RT-G-ESSENTIAL-COOKIE-PRECONSENT | (g) essential-cookie false-positive trap | `evidence/browser/oracle.js` + `observe.js` | verified_caught_live |
-| RT-H-QUOTE-DRIFT | (h) quote-drift bait | `breach/verifiers/quote-match.js` Gate 2 | pending_gate |
+| RT-H-QUOTE-DRIFT | (h) quote-drift bait | `breach/verifiers/quote-match.js` Gate 2 | verified_caught_live |
 
 `gate_status` (does the gate exist) and `current_status` (was it exercised, did it catch the
 class) are separate fields, both defined in `fixtures.json`. The short version:
 
 - **verified_caught_live** - exercised against the live module on 2026-07-18; the gate caught it.
-  A regression guard. (RT-D, RT-G.)
+  A regression guard. (RT-D, RT-G, RT-H - RT-H's `breach/verifiers/quote-match.js` Gate 2 landed
+  mid-build and the e2e harness confirms the drifted quote rejects and the exact control accepts.)
 - **verified_live_partial** - the live leg holds now (closed-world catalogue membership; the facts
   layer being injection-inert; sector abstaining on non-English); the remaining leg lands with a
   later gate. (RT-A, RT-B1, RT-C, RT-E.)
 - **verified_escapes_live_gate** - a live gate exists, was exercised, and did NOT catch the class.
   An open P0 finding for the owning specialist; wire as xfail-until-fixed. (RT-F.)
-- **pending_gate** - the gate is not on disk yet; documented and shaped for wiring the moment it
-  lands. (RT-B2, RT-H.)
+- **pending_gate** - the gate is not wired into the runnable pipeline yet; documented and shaped for
+  wiring the moment it lands. (RT-B2 - the adjudicator index entry point is not yet wired.)
+
+The W2g end-to-end harness (`eval/e2e/run-pipeline.js`, red-team lane `eval/e2e/lib/redteam.js` +
+`redteam-handlers.js`) was built to this file's exact per-fixture shape and consumes it directly.
+Its 2026-07-18 run: 9 entries, 0 escaped/error - RT-A/C/D/G/H caught, RT-B1/B2/E honest skips,
+RT-F xfail (the tracked escape below).
 
 ## Open finding: RT-F escapes facts/identity.js (P0, owner Facts)
 

@@ -23,9 +23,10 @@
     "pending_gate": "The target gate does not exist on disk yet (breach/verifiers, breach/adjudicator, llm/*); not wireable this wave. Documented and shaped so W2g wires it the moment the gate lands."
   },
   "verification": {
-    "ran": "2026-07-18, node against facts/identity.js, facts/sector.js, facts/jurisdiction.js, evidence/browser/oracle.js, evidence/browser/observe.js and catalogue/dist/catalogue.v1.json (92 compiled records).",
-    "live_pass_conditions_hold": ["RT-A (closed-world membership)", "RT-B1 (facts injection-inert)", "RT-C (closed-world membership)", "RT-D (challenge detected + facts abstain)", "RT-E (sector abstains on French)", "RT-G (essential cookies not flagged, lane runs, observed empty)"],
-    "open_findings": ["RT-F: facts/identity.js asserts the register legal_name+number at 'register' confidence despite the on-page company number (09999999) contradicting the register number (OC399999) and the entity form differing (Ltd vs LLP). It corroborates on a name-core match alone (identity.js line 562-575) and never weighs a contradicting on-page identifier. Required: abstain or weak / needs-review (C-004/C-005). Owner: Facts. Severity: P0 (a confident wrong identity is the fabrication-adjacent class C-004 names)."]
+    "ran": "2026-07-18, node against facts/identity.js, facts/sector.js, facts/jurisdiction.js, evidence/browser/oracle.js, evidence/browser/observe.js, breach/verifiers/quote-match.js and catalogue/dist/catalogue.v1.json (92 compiled records).",
+    "live_pass_conditions_hold": ["RT-A (closed-world membership)", "RT-B1 (facts injection-inert)", "RT-C (closed-world membership)", "RT-D (challenge detected + facts abstain)", "RT-E (sector abstains on French)", "RT-G (essential cookies not flagged, lane runs, observed empty)", "RT-H (drifted quote rejected, exact accepted - Gate 2 landed)"],
+    "e2e_integration": "The W2g harness eval/e2e/run-pipeline.js consumes this file's --red-team lane (eval/e2e/lib/redteam.js + redteam-handlers.js, built to this exact per-fixture shape). Run 2026-07-18: 9 entries, 0 escaped/error - RT-A/C/D/G/H CAUGHT (G partial: oracle-only, observe() browser lane not simulated by the harness), RT-B1/B2/E SKIPPED (boolean must_not or pending_gate, an honest skip never a fabricated pass), RT-F XFAIL (the tracked owned-elsewhere escape below). breach/verifiers, breach/adjudicator (verdict.js, evidence-kind.js) and llm/gate.js + llm/router.js landed mid-build (CHECKPOINTS 4-6); the propose/adjudicate index entry points are still NOT-WIRED into the pipeline, so B2 stays pending_gate.",
+    "open_findings": ["RT-F: facts/identity.js asserts the register legal_name+number at 'register' confidence despite the on-page company number (09999999) contradicting the register number (OC399999) and the entity form differing (Ltd vs LLP). It corroborates on a name-core match alone (identity.js line 562-575) and never weighs a contradicting on-page identifier. Required: abstain or weak / needs-review (C-004/C-005). Owner: Facts. Severity: P0 (a confident wrong identity is the fabrication-adjacent class C-004 names). The e2e harness wires this as XFAIL against the fixture's own current_status:verified_escapes_live_gate, so it is tracked, not silently absorbed (Fleet Rule 4)."]
   },
   "bundle_shape_ref": {
     "EvidenceBundle": "facts/README.md: { domain, corpus:{ pages:[{ url, title, text, jsonLd:[], ogSiteName? }], footerText? }, registers:{ companiesHouse?, gleif?, sra?, cqc?, fca?, ico? } }. text is stripped visible text only (C-012).",
@@ -392,7 +393,7 @@
       "class": "quote-drift bait",
       "title": "A proposed evidence quote differs from the corpus by one word; the verbatim verifier must reject it, while the exact quote must still pass.",
       "caution_refs": ["C-089", "C-091", "C-080", "C-124", "C-165"],
-      "current_status": "pending_gate",
+      "current_status": "verified_caught_live",
       "input": {
         "corpus_text": "We process your personal data in accordance with our privacy policy and applicable law.",
         "proposed_quote_drifted": "We process your personal information in accordance with our privacy policy and applicable law.",
@@ -406,11 +407,11 @@
       },
       "expected": "Gate 2 (verbatim-quote exact re-match): the drifted quote is not a normalised exact substring of corpus_text, so it is rejected and any finding resting on it cannot exist (Rule 3: no artifact, no breach). The exact_quote_control IS a normalised substring and must pass, so the verifier is not a reject-everything stub (C-163: a gate that cannot fire, or fires on everything, is theatre).",
       "target_gate": {
-        "gate": "breach/verifiers/quote-match.js (Gate 2 deterministic verbatim exact substring re-match; one detection surface per rule)",
-        "status": "shell_this_wave",
+        "gate": "breach/verifiers/quote-match.js verifyQuote (Gate 2 deterministic verbatim exact substring re-match; one detection surface per rule)",
+        "status": "live",
         "also": ["render-proof/truth-pack.spec.js re-verifies every rendered quote against the payload at render (P4)"],
-        "wired_now_by": null,
-        "note": "breach/verifiers/quote-match.js is the committed contract for Gate 2 and lands with the P3 Wave-2 breach lane. Until then the class is documented; the moment quote-match exports its matcher, both legs (reject drifted, accept exact) wire directly."
+        "wired_now_by": "eval/e2e/lib/redteam-handlers.js RT-H handler adapts these inputs to verifyQuote's artifact-structured API (page_url + quote) and asserts the drifted quote REJECTS and the exact control ACCEPTS; the e2e run-pipeline red-team lane reports RT-H CAUGHT (2026-07-18).",
+        "note": "breach/verifiers/quote-match.js landed mid-build (P3 Wave-2b verifiers, CHECKPOINT 6). verifyQuote takes a structured artifact ({page_url, quote, ...}), not a bare (quote, corpus) pair, so the harness handler bridges these string inputs; the 'wiring' field below is the simplified intent, the handler is the mechanical wiring."
       },
       "wiring": "quoteMatch(proposed_quote_drifted, corpus_text) -> must be REJECT (no exact normalised substring). quoteMatch(exact_quote_control, corpus_text) -> must be ACCEPT. PASS iff both hold (both-directions calibration, C-203)."
     }
