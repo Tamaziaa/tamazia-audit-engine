@@ -85,3 +85,33 @@ Machine-checkable benchmark: the document exists, covers all 5 entries plus the 
 U1, U2, U3, U4 build in parallel on strictly disjoint paths (C-210: a lead in a file you do not own is attributed via git diff and reported, never fixed). Rob vets each unit against its benchmarks (C-215: each report states exactly what changed, mine vs not-mine), reconciles, re-records U1 if U3's sanitisation changed any prompt surface, flips the canonical e2e invocation to replay, then runs the full fleet from a FRESH CLONE (C-201, compile order first): `npm run catalogue`, `npm test`, lint, circular, dup, depcruise, `tools/sweep/run.js`, `eval/calibration-known-bad/run.js --strict`, the replay e2e invocation, `tools/health-gate/check.js`, `tools/history-regression/check.js`; the external stack fires on the eventual PR. Checkpoint-commit and push after each accepted unit. The PR opens only after PR #4 merges (diff hygiene; C-190 push-before-PR with a confirmed non-empty diff).
 
 Phase-exit claim after this wave: "reference-set breaches reproduced" moves from 0/5 to >= 1 proven with a real model and locked in CI by replay plus the enforcing exit bar; "red-team all caught" moves from 6/9 to 9/9 (or 8/9 plus one explicit reasoned skip); "PECR in a minted payload" stays formally deferred to P4 (DORMANT.md). Remaining honest gaps carry into the PR body, never silently dropped.
+
+---
+
+# WAVE 2 addendum (2026-07-18, appended post-vet of U2/U3/U4; Fleet Rule 2 spec-before-work)
+
+Recorded after U2's routed discovery (C-214), corroborated by U1's recordings: `breach/proposers/propose.js` emits ZERO non-suppressed candidates on every committed fixture including the synthetic control (suppression reasons observed: corpus below the 3-page floor, page-class coverage screened, browser lane unavailable, no register lane resolvable). The suppressors are individually correct doctrine EXCEPT where an absence-scoped guard also eats PRESENCE claims: a verbatim prohibited quote on a fetched page is valid Rule 3 evidence regardless of corpus size. U1-B1 is therefore blocked upstream of the model; the enforcing bar exposed exactly the class it exists to expose.
+
+## U5: presence-polarity suppression scoping (opus). Owns breach/proposers/propose.js (+ detection-spec.js only if strictly required), their tests, calibration fixtures.
+
+1. FIRST a per-suppressor census across all 31 committed fixtures plus the synthetic: which suppressor eats how many candidates per firm, tabulated in the report before any edit.
+2. The surgical fix: a PRESENCE-breach candidate whose artifact is a verbatim quote on a fetched page is not suppressed by the corpus-size floor. The floor remains fully in force for absence and coverage claims (C-024/C-026/C-229 untouched). No semantic change to the other suppressor classes (coverage-screened, browser-unavailable, register-unresolvable).
+
+Benchmarks: U5-B1 the synthetic 1-page fixture yields >= 1 non-suppressed quote candidate that passes verify (gate-2 re-match) and reaches adjudicate (scripted mode then correctly demotes to needs_review on decline). U5-B2 both directions: an absence candidate on the same 1-page corpus remains suppressed by the floor, proven by test. U5-B3 the census table ships in the report and the three untouched suppressor classes are proven unchanged by tests. U5-B4 full suite green, sweep GREEN ACT 0, calibration --strict OK, zero new health-gate findings in touched files (C-254).
+
+## R-wave reconciliation (sonnet). Owns NEW eval/e2e/lib/record-key.js, eval/e2e/lib/replay-llm.js, the key-derivation seam of eval/e2e/lib/real-llm.js ONLY, eval/e2e/report.js (or wherever resultLine lives), eval/red-team/fixtures.json RT-F block, DORMANT.md.
+
+- R1 record-key unification (C-211/C-222 closure): one shared helper exporting the canonical key derivation; replay-llm.js and real-llm.js both import it; a composition test proves a key recorded by the real side is found by the replay side on a hand-built candidate.
+- R2 coherent verdict: the run summary prints ONE result line; a vacuous run prints RESULT: FAIL without a preceding contradictory OK line.
+- R4 staleness: fixtures.json RT-F open_findings reconciled to caught; DORMANT.md gains the llm/prompts/sanitise.js line (C-249).
+- R5 any new health-gate finding in U1's files driven to zero (C-254), owner U1-resume or this wave.
+
+## R3: adjudicator prompt door-routing (opus; may ride with U5 in one builder since both touch the breach path). Owns breach/adjudicator/adjudicate.js buildPrompt seam + tests.
+
+Route the adjudication prompt's untrusted brief fields (evidence text, page text) through llm/prompts/sanitise.js (docDelimit + sanitiseSpan), completing C-134 on the one remaining un-doored prompt surface. HARD PAIRING (C-223): if the CANDIDATES JSON framing that replay-llm.js parses moves, the parser and its tests update in the SAME change. Gate-2 corpus surfaces remain byte-identical (extend U3's proof test to this path).
+
+Benchmarks: all suites green; the replay composition test passes; the scripted canonical run still exits 1 (vacuity) until re-record; red-team stays 9 entries 0 escapes.
+
+## Re-record and integration close
+
+After U5 + R land: resume U1 to re-run run-real-proof.js with the real chain (prompt surfaces changed, so recordings are refreshed per the integration note). Expected: the synthetic control reproduces to a real violation, recordings become non-empty, the canonical replay invocation exits 0 with reproduced >= 1, then the fresh-clone fleet (C-201) and the PR after PR #4 merges.
