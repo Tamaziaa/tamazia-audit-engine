@@ -195,37 +195,59 @@ function breachLaneError(reason) {
   return { propose: err(), verify: err(), adjudicate: err(), findings: [] };
 }
 
+// jobFilePath() -> a fresh temp path for one subprocess job (non-throwing: path.join + a random
+// suffix). Computed OUTSIDE the try/catch below since it does no I/O of its own.
+function jobFilePath() {
+  return path.join(os.tmpdir(), 'e2e-breach-' + process.pid + '-' + crypto.randomBytes(6).toString('hex') + '.json');
+}
+function writeBreachJob(jobFile, bundle, coverage, opts) {
+  const job = { bundle, catalogueRecords: opts.catalogueRecords || [], perRuleCoverage: perRuleCoverageArg(coverage) };
+  fs.writeFileSync(jobFile, JSON.stringify(job));
+}
+function runBreachWorker(jobFile, opts) {
+  const stdout = execFileSync(process.execPath, [BREACH_WORKER, jobFile], {
+    timeout: opts.breachTimeoutMs, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  const parsed = JSON.parse(stdout.toString('utf8'));
+  return {
+    propose: rehydrateStage(parsed.propose),
+    verify: rehydrateStage(parsed.verify),
+    adjudicate: rehydrateStage(parsed.adjudicate),
+    findings: Array.isArray(parsed.findings) ? parsed.findings : [],
+  };
+}
+function isKilledError(e) {
+  return Boolean(e) && (e.killed || e.code === 'ETIMEDOUT' || e.signal === 'SIGTERM');
+}
+// breachSubprocessErrorReason(e, opts) -> the recorded reason string for a killed vs. a crashed
+// subprocess. Split out so runBreachLaneSubprocess's own catch block stays a single call.
+function breachSubprocessErrorReason(e, opts) {
+  if (isKilledError(e)) {
+    return 'breach lane exceeded the ' + opts.breachTimeoutMs + 'ms subprocess deadline and was killed (Rule 9); '
+      + 'a synchronous hang in a real breach module - see the propose ReDoS P0 in breach/proposers/, owner R3/W2a)';
+  }
+  return 'breach subprocess failed: ' + String((e && e.message) || e).slice(0, 160);
+}
+function cleanupJobFile(jobFile) {
+  try { fs.unlinkSync(jobFile); }
+  catch (e) { /* FAIL-OPEN: best-effort temp cleanup; a leftover temp file in os.tmpdir() is harmless and reaped by the OS, never a correctness failure. */ }
+}
+
 // runBreachLaneSubprocess(bundle, coverage, opts) -> the real lane, bounded by a HARD wall-clock kill
 // (Rule 9). A synchronous hang in a breach module cannot be interrupted in-process, so it runs in a
 // child (breach-worker.js) that execFileSync kills after opts.breachTimeoutMs. A timeout or crash
 // degrades THIS firm's breach lane to an honest error, never hangs the run.
 function runBreachLaneSubprocess(bundle, coverage, opts) {
-  const job = { bundle, catalogueRecords: opts.catalogueRecords || [], perRuleCoverage: perRuleCoverageArg(coverage) };
-  const jobFile = path.join(os.tmpdir(), 'e2e-breach-' + process.pid + '-' + crypto.randomBytes(6).toString('hex') + '.json');
+  const jobFile = jobFilePath();
   try {
-    fs.writeFileSync(jobFile, JSON.stringify(job));
-    const stdout = execFileSync(process.execPath, [BREACH_WORKER, jobFile], {
-      timeout: opts.breachTimeoutMs, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const parsed = JSON.parse(stdout.toString('utf8'));
-    return Promise.resolve({
-      propose: rehydrateStage(parsed.propose),
-      verify: rehydrateStage(parsed.verify),
-      adjudicate: rehydrateStage(parsed.adjudicate),
-      findings: Array.isArray(parsed.findings) ? parsed.findings : [],
-    });
+    writeBreachJob(jobFile, bundle, coverage, opts);
+    return Promise.resolve(runBreachWorker(jobFile, opts));
   } catch (e) {
     // FAIL-OPEN (Rule 9): a killed (timeout) or crashed breach subprocess degrades THIS firm's breach
     // lane to a recorded error and the run continues; it is NEVER a hang and NEVER a fabricated pass.
-    const killed = e && (e.killed || e.code === 'ETIMEDOUT' || e.signal === 'SIGTERM');
-    const why = killed
-      ? ('breach lane exceeded the ' + opts.breachTimeoutMs + 'ms subprocess deadline and was killed (Rule 9); '
-        + 'a synchronous hang in a real breach module - see the propose ReDoS P0 in breach/proposers/, owner R3/W2a)')
-      : ('breach subprocess failed: ' + String((e && e.message) || e).slice(0, 160));
-    return Promise.resolve(breachLaneError(why));
+    return Promise.resolve(breachLaneError(breachSubprocessErrorReason(e, opts)));
   } finally {
-    try { fs.unlinkSync(jobFile); }
-    catch (e) { /* FAIL-OPEN: best-effort temp cleanup; a leftover temp file in os.tmpdir() is harmless and reaped by the OS, never a correctness failure. */ }
+    cleanupJobFile(jobFile);
   }
 }
 

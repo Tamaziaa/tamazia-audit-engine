@@ -61,7 +61,7 @@ function classifyDoc(url) {
 // try/catch is its own unit and readOneDocument's own body is a flat dispatch.
 async function fetchDocument(url, opts) {
   try { return { res: await withDeadline(() => opts.fetchFn(url), opts.deadlineMs, opts.timers) }; }
-  catch (e) { return { err: e }; }
+  catch (e) { return { err: e }; /* FAIL-OPEN: the fetch error is NOT swallowed - it is RETURNED as {err} and recorded by the caller (fetchFailedResult logs it via opts.log AND marks the document unread:true), so one document's failure degrades the lane, never throws into the crawl. */ }
 }
 // Each distinct outcome readOneDocument can produce is its own named builder (FAIL-CLOSED: a fetch
 // failure/timeout on a FOUND policy link is UNREAD content, logged AND returned unread:true; the lane

@@ -48,6 +48,9 @@ function runThunk(ctx, fn) {
   try {
     started = fn();
   } catch (err) {
+    // FAIL-OPEN: a synchronous throw from the thunk is RECORDED, not swallowed - settleError routes it
+    // into the deadline context's single settle (the caller receives a typed error outcome); runThunk
+    // then returns because the deadline is already settled.
     settleError(ctx, err);
     return;
   }

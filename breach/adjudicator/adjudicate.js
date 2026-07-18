@@ -276,6 +276,9 @@ async function runEntailment(claim, opts, remaining) {
     const results = await checkEntailment([claim], { llmCall: opts.llmCall, deadlineMs: remaining, log: opts.log });
     return (results && results[0]) || null;
   } catch (_err) {
+    // FAIL-OPEN: (Rule 4/9) a throwing NLI shell yields null, which the caller (gateEntailment) treats as
+    // NOT-entailed and demotes the finding to needs_review - it never ships a violation and never throws
+    // into the mint. checkEntailment already captures caller throws internally, so this is belt-and-braces.
     return null;
   }
 }

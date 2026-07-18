@@ -62,28 +62,48 @@ function rootIdent(node) {
   return '';
 }
 
+// walkPatternNode/walkIdentNode below are named top-level functions (not nested IIFEs) so each walk's
+// own decision count is its own unit, never folded into the enclosing patternNames/identsIn (the
+// health-gate Complex Method/Bumpy Road caps this whole file was flagged for).
+
+// specialPatternChild(n) -> the single child to recurse into for a "wrapper" pattern shape
+// (Property/AssignmentPattern/RestElement), or undefined for an Identifier leaf or a generic node
+// (handled by the fallback walkPatternChildren). Named so walkPatternNode is a flat dispatch.
+function specialPatternChild(n) {
+  if (n.type === 'Property') return n.value;
+  if (n.type === 'AssignmentPattern') return n.left;
+  if (n.type === 'RestElement') return n.argument;
+  return undefined;
+}
+function walkPatternChildren(n, out) {
+  for (const k of Object.keys(n)) { if (!isMetaKey(k) && n[k] && typeof n[k] === 'object') walkPatternNode(n[k], out); }
+}
 // patternNames(id) -> every identifier bound by a declarator/param pattern (destructuring included).
+function walkPatternNode(n, out) {
+  if (!n || typeof n !== 'object') return;
+  if (n.type === 'Identifier') { out.push(n.name); return; }
+  const special = specialPatternChild(n);
+  if (special !== undefined) { walkPatternNode(special, out); return; }
+  walkPatternChildren(n, out);
+}
 function patternNames(id) {
   const out = [];
-  (function w(n) {
-    if (!n || typeof n !== 'object') return;
-    if (n.type === 'Identifier') { out.push(n.name); return; }
-    if (n.type === 'Property') { w(n.value); return; }
-    if (n.type === 'AssignmentPattern') { w(n.left); return; }
-    if (n.type === 'RestElement') { w(n.argument); return; }
-    for (const k of Object.keys(n)) { if (!isMetaKey(k) && n[k] && typeof n[k] === 'object') w(n[k]); }
-  })(id);
+  walkPatternNode(id, out);
   return out;
 }
 
+function walkIdentChildren(n, out) {
+  for (const k of Object.keys(n)) { if (!isMetaKey(k)) walkIdentNode(n[k], out); }
+}
+function walkIdentNode(n, out) {
+  if (!n || typeof n !== 'object') return;
+  if (Array.isArray(n)) { for (const x of n) walkIdentNode(x, out); return; }
+  if (n.type === 'Identifier') out.add(n.name);
+  walkIdentChildren(n, out);
+}
 function identsIn(node) {
   const out = new Set();
-  (function w(n) {
-    if (!n || typeof n !== 'object') return;
-    if (Array.isArray(n)) { for (const x of n) w(x); return; }
-    if (n.type === 'Identifier') out.add(n.name);
-    for (const k of Object.keys(n)) { if (!isMetaKey(k)) w(n[k]); }
-  })(node);
+  walkIdentNode(node, out);
   return out;
 }
 
@@ -108,32 +128,60 @@ function collectModuleBindings(ast) {
   return map;
 }
 
+// isIifeCall(n) -> true for a CallExpression whose callee is itself a function literal. Named so the
+// conjunction is not its own "Complex Conditional" inline in the walk.
+function isIifeCall(n) {
+  return n.type === 'CallExpression' && n.callee && FN_TYPES.has(n.callee.type);
+}
+function walkIifeChildren(n, set) {
+  for (const k of Object.keys(n)) { if (!isMetaKey(k)) walkIifeNode(n[k], set); }
+}
+function walkIifeNode(n, set) {
+  if (!n || typeof n !== 'object') return;
+  if (Array.isArray(n)) { for (const x of n) walkIifeNode(x, set); return; }
+  if (isIifeCall(n)) set.add(n.callee);
+  walkIifeChildren(n, set);
+}
 // collectIifes(ast) -> the Set of function nodes that are immediately invoked (their writes are
 // module-load-time initialisation, not per-audit mutation).
 function collectIifes(ast) {
   const set = new Set();
-  (function w(n) {
-    if (!n || typeof n !== 'object') return;
-    if (Array.isArray(n)) { for (const x of n) w(x); return; }
-    if (n.type === 'CallExpression' && n.callee && FN_TYPES.has(n.callee.type)) set.add(n.callee);
-    for (const k of Object.keys(n)) { if (!isMetaKey(k)) w(n[k]); }
-  })(ast);
+  walkIifeNode(ast, set);
   return set;
 }
 
+// isOtherFunctionNode(n, fnNode) -> true for a nested function distinct from fnNode itself. Named so
+// the conjunction is not its own "Complex Conditional" inline in the walk.
+function isOtherFunctionNode(n, fnNode) {
+  return FN_TYPES.has(n.type) && n !== fnNode;
+}
+function addFunctionName(n, names) {
+  if (n.id) names.add(n.id.name);
+}
+function addDeclaratorNames(n, names) {
+  if (n.type !== 'VariableDeclarator') return;
+  for (const nm of patternNames(n.id)) names.add(nm);
+}
+function walkLocalNameChildren(n, fnNode, names) {
+  for (const k of Object.keys(n)) { if (!isMetaKey(k)) walkLocalNameNode(n[k], fnNode, names); }
+}
+function walkLocalNameNode(n, fnNode, names) {
+  if (!n || typeof n !== 'object') return;
+  if (Array.isArray(n)) { for (const x of n) walkLocalNameNode(x, fnNode, names); return; }
+  if (isOtherFunctionNode(n, fnNode)) { addFunctionName(n, names); return; }
+  addDeclaratorNames(n, names);
+  walkLocalNameChildren(n, fnNode, names);
+}
+function collectParamNames(fnNode, names) {
+  for (const p of fnNode.params || []) for (const n of patternNames(p)) names.add(n);
+}
 // collectLocalNames(fnNode) -> the names this function binds locally (params + its own var/function
 // declarations), NOT descending into nested functions. A write to such a name is a local, not a
 // module-scope leak.
 function collectLocalNames(fnNode) {
   const names = new Set();
-  for (const p of fnNode.params || []) for (const n of patternNames(p)) names.add(n);
-  (function w(n) {
-    if (!n || typeof n !== 'object') return;
-    if (Array.isArray(n)) { for (const x of n) w(x); return; }
-    if (FN_TYPES.has(n.type) && n !== fnNode) { if (n.id) names.add(n.id.name); return; }
-    if (n.type === 'VariableDeclarator') for (const nm of patternNames(n.id)) names.add(nm);
-    for (const k of Object.keys(n)) { if (!isMetaKey(k)) w(n[k]); }
-  })(fnNode.body);
+  collectParamNames(fnNode, names);
+  walkLocalNameNode(fnNode.body, fnNode, names);
   return names;
 }
 
@@ -144,15 +192,18 @@ function consequentReturns(node) {
   if (node.type === 'ReturnStatement') return true;
   return node.type === 'BlockStatement' && node.body.some((x) => x.type === 'ReturnStatement');
 }
+function bodyStatements(body) {
+  return (body && body.type === 'BlockStatement') ? body.body : [];
+}
+// addGuardIdents(stmt, set) -> adds every identifier in an `if (N...) return` guard's test. Split out
+// of guardReturnBindings so the loop body is a single call, not a nested if+for (Bumpy Road cap).
+function addGuardIdents(stmt, set) {
+  if (stmt.type !== 'IfStatement' || !consequentReturns(stmt.consequent)) return;
+  for (const n of identsIn(stmt.test)) set.add(n);
+}
 function guardReturnBindings(fnNode) {
   const set = new Set();
-  const body = fnNode.body;
-  const stmts = body && body.type === 'BlockStatement' ? body.body : [];
-  for (const s of stmts) {
-    if (s.type === 'IfStatement' && consequentReturns(s.consequent)) {
-      for (const n of identsIn(s.test)) set.add(n);
-    }
-  }
+  for (const s of bodyStatements(fnNode.body)) addGuardIdents(s, set);
   return set;
 }
 
@@ -197,8 +248,13 @@ function handleAssign(node, ctx) {
     return;
   }
   const fn = topFn(ctx);
-  if (fn.isIife || fn.guarded.has(name) || identsIn(node.right).has(name)) return; // module-init / guarded write-once / idempotent self-ref
+  if (isBenignReassign(fn, name, node)) return;
   flag(ctx, node, name, 'module-reassign', 'module-scope binding "' + name + '" is reassigned from a function without a write-once guard - per-audit state that leaks between builds (C-153); use a per-invocation state object');
+}
+// isBenignReassign(fn, name, node) -> module-init IIFE write, guarded write-once, or idempotent
+// self-reference (`x = x || v`). Named so the 3-term disjunction is not its own "Complex Conditional".
+function isBenignReassign(fn, name, node) {
+  return fn.isIife || fn.guarded.has(name) || identsIn(node.right).has(name);
 }
 
 function detectWrite(node, ctx) {

@@ -180,10 +180,8 @@ function quotedSpans(text) {
 }
 
 // salientTokens(text) -> up to MAX_TOKENS distinctive content tokens (>= MIN_TOKEN_LEN, minus STOPWORDS),
-// in first-seen order (deterministic). Digits-with-a-word like "18" are kept only when >= MIN_TOKEN_LEN
-// so a bare short number never becomes a pattern.
-// isSkippableToken(w, seen) -> true when w is too short, a stopword, or already collected. Named so the
-// 3-way disjunction is not its own "Complex Conditional" inline inside the loop.
+// in first-seen order (deterministic); a bare short number never becomes a pattern. isSkippableToken is
+// named (rather than inline) so the 3-way disjunction is not its own "Complex Conditional".
 function isSkippableToken(w, seen) {
   return w.length < MIN_TOKEN_LEN || STOPWORDS.has(w) || seen.has(w);
 }
@@ -232,9 +230,8 @@ function topDistinctive(tokens, n) {
 //     right observation/register in propose.js, so a lenient 'any' set is correct.
 // An element that reduces to nothing distinctive is returned as unpatternable: propose.js abstains
 // rather than fire a low-precision pattern (the C-049 "mute or over-broad" trap - refuse to guess).
-// needsFindabilityPattern(evidenceType, pageClass, elementText) -> true when a 'presence' element reads
-// as "a page/section of this class exists" rather than a phrase, so a url-path pattern is warranted.
-// Named so the 4-term conjunction is not its own "Complex Conditional" inline in patternsFromElement.
+// needsFindabilityPattern: true when a 'presence' element reads as "a page/section exists" rather than
+// a phrase (named so the 4-term conjunction is not inline in patternsFromElement).
 function needsFindabilityPattern(evidenceType, pageClass, elementText) {
   return evidenceType === 'presence' && Boolean(pageClass) && pageClass !== 'any' && FINDABILITY_RX.test(elementText);
 }
@@ -252,9 +249,6 @@ function patternsFromElement(elementText, evidenceType, pageClass) {
   return { patterns, unpatternable: patterns.length === 0 };
 }
 
-// addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) -> pushes the one token-set this
-// element contributes, polarity-aware per the doctrine above. Kept separate so patternsFromElement
-// stays within the health-gate function-length cap.
 // A quoted prohibited phrase is the precise matcher; do not dilute it with a token-set. Without a quote,
 // only a DISTINCTIVE multi-token set (matched later within ONE sentence) is safe enough to pattern a
 // prohibition on; a single or generic token is refused (C-059/C-078). Recall is deliberately traded for
@@ -299,13 +293,11 @@ function dedupePatterns(patterns) {
 // no id/record to bind to. Patterns are derived from the duty + every element; an obligation that yields
 // no anchored pattern still produces a spec (with empty patterns) so it is VISIBLE as an honest
 // coverage gap, never silently dropped - propose.js treats an empty-pattern spec as inert (abstains).
-// isSpecInputInvalid(record, obligation) -> true when there is nothing to bind a spec to. Named so the
-// 3-term disjunction is not its own "Complex Conditional" inline in specForObligation.
+// isSpecInputInvalid: true when there is nothing to bind a spec to (named, not inline: 3-term test).
 function isSpecInputInvalid(record, obligation) {
   return !record || typeof record.id !== 'string' || !obligation;
 }
-// collectPatterns(sources, evidenceType, pageClass) -> { patterns, unpatternable } accumulated across
-// every duty/element source. Split out of specForObligation so the loop is its own single-purpose unit.
+// collectPatterns: { patterns, unpatternable } accumulated across every duty/element source.
 function collectPatterns(sources, evidenceType, pageClass) {
   let patterns = [];
   const unpatternable = [];
@@ -417,8 +409,7 @@ function anchoredRegexOk(value) {
 function tokensOf(value) {
   return value && Array.isArray(value.tokens) ? value.tokens : null;
 }
-// oneTokenOk(t) -> { ok, reason } for a single token. Split out of tokenSetOk so the per-token checks
-// are not folded into the loop's own decision count (health-gate Complex Method cap).
+// oneTokenOk(t) -> { ok, reason } for a single token (split out so the loop stays a plain call).
 function oneTokenOk(t) {
   if (typeof t !== 'string' || t.length < MIN_TOKEN_LEN) {
     return { ok: false, reason: 'token ' + JSON.stringify(t) + ' is shorter than the ' + MIN_TOKEN_LEN + '-char floor (a bare short token substring-matches, C-059)' };
@@ -443,9 +434,7 @@ function urlPathOk(value) {
   return { ok: true, reason: null };
 }
 
-// validateSpec(spec) -> { valid, errors }. Shape gate + the anchoring gate on every pattern. A
-// register/behavioural spec must carry page_class null (the crawl never gates a non-crawl lane); a
-// presence/absence spec must carry a page_class string. Any bad pattern makes the whole spec invalid.
+// validateSpec(spec) -> { valid, errors }: the shape gate + the anchoring gate on every pattern.
 function isValidRecordId(spec) {
   return typeof spec.record_id === 'string' && spec.record_id.length > 0;
 }
