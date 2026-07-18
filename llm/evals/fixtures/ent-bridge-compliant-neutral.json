@@ -2,10 +2,10 @@
   "kind": "entailment",
   "name": "ent-bridge-compliant-neutral",
   "class": "known-clean",
-  "note": "FINAL UNIT iteration 2, the C-048 direction: a COMPLIANT page quote plus the SAME rule-text bridge still entails NOTHING. The bridge is not a loosening - it lets an indirect reference compose, but a page that names no prohibited (or rule-listed) term does not become a breach. The gate abstains on neutral; a clean page must never ship a positive (Rule 10 axe-core doctrine).",
+  "note": "FINAL UNIT iteration 3, the C-048 direction: a COMPLIANT page quote plus the SAME definitional glossary still entails NOTHING. The glossary is not a loosening - it lets an indirect reference compose, but a page that names no glossary term does not become a breach. The gate abstains on neutral; a clean page must never ship a positive (Rule 10 axe-core doctrine).",
   "claims": [
-    { "claim": "This website does advertise a prescription only medicine to the public", "premise_source_id": "page1", "premise": "We offer general skincare consultations; please speak to your GP about any prescription treatment", "bridge": "Do not advertise any prescription only medicine to the public; treat indirect references such as 'wrinkle-relaxing injections' and 'anti-wrinkle treatment' as references to a prescription only medicine" }
+    { "claim": "This website does advertise a prescription only medicine to the public", "premise_source_id": "page1", "premise": "We offer general skincare consultations; please speak to your GP about any prescription treatment", "bridge": "The following are indirect references to a prescription only medicine: wrinkle-relaxing injections, fat jab." }
   ],
-  "scripted_response": { "source_id": "page1", "verdict": "neutral", "rationale": "the page names no product the rule lists and defers any prescription to a GP; the premises do not establish the claim" },
+  "scripted_response": { "source_id": "page1", "verdict": "neutral", "rationale": "the page names no glossary term and defers any prescription to a GP; the premises do not establish the claim" },
   "expect": { "ok": [false] }
 }

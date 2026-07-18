@@ -143,17 +143,84 @@ function claimBasisFor(record, candidate) {
   return built ? built.basis : 'fallback';
 }
 
-// bridgeTextFor(record, candidate) -> the record's OWN verbatim duty text to supply as the Gate-3 SECOND
-// premise (the rule-text "bridge"; FINAL UNIT iteration 2), for a PRESENCE-breach ONLY. The offending
-// page quote may be only an INDIRECT reference the model cannot resolve on its own; the rule text is the
-// catalogue's own listing that bridges it (verbatim, via the SAME duty_idx door as the hypothesis - Rule
-// 2, no authored content; the prompt door then DOC-delimits and sanitises it, C-134). Absence and
-// coverage keep the single-premise basis: their hypothesis IS the duty (atomicClaimFor returns it
-// unchanged), so a duty premise would be a trivial self-entailment and is never added; register/observed
-// bypass text adjudication (C-084) and never reach Gate 3. Returns '' whenever no bridge applies.
+// ── FINAL UNIT iteration 3 (bridge-as-glossary): the Gate-3 SECOND premise is a DEFINITIONAL glossary,
+// never the prohibition duty. U1 resume 4 proved the FULL-duty bridge (iteration 2) made the model REASON
+// correctly ("the website does advertise such medicine to the public") but then LABEL the relation
+// `contradiction` and misquote the affirmative hypothesis as "the hypothesis that it does not". Diagnosis:
+// the duty OPENS with the deontic operator "Do not advertise ...", which is the first rule-text the model
+// reads and primes a hypothesis-polarity inversion. The fix (an architectural correction, not a
+// loosening): the entailment premise carries ONLY the record's DEFINITIONAL/enumerative mapping - which
+// page terms count as the regulated thing - stripped of every imperative/prohibition operator. The
+// prohibition itself is ADJUDICATION's job (briefOf's duty text), handled correctly there and untouched.
+
+// OPERATOR_RX - the imperative/prohibition operator vocabulary REMOVED from the glossary so it carries no
+// deontic priming (the whole iteration-3 point; I2). A removal-superset of the atomic-claim door's
+// PROHIBIT_OP_RX/REMOVE_OP_RX (do not / must not / may not / shall not / never / remove / delete / avoid
+// ...) plus prohibited / forbidden / banned / restricted. Global (strip EVERY occurrence); simple literal
+// alternations only, no nested quantifiers, so no catastrophic backtracking (C-226).
+const OPERATOR_RX = /\b(?:do not|do n['’]t|don['’]t|must not|must never|must only|may not|may only|shall not|shall never|should not|never|do no|remove|delete|avoid|omit|exclude|strip|prohibit(?:ed|s|ion)?|forbid(?:den|s)?|ban(?:ned|s)?|restrict(?:ed|s|ion)?)\b/gi;
+// stripOperators(text) -> text with every operator token removed and whitespace re-collapsed. The one
+// guarantee the glossary carries no deontic priming.
+function stripOperators(text) {
+  return String(text == null ? '' : text).replace(OPERATOR_RX, ' ').replace(/\s{2,}/g, ' ').replace(/\s+([;,.:])/g, '$1').trim();
+}
+
+// ENUM_CUE_RX - the cue that introduces an indirect-reference listing ("... such as 'x', 'y'"). A quoted
+// TERM is captured by QUOTED_TERM_RX (straight or curly quotes, 1-80 non-quote chars). Both bounded (C-226).
+const ENUM_CUE_RX = /\b(?:such as|e\.?g\.?|for example|for instance|including|includes|namely)\b/i;
+const QUOTED_TERM_RX = /['"‘“]([^'"‘’“”\n]{1,80}?)['"’”]/;
+// enumeratedTerms(duty) -> the catalogue-verbatim indirect-reference TERMS listed after the enumerative
+// cue, in order, de-duplicated. No cue, or no quoted term after it -> [] (the caller yields no glossary).
+function enumeratedTerms(duty) {
+  const s = String(duty == null ? '' : duty);
+  const cue = ENUM_CUE_RX.exec(s);
+  if (!cue) return [];
+  const rx = new RegExp(QUOTED_TERM_RX.source, 'g');
+  const region = s.slice(cue.index);
+  const out = [];
+  let m;
+  while ((m = rx.exec(region)) !== null) {
+    const t = m[1].trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+// LEADING_VERB_RX / TRAILING_AUDIENCE_RX - a leading action verb (after the operator strip) and a trailing
+// audience adverbial, both dropped so the glossary SUBJECT is the regulated noun phrase, not the imperative
+// that governs it (only framing words go; the substantive noun stays, catalogue-preserving).
+const LEADING_VERB_RX = /^(?:advertise|promote|market|name|mention|reference|display|depict|use|sell|offer|publish|list|feature|show|make|state|imply|allude to)s?\b[\s,:.-]*/i;
+const TRAILING_AUDIENCE_RX = /\s+to (?:the (?:general )?public|consumers|patients|customers|the public|clients)\b.*$/i;
+// regulatedSubject(duty) -> the noun phrase the indirect references point to, from the duty's primary
+// clause with operators, the leading verb and the trailing audience adverbial removed.
+function regulatedSubject(duty) {
+  const c = firstClause(String(duty == null ? '' : duty));
+  return stripOperators(c).replace(LEADING_VERB_RX, '').replace(TRAILING_AUDIENCE_RX, '').trim();
+}
+
+// The fixed, law-free frame the glossary prepends (the "This website does" analogue: framing words the
+// door owns, never catalogue content), and a generic subject when the duty yields none.
+const GLOSSARY_HEAD = 'The following are indirect references to ';
+const GENERIC_SUBJECT = 'the item this obligation governs';
+// glossaryFromDuty(duty) -> "The following are indirect references to <subject>: <term>, <term>." (subject
+// and terms catalogue-verbatim, operator-stripped; the frame fixed and law-free), or '' when the duty
+// enumerates no terms (no enumerable definitional content -> single-premise path).
+function glossaryFromDuty(duty) {
+  const terms = enumeratedTerms(duty);
+  if (terms.length === 0) return '';
+  const subject = regulatedSubject(duty) || GENERIC_SUBJECT;
+  return GLOSSARY_HEAD + subject + ': ' + terms.join(', ') + '.';
+}
+
+// bridgeTextFor(record, candidate) -> the Gate-3 SECOND premise: a DEFINITIONAL GLOSSARY of the record's
+// own indirect-reference terms (FINAL UNIT iteration 3), for a PRESENCE-breach ONLY. Deterministic,
+// catalogue-verbatim terms, no imperative/prohibition operator, no authored law fact (Rule 2/11); the
+// prompt door then DOC-delimits and sanitises it (C-134). Absence/coverage keep the single-premise basis
+// (their hypothesis IS the duty); register/observed bypass Gate 3 (C-084). A duty that enumerates no
+// indirect-reference terms yields '' (single-premise path, the pre-iteration-2 behaviour).
 function bridgeTextFor(record, candidate) {
   if (!isPresenceBreach(candidate)) return '';
-  return dutyText(record, candidate);
+  return glossaryFromDuty(dutyText(record, candidate));
 }
 
 if (require.main === module) {

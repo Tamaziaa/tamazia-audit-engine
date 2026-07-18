@@ -137,15 +137,17 @@ test('GATE 3: the entailment llmCall carries request.candidate = {record_id, art
 // the ATOMIC BREACH CLAIM the offending quote entails, NOT the raw obligation duty (the U1 blocker). ────
 const { claimFor, hypothesisFor } = require('./adjudicate.js');
 
-// A presence-breach finding shaped like the UK_MHRA synthetic: a verbatim quote artifact + a "Do not X"
+// A presence-breach finding shaped like the UK_MHRA synthetic: a verbatim quote artifact + the "Do not X"
 // obligation duty as `description` (what pipeline.js's enrichment sets before the adjudicator sees it).
+// The duty ENUMERATES its indirect-reference terms after an "e.g." cue (copied verbatim from the real
+// UK_MHRA_POM_AD_BAN duty) so the iteration-3 glossary bridge has terms to extract.
 function pomPresenceFinding(over) {
   return Object.assign({
     record_id: 'SYN-POM-RULE',
     kind: 'presence-breach',
     artifact: { type: 'quote', text: 'wrinkle-relaxing injections', surface: 'visible_text', page_url: 'https://clinic.test/' },
     page_url: 'https://clinic.test/',
-    description: 'Do not advertise any prescription only medicine to the public; remove indirect references from public pages',
+    description: "Do not advertise any prescription only medicine to the public; remove product names, images, hashtags and indirect references (e.g. 'wrinkle-relaxing injections', 'fat jab') from public pages, ads and social",
     framework: 'synthetic MHRA-shaped framework (harness self-test only)',
     evidence_quote: 'wrinkle-relaxing injections',
     evidence_url: 'https://clinic.test/',
@@ -181,23 +183,26 @@ test('DOOR F3(a): a synthetic-shaped presence-breach reaches VIOLATION through t
   const { findings } = await adjudicate([pomPresenceFinding()], BUNDLE, { llmCall: gateAffirmingAtomic });
   assert.equal(findings[0].state, 'violation');
   assert.equal(findings[0].adjudication, 'breach');
-  // The NLI hypothesis is the ATOMIC claim; the owning duty now rides as the RULE TEXT premise (the
-  // FINAL UNIT iteration-2 bridge), NEVER as the hypothesis. Prove both: the atomic claim precedes the
-  // rule-text premise, and the duty's "Do not advertise" appears ONLY inside the rule-text premise.
+  // FINAL UNIT iteration 3 (bridge-as-glossary): the NLI hypothesis is the affirmative atomic claim, and
+  // the SECOND premise is now a DEFINITIONAL GLOSSARY (the indirect-reference terms), NOT the prohibition
+  // duty. The deontic "Do not advertise" that primed the model's label inversion (U1 resume 4) is now
+  // ABSENT from the entire Gate-3 prompt.
   const hypIdx = nliPrompt.indexOf('This website does advertise any prescription only medicine to the public');
   const ruleIdx = nliPrompt.indexOf('RULE TEXT');
   assert.ok(hypIdx !== -1, 'the atomic claim is the NLI hypothesis');
-  assert.ok(ruleIdx !== -1 && hypIdx < ruleIdx, 'the rule-text premise follows the hypothesis (the iteration-2 bridge)');
-  assert.ok(nliPrompt.includes('remove indirect references from public pages'), 'the owning duty is supplied verbatim as the rule-text bridge premise');
-  assert.ok(nliPrompt.indexOf('Do not advertise') > ruleIdx, 'the duty appears ONLY as the rule-text premise, never as the hypothesis (the U1 blocker stays fixed)');
+  assert.ok(ruleIdx !== -1 && hypIdx < ruleIdx, 'the glossary (rule-text) premise follows the hypothesis');
+  assert.ok(nliPrompt.includes('wrinkle-relaxing injections'), 'the glossary supplies the indirect-reference term the model needs (verbatim)');
+  assert.ok(!/do not advertise/i.test(nliPrompt), 'the deontic prohibition is GONE from the Gate-3 prompt (the iteration-3 fix)');
+  assert.ok(!/\bremove\b/i.test(nliPrompt), 'no imperative/removal operator survives into the glossary premise');
 });
 
-test('DOOR iteration-2: claimFor attaches the owning duty as the rule-text bridge (claim.bridge) for a presence-breach, omitting it for absence', () => {
+test('DOOR iteration-3: claimFor attaches a DEFINITIONAL GLOSSARY as claim.bridge for a presence-breach (no operator), omitting it for absence', () => {
   const f = pomPresenceFinding();
   const built = claimFor(f);
-  assert.equal(built.bridge, f.description, 'the bridge is the record\'s own verbatim duty text (Rule 2)');
-  assert.equal(built.claim, 'This website does advertise any prescription only medicine to the public', 'the hypothesis is still the atomic claim, distinct from the bridge');
-  assert.notEqual(built.bridge, built.claim, 'the bridge (duty) and the hypothesis (atomic claim) are different premises');
+  assert.equal(built.bridge, 'The following are indirect references to any prescription only medicine: wrinkle-relaxing injections, fat jab.');
+  assert.ok(!/do not|\bremove\b/i.test(built.bridge), 'the glossary bridge carries NO prohibition/removal operator (iteration 3)');
+  assert.notEqual(built.bridge, f.description, 'the bridge is the glossary, NOT the full duty');
+  assert.notEqual(built.bridge, built.claim, 'the glossary bridge and the atomic-claim hypothesis are different premises');
   const absence = { record_id: 'ABS', kind: 'absence-breach', artifact: { type: 'coverage_proof' }, description: 'Do not omit the mandatory cookie disclosure', evidence_quote: '' };
   assert.equal('bridge' in claimFor(absence), false, 'absence keeps the single-premise basis - no bridge (F1)');
 });

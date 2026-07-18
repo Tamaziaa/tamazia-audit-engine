@@ -161,12 +161,13 @@ test('a claim with NO candidate leaves request.candidate unset (backward compati
   assert.equal('candidate' in seen, false, 'no candidate attached -> the field is simply absent, not undefined');
 });
 
-// ── FINAL UNIT iteration 2: premise-scoped (two-document) entailment. The NLI premise set gains the
-// owning record's verbatim duty text as a SECOND, DOC-delimited, catalogue-sourced premise (claim.bridge),
-// so an INDIRECT-reference page quote can compose with the rule's own indirect-reference listing. The
-// hypothesis is unchanged; contradiction and neutral still demote; a citation to EITHER premise is
-// retrieval-valid; the injection door still neutralises a break-out inside the rule text (C-134). ────────
-const BRIDGE = "Do not advertise any prescription only medicine to the public; treat indirect references such as 'wrinkle-relaxing injections' as references to a prescription only medicine";
+// ── FINAL UNIT iteration 3: premise-scoped (two-document) entailment with a bridge-as-GLOSSARY. The NLI
+// premise set gains the owning record's DEFINITIONAL glossary (its indirect-reference terms, NO deontic
+// operator) as a SECOND, DOC-delimited, catalogue-sourced premise (claim.bridge), so an INDIRECT-reference
+// page quote composes to entailment. The hypothesis is unchanged; contradiction and neutral still demote;
+// a citation to EITHER premise is retrieval-valid; the injection door still neutralises a break-out inside
+// the rule text (C-134). These SHELL tests are bridge-content-agnostic (they exercise premise assembly). ─
+const BRIDGE = 'The following are indirect references to a prescription only medicine: wrinkle-relaxing injections, fat jab.';
 const ATOMIC = 'This website does advertise a prescription only medicine to the public';
 const RULE_SID = 'catalogue-rule'; // the engine-assigned id llm/prompts/entailment.js gives the bridge premise
 

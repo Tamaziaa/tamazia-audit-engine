@@ -63,18 +63,20 @@ test('enrichCandidate stamps the exact door-derived atomic_claim for the synthet
   assert.notStrictEqual(f.atomic_claim, f.description, 'the Gate-3 hypothesis is NOT the raw obligation duty (the U1 blocker)');
   assert.match(f.description, /^Do not advertise/, 'description stays the raw duty for the adjudication prompt');
 });
-// The Gate-3 SECOND premise (FINAL UNIT iteration 2): the enriched synthetic finding must carry the
-// `bridge` (the record's own verbatim duty text), and that text must contain the rule's indirect-
-// reference listing ("wrinkle-relaxing injections") so the NLI can resolve the indirect offending quote
-// (the iteration-1 `neutral` residual). Stamped from the full record via the same door adjudicate.js uses.
+// The Gate-3 SECOND premise (FINAL UNIT iteration 3, bridge-as-glossary): the enriched synthetic finding
+// carries a `bridge` that is a DEFINITIONAL GLOSSARY of the rule's indirect-reference terms ("wrinkle-
+// relaxing injections") so the NLI can resolve the indirect offending quote - WITHOUT the prohibition
+// duty's leading "Do not ..." operator that primed the model's label inversion (U1 resume 4). Stamped from
+// the full record via the same one door adjudicate.js uses (breach/adjudicator/claim.js bridgeTextFor).
 test('enrichCandidate stamps the Gate-3 bridge premise carrying the indirect-reference text', async () => {
   const records = loadCatalogueRecords();
   const recIdx = D.recordIndex(records);
   const composed = await D.composeFirm(D.loadSyntheticFirm(), records, recIdx, null);
   const f = composed.enriched[0];
   assert.strictEqual(typeof f.bridge, 'string', 'a presence-breach finding carries a bridge second premise');
-  assert.ok(f.bridge.includes('wrinkle-relaxing injections'), 'the bridge carries the rule\'s own indirect-reference listing verbatim (the mapping the model was missing)');
-  assert.strictEqual(f.bridge, f.description, 'the bridge is the record\'s own verbatim duty text (via the same door)');
+  assert.ok(f.bridge.includes('wrinkle-relaxing injections'), 'the bridge carries the rule\'s own indirect-reference term verbatim (the mapping the model was missing)');
+  assert.notStrictEqual(f.bridge, f.description, 'iteration 3: the bridge is the GLOSSARY, not the full prohibition duty');
+  assert.ok(!/do not|\bremove\b/i.test(f.bridge), 'the glossary bridge carries no deontic/removal operator (iteration 3)');
   // A non-presence (coverage_proof) candidate carries NO bridge (its hypothesis IS the duty).
   const abs = D.enrichCandidate({ record_id: 'X', duty_idx: 0, artifact: { type: 'coverage_proof' } }, { name: 'L', website_obligations: [{ duty: 'Publish X' }] });
   assert.strictEqual(abs.bridge, undefined, 'a coverage_proof (absence) candidate is not a presence-breach: no bridge');
