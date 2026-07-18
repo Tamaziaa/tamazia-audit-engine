@@ -203,12 +203,12 @@ but were learned the expensive way.
 
 ---
 
-## D. MISSED / WEAK — the honest gap list
+## D. MISSED / WEAK: the honest gap list
 
 Each candidate confirmed or dismissed with evidence.
 
 **(i) Do known_breaches reproduce end-to-end, or is "zero false accusations" vacuous? CONFIRMED
-GAP — this is the single most important finding.**
+GAP, and this is the single most important finding.**
 Across all 31 firms (30 reference + 1 synthetic) there are 5 known_breaches; the e2e harness
 reproduces **0**, misses **5**, contradicts **0**, and still returns exit 0 / RESULT OK. The
 exit code (`run-pipeline.js` `exitCodeFor`) is `(contradicting || escapes) ? 1 : 0`; a missed
@@ -268,7 +268,7 @@ carry zero breaches. As a positive-control oracle the set is thin, which compoun
 if the exit bar required reproduction, there is little to reproduce and the match tokens are
 imprecise.
 
-**(ix) Anything in caution.md that P3 should have guarded but did not? YES — C-236.** It is logged
+**(ix) Anything in caution.md that P3 should have guarded but did not? YES, C-236.** It is logged
 as a lesson and its reporting half is implemented, but the exit-bar half ("also requires
 known_breaches to reproduce as violations") is not enforced in `exitCodeFor`. The guard exists in
 prose, not in code. This is the honest counter-example to the phase's own "a wrong guard is worse
