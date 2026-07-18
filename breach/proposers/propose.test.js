@@ -300,3 +300,80 @@ test('propose runs against the REAL catalogue and a realistic bundle without thr
     assert.ok(typeof c.record_id === 'string' && Number.isInteger(c.duty_idx));
   }
 });
+
+// ── A1 POLARITY SCOPING (P3-tail Wave-2, C-238): a PRESENCE-breach (a found prohibited quote) is
+//    self-sufficient Rule 3 evidence and is NEVER gated by the corpus-size floor or the C-024
+//    truncation interlock; an ABSENCE-breach (a missing requirement) on the SAME corpus IS. Both
+//    directions are proven on one thin/truncated corpus so the polarity split cannot silently regress. ─
+test('A1: a presence-breach FIRES on a 1-page sub-floor corpus while the absence-breach on the same corpus is floored', () => {
+  const b = bundle();
+  b.corpus.pages = pages().slice(0, 1); // one page: below MIN_PAGES_FOR_ABSENCE
+  b.corpus.pages[0].text = 'Buy our miracle tonic cures all today and feel amazing within a single week of trying it here.';
+  const cands = propose(b, catalogue(), coverageFor(b));
+  const pf = fired(cands, KIND.PRESENCE_BREACH);
+  assert.strictEqual(pf.length, 1, 'the found prohibited quote fires despite the sub-floor corpus (not gated by the floor)');
+  assert.strictEqual(pf[0].artifact.type, 'quote');
+  assert.ok(b.corpus.pages[0].text.includes(pf[0].artifact.text), 'the quote is a verbatim substring (Gate-2 re-matchable)');
+  assert.strictEqual(fired(cands, KIND.ABSENCE_BREACH).length, 0, 'the opposite polarity never fires on a 1-page corpus');
+  assert.ok(suppressedOf(cands, KIND.ABSENCE_BREACH).some((c) => /floor|page/i.test(c.suppressed_reason)), 'the absence claim is suppressed by the floor');
+});
+
+test('A1: a presence-breach FIRES on a TRUNCATED corpus while the absence-breach on the same corpus is C-024 demoted', () => {
+  const b = bundle(); // 3 pages (>= floor) so ONLY truncation, not the floor, can gate the absence claim
+  b.corpus.truncated = true;
+  b.corpus.pages[0].text = 'Buy our miracle tonic cures all today and feel amazing within a single week of trying it here.';
+  // Coverage is computed the way the harness does (run-real-proof.js / pipeline.js both pass {}), so the
+  // coverage-contract's own truncation demotion stays dormant and this isolates propose()'s OWN interlock
+  // (absenceInterlock reads bundle.corpus.truncated). NOTE: coverage-contract.js's truncation demotion is
+  // keyed on hasAbsence (a PROHIBITION obligation), the OPPOSITE polarity to the C-024 absence class; if
+  // coverage were computed with {truncated:true} it would screen this prohibition-bearing record and
+  // wrongly eat the presence-breach - a dormant coverage-contract wart flagged to Rob (see the C-024
+  // isolation test below and propose.test.js's russell-cooke note), not a propose() defect.
+  const cov = coverageContract.coverageFor(catalogue().records, b.corpus.pages, {});
+  const cands = propose(b, catalogue(), cov);
+  assert.strictEqual(fired(cands, KIND.PRESENCE_BREACH).length, 1, 'the found prohibited quote fires despite truncation (a cut only removes text)');
+  assert.strictEqual(fired(cands, KIND.ABSENCE_BREACH).length, 0, 'the opposite polarity never fires on a truncated corpus');
+  assert.ok(suppressedOf(cands, KIND.ABSENCE_BREACH).some((c) => /truncat/i.test(c.suppressed_reason)), 'the absence claim is demoted by the C-024 interlock');
+});
+
+test('CALIBRATION: the truncation-polarity fixture fires the presence-breach and suppresses the absence-breach (A1/A2/C-238)', () => {
+  const file = path.join(FIXTURES, 'p3-proposer-truncation-polarity.json');
+  assert.ok(fs.existsSync(file), 'the calibration fixture must exist');
+  const fx = JSON.parse(fs.readFileSync(file, 'utf8'));
+  // Coverage computed as the harness does (pass {}); propose() reads fx.bundle.corpus.truncated (true)
+  // for its OWN absence interlock. See the A1 truncated test above for why {} (not {truncated:true}).
+  const cov = coverageContract.coverageFor(fx.catalogue.records, fx.bundle.corpus.pages, {});
+  const cands = propose(fx.bundle, fx.catalogue, cov);
+  const pe = fx.expect.presence_breach;
+  const ae = fx.expect.absence_breach;
+  const presenceFired = cands.filter((c) => c.record_id === fx.expect.record_id && c.duty_idx === pe.duty_idx && !c.suppressed_reason);
+  assert.strictEqual(presenceFired.length, pe.fired, 'A1: the presence-breach fires on the thin + truncated corpus');
+  assert.strictEqual(presenceFired[0].artifact.type, pe.artifact_type);
+  const absenceFired = cands.filter((c) => c.record_id === fx.expect.record_id && c.duty_idx === ae.duty_idx && !c.suppressed_reason);
+  const absenceSupp = cands.filter((c) => c.record_id === fx.expect.record_id && c.duty_idx === ae.duty_idx && c.suppressed_reason);
+  assert.strictEqual(absenceFired.length, ae.fired, 'A2/C-024: the absence-breach never fires on the thin + truncated corpus');
+  assert.ok(absenceSupp.some((c) => new RegExp(ae.reason_matches, 'i').test(c.suppressed_reason)), 'the absence claim is demoted with a floor/truncation reason');
+});
+
+// ── A3: the committed eval/e2e synthetic fixture proposes exactly the one real prohibition finding.
+//    Locks that the synthetic control matches a REAL compiled prohibition spec (UK_MHRA_POM_AD_BAN) and
+//    that its 1-page corpus yields exactly one non-suppressed, Gate-2-verifiable presence-breach (also
+//    the A1 thin-corpus proof: a single page yields the presence finding and no absence-breach). ───────
+test('A3: the committed synthetic fixture proposes exactly 1 verified presence-breach (UK_MHRA_POM_AD_BAN)', () => {
+  const { verifyCandidate } = require('../verifiers/quote-match.js');
+  const catalogueArtifact = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+  const synthPath = path.join(REPO_ROOT, 'eval', 'e2e', 'fixtures', 'synthetic-quote-breach.json');
+  const fx = JSON.parse(fs.readFileSync(synthPath, 'utf8'));
+  const b = fx.bundle;
+  const cov = coverageContract.coverageFor(catalogueArtifact.records, b.corpus.pages, { truncated: b.corpus.truncated });
+  const firedOnes = propose(b, catalogueArtifact, cov).filter((c) => !c.suppressed_reason && c.artifact);
+  assert.strictEqual(firedOnes.length, 1, 'exactly one non-suppressed candidate on the 1-page corpus');
+  const c = firedOnes[0];
+  assert.strictEqual(c.kind, KIND.PRESENCE_BREACH);
+  assert.strictEqual(c.record_id, 'UK_MHRA_POM_AD_BAN', 'it matches the real compiled prohibition spec');
+  assert.strictEqual(c.artifact.type, 'quote');
+  assert.ok(b.corpus.pages[0].text.includes(c.artifact.text), 'the quote is a verbatim substring of the page (Gate-2 re-matchable)');
+  const token = fx.expected.known_breaches[0].match_any[0];
+  assert.ok(c.artifact.text.includes(token), 'the known_breach match token is a discriminating substring of the quote');
+  assert.strictEqual(verifyCandidate(c, b).verified, true, 'the synthetic presence-breach verifies end-to-end (Gate-2 quote re-match)');
+});

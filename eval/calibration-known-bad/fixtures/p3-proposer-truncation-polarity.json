@@ -1,0 +1,63 @@
+{
+  "comment": "A1/A2 polarity calibration for the breach proposer (breach/proposers/propose.js), P3-tail Wave-2 (Builder A). ONE thin (1-page, below MIN_PAGES_FOR_ABSENCE) AND truncated (corpus.truncated=true) corpus that carries BOTH polarities of duty on one FAKE record (FAKE_ACT_2099 id only, C-071; nested under 'catalogue' so the catalogue linters' glob-load skips this non-pack fixture). The known-bad this locks, in BOTH directions: (1) a PRESENCE-breach (the PROHIBITED phrase 'miracle tonic cures all' is FOUND in visible prose) is valid Rule 3 evidence regardless of corpus size or truncation and MUST fire - a naive 'suppress everything on a thin/truncated corpus' would wrongly drop it (a false negative on a real prohibited claim; the class the breach lane exists to catch); (2) an ABSENCE-breach (the REQUIRED 'authorised widget provider' disclosure is MISSING) on the same 1-page truncated corpus MUST be suppressed by the MIN_PAGES_FOR_ABSENCE floor and the C-024 truncation interlock - a naive 'fire on total silence' would wrongly assert a missing-disclosure breach on content that may sit past the cut (the russell-cooke false-accusation class, C-024/C-025). The corpus-floor/truncation interlock (absenceInterlock) is exclusive to the absence path (C-238 polarity of strictness); the presence path never consults it.",
+  "catalogue": {
+    "records": [
+      {
+        "id": "FAKE_ACT_2099_POLARITY",
+        "regulator": { "register_url": "https://register.fake.example/frb" },
+        "citation": { "url": "https://fake.example/act/2099" },
+        "website_obligations": [
+          {
+            "duty": "Do not advertise the prohibited miracle tonic",
+            "elements": [
+              "the phrase 'miracle tonic cures all' must not appear in public copy"
+            ],
+            "evidence_type": "absence"
+          },
+          {
+            "duty": "Publish the required provider disclosure",
+            "elements": [
+              "'authorised widget provider' wording present"
+            ],
+            "evidence_type": "presence"
+          }
+        ]
+      }
+    ]
+  },
+  "bundle": {
+    "domain": "polarity.example",
+    "corpus": {
+      "pages": [
+        {
+          "url": "https://polarity.example/",
+          "title": "Home",
+          "text": "Buy our miracle tonic cures all today and feel amazing within a single week of trying it here.",
+          "jsonLd": []
+        }
+      ],
+      "footerText": "Contact us at the front desk during opening hours.",
+      "truncated": true
+    },
+    "registers": { "notes": [] },
+    "browser": { "observed": [], "consentControl": { "found": false, "healthy": null, "url": null }, "lane": { "ran": false, "reason": "playwright-unavailable" } }
+  },
+  "expect": {
+    "record_id": "FAKE_ACT_2099_POLARITY",
+    "presence_breach": {
+      "duty_idx": 0,
+      "kind": "presence-breach",
+      "fired": 1,
+      "artifact_type": "quote",
+      "note": "A1: the prohibited phrase is FOUND; the verbatim quote is self-sufficient Rule 3 evidence and fires despite the 1-page (sub-floor) truncated corpus."
+    },
+    "absence_breach": {
+      "duty_idx": 1,
+      "kind": "absence-breach",
+      "fired": 0,
+      "suppressed": 1,
+      "reason_matches": "floor|truncat|UNKNOWN",
+      "note": "A2/C-024: the required disclosure is absent, but the corpus is thin and truncated, so the absence claim is demoted, never asserted."
+    }
+  }
+}
