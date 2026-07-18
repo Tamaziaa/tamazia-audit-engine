@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-bridge-indirect-entails",
+  "class": "known-breach",
+  "note": "FINAL UNIT iteration 2 (premise-scoped entailment): the page quote is only an INDIRECT reference ('wrinkle-relaxing injections') that cannot alone prove the atomic breach claim; the owning record's OWN duty text, supplied verbatim as a SECOND catalogue-rule premise (claim.bridge), lists that indirect reference, so the premises COMPOSE to entailment and the claim ships. The bridge is trusted catalogue text (Rule 2), not model knowledge (Rule 11/C-147).",
+  "claims": [
+    { "claim": "This website does advertise a prescription only medicine to the public", "premise_source_id": "page1", "premise": "Book in this month for our wrinkle-relaxing injections", "bridge": "Do not advertise any prescription only medicine to the public; treat indirect references such as 'wrinkle-relaxing injections' and 'anti-wrinkle treatment' as references to a prescription only medicine" }
+  ],
+  "scripted_response": { "source_id": "page1", "verdict": "entailment", "rationale": "the page names an indirect reference the rule lists as a reference to a prescription only medicine, so the two premises together establish the claim" },
+  "expect": { "ok": [true] }
+}

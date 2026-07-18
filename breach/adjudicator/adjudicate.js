@@ -41,7 +41,12 @@ const { fieldStr, briefOf, systemPrompt, buildPrompt, candidateRefsFor } = requi
 // CONTRADICTS the duty and Gate 3 wrongly demoted every presence-breach). claimFor() below now sources
 // the hypothesis from this one door instead of the finding's duty text; see claim.js's own header for
 // the derivation and why this is a framing correction, never a loosening.
-const { atomicClaimFor } = require('./claim.js');
+// FINAL UNIT iteration 2 also imports bridgeTextFor: for a presence-breach the Gate-3 premise set gains
+// the owning record's OWN verbatim duty text as a SECOND catalogue-sourced premise (the "bridge"), so an
+// indirect-reference quote can compose with the rule's own indirect-reference listing rather than
+// abstaining as bare `neutral`. See claim.js's bridgeTextFor header and docs/P3-TAIL-ACCEPTANCE.md
+// "FINAL UNIT iteration 2". The hypothesis is unchanged; contradiction/neutral still demote.
+const { atomicClaimFor, bridgeTextFor } = require('./claim.js');
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -211,9 +216,17 @@ function hypothesisFor(f) {
   if (typeof f.atomic_claim === 'string' && f.atomic_claim) return f.atomic_claim;
   return atomicClaimFor(f, f);
 }
+// bridgeFor(f) -> the Gate-3 SECOND premise (FINAL UNIT iteration 2): the owning record's OWN verbatim
+// duty text, derived through the SAME one door as the hypothesis (claim.js) from the finding's selected
+// duty (`description`, what eval/e2e/lib/pipeline.js and run-real-proof.js's enrichCandidate set from
+// the FULL catalogue record; Rule 2). Non-empty ONLY for a presence-breach; '' for absence/coverage/
+// register/observed, which keep the single-premise basis unchanged.
+function bridgeFor(f) {
+  return bridgeTextFor(f, f);
+}
 function claimFor(f) {
   const art = f.artifact || {};
-  return {
+  const claim = {
     claim: hypothesisFor(f),
     premise_source_id: premiseSourceId(f, art),
     premise: premiseQuote(f, art),
@@ -223,12 +236,18 @@ function claimFor(f) {
     // adjudicate-kind key, so an entailment recording keys under the same (record_id, artifact) the
     // recorder computes, differing from its adjudicate sibling only by kind. llm/entailment.js passes
     // this straight onto the llmCall request as request.candidate WITHOUT it ever entering the prompt
-    // text (buildEntailmentPrompt sees only {hypothesis, premise, sourceId}), so eval/e2e/lib/replay-
-    // llm.js can derive the same key while a live model never sees an internal id. (Paired with
+    // text (buildEntailmentPrompt sees only {hypothesis, premise, sourceId, bridge}), so eval/e2e/lib/
+    // replay-llm.js can derive the same key while a live model never sees an internal id. (Paired with
     // prompt.js candidateRefsFor: both build {record_id, artifact} from the same fields; a change to the
     // key basis must move both.)
     candidate: { record_id: fieldStr(f, 'record_id'), artifact: (f && f.artifact != null) ? f.artifact : null },
   };
+  // Attach the catalogue rule-text bridge as a SECOND NLI premise for a presence-breach ONLY (empty for
+  // every other kind, so the field is simply absent and the single-premise path is byte-unchanged).
+  // llm/entailment.js reads claim.bridge and DOC-delimits it through the sanitise door (C-134).
+  const bridge = bridgeFor(f);
+  if (bridge) claim.bridge = bridge;
+  return claim;
 }
 // runEntailment(claim, opts, remaining) -> the NLI verdict, or null on throw/no-result. FAIL-OPEN
 // (Rule 4/9): a shell that throws demotes the finding to needs_review, never throws into the mint.

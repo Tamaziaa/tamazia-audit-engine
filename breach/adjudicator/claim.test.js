@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  atomicClaimFor, claimBasisFor, isPresenceBreach, dutyText, firstClause,
+  atomicClaimFor, claimBasisFor, bridgeTextFor, isPresenceBreach, dutyText, firstClause,
   affirmativeFromDuty, fallbackClaim, FALLBACK_FRAME,
 } = require('./claim.js');
 
@@ -84,6 +84,39 @@ test('atomicClaimFor: a duty matching NEITHER transform falls back to the docume
   assert.ok(claim.startsWith(FALLBACK_FRAME), 'uses the fallback frame');
   assert.ok(claim.includes('Prescription only medicines are strictly off-limits in consumer marketing'), 'embeds the duty clause verbatim');
   assert.equal(claimBasisFor(rec, quoteCandidate()), 'fallback');
+});
+
+// ── FINAL UNIT iteration 2: bridgeTextFor - the record's OWN verbatim duty text as the Gate-3 SECOND
+// premise (the rule-text bridge), for a presence-breach ONLY (the same duty_idx door as the hypothesis) ─
+test('bridgeTextFor: a presence-breach gets the record\'s verbatim duty text as the bridge (Rule 2, no authored content)', () => {
+  const rec = prohibitionRecord();
+  assert.equal(bridgeTextFor(rec, quoteCandidate()), rec.website_obligations[0].duty, 'the bridge is the catalogue duty verbatim');
+});
+
+test('bridgeTextFor: absence/coverage/register/observed/none get NO bridge (their hypothesis IS the duty; a duty premise would self-entail)', () => {
+  const rec = prohibitionRecord();
+  assert.equal(bridgeTextFor(rec, coverageCandidate()), '', 'coverage_proof (absence) gets no bridge');
+  assert.equal(bridgeTextFor(rec, { duty_idx: 0, artifact: { type: 'register_row' } }), '', 'register gets no bridge');
+  assert.equal(bridgeTextFor(rec, { duty_idx: 0, artifact: { type: 'network_event' } }), '', 'observed gets no bridge');
+  assert.equal(bridgeTextFor(rec, {}), '', 'no artifact -> no bridge');
+});
+
+test('bridgeTextFor: honours duty_idx and tolerates a finding-shaped view (description carries the selected duty, what adjudicate.js passes)', () => {
+  const rec = { website_obligations: [{ duty: 'first duty' }, { duty: 'second duty' }] };
+  assert.equal(bridgeTextFor(rec, { duty_idx: 1, artifact: { type: 'quote' } }), 'second duty', 'reads website_obligations[duty_idx].duty');
+  const finding = { description: 'Do not advertise a prescription only medicine to the public', artifact: { type: 'quote', text: 'q' } };
+  assert.equal(bridgeTextFor(finding, finding), finding.description, 'the finding-shaped bridge is its own description');
+});
+
+test('bridgeTextFor: the bridge (full duty) differs from the atomic claim - two distinct premises, never a self-entailment', () => {
+  const rec = prohibitionRecord();
+  assert.notEqual(bridgeTextFor(rec, quoteCandidate()), atomicClaimFor(rec, quoteCandidate()), 'the rule-text bridge is the duty; the hypothesis is the inverted atomic claim');
+});
+
+test('bridgeTextFor: never throws and degrades to empty on a null record/candidate', () => {
+  assert.equal(bridgeTextFor(null, null), '');
+  assert.doesNotThrow(() => bridgeTextFor(null, quoteCandidate()));
+  assert.equal(typeof bridgeTextFor(null, quoteCandidate()), 'string');
 });
 
 // ── non-presence-breach: the existing basis is UNCHANGED ──────────────────────────────────────────────

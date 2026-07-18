@@ -143,6 +143,19 @@ function claimBasisFor(record, candidate) {
   return built ? built.basis : 'fallback';
 }
 
+// bridgeTextFor(record, candidate) -> the record's OWN verbatim duty text to supply as the Gate-3 SECOND
+// premise (the rule-text "bridge"; FINAL UNIT iteration 2), for a PRESENCE-breach ONLY. The offending
+// page quote may be only an INDIRECT reference the model cannot resolve on its own; the rule text is the
+// catalogue's own listing that bridges it (verbatim, via the SAME duty_idx door as the hypothesis - Rule
+// 2, no authored content; the prompt door then DOC-delimits and sanitises it, C-134). Absence and
+// coverage keep the single-premise basis: their hypothesis IS the duty (atomicClaimFor returns it
+// unchanged), so a duty premise would be a trivial self-entailment and is never added; register/observed
+// bypass text adjudication (C-084) and never reach Gate 3. Returns '' whenever no bridge applies.
+function bridgeTextFor(record, candidate) {
+  if (!isPresenceBreach(candidate)) return '';
+  return dutyText(record, candidate);
+}
+
 if (require.main === module) {
   process.stderr.write('breach/adjudicator/claim.js is a library (atomicClaimFor). It makes no network calls and authors no law facts.\n');
   process.exit(2);
@@ -151,6 +164,7 @@ if (require.main === module) {
 module.exports = {
   atomicClaimFor,
   claimBasisFor,
+  bridgeTextFor,
   isPresenceBreach,
   dutyText,
   firstClause,

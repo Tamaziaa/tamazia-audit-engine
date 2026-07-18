@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-nobridge-indirect-neutral",
+  "class": "gate",
+  "note": "FINAL UNIT iteration 2, proving the bridge is LOAD-BEARING: the SAME indirect-reference quote WITHOUT the rule-text bridge stays neutral - the quote alone ('wrinkle-relaxing injections') cannot establish 'prescription only medicine', which is exactly the U1 resume-3 verbatim 'neutral' the bridge exists to resolve. Gate 3 correctly abstains; only the composed premise set (see ent-bridge-indirect-entails) reaches entailment.",
+  "claims": [
+    { "claim": "This website does advertise a prescription only medicine to the public", "premise_source_id": "page1", "premise": "Book in this month for our wrinkle-relaxing injections" }
+  ],
+  "scripted_response": { "source_id": "page1", "verdict": "neutral", "rationale": "the quote is an indirect reference; without the rule's own indirect-reference listing it does not establish the prescription-only-medicine claim" },
+  "expect": { "ok": [false] }
+}

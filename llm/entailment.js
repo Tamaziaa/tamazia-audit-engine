@@ -47,15 +47,19 @@ function numOr(v, d) {
   return Number.isFinite(n) && n > 0 ? Math.min(n, d) : d;
 }
 
-// normaliseClaim(claim): read the hypothesis, its premise span and that span's source_id off one
-// input claim, tolerating the field spellings the proposer/verifier flow uses. Never re-derives a
-// fact; it only reads the fields it was handed (Rule 1).
+// normaliseClaim(claim): read the hypothesis, its premise span, that span's source_id and (OPTIONAL) the
+// rule-text bridge off one input claim, tolerating the field spellings the proposer/verifier flow uses.
+// Never re-derives a fact; it only reads the fields it was handed (Rule 1). `bridge` (FINAL UNIT
+// iteration 2) is the owning record's verbatim duty text, attached by breach/adjudicator/adjudicate.js's
+// claimFor for a presence-breach; absent for every other claim, and never required (a missing bridge is
+// simply the single-premise path, not an abstention).
 function normaliseClaim(claim) {
   const c = claim || {};
   const hypothesis = firstString([c.claim, c.hypothesis, c.text, c.description]);
   const sourceId = firstString([c.premise_source_id, c.source_id, c.sourceId, c.evidence_source_id, c.evidence_url]);
   const premise = firstString([c.premise, c.premise_text, c.span, c.evidence_quote, c.quote]);
-  return { hypothesis, sourceId, premise };
+  const bridge = firstString([c.bridge, c.rule_text, c.rule_premise]);
+  return { hypothesis, sourceId, premise, bridge };
 }
 
 // firstString(cands): the first non-empty string in a candidate list, else '' (fail-closed: a missing
@@ -134,14 +138,17 @@ function claimUnverifiable(hypothesis, sourceId, premise) {
   return !hypothesis || !sourceId || !premise;
 }
 async function checkOne(claim, opts) {
-  const { hypothesis, sourceId, premise } = normaliseClaim(claim);
+  const { hypothesis, sourceId, premise, bridge } = normaliseClaim(claim);
   if (claimUnverifiable(hypothesis, sourceId, premise)) {
     return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no hypothesis, cited premise span or source_id -> cannot verify, abstain (Rule 3/4)' });
   }
   if (typeof opts.llmCall !== 'function') {
     return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no llmCall injected -> abstain (Rule 12 gate 4)' });
   }
-  const pkg = buildEntailmentPrompt({ hypothesis, premise, sourceId });
+  // `bridge` (FINAL UNIT iteration 2) rides into the prompt as a SECOND, DOC-delimited catalogue premise
+  // when present; absent -> the single-premise prompt, unchanged. It is real, trusted rule text (Rule 2),
+  // so it legitimately appears in the prompt/sources (unlike claim.candidate, which never does).
+  const pkg = buildEntailmentPrompt({ hypothesis, premise, sourceId, bridge });
   // claim.candidate (if the caller attached one) rides the request out-of-band for the replay key
   // derivation; it is NOT part of the prompt inputs above and never reaches the model (see callModel).
   const called = await callModel(pkg, opts, claim && claim.candidate);

@@ -181,9 +181,25 @@ test('DOOR F3(a): a synthetic-shaped presence-breach reaches VIOLATION through t
   const { findings } = await adjudicate([pomPresenceFinding()], BUNDLE, { llmCall: gateAffirmingAtomic });
   assert.equal(findings[0].state, 'violation');
   assert.equal(findings[0].adjudication, 'breach');
-  // The NLI genuinely received the ATOMIC claim as its hypothesis, not the duty (the whole fix).
-  assert.ok(nliPrompt.includes('This website does advertise any prescription only medicine to the public'), 'the atomic claim is the NLI hypothesis');
-  assert.ok(!nliPrompt.includes('Do not advertise'), 'the obligation duty is NOT the NLI hypothesis');
+  // The NLI hypothesis is the ATOMIC claim; the owning duty now rides as the RULE TEXT premise (the
+  // FINAL UNIT iteration-2 bridge), NEVER as the hypothesis. Prove both: the atomic claim precedes the
+  // rule-text premise, and the duty's "Do not advertise" appears ONLY inside the rule-text premise.
+  const hypIdx = nliPrompt.indexOf('This website does advertise any prescription only medicine to the public');
+  const ruleIdx = nliPrompt.indexOf('RULE TEXT');
+  assert.ok(hypIdx !== -1, 'the atomic claim is the NLI hypothesis');
+  assert.ok(ruleIdx !== -1 && hypIdx < ruleIdx, 'the rule-text premise follows the hypothesis (the iteration-2 bridge)');
+  assert.ok(nliPrompt.includes('remove indirect references from public pages'), 'the owning duty is supplied verbatim as the rule-text bridge premise');
+  assert.ok(nliPrompt.indexOf('Do not advertise') > ruleIdx, 'the duty appears ONLY as the rule-text premise, never as the hypothesis (the U1 blocker stays fixed)');
+});
+
+test('DOOR iteration-2: claimFor attaches the owning duty as the rule-text bridge (claim.bridge) for a presence-breach, omitting it for absence', () => {
+  const f = pomPresenceFinding();
+  const built = claimFor(f);
+  assert.equal(built.bridge, f.description, 'the bridge is the record\'s own verbatim duty text (Rule 2)');
+  assert.equal(built.claim, 'This website does advertise any prescription only medicine to the public', 'the hypothesis is still the atomic claim, distinct from the bridge');
+  assert.notEqual(built.bridge, built.claim, 'the bridge (duty) and the hypothesis (atomic claim) are different premises');
+  const absence = { record_id: 'ABS', kind: 'absence-breach', artifact: { type: 'coverage_proof' }, description: 'Do not omit the mandatory cookie disclosure', evidence_quote: '' };
+  assert.equal('bridge' in claimFor(absence), false, 'absence keeps the single-premise basis - no bridge (F1)');
 });
 
 test('DOOR F3(b) never-a-loosening: the SAME presence-breach still DEMOTES when the NLI returns contradiction or neutral', async () => {
