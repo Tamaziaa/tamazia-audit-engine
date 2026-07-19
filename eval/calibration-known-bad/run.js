@@ -73,8 +73,8 @@ const CALIBRATIONS = [
   },
   {
     name: 'catalogue-polarity',
-    description: 'polarity-inverted rule: prohibit-style regex that matches compliant wording',
-    fixtures: ['rule-polarity-inverted.json', 'p2-polarity-inverted.json'],
+    description: 'polarity-inverted rule: prohibit-style regex that matches compliant wording; and a required disclosure ("Attorney Advertising" label class) mistyped evidence_type "absence", which false-accuses the compliant firm that shows the disclosure (caution.md C-046/C-048, CATALOGUE-VERIFICATION-2026-07-19.md)',
+    fixtures: ['rule-polarity-inverted.json', 'p2-polarity-inverted.json', 'p2-required-disclosure-as-absence.json'],
     checkerCandidates: [
       'catalogue/linters/polarity.js',
       'tools/catalogue-lint/polarity.js',

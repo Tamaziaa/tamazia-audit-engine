@@ -120,6 +120,78 @@ test('checkComRecord: "behavioural" is exempt from polarity language checks even
   assert.deepEqual(linter.checkComRecord(requirementWorded, 'test'), []);
 });
 
+// ---------------------------------------------------------------------------------
+// Lint 3: required disclosure mistyped as a prohibition (C-046/C-048). The mechanical guarantee added
+// after CATALOGUE-VERIFICATION-2026-07-19.md, calibrated BOTH directions against the real records:
+// flags the seven us-legal disclosure records while typed "absence", clears them once "presence", and
+// never flags a genuine prohibition (MHRA POM ad ban, FTC s.5 UDAP, the uk-tech-media BREACH_PRESENT class).
+// ---------------------------------------------------------------------------------
+
+test('checkComRecord: a required disclosure with a disclosure-imperative duty ("Label ... \'Attorney Advertising\'") typed "absence" is flagged polarity-required-disclosure-mistyped (the NY_RPC_7_1 certain-false-accusation class)', () => {
+  const r = {
+    id: 'CAL_TEST_DISCLOSURE_IMPERATIVE',
+    website_obligations: [{ duty: "Label advertising 'Attorney Advertising' on the home page as the rule requires", elements: ["'Attorney Advertising' on the website home page"], evidence_type: 'absence' }],
+  };
+  const v = linter.checkComRecord(r, 'test');
+  assert.ok(v.some((f) => f.rule === 'polarity-required-disclosure-mistyped'), 'expected the required-disclosure-mistyped flag; got: ' + JSON.stringify(v));
+});
+
+test('checkComRecord: each disclosure-imperative verb (Include / Place / mark / indicate) flags when typed "absence" (the verbs REQUIREMENT_RX misses)', () => {
+  const duties = [
+    'Include the name and contact information of at least one responsible lawyer',
+    'Place a clear warning at the point of submission that no relationship is created',
+    'Where a state retains the pre-2018 rule, mark targeted solicitations as advertising',
+    'For a multi-jurisdiction firm, indicate jurisdictional limits',
+  ];
+  for (const duty of duties) {
+    const r = { id: 'CAL_TEST_VERB', website_obligations: [{ duty, elements: ['x'], evidence_type: 'absence' }] };
+    assert.ok(linter.checkComRecord(r, 'test').some((f) => f.rule === 'polarity-required-disclosure-mistyped'), 'expected flag for duty: ' + duty);
+  }
+});
+
+test('checkComRecord: an element-only required quoted phrase (no disclosure verb in the duty) flags when typed "absence"', () => {
+  const r = {
+    id: 'CAL_TEST_ELEMENT_QUOTE',
+    website_obligations: [{ duty: 'Where results are advertised, the prior-results disclaimer applies', elements: ["'prior results do not guarantee a similar outcome' visible near the results"], evidence_type: 'absence' }],
+  };
+  assert.ok(linter.checkComRecord(r, 'test').some((f) => f.rule === 'polarity-required-disclosure-mistyped'));
+});
+
+test('checkComRecord: the SAME required disclosure typed "presence" is NOT flagged (the corrected state - the retype must clear the finding)', () => {
+  const r = {
+    id: 'CAL_TEST_DISCLOSURE_PRESENCE',
+    website_obligations: [{ duty: "Label advertising 'Attorney Advertising' on the home page as the rule requires", elements: ["'Attorney Advertising' on the website home page"], evidence_type: 'presence' }],
+  };
+  assert.deepEqual(linter.checkComRecord(r, 'test'), []);
+});
+
+test('checkComRecord: a genuine prohibition that quotes FORBIDDEN examples in an element is NOT flagged (the uk-tech-media BREACH_PRESENT class, and the MHRA POM ad-ban class)', () => {
+  const breachPresent = {
+    id: 'CAL_TEST_PROHIBIT_QUOTED_EXAMPLE',
+    website_obligations: [{ duty: 'Keep marketing claims lawful (the breach is a prohibited claim being present)', elements: ["vague labels ('collab', 'thanks brand') not used as the only disclosure"], evidence_type: 'absence' }],
+  };
+  const mhraShape = {
+    id: 'CAL_TEST_PROHIBIT_MHRA',
+    website_obligations: [{ duty: "Do not advertise a prescription only medicine; remove indirect references (e.g. 'wrinkle-relaxing injections', 'fat jab')", elements: ['no POM brand or generic name in public copy'], evidence_type: 'absence' }],
+  };
+  assert.deepEqual(linter.checkComRecord(breachPresent, 'test'), []);
+  assert.deepEqual(linter.checkComRecord(mhraShape, 'test'), []);
+});
+
+test('checkComRecord: a genuine prohibition that uses a disclosure-verb WORD but negated ("Do not display false marks") is NOT flagged (the negated-verb / noun-homograph guard)', () => {
+  const negated = { id: 'CAL_TEST_NEGATED_VERB', website_obligations: [{ duty: 'Do not display false certification marks on product pages', elements: ['no fabricated marks'], evidence_type: 'absence' }] };
+  const nounHomograph = { id: 'CAL_TEST_NOUN_MARKS', website_obligations: [{ duty: 'Conformity marks on product pages must match the assessment actually held', elements: ['no false conformity claim'], evidence_type: 'absence' }] };
+  assert.deepEqual(linter.checkComRecord(negated, 'test'), []);
+  assert.deepEqual(linter.checkComRecord(nounHomograph, 'test'), []);
+});
+
+test('scan against eval/calibration-known-bad/fixtures catches the seeded p2-required-disclosure-as-absence.json mistype, flagging ONLY the absence-typed record (both-direction contract)', () => {
+  const res = linter.scan([lib.CALIBRATE_DIR]);
+  const hits = res.violations.filter((v) => v.file.includes('p2-required-disclosure-as-absence.json') && v.rule === 'polarity-required-disclosure-mistyped');
+  assert.equal(hits.length, 1, 'expected exactly one required-disclosure-mistyped finding on the fixture (the absence record only); got: ' + JSON.stringify(hits));
+  assert.equal(hits[0].id, 'CAL_P2_REQUIRED_DISCLOSURE_ABSENCE');
+});
+
 test('checkComRecord: never throws on malformed website_obligations entries', () => {
   const r = { id: 'CAL_TEST_MALFORMED', website_obligations: [null, {}, { duty: 42 }, 'not an object'] };
   assert.doesNotThrow(() => linter.checkComRecord(r, 'test'));
