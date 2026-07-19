@@ -203,6 +203,42 @@ test('screenedLabel reflects the site-level coverage state (honest limited-read 
   assert.equal(compose(baseInputs({ coverage: { site: { reachable: false } } })).screenedLabel, 'Screened the catalogue on a limited read of your site');
 });
 
+// ── DEFECT-6: an absent/failed browser lane is a LOUD payload-level caveat, never a silent pass ────────
+
+test('DEFECT-6: no stageManifest supplied -> coverageCaveats is an empty array (never a throw, never a fabricated caveat)', () => {
+  const p = compose(baseInputs());
+  assert.deepEqual(p.coverageCaveats, []);
+});
+
+test('DEFECT-6: both browser lanes ran clean -> coverageCaveats stays empty', () => {
+  const p = compose(baseInputs({ stageManifest: [{ stage: 'observe', ran: true, reason: null }, { stage: 'domAssert', ran: true, reason: null }] }));
+  assert.deepEqual(p.coverageCaveats, []);
+});
+
+test('DEFECT-6: an absent observe lane (playwright-unavailable) projects a LOUD, human-readable caveat into the payload', () => {
+  const p = compose(baseInputs({ stageManifest: [{ stage: 'observe', ran: false, reason: 'playwright-unavailable' }, { stage: 'domAssert', ran: true, reason: null }] }));
+  assert.equal(p.coverageCaveats.length, 1);
+  assert.deepEqual(p.coverageCaveats[0].lane, 'observe');
+  assert.equal(p.coverageCaveats[0].reason, 'playwright-unavailable');
+  assert.match(p.coverageCaveats[0].message, /did not run/);
+  assert.match(p.coverageCaveats[0].message, /not.*read as a clean result/);
+});
+
+test('DEFECT-6: both browser lanes failing (goto error, DEFECT-1 class) each produce their own caveat', () => {
+  const p = compose(baseInputs({ stageManifest: [
+    { stage: 'observe', ran: false, reason: 'error' },
+    { stage: 'domAssert', ran: false, reason: 'error' },
+    { stage: 'crawl', ran: true, reason: null }, // a non-browser lane is never projected here
+  ] }));
+  assert.equal(p.coverageCaveats.length, 2);
+  assert.deepEqual(p.coverageCaveats.map((c) => c.lane).sort(), ['domAssert', 'observe']);
+});
+
+test('DEFECT-6: coverageCaveats survives the contract validator (additive, non-required field)', () => {
+  const p = compose(baseInputs({ stageManifest: [{ stage: 'observe', ran: false, reason: 'deadline' }] }));
+  assert.deepEqual(validatePayload(p), []);
+});
+
 test('notLegalAdvice is the one canonical standing line: one sentence, British English, no em dash', () => {
   const p = compose(baseInputs());
   assert.equal(p.notLegalAdvice, NOT_LEGAL_ADVICE);

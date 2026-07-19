@@ -27,6 +27,29 @@ const launchBrowser = async () => fakeBrowser();
 const registersFetchFn = async (_url, options) => (options && options.requestKey === 'companies_house.search'
   ? { status: 200, json: { items: [{ title: 'Acme Ltd', company_number: '12345678', company_status: 'active' }] } } : null);
 
+// gotoUrlsBrowser() -> a browser whose page.goto(url) RECORDS every url it was called with (into
+// `calls`), never navigating for real. Used to prove composeBundle normalises a bare operator domain into
+// a schemed URL ONCE, centrally, before either browser lane ever calls goto() (DEFECT-1).
+function gotoUrlsBrowser(calls) {
+  const page = {
+    on() {}, async goto(url) { calls.push(url); }, async settle() {}, async cookies() { return []; },
+    async findConsentControl() { return { found: false }; }, async clickConsent() {}, async evaluate() { return []; },
+  };
+  return { async newPage() { return page; }, async close() {} };
+}
+
+// rejectingGotoBrowser(message) -> a browser whose page.goto() REJECTS (the real Playwright shape of the
+// bare-domain "Cannot navigate to invalid URL" throw / any genuine navigation failure). Used to prove
+// neither browser lane swallows the failure: both must record a LOUD lane error (C-041/Rule 4), never the
+// old false-clean "ran:true, observed:0 / nodes:1" signature the empirical audit found.
+function rejectingGotoBrowser(message) {
+  const page = {
+    on() {}, async goto() { throw new Error(message); }, async settle() {}, async cookies() { return []; },
+    async findConsentControl() { return { found: false }; }, async clickConsent() {}, async evaluate() { return []; },
+  };
+  return { async newPage() { return page; }, async close() {} };
+}
+
 test('composeBundle assembles the exact EvidenceBundle shape facts/ and breach/ read', async () => {
   const { bundle } = await composeBundle('acme.example', { fetchFn, launchBrowser, registersFetchFn, env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' }, now: () => 1 });
   assert.strictEqual(bundle.domain, 'acme.example');
@@ -72,4 +95,48 @@ test('KNOWN-BAD: a crawl fetchFn that always fails yields an unreachable corpus 
   assert.strictEqual(bundle.corpus.pages.length, 0);
   const crawlStage = stageManifest.find((m) => m.stage === 'crawl');
   assert.ok(crawlStage.unreachable === true || crawlStage.pages === 0, 'the empty read is visible on the manifest');
+});
+
+// ── DEFECT-1: bare-domain scheme normalisation + no silent browser-lane degrade ─────────────────────
+
+test('DEFECT-1: a BARE domain (the engine\'s own documented mint(url, opts) calling convention) reaches BOTH browser lanes as an absolute https:// URL, never the raw unschemed string', async () => {
+  const calls = [];
+  const { bundle } = await composeBundle('acme.example', { fetchFn, launchBrowser: async () => gotoUrlsBrowser(calls), registersFetchFn, env: {}, now: () => 1 });
+  assert.strictEqual(calls.length, 2, 'both the observe lane and the domAssert second launch call goto() once');
+  for (const url of calls) {
+    assert.match(url, /^https:\/\//, 'goto() must never be called with a scheme-less string (Playwright throws on it)');
+    assert.strictEqual(url, 'https://acme.example/', 'the normalised target, not the raw operator input');
+  }
+  // A goto() that never throws still must not fabricate anything from this fake beyond what it emits.
+  assert.ok(Array.isArray(bundle.browser.domNodes));
+});
+
+test('DEFECT-1: an operator input that ALREADY carries an explicit scheme is preserved, never re-forced to https', async () => {
+  const calls = [];
+  await composeBundle('http://acme.example/', { fetchFn, launchBrowser: async () => gotoUrlsBrowser(calls), registersFetchFn, env: {}, now: () => 1 });
+  assert.ok(calls.every((u) => u === 'http://acme.example/'), 'an explicit http:// input is honoured as given: ' + JSON.stringify(calls));
+});
+
+test('DEFECT-1: a goto() REJECTION on the observe lane is a LOUD recorded lane error, never the old false-clean "ran:true, observed:0" pass', async () => {
+  const { bundle, stageManifest } = await composeBundle('acme.example', {
+    fetchFn, launchBrowser: async () => rejectingGotoBrowser('Protocol error (Page.navigate): Cannot navigate to invalid URL'), registersFetchFn, env: {}, now: () => 1,
+  });
+  assert.strictEqual(bundle.browser.lane.ran, false, 'observe must not report ran:true on a swallowed navigation failure');
+  assert.strictEqual(bundle.browser.lane.reason, 'error');
+  assert.match(bundle.browser.lane.message, /Cannot navigate to invalid URL/);
+  assert.deepStrictEqual(bundle.browser.observed, []);
+  const observeStage = stageManifest.find((m) => m.stage === 'observe');
+  assert.strictEqual(observeStage.ran, false, 'the manifest itself is loud, not just the bundle');
+});
+
+test('DEFECT-1: a goto() REJECTION on the domAssert second launch is a LOUD recorded lane error, never the old "nodes:1 on a blank page" false-clean', async () => {
+  const { bundle, stageManifest } = await composeBundle('acme.example', {
+    fetchFn, launchBrowser: async () => rejectingGotoBrowser('net::ERR_NAME_NOT_RESOLVED'), registersFetchFn, env: {}, now: () => 1,
+  });
+  assert.strictEqual(bundle.browser.domLane.ran, false);
+  assert.strictEqual(bundle.browser.domLane.reason, 'error');
+  assert.match(bundle.browser.domLane.message, /ERR_NAME_NOT_RESOLVED/);
+  assert.deepStrictEqual(bundle.browser.domNodes, [], 'no fabricated html-has-lang node from a page that never actually navigated');
+  const domStage = stageManifest.find((m) => m.stage === 'domAssert');
+  assert.strictEqual(domStage.ran, false, 'the manifest itself is loud, not just the bundle');
 });

@@ -23,5 +23,8 @@
     "eslint": "^9.39.2",
     "jscpd": "^4.0.5",
     "madge": "^8.0.0"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.61.1"
   }
 }

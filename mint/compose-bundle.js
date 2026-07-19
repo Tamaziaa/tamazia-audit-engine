@@ -238,12 +238,20 @@ function bundleId(domain, now) {
 async function composeBundle(url, opts) {
   const cfg = normaliseOpts(opts);
   const domain = safeFetch.inputHost(url);
+  // DEFECT-1 fix: the ONE entry point that normalises the operator-supplied url into an absolute,
+  // schemed URL BEFORE it reaches either browser lane. The engine's own documented calling convention
+  // (mint(url, opts), mint/worker.js, live-dry-run.js) passes a BARE domain ("lomond.co.uk"); Playwright's
+  // page.goto() requires a scheme and THROWS on a bare host ("Cannot navigate to invalid URL"). The crawl
+  // lane already normalises its own copy (evidence/crawler/crawl.js); navUrl is the same normalisation
+  // applied once here so observe() and the domAssert second launch navigate the SAME resolved target,
+  // never the raw operator string (Rule 1: one door, tools/lib/safe-fetch.js#resolveNavigableUrl).
+  const navUrl = safeFetch.resolveNavigableUrl(url);
   const manifest = [];
   const started = cfg.now();
 
   const crawlLane = await runCrawlLane(domain, cfg, manifest);
-  const observeLane = await runObserveLane(url, cfg, manifest);
-  const domLane = await runDomLane(url, cfg, manifest);
+  const observeLane = await runObserveLane(navUrl, cfg, manifest);
+  const domLane = await runDomLane(navUrl, cfg, manifest);
   const registers = await runRegisterLane(domain, cfg, manifest);
 
   const bundle = {

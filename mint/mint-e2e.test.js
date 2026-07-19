@@ -77,13 +77,14 @@ function makeStores() {
   return { db, r2, sqlCalls, sqlFn, putFn };
 }
 
-async function runMint(stores) {
-  return mint(DOMAIN, {
+async function runMint(stores, overrides) {
+  return mint(DOMAIN, Object.assign({
     fetchFn, launchBrowser, registersFetchFn, llmCall: scriptedDecline, providers: [],
     sqlFn: stores.sqlFn, putFn: stores.putFn, liveFetch: async () => ({ status: 200 }),
     now: () => 1700000000000, generatedAt: '2026-07-19', env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' },
-  });
+  }, overrides || {}));
 }
+
 
 test('E2E: the full mint runs end to end and returns minted_pending_render (done:false) - the render leg is absent', async () => {
   const stores = makeStores();
@@ -102,6 +103,31 @@ test('E2E: the stageManifest shows every one of the four evidence lanes RAN (a m
   assert.strictEqual(byStage.domAssert.launch, 'second-bounded-launch', 'the honest second Chromium launch is recorded (C-041)');
   assert.strictEqual(byStage.registers.ran, true);
   assert.ok(byStage.registers.matched.includes('companiesHouse'), 'the Companies House match attached');
+});
+
+test('DEFECT-6 E2E: a broken browser lane (goto REJECTS, the real DEFECT-1 shape) surfaces as a LOUD payload.coverageCaveats entry, never a silent clean payload', async () => {
+  // The page.goto() REJECTS here (DEFECT-1's real Playwright shape: a navigation failure that must never
+  // be silently swallowed); this proves, end to end through the REAL mint(), that a failed browser lane
+  // surfaces as a payload.coverageCaveats entry (DEFECT-6), not just as a stageManifest note no client sees.
+  const brokenBrowser = { async newPage() { return { async goto() { throw new Error('Protocol error (Page.navigate): Cannot navigate to invalid URL'); } }; }, async close() {} };
+  const { payload, stageManifest } = await runMint(makeStores(), { launchBrowser: async () => brokenBrowser });
+  const byStage = Object.fromEntries(stageManifest.map((m) => [m.stage, m]));
+  assert.strictEqual(byStage.observe.ran, false, 'the stageManifest itself records the failure');
+  assert.strictEqual(byStage.domAssert.ran, false);
+  assert.ok(Array.isArray(payload.coverageCaveats), 'coverageCaveats is present on the CLIENT-FACING payload, not just the engine manifest');
+  assert.strictEqual(payload.coverageCaveats.length, 2, 'both browser lanes failed, so both are projected');
+  const lanes = payload.coverageCaveats.map((c) => c.lane).sort();
+  assert.deepStrictEqual(lanes, ['domAssert', 'observe']);
+  assert.ok(payload.coverageCaveats.every((c) => /did not run/.test(c.message)), 'a human-readable caveat, not a raw error code');
+  // The OBSERVED-FACT PECR violation this fake normally produces via the network_event bypass (C-084) must
+  // NOT appear when the browser genuinely never navigated - no fabricated confident finding rides on a
+  // swallowed failure. A DIFFERENT, text-based absence-breach candidate for the same record MAY still
+  // exist (a separate detection path, unaffected by the browser lane) and correctly stays needs_review.
+  const pecr = payload.findings.find((f) => f.record_id === 'UK_PECR_COOKIES_MARKETING');
+  if (pecr) {
+    assert.notStrictEqual(pecr.artifact.type, 'network_event', 'no observed-fact PECR bypass from a browser that never navigated');
+    assert.notStrictEqual(pecr.voice_tier, 'confident', 'never confident voice on a finding the browser lane could not evidence');
+  }
 });
 
 test('E2E: facts resolve and connect() filters the catalogue to UK-only (Rule 13, the applicability-leak class)', async () => {

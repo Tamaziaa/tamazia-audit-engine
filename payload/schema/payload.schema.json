@@ -79,6 +79,19 @@
     "frameworksBinding": { "$ref": "#/$defs/nonNull" },
     "screenedLabel": { "$ref": "#/$defs/nonNull" },
     "rulesChecked": { "$ref": "#/$defs/nonNull" },
+    "coverageCaveats": {
+      "$comment": "DEFECT-6/RANK 3: NOT required (older/synthetic payloads carry none, and defaults to an empty array). One entry per browser evidence lane (observe, domAssert) that did NOT run for this audit - projected straight off the mint's own stageManifest (Rule 1: never re-derived) so an absent/failed lane is LOUD in the client-facing payload, never a silent clean pass (C-041).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lane", "reason", "message"],
+        "properties": {
+          "lane": { "type": "string" },
+          "reason": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    },
     "scoring": {
       "type": "object",
       "required": ["formula", "why", "inputs", "bands"],

@@ -269,3 +269,67 @@ same-status re-attribution and an honesty narrowing, not a new gap: `node tools/
 still exits 0 with **43 guarded classes, 0 gap classes**, 0 integrity violations after
 `docs/failure-ledger/crossref.json` was rebuilt from the corrected `taxonomy.js`
 (`node tools/history-regression/build-crossref.js --sweep tools/sweep/out/ledger.json`).
+
+## P6 evidence-lane wave (2026-07-19): DEFECT-1/DEFECT-6 fixed live, DEFECT-8b honestly re-scoped, not fully closed
+
+Three defects from the empirical breach-audit wave (`EMPIRICAL-BREACH-AUDITS/hidden-defects.md` RANK 3 and
+RANK 17, and `healthcare-us.md`'s "Defect A/C"):
+
+- **DEFECT-1 (bare-domain navigation, RANK 17's root cause) - FIXED.** `tools/lib/safe-fetch.js`'s new
+  `resolveNavigableUrl()` is the one door that normalises the engine's own documented `mint(url, opts)`
+  bare-domain calling convention into an absolute, schemed URL BEFORE either browser lane's `goto()`;
+  `mint/compose-bundle.js#composeBundle` calls it once and threads the result to both `observe()` and the
+  `domAssert` second launch. `evidence/browser/playwright-adapter.js#wrapPage.goto` no longer swallows a
+  navigation failure with `.catch(() => {})`: it retries once over `http://` when the attempted URL was
+  `https://` (never on an operator's own explicit scheme), and rethrows a combined error on a genuine double
+  failure, which the existing outer deadline+catch chains in `observe.js` and `compose-bundle.js` already
+  turn into a recorded `lane.reason='error'` - never the old false-clean `ran:true, observed:0 / nodes:1`
+  signature. Proven live against `vanfamilymedical.com` (a real site, called bare): `observed` 0 -> 4,
+  `domNodes` 1 -> 360.
+- **DEFECT-6 (56/151 behavioural obligations dark on a clean `npm ci`, RANK 3) - FIXED (declaration) + FIXED
+  (client-visible caveat).** `package.json` now declares `playwright` as an `optionalDependency` (verified: a
+  real `npm install --save-optional` resolves and installs it; `resolvePlaywrightLauncher` genuinely finds
+  it). `payload/composer/compose.js#buildCoverageCaveats` projects the SAME `stageManifest` fact
+  `mint/compose-bundle.js` already produces into a new, additive, non-required `payload.coverageCaveats[]`
+  field: an absent/failed `observe` or `domAssert` lane is now a loud, human-readable caveat on the
+  CLIENT-FACING payload, not just a note in the engine's own manifest (closing RANK 17's own stated
+  residual: "visible in the manifest is not visible in the client report").
+- **DEFECT-8b (D5: pre-consent tracker capture stayed at zero even after the bare-domain fix) - INVESTIGATED,
+  PARTIALLY RE-SCOPED, NOT claimed fully closed.** Once DEFECT-1 is fixed, direct empirical testing through
+  the real `composeBundle()` pipeline against two real tracker-bearing sites gave two DIFFERENT, both
+  explicable, results:
+  - `vanfamilymedical.com` (unconditional GA4/GTM, no consent gate in its markup): pre-consent capture now
+    WORKS correctly - 2 non-essential cookies + 2 real tracker network requests captured, matching the
+    site's real, unconditional tracking behaviour. This contradicts the original hypothesis that a fixed
+    scheme alone would not be enough.
+  - `oubeauty.com` (the original healthcare-us.md D5 example site, still live): pre-consent capture still
+    returns zero, even fully fixed. Direct investigation of the LIVE served HTML (not a static string grep)
+    shows this is very likely NOT a bug: the site runs the "Moove GDPR Cookie Compliance" WordPress plugin
+    with `enabled_default.third_party = 0` (third-party scripts disabled by default); the Facebook Pixel and
+    GA4 `fbq('init', ...)` / `gtag(...)` code the original report's string grep matched exists ONLY as a
+    JSON-escaped configuration payload (`moove_frontend_gdpr_scripts.scripts_defined.thirdparty.header`)
+    that the plugin's own client JS is written to inject as live `<script>` tags only after the visitor
+    accepts. A search of the raw served markup for a literal, unescaped `<script src=...googletagmanager
+    |facebook...>` tag found none. This means the original "MISSED: Facebook Pixel present, no functioning
+    consent gate observed" finding for this specific site may itself have over-read the raw HTML without
+    confirming the script executes pre-consent, rather than reflecting a genuine engine defect at Layer 3.
+  - What this does NOT prove: that no pre-consent-capture bug exists on any real site. Only two sites were
+    tested; the original `DEFAULT_SETTLE_MS = 3000` (Rule-8 cap) timing-too-short hypothesis was not
+    reproduced on either site tested, but was not exhaustively refuted either (no site was found with an
+    unconditional tracker that fires only after >3s). Left as an honestly OPEN, narrower risk rather than a
+    confirmed remaining bug.
+  - One genuinely real, narrower bug WAS found and fixed in the same investigation: `observe.js#runObservation`
+    never called `page.settle()` after the injected consent-accept click, so a tag a CMP only injects on
+    accept (confirmed live: `oubeauty.com`'s own accept button, `<button class="mgbutton
+    moove-gdpr-infobar-allow-all" aria-label="Accept">`, is clickable and does fire on click) had no window to
+    make its own first request before the POST snapshot was taken - the pre/post diff could systematically
+    under-count newly-unblocked post-consent trackers. Fixed by re-using the same `cfg.settleMs` cap a second
+    time, after `attemptConsent()`, before the post snapshot (no new budget floor introduced - Rule 8). This
+    does NOT change the PRE-consent capture result for either site above (the actual PECR breach signal this
+    lane exists for); it only makes the POST-consent half of the diff honest.
+  - Status recorded here rather than claimed silently fixed: DEFECT-8b's title ("zero pre-consent capture is
+    a bug") is **not substantiated** by this investigation on the sites available to test it; the settle-gap
+    bug found and fixed is real but narrower than the original hypothesis, and is a POST-consent, not
+    PRE-consent, fix. A future wave with a wider real-site sample (deliberately including a site with a
+    genuinely unconditional, slow-to-fire tracker) would be needed to either reproduce or retire the original
+    timing hypothesis with confidence.

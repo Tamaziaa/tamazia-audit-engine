@@ -34,11 +34,30 @@ function makeEmit(handlers) {
 function makeFakePage(s, rec, handlers, emit) {
   return {
     on(ev, h) { if (ev === 'request') handlers.push(h); },
-    async goto() { if (s.hang === 'goto') return hangForever(); rec.gotoCalled = true; emit(s.preRequests); },
-    async settle() {},
+    async goto(url) {
+      rec.gotoUrl = url;
+      if (s.hang === 'goto') return hangForever();
+      // DEFECT-1 regression: a real Playwright goto() that fails (e.g. the bare-domain "Cannot navigate
+      // to invalid URL" throw) must REJECT here, never resolve silently - this fake proves observe.js's
+      // OWN catch chain (navigateUntouched has no local try/catch) turns that rejection into a recorded
+      // lane.reason='error', not a false-clean "ran:true, observed:0" (C-041).
+      if (s.gotoRejects) throw new Error(s.gotoRejects);
+      rec.gotoCalled = true; emit(s.preRequests);
+    },
+    // settleWaits is opt-in (a REAL setTimeout) so the DEFECT-8b post-consent-settle regression test can
+    // prove a delayed post-consent request is actually captured; every other test keeps the fast no-op so
+    // the suite stays instant.
+    async settle(ms) { rec.settleCalls = (rec.settleCalls || 0) + 1; if (s.settleWaits) await new Promise((r) => setTimeout(r, ms)); },
     async cookies() { return rec.consented ? (s.postCookies || s.preCookies || []) : (s.preCookies || []); },
     async findConsentControl() { return s.control || null; },
-    async clickConsent() { rec.clicked = true; rec.consented = true; emit(s.postRequests); },
+    async clickConsent() {
+      rec.clicked = true; rec.consented = true;
+      // postRequestsDelayMs simulates a tag that a consent-gated CMP only INJECTS on click and which needs
+      // a moment to actually fire its own network request (DEFECT-8b: this is a REAL behaviour confirmed
+      // on a live GDPR-plugin-gated site during this fix, not a hypothetical).
+      if (s.postRequestsDelayMs) setTimeout(() => emit(s.postRequests), s.postRequestsDelayMs);
+      else emit(s.postRequests);
+    },
   };
 }
 
@@ -69,7 +88,10 @@ const healthy = async () => ({ ok: true, status: 200 });
 // ── C-041: optional dependency absent, recorded loudly, never a throw ─────────────────────────────
 
 test('observe: no launchBrowser and no real driver -> lane records playwright-unavailable, never throws', async () => {
-  const r = await observe('https://example.com', {}); // nothing injected; the real resolver finds no driver
+  // resolveChromium is stubbed to "no driver" (DEFECT-6: playwright is now an optionalDependency, so a
+  // real checkout may genuinely have it installed; this proves the honest-absence PATH itself, not the
+  // ambient node_modules state - see playwright-adapter.js#resolvePlaywrightLauncher's test-only seam).
+  const r = await observe('https://example.com', { resolveChromium: () => null });
   assert.equal(r.lane.ran, false);
   assert.equal(r.lane.reason, 'playwright-unavailable');
   assert.deepEqual(r.observed, []);
@@ -231,6 +253,18 @@ test('observe: a launcher that rejects is RECORDED as a lane error, never thrown
   assert.match(r.lane.message, /launch-failed/);
 });
 
+// ── DEFECT-1 regression: a goto() failure is a LOUD lane error, never a silent about:blank pass ────
+
+test('DEFECT-1: a goto() that REJECTS (the real Playwright bare-domain throw) is RECORDED as a lane error, never a false-clean "ran:true, observed:0" pass', async () => {
+  const fake = makeFake({ gotoRejects: 'Protocol error (Page.navigate): Cannot navigate to invalid URL', preCookies: [{ name: '_ga', domain: '.example.com', expires: -1 }] });
+  const r = await observe('lomond.co.uk', { launchBrowser: fake.launch, deadlineMs: 5000 });
+  assert.equal(r.lane.ran, false, 'a swallowed navigation error must not report ran:true');
+  assert.equal(r.lane.reason, 'error');
+  assert.match(r.lane.message, /Cannot navigate to invalid URL/);
+  assert.deepEqual(r.observed, [], 'no fabricated observation from a page that never actually navigated');
+  assert.equal(fake.rec.closed, true, 'the browser is still force-closed on the error path');
+});
+
 // ── pre/post-consent diff is first-class ──────────────────────────────────────────────────────────
 
 test('observe: pre/post diff - a cookie that appears only AFTER consent is not a pre-consent breach', async () => {
@@ -246,6 +280,21 @@ test('observe: pre/post diff - a cookie that appears only AFTER consent is not a
   assert.deepEqual(names, ['_ga'], '_fbp appeared only post-consent, so it is not a pre-consent breach');
   assert.ok(r.lane.diff.postNonEssentialCookies > r.lane.diff.preNonEssentialCookies);
   assert.equal(r.lane.diff.preTrackerHosts, 1);
+});
+
+test('DEFECT-8b: a tag that only fires after the consent click gets a settle window before the POST snapshot (previously taken with none)', async () => {
+  const fake = makeFake({
+    preRequests: [],
+    // a consent-gated tag's own request lands a few ms after the click resolves - real behaviour
+    // confirmed on a live GDPR-plugin-gated site during this investigation, not a hypothetical.
+    postRequestsDelayMs: 5,
+    postRequests: [{ host: 'www.googletagmanager.com' }],
+    control: { found: true, url: 'https://example.com/cookies' },
+    settleWaits: true,
+  });
+  const r = await observe('https://example.com', { launchBrowser: fake.launch, now: counter(), fetchLink: healthy, settleMs: 50 });
+  assert.equal(r.lane.diff.postTrackerHosts, 1, 'the post-consent settle window let the delayed tag request land before the post snapshot');
+  assert.ok(fake.rec.settleCalls >= 2, 'settle() is called both pre-navigation AND post-consent');
 });
 
 // ── C-043: oracle provenance on every lane outcome ────────────────────────────────────────────────

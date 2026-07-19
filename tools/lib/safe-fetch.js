@@ -235,6 +235,31 @@ function acceptedSiteSet(raw) {
   return new Set(host ? [registrableDomain(host)] : []);
 }
 
+// resolveNavigableUrl(raw) -> the ONE door that turns an operator-supplied domain/URL into an absolute URL
+// a real browser can navigate to (Rule 1/DEFECT-1). The input may arrive bare ("lomond.co.uk", the engine's
+// own documented mint(url, opts) calling convention - see mint/worker.js and the live-dry-run template), or
+// already schemed ("https://lomond.co.uk/", "http://lomond.co.uk"). A bare input gets https:// prepended
+// (the safe default); an input that already carries an explicit scheme is preserved EXACTLY, never silently
+// upgraded or downgraded - an operator's explicit http:// choice is honoured as given (playwright-adapter.js
+// applies the one-shot http:// fallback only when THIS door defaulted the scheme, never on an explicit
+// input). Playwright's page.goto() requires a URL with a scheme; without this door, a bare domain makes
+// goto() THROW ("Cannot navigate to invalid URL"), and the old code path passed the raw, unnormalised url
+// straight through to both browser lanes (evidence/browser/observe.js, mint/compose-bundle.js's
+// domLanePipeline) while the crawl lane alone normalised its own copy (evidence/crawler/crawl.js). Returns
+// '' when nothing host-shaped can be parsed (mirrors inputHost's contract; the caller's own deadline+catch
+// machinery then records the empty target as a loud lane failure - never a silent about:blank pass).
+function resolveNavigableUrl(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return '';
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : 'https://' + s;
+  try {
+    return new URL(withScheme).href;
+  } catch (e) {
+    return ''; // FAIL-OPEN: an unparseable operator input yields no navigable URL, never a throw here; the
+    // browser lane's own goto()/deadline/catch chain records this as a visible lane failure (C-041).
+  }
+}
+
 module.exports = {
   // SSRF door (promoted from build-fixtures-lib.js; re-exported there unchanged)
   isBlockedHost,
@@ -250,4 +275,5 @@ module.exports = {
   sameRegistrableSite,
   inputHost,
   acceptedSiteSet,
+  resolveNavigableUrl,
 };

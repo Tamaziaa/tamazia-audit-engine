@@ -94,6 +94,22 @@ test('inputHost: a raw operator domain becomes a canonical host through the pars
   assert.equal(sf.inputHost('has a space'), '', 'an unparseable input yields no host');
 });
 
+test('DEFECT-1: resolveNavigableUrl prepends https:// to a BARE domain (the engine\'s own mint(url,opts) calling convention)', () => {
+  assert.equal(sf.resolveNavigableUrl('lomond.co.uk'), 'https://lomond.co.uk/');
+  assert.equal(sf.resolveNavigableUrl('EXAMPLE.com:8443'), 'https://example.com:8443/');
+});
+
+test('resolveNavigableUrl preserves an explicit scheme exactly (never re-forces https, never silently downgrades)', () => {
+  assert.equal(sf.resolveNavigableUrl('http://lomond.co.uk'), 'http://lomond.co.uk/');
+  assert.equal(sf.resolveNavigableUrl('https://lomond.co.uk/some/path?x=1'), 'https://lomond.co.uk/some/path?x=1');
+});
+
+test('resolveNavigableUrl returns "" for genuinely unparseable input (the caller\'s own goto/deadline/catch chain then records the loud lane failure)', () => {
+  assert.equal(sf.resolveNavigableUrl(''), '');
+  assert.equal(sf.resolveNavigableUrl('has a space'), '');
+  assert.equal(sf.resolveNavigableUrl(null), '');
+});
+
 test('acceptedSiteSet: the set of registrable domains that count as this site', () => {
   assert.deepEqual([...sf.acceptedSiteSet('www.example.com')], ['example.com']);
   assert.deepEqual([...sf.acceptedSiteSet('https://blog.example.co.uk/x')], ['example.co.uk']);
