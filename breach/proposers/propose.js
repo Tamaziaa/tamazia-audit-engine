@@ -55,8 +55,13 @@ const KIND = Object.freeze({
 // Generic web-behaviour concepts an observed browser event implies (Rule 2 safe: no law/regulator name).
 // A behavioural obligation only consumes an observation when the obligation's own tokens intersect the
 // concept set for that observation kind, so a non-consent behavioural duty never claims the cookie event.
+// MEDIUM-15 FIX: cookie_pre_consent used to include 'marketing'/'analytics', so ANY behavioural
+// obligation whose own prose merely mentioned marketing or analytics (a wholly unrelated duty) could
+// claim a pre-consent-cookie observation as its artifact - the wrong law bound to a real event. Narrowed
+// to cookie/tracker/consent terms; obligationConcerns additionally requires a distinctive 'cookie' token
+// before this concept ever binds (see obligationConcerns below), so 'consent' alone is not enough either.
 const OBSERVATION_CONCEPTS = Object.freeze({
-  cookie_pre_consent: ['cookie', 'cookies', 'consent', 'tracking', 'tracker', 'marketing', 'analytics'],
+  cookie_pre_consent: ['cookie', 'cookies', 'tracker', 'trackers', 'tracking', 'consent'],
   consent_control_broken: ['cookie', 'cookies', 'consent', 'banner', 'preferences'],
 });
 
@@ -126,11 +131,18 @@ function isUnreadable(bundle) {
 }
 // isNonEnglishGated(bundle): the facts layer gates a non-English corpus to compliance_unassessed before
 // any rule runs (C-022). If the bundle carries that gate, propose asserts nothing.
+// HIGH-9 FIX: the old `/^en\b/i` test required a NON-WORD character right after "en", so 'English'
+// (next char 'g', a word char) and 'en_US' (next char '_', a word char under \b's definition) both
+// FAILED the test and were wrongly gated - silently zeroing an entire English audit. 'en-GB' happened
+// to pass only because '-' is a non-word char. Fixed to accept the literal word "english" or any "en"
+// tag followed by a hyphen/underscore separator or end-of-string (en, en-GB, en_US, en-us all pass).
 function isNonEnglishGated(bundle) {
   if (!bundle) return false;
   if (bundle.compliance_unassessed === true) return true;
   const lang = bundle.corpus && bundle.corpus.language;
-  return typeof lang === 'string' && lang !== '' && !/^en\b/i.test(lang);
+  if (typeof lang !== 'string' || lang.trim() === '') return false;
+  const l = lang.trim().toLowerCase();
+  return !(l === 'english' || /^en([-_]|$)/.test(l));
 }
 
 // coverageStateFor(coverage, recordId) -> 'covered' | 'screened' | 'unknown'. 'unknown' (the record is
@@ -167,17 +179,22 @@ function surfaceTextForPresence(detectionSpec, pages, footer) {
 }
 
 // ── pattern matching ───────────────────────────────────────────────────────────────────────────────
-// pathHasSegment(url, seg) -> true when the url path contains seg ('/xxx') as a WHOLE segment (anchored,
-// never a substring - C-044). matchUrlPath scans every page for the url-path pattern.
+// pathHasSegment(url, seg) -> true when the url path contains seg as a WHOLE WORD TOKEN (anchored, never
+// a substring - C-044). matchUrlPath scans every page for the url-path pattern.
+// HIGH-5 FIX: the old `norm.includes(seg+'/') || norm.includes(seg+'-')` substring check missed a
+// concatenated/underscore slug (/complaints_policy - '_' satisfied neither '/' nor '-') so a real
+// disclosure at that path was judged ABSENT and could fire a fabricated "missing complaints procedure"
+// absence-breach. Fixed to tokenise the whole path on any non-alphanumeric run and require the target
+// segment to appear as one of those tokens (whole-token membership, never a substring test).
 function pathHasSegment(url, seg) {
   let path;
-  try { path = new URL(url).pathname.toLowerCase(); }
+  try { path = new URL(url).pathname; }
   catch (_err) {
     // FAIL-OPEN: a non-URL is matched as a raw path, never crashes the scan.
-    path = String(url || '').toLowerCase();
+    path = String(url || '');
   }
-  const norm = ('/' + path.replace(/^\/+/, '')).replace(/\/+$/, '') + '/';
-  return norm.includes(seg.toLowerCase() + '/') || norm.includes(seg.toLowerCase() + '-');
+  const tokens = path.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return tokens.includes(String(seg).replace(/^\/+/, '').toLowerCase());
 }
 function matchUrlPath(value, pages) {
   return pages.some((p) => pathHasSegment(p.url, value));
@@ -212,47 +229,89 @@ function prohibitedHitInSentence(detectionSpec, sentence) {
   return null;
 }
 
-// sentenceVerdict(detectionSpec, sentence) -> 'hit' | 'guarded' | 'skip'. Named so the per-sentence scan
-// below is a single dispatch rather than three inline nested ifs (the health-gate Deep Nesting cap).
+// CLAUSE_SPLIT_RX / splitClauses(sentence) -> HIGH-7: the negation/review guard used to run over the
+// WHOLE carrier sentence, so a negation three clauses away from the actual hit ("We never charge admin
+// fees, and your returns are guaranteed.") demoted a real violation to a suppression. splitClauses
+// breaks a sentence on [,;-—–] and coordinating conjunctions (and/but/or), giving
+// sentenceVerdict a clause-scoped unit to test the guard against, independent of the whole-sentence test
+// still used to detect a guard living in a DIFFERENT clause (below).
+const CLAUSE_SPLIT_RX = /[,;—–-]|\b(?:and|but|or)\b/i;
+function splitClauses(sentence) {
+  return String(sentence || '').split(CLAUSE_SPLIT_RX).map((c) => c.trim()).filter(Boolean);
+}
+// clauseContainingHit(sentence, hit) -> the single clause of `sentence` that carries the winning
+// pattern, or the whole sentence when there is only one clause or no single clause carries the pattern
+// (a token-set scattered across clauses is treated conservatively as one unit).
+function clauseContainingHit(sentence, hit) {
+  const clauses = splitClauses(sentence);
+  if (clauses.length <= 1) return sentence;
+  return clauses.find((c) => patternMatchesText(hit, c)) || sentence;
+}
+
+// sentenceVerdict(detectionSpec, sentence) -> 'hit' | 'needs_human' | 'guarded' | 'nonprose' | 'skip'.
+// Named so the per-sentence scan below is a single dispatch rather than several inline nested ifs (the
+// health-gate Deep Nesting cap).
 // THE NEGATION/REVIEW GUARD IS UNCONDITIONAL (C-048/C-060/C-090): a compliant self-declaration ("we do
 // NOT charge admin fees", "we do not offer guarantees") or a customer testimonial is guarded away for
-// EVERY prohibition pattern, curated or derived - the false-accusation direction is never relaxed.
+// EVERY prohibition pattern, curated or derived - the false-accusation direction is never relaxed. HIGH-7
+// FIX: the guard is now CLAUSE-SCOPED - it fires 'guarded' only when the negation/review marker sits in
+// the SAME clause as the hit. When the marker sits in a DIFFERENT clause of the same sentence, the
+// candidate is neither confidently a hit nor safely suppressed, so it is downgraded to 'needs_human'
+// (propose.js still FIRES a candidate, carrying the quote, at reduced 'weak' confidence - never a silent
+// suppression of a real violation, C-037).
 // THE isProse GATE IS SKIPPED FOR A CURATED PROHIBITED-PHRASE PATTERN (prose_exempt): a real violation
 // lives in a Title-Case hero heading or a short CTA ("Book your Botox treatment", "Guaranteed Results"),
 // exactly the strings isProse rejects (>=25 chars, >=4 words, <=70% Title-Case - hidden-defects.md RANK 2).
 // The curated phrase is itself the precision guarantee, so the heading it sits in IS admissible evidence;
 // a bare law-prose-derived pattern (not prose_exempt) still needs genuine prose so it never quotes a nav
-// run as evidence (C-089).
+// run as evidence (C-089). HIGH-8 FIX: failing that prose gate used to `return 'skip'`, recording nothing
+// (unlike 'guarded', which records an abstention) - a silent suppression violating "suppression is
+// first-class and visible". It is now its own 'nonprose' verdict so the abstention can be recorded.
 function sentenceVerdict(detectionSpec, sentence) {
   const hit = prohibitedHitInSentence(detectionSpec, sentence);
   if (!hit) return 'skip';
-  if (spec.isNegated(sentence) || spec.looksLikeReview(sentence)) return 'guarded';
-  if (!hit.prose_exempt && !spec.isProse(sentence)) return 'skip';
+  const carrierClause = clauseContainingHit(sentence, hit);
+  if (spec.isNegated(carrierClause) || spec.looksLikeReview(carrierClause)) return 'guarded';
+  if (spec.isNegated(sentence) || spec.looksLikeReview(sentence)) return 'needs_human';
+  if (!hit.prose_exempt && !spec.isProse(sentence)) return 'nonprose';
   return 'hit';
 }
-// findProhibitedQuoteOnPage(detectionSpec, page) -> { quote, guarded } for ONE page: the first hitting
-// sentence (guarded:false), or a guarded flag when a hit existed but every carrier was guarded away.
+// findProhibitedQuoteOnPage(detectionSpec, page) -> { quote, guarded, needsHuman, sawNonProse } for ONE
+// page: the first confidently-hitting sentence (guarded:false, needsHuman:false) wins outright; absent
+// that, the first needs_human sentence (a cross-clause guard) is kept as a fallback FIRED quote at
+// reduced confidence; guarded/nonprose are recorded as flags for the caller's suppression reasons.
 function findProhibitedQuoteOnPage(detectionSpec, page) {
   let guarded = false;
+  let sawNonProse = false;
+  let needsHuman = null;
   for (const sentence of spec.splitSentences(page.text)) {
     const verdict = sentenceVerdict(detectionSpec, sentence);
-    if (verdict === 'hit') return { quote: sentence, guarded: false };
+    if (verdict === 'hit') return { quote: sentence, guarded: false, needsHuman: false, sawNonProse: false };
     if (verdict === 'guarded') guarded = true;
+    else if (verdict === 'nonprose') sawNonProse = true;
+    else if (verdict === 'needs_human' && !needsHuman) needsHuman = sentence;
   }
-  return { quote: null, guarded };
+  if (needsHuman) return { quote: needsHuman, guarded: false, needsHuman: true, sawNonProse: false };
+  return { quote: null, guarded, needsHuman: false, sawNonProse };
 }
-// findProhibitedQuote(detectionSpec, pages) -> { page_url, quote, guardedOnly }. Scans visible prose
-// sentence by sentence; a carrier sentence must be genuine prose (C-089), not negated (C-048) and not a
-// customer review (C-090). guardedOnly signals a match existed but every carrier was guarded away (a
-// compliant self-declaration), so the abstention can be recorded rather than silent.
+// findProhibitedQuote(detectionSpec, pages) -> { page_url, quote, guardedOnly, needsHuman, sawNonProse }.
+// Scans visible prose sentence by sentence; a carrier sentence must be genuine prose (C-089), not negated
+// in its own clause (C-048) and not a customer review (C-090). guardedOnly signals a match existed but
+// every carrier was guarded away (a compliant self-declaration); sawNonProse signals a match existed only
+// in a non-quotable nav/heading carrier (HIGH-8) - both abstentions are recorded, never silent (C-037).
 function findProhibitedQuote(detectionSpec, pages) {
   let sawGuarded = false;
+  let sawNonProse = false;
+  let needsHumanFound = null;
   for (const page of pages) {
     const found = findProhibitedQuoteOnPage(detectionSpec, page);
-    if (found.quote) return { page_url: page.url, quote: found.quote, guardedOnly: false };
+    if (found.quote && !found.needsHuman) return { page_url: page.url, quote: found.quote, guardedOnly: false, needsHuman: false, sawNonProse: false };
+    if (found.quote && found.needsHuman && !needsHumanFound) needsHumanFound = { page_url: page.url, quote: found.quote };
     if (found.guarded) sawGuarded = true;
+    if (found.sawNonProse) sawNonProse = true;
   }
-  return { page_url: null, quote: null, guardedOnly: sawGuarded };
+  if (needsHumanFound) return { page_url: needsHumanFound.page_url, quote: needsHumanFound.quote, guardedOnly: false, needsHuman: true, sawNonProse: false };
+  return { page_url: null, quote: null, guardedOnly: sawGuarded, needsHuman: false, sawNonProse };
 }
 
 // ── candidate builders ─────────────────────────────────────────────────────────────────────────────
@@ -294,13 +353,21 @@ function suppressed(detectionSpec, kind, reason) {
 // truncation guard gates a presence-breach; those protect the OPPOSITE polarity (evalAbsenceBreach,
 // C-024/C-025/C-026) and stay untouched. Do not add a corpus-size/truncation guard here.
 function evalPresenceBreach(detectionSpec, pages) {
-  if (!detectionSpec.patterns.length) return null;
+  // MEDIUM-14 FIX: a record whose prose compiled to zero patterns used to `return null`, indistinguishable
+  // from a genuine compliant clean pass. It is now a recorded suppression - the coverage gap is visible.
+  if (!detectionSpec.patterns.length) return suppressed(detectionSpec, KIND.PRESENCE_BREACH, 'no detection patterns compiled for this obligation');
   const found = findProhibitedQuote(detectionSpec, pages);
   if (found.quote) {
     const artifact = { type: ARTIFACT_TYPES.QUOTE, text: found.quote, surface: detectionSpec.surface };
-    return candidate({ detectionSpec, kind: KIND.PRESENCE_BREACH, artifact, pageUrl: found.page_url, confidence: 'strong' });
+    // HIGH-7: a cross-clause negation/review guard fires the candidate at reduced ('weak') confidence
+    // rather than silently suppressing it - a real violation is never dropped for an unrelated clause.
+    const confidence = found.needsHuman ? 'weak' : 'strong';
+    return candidate({ detectionSpec, kind: KIND.PRESENCE_BREACH, artifact, pageUrl: found.page_url, confidence });
   }
   if (found.guardedOnly) return suppressed(detectionSpec, KIND.PRESENCE_BREACH, 'all-matches-negated-or-review (compliant self-declaration or testimonial, C-048/C-090)');
+  // HIGH-8 FIX: a match that only ever appeared in a non-prose carrier (nav/heading run) used to vanish
+  // via a bare 'skip' with nothing recorded; now the abstention is visible.
+  if (found.sawNonProse) return suppressed(detectionSpec, KIND.PRESENCE_BREACH, 'match found only in a non-prose carrier (nav/heading run); not admissible quotable evidence (C-089)');
   return null;
 }
 
@@ -327,7 +394,9 @@ function absenceInterlock(detectionSpec, bundle, coverageState) {
 // If absent, the interlock decides: satisfied -> an absence-breach with a coverage_proof artifact
 // (confidence moderate); unsatisfied -> a recorded suppression.
 function evalAbsenceBreach(detectionSpec, bundle, coverageState) {
-  if (!detectionSpec.patterns.length) return null;
+  // MEDIUM-14 FIX: see evalPresenceBreach's identical fix - a zero-pattern spec is now a recorded
+  // suppression, never a clean pass indistinguishable from real compliance.
+  if (!detectionSpec.patterns.length) return suppressed(detectionSpec, KIND.ABSENCE_BREACH, 'no detection patterns compiled for this obligation');
   const pages = pagesOf(bundle);
   const surface = surfaceTextForPresence(detectionSpec, pages, footerOf(bundle));
   if (requiredContentPresent(detectionSpec, surface.text, pages)) return null; // present -> no breach
@@ -368,6 +437,13 @@ function specTokens(detectionSpec) {
   for (const p of detectionSpec.patterns) for (const t of tokensOf(p)) out.add(t);
   return out;
 }
+// KNOWN_CONCEPT_WORDS: every word literally authored in OBSERVATION_CONCEPTS/DOM_NODE_CONCEPTS (a small,
+// closed, hand-authored vocabulary - Rule 2 safe, no law/regulator name). singularise (below) uses this
+// as its O5 safety fence: stripping a token's trailing 's' is worthless unless it lands on a WORD THIS
+// FILE ACTUALLY KNOWS ABOUT, so it can never be used to test two arbitrary unrelated tokens for equality.
+const KNOWN_CONCEPT_WORDS = new Set(
+  [...Object.values(OBSERVATION_CONCEPTS), ...Object.values(DOM_NODE_CONCEPTS)].flat().map((w) => String(w).toLowerCase())
+);
 // singularise(token) -> the token with a single trailing regular-plural 's' removed, for a SAFE
 // whole-token morphological match (cookie<->cookies, tracker<->trackers, disclosure<->disclosures).
 // Guard-claused so it can NEVER unify two distinct stems the way a substring match did: a trailing
@@ -375,11 +451,18 @@ function specTokens(detectionSpec) {
 // verbatim so a short concept token ('alt', 'wcag', 'bot') only ever matches EXACTLY. This strips at
 // most one character, so the result always shares the token's full stem: 'health' can never collapse
 // onto 'alt' (C-059: the "post"->postcode / "health".includes("alt") substring class is unrepresentable).
+// O5 FIX: the strip used to fire unconditionally, so an unrelated word ending in a bare 's' could
+// collapse onto a totally different stem ('alias'->'alia'; a stray 4-char'ish word like 'news' happened
+// to dodge it only via the <=4 floor, not by design). It now strips ONLY when the resulting stem is
+// itself a word this file's concept vocabulary actually knows (KNOWN_CONCEPT_WORDS) - so stripping can
+// only ever HELP a real cookie/tracker/reader-class plural match a concept, never manufacture a false
+// unification between two words neither of which the stripped form recognises.
 function singularise(token) {
   const s = String(token).toLowerCase();
   if (s.length <= 4) return s;
-  if (s.endsWith('ss')) return s;
-  return s.endsWith('s') ? s.slice(0, -1) : s;
+  if (s.endsWith('ss') || !s.endsWith('s')) return s;
+  const stem = s.slice(0, -1);
+  return KNOWN_CONCEPT_WORDS.has(stem) ? stem : s;
 }
 // tokenMatchesConcept(t, c) -> does obligation token `t` match concept token `c` as a WHOLE TOKEN:
 // exact equality, or equal after stripping one regular-plural 's' from each. NEVER an infix/substring
@@ -400,8 +483,15 @@ function tokensIntersectConcepts(tokens, conceptTokens) {
 }
 // obligationConcerns(detectionSpec, obsKind) -> does this behavioural obligation concern an observation
 // of this kind (token intersection with the generic concept set); gates C-039/C-042 to consent duties.
+// MEDIUM-15 FIX: cookie_pre_consent additionally requires a DISTINCTIVE 'cookie'/'cookies' token in the
+// obligation's own words, so a duty whose tokens only intersect on 'consent'/'tracking' (a broader,
+// non-cookie-specific behavioural obligation) never claims a pre-consent-cookie observation as its
+// artifact - the wrong-law-bound-to-a-real-event class this finding flagged.
 function obligationConcerns(detectionSpec, obsKind) {
-  return tokensIntersectConcepts(specTokens(detectionSpec), OBSERVATION_CONCEPTS[obsKind] || []);
+  const tokens = specTokens(detectionSpec);
+  if (!tokensIntersectConcepts(tokens, OBSERVATION_CONCEPTS[obsKind] || [])) return false;
+  if (obsKind === 'cookie_pre_consent') return tokensIntersectConcepts(tokens, ['cookie', 'cookies']);
+  return true;
 }
 
 // laneRan(browser) -> true only when the browser lane definitively ran; laneReason gives the recorded
@@ -519,13 +609,34 @@ function behaviouralCandidates(detectionSpec, bundle) {
   return out;
 }
 
+// urlTokens(urlStr) -> the lowercase alphanumeric tokens of a URL's host + path (never its query string,
+// which can carry arbitrary third-party text). Falls back to tokenising the raw string when it does not
+// parse as a URL, so a bare host-like value still tokenises rather than being silently dropped.
+function urlTokens(urlStr) {
+  try {
+    const u = new URL(String(urlStr));
+    return (u.hostname + '/' + u.pathname).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  } catch (_err) {
+    // FAIL-OPEN: a non-URL value is tokenised as a raw string rather than crashing the scan; this is a
+    // pure data-derivation helper with no security/finding decision riding on the parse outcome.
+    return String(urlStr || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  }
+}
+// recordIdTokens(id) -> the lowercase alphanumeric tokens of a catalogue record id.
+function recordIdTokens(id) {
+  return String(id || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+}
 // registerTargetFor(detectionSpec, record, keys) -> the bundle register key this record's register duty
 // checks, derived from the record's OWN id/citation/register_url tokens against the bundle's OWN register
 // keys (data-driven; no regulator name is authored here - Rule 2), or null when unresolved.
+// MEDIUM-11 FIX (C-059's own substring-match class, ironically resurrected here): `blob.includes(key)`
+// matched a key that was merely a SUBSTRING of an unrelated word - 'asa' inside 'asbestos', 'ico' inside
+// 'silicon' - routing a record to the wrong register lane entirely. Now matched WHOLE TOKEN against the
+// register/citation URL's host+path tokens and the record id's own tokens - never a substring test.
 function registerTargetFor(record, keys) {
-  const blob = [record && record.id, record && record.regulator && record.regulator.register_url,
-    record && record.citation && record.citation.url].filter(Boolean).join(' ').toLowerCase();
-  return keys.find((k) => blob.includes(String(k).toLowerCase())) || null;
+  const urls = [record && record.regulator && record.regulator.register_url, record && record.citation && record.citation.url].filter(Boolean);
+  const tokenSet = new Set([...urls.flatMap(urlTokens), ...recordIdTokens(record && record.id)]);
+  return keys.find((k) => tokenSet.has(String(k).toLowerCase())) || null;
 }
 // evalRegister: consume bundle.registers. A present matched row is compliant (no candidate). A DEFINITIVE
 // no_match note (C-004) is a weak candidate carrying a `register_absence` artifact (its own artifact
@@ -560,12 +671,25 @@ function registerNoMatchOutcome(detectionSpec, target, note) {
   }
   return suppressed(detectionSpec, KIND.REGISTER, 'register "' + target + '" not definitively checked (' + ((note && note.kind) || 'no note') + '); a no-match is required before a non-appearance claim (C-004)');
 }
+// isMatchedRegisterRow(row) -> true only for a genuine matched-entity row shape: a non-array object
+// carrying at least one non-empty *_name (or bare 'name') string field (company_name, provider_name,
+// firm_name, entity_name, organisation_name, name, ...: the field every real register lookup in
+// evidence/registers/ actually returns for a matched candidate).
+// HIGH-10 FIX: `if (registers[target])` treated ANY truthy value as a compliant matched row, including a
+// degraded-lane placeholder object (e.g. `{error:'timeout'}`) that carries no entity at all - a clean
+// pass with no suppression, silently missing a real non-registration. Anything that is not a genuine
+// matched-row shape now falls through to registerNoMatchOutcome, which requires a definitive no_match
+// note before any non-appearance claim (else it suppresses, visibly, per C-004).
+function isMatchedRegisterRow(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
+  return Object.keys(row).some((k) => /(^|_)name$/.test(k) && typeof row[k] === 'string' && row[k].trim() !== '');
+}
 function evalRegister(detectionSpec, bundle, record) {
   const registers = (bundle && bundle.registers) || {};
   const notes = registerNotesOf(registers);
   const target = registerTargetFor(record, allRegisterKeys(registers, notes));
   if (!target) return suppressed(detectionSpec, KIND.REGISTER, 'no register lane resolvable for this record (unregistered lane / no lookup)');
-  if (registers[target]) return null; // a matched row is present -> compliant on this duty
+  if (isMatchedRegisterRow(registers[target])) return null; // a matched row is present -> compliant on this duty
   return registerNoMatchOutcome(detectionSpec, target, noteForRegister(notes, target));
 }
 
@@ -606,11 +730,18 @@ function kindForType(evidenceType) {
 function listOf(x) { return x ? [x] : []; }
 
 // propose(bundle, catalogue, coverage) -> candidates[]. The public entry. Compiles the catalogue to
-// DetectionSpecs in memory, then evaluates each. An unreadable (C-038) or non-English-gated (C-022)
-// bundle asserts nothing at all.
+// DetectionSpecs in memory, then evaluates each. An unreadable (C-038) bundle carries no page to point
+// evidence at, so it asserts nothing at all (a bare [] is honest there: there is no record-scoped
+// abstention to attach to unread content). A non-English-gated (C-022) bundle DID get read; HIGH-9 fix:
+// the abstention is now a VISIBLE suppression per compiled spec, never a bare [] (suppression is
+// FIRST-CLASS per this module's own doctrine) - no candidate ever FIRES from it (fired = quotable
+// evidence), only recorded abstentions.
 function propose(bundle, catalogue, coverage) {
-  if (isUnreadable(bundle) || isNonEnglishGated(bundle)) return [];
+  if (isUnreadable(bundle)) return [];
   const { specs } = spec.compileCatalogue(catalogue);
+  if (isNonEnglishGated(bundle)) {
+    return specs.map((s) => suppressed(s, kindForType(s.evidence_type), 'non-English corpus gated before any rule ran (C-022); no claim can be asserted on unreadable-language content'));
+  }
   const records = recordIndex(catalogue);
   const out = [];
   for (const detectionSpec of specs) {
@@ -635,4 +766,14 @@ module.exports = {
   evalDomNode,
   DOM_NODE_CONCEPTS,
   DOM_RULE_TO_CONCEPT,
+  OBSERVATION_CONCEPTS,
+  obligationConcerns,
+  // exported for direct unit testing of the QA-cluster fixes (2026-07-20)
+  isNonEnglishGated,
+  pathHasSegment,
+  matchUrlPath,
+  isMatchedRegisterRow,
+  singularise,
+  tokenMatchesConcept,
+  sentenceVerdict,
 };
