@@ -226,19 +226,20 @@ function applicabilityStage(facts, ctx) {
   return { app, applicabilityLedger: buildApplicabilityLedger(app) };
 }
 
-// detectionStage(bundle, app, facts, captureIndex, ctx) -> { classified }. Stages 4-5: propose candidates
-// over the applicable records' coverage, auto-verify them against the live corpus, then classify the
-// survivors into typed Findings / rejections / non-quote candidates (never silently dropped).
-function detectionStage(bundle, app, facts, captureIndex, ctx) {
-  const pages = pagesOf(bundle);
-  const perRule = coverageContract.coverageFor(app.applicable, pages, {});
-  const candidates = propose(bundle, app.applicable, perRule);
+// detectionStage(run, ctx) -> { classified }. Stages 4-5: propose candidates over the applicable
+// records' coverage, auto-verify them against the live corpus, then classify the survivors into typed
+// Findings / rejections / non-quote candidates (never silently dropped). `run` is {bundle, app, facts,
+// captureIndex} - the accumulated per-run state, bundled into one argument rather than four loose ones.
+function detectionStage(run, ctx) {
+  const pages = pagesOf(run.bundle);
+  const perRule = coverageContract.coverageFor(run.app.applicable, pages, {});
+  const candidates = propose(run.bundle, run.app.applicable, perRule);
   ctx.manifestStore.append(ctx.runId, 'propose', { candidateCount: candidates.length });
 
-  const verifyResult = verifyAll(candidates, bundle);
+  const verifyResult = verifyAll(candidates, run.bundle);
   ctx.manifestStore.append(ctx.runId, 'verify', { verifiedCount: verifyResult.verified.length, rejectedCount: verifyResult.rejected.length });
 
-  const classified = classifyCandidates(verifyResult.verified, ctx.catalogue, captureIndex, facts);
+  const classified = classifyCandidates(verifyResult.verified, ctx.catalogue, run.captureIndex, run.facts);
   ctx.manifestStore.append(ctx.runId, 'candidate_findings', {
     findingCount: classified.findings.length,
     findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, quote: f.quote })),
@@ -248,11 +249,11 @@ function detectionStage(bundle, app, facts, captureIndex, ctx) {
   return classified;
 }
 
-// finalizeStage(app, captureIndex, classified, ctx) -> { excerpts, coverageManifest }. Builds the
-// orchestrator's targeted excerpts and the run's coverage manifest, and logs the latter.
-function finalizeStage(app, captureIndex, classified, ctx) {
-  const excerpts = buildExcerpts(captureIndex, classified.findings);
-  const coverageManifest = buildCoverageManifest(app, ctx.catalogue.content_hash);
+// finalizeStage(run, classified, ctx) -> { excerpts, coverageManifest }. Builds the orchestrator's
+// targeted excerpts and the run's coverage manifest, and logs the latter.
+function finalizeStage(run, classified, ctx) {
+  const excerpts = buildExcerpts(run.captureIndex, classified.findings);
+  const coverageManifest = buildCoverageManifest(run.app, ctx.catalogue.content_hash);
   ctx.manifestStore.append(ctx.runId, 'coverage_manifest', coverageManifest);
   return { excerpts, coverageManifest };
 }
@@ -266,21 +267,25 @@ function refusalOf(cell) {
 // (fetchFn/launchBrowser/registersFetchFn - the SAME injection seam, no second one), plus `catalogue`,
 // `runId`, `now`, `manifestStore` (an existing ManifestStore instance, or a fresh default one). Each
 // pipeline stage (1: capture, 2: identity/applicability, 3: sector gate, 4-5: detectors/auto-verify) is
-// its own named function above; this orchestrator just threads their outputs through in order.
+// its own named function above; this orchestrator just threads their outputs through in order, via a
+// `run` state object accumulated one field at a time (never more than one extra field per stage).
 async function runSupervised(site, opts) {
   const ctx = runContextFrom(site, opts);
-  const { bundle, stageManifest, captureIndex } = await captureStage(site, ctx);
-  const { facts, cell, entityCard } = identityStage(bundle, ctx);
-  const { app, applicabilityLedger } = applicabilityStage(facts, ctx);
-  const classified = detectionStage(bundle, app, facts, captureIndex, ctx);
-  const { excerpts, coverageManifest } = finalizeStage(app, captureIndex, classified, ctx);
+  const run = await captureStage(site, ctx);
+  const identity = identityStage(run.bundle, ctx);
+  Object.assign(run, { facts: identity.facts });
+  const { app, applicabilityLedger } = applicabilityStage(run.facts, ctx);
+  Object.assign(run, { app });
+  const classified = detectionStage(run, ctx);
+  const { excerpts, coverageManifest } = finalizeStage(run, classified, ctx);
+  const { cell, entityCard } = identity;
 
   return {
     runId: ctx.runId, site, refusal: refusalOf(cell),
     entityCard, applicabilityLedger,
     candidateFindings: classified.findings, rejectedCandidates: classified.rejected, nonQuoteCandidates: classified.nonQuote,
-    excerpts, captureIndex, coverageManifest,
-    catalogueHash: ctx.catalogue.content_hash, engineVersion: ENGINE_VERSION, stageManifest,
+    excerpts, captureIndex: run.captureIndex, coverageManifest,
+    catalogueHash: ctx.catalogue.content_hash, engineVersion: ENGINE_VERSION, stageManifest: run.stageManifest,
     manifestStore: ctx.manifestStore,
   };
 }
