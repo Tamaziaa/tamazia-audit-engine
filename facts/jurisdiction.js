@@ -544,7 +544,9 @@ function analyseAuthorisation(sentence, source, state, contributed) {
 function _nearestPrecedingAuthState(auths, numStart) {
   let best = null;
   for (const a of auths) {
-    if (a.end <= numStart && (!best || a.start > best.start)) best = a;
+    if (a.end > numStart) continue;              // the authority mention must precede the number
+    if (best && a.start <= best.start) continue; // keep the NEAREST preceding authority (largest start)
+    best = a;
   }
   return best ? best.state : null;
 }
