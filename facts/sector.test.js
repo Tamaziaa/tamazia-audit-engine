@@ -213,6 +213,98 @@ test('telemedicine precedence: telehealth-led care resolves telemedicine, not ge
 });
 
 // ---------------------------------------------------------------------------------------------
+// WS-Signals: NPI (NPPES) taxonomy decisively sets/overrides the healthcare SUB-sector
+// (KIMI-K3-DEEP-BLUEPRINT-2026-07-20 §B2: "these are Tier-A/A- deterministic sector facts that
+// OVERRIDE the text classifier"). registers.npi is matched on the register's own self-reported
+// taxonomy description text (facts/sector.js's _npiSubSector), never a hand-guessed NUCC code.
+// ---------------------------------------------------------------------------------------------
+
+// Deliberately drops HOSPITAL_TEXT's "general practice ... GP appointments" clause so the
+// text-only sub-sector resolves 'hospital-care' unambiguously (proven below), leaving a clean
+// baseline for the NPI-override test to actually exercise a genuine text-vs-register disagreement.
+const HOSPITAL_ONLY_TEXT = 'Welcome to Harbourview Hospital, a leading private hospital and medical centre. Our oncology department provides cancer care to patients across the region. The clinic is CQC registered.';
+
+test('baseline: HOSPITAL_ONLY_TEXT resolves hospital-care from text alone, with no register present', () => {
+  const r = resolve(bundleOf(HOSPITAL_ONLY_TEXT));
+  assert.equal(r.value.sector, 'healthcare');
+  assert.equal(r.value.sub_sector, 'hospital-care');
+});
+
+test('NPI taxonomy OVERRIDES a weaker text-derived sub-sector (Family Medicine -> general-practice)', () => {
+  const r = resolve(bundleOf(HOSPITAL_ONLY_TEXT, {
+    registers: { npi: { id: '1999999999', name: 'HARBOURVIEW CLINIC', taxonomy_code: '207Q00000X', taxonomy_desc: 'Family Medicine' } },
+  }));
+  assert.equal(r.value.sector, 'healthcare');
+  // HOSPITAL_ONLY_TEXT alone resolves 'hospital-care' via text cues; the register decisively wins.
+  assert.equal(r.value.sub_sector, 'general-practice');
+  assert.ok(r.evidence.some((e) => e.source === 'npi' && /overrides/i.test(e.quote)));
+});
+
+test('NPI taxonomy sets the sub-sector when the text alone gave none (Psychiatry -> mental-health)', () => {
+  const r = resolve(bundleOf('Welcome to our practice. CQC registered.', {
+    registers: {
+      cqc: { matched: true },
+      npi: { id: '1888888888', name: 'EXAMPLE BEHAVIORAL HEALTH', taxonomy_code: '2084P0800X', taxonomy_desc: 'Psychiatry' },
+    },
+  }));
+  assert.equal(r.value.sector, 'healthcare');
+  assert.equal(r.value.sub_sector, 'mental-health');
+});
+
+test('NPI taxonomy is IGNORED outside the healthcare family (a law firm with a stray npi row is not re-classified)', () => {
+  const r = resolve(bundleOf(LAW_TEXT, {
+    registers: { npi: { id: '1777777777', name: 'IRRELEVANT ORG', taxonomy_code: '207Q00000X', taxonomy_desc: 'Family Medicine' } },
+  }));
+  assert.equal(r.value.sector, 'law-firms');
+  assert.equal(r.value.sub_sector, 'solicitors');
+});
+
+test('an ambiguous/unmatched NPI taxonomy description never overrides the text-derived sub-sector (deny by default)', () => {
+  const r = resolve(bundleOf(HOSPITAL_ONLY_TEXT, {
+    registers: { npi: { id: '1666666666', name: 'HARBOURVIEW CLINIC', taxonomy_code: '261QM1300X', taxonomy_desc: 'Clinic/Center, Multi-Specialty' } },
+  }));
+  assert.equal(r.value.sector, 'healthcare');
+  assert.equal(r.value.sub_sector, 'hospital-care'); // the text-derived sub-sector stands unmodified
+});
+
+test('_npiSubSector: falls back through secondary taxonomies when the primary one is unmatched', () => {
+  const registers = {
+    npi: {
+      taxonomy_desc: 'Clinic/Center, Multi-Specialty',
+      taxonomies: [
+        { code: '261QM1300X', desc: 'Clinic/Center, Multi-Specialty', primary: true },
+        { code: '152W00000X', desc: 'Optometrist', primary: false },
+      ],
+    },
+  };
+  const result = sector._npiSubSector(registers);
+  assert.ok(result);
+  assert.equal(result.sub, 'optometry');
+});
+
+test('_npiSubSector: absent register, or absent registers.npi, returns null', () => {
+  assert.equal(sector._npiSubSector({}), null);
+  assert.equal(sector._npiSubSector(null), null);
+});
+
+// CodeRabbit PR #30 (facts/sector.js:387): flagged _NPI_DESC_SUBSECTOR's literal sub-sector ids as
+// duplicating facts/vocabulary.js's CANONICAL_SUB_SECTORS/SUB_SECTOR_SYNONYMS union, risking silent
+// drift if a sub-sector id is ever renamed there. A full data-source migration was judged out of
+// scope for a resolver-decomposition PR (Rule: decompose for complexity, never change resolver
+// behaviour), so this test closes the drift risk instead: every id the table can emit must be a
+// real canonical sub-sector per the real vocabulary. It fails loudly, not silently, on drift.
+test('_NPI_DESC_SUBSECTOR: every sub-sector id it can emit is canonical per facts/vocabulary.js', () => {
+  if (!REAL_VOCAB) {
+    console.warn('[sector.test] skipped: facts/vocabulary.js not present');
+    return;
+  }
+  assert.ok(sector._NPI_DESC_SUBSECTOR.length > 0);
+  for (const [, sub] of sector._NPI_DESC_SUBSECTOR) {
+    assert.ok(REAL_VOCAB.isCanonicalSubSector(sub), sub + ' is not a canonical sub-sector in facts/vocabulary.js (drift)');
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
 // Register cross-check (C-004, C-014, C-016)
 // ---------------------------------------------------------------------------------------------
 

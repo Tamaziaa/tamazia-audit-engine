@@ -51,7 +51,7 @@ test('fetchRegisters: a UK law-firm bundle populates companiesHouse + sra + glei
   assert.equal(byRegister.ico.kind, 'degraded'); // no keys.ico configured in this estate today
 });
 
-test('fetchRegisters: a non-UK country hint skips every UK-only register but still tries GLEIF', async () => {
+test('fetchRegisters: a non-UK country hint skips every UK-only register but still tries GLEIF, NPI and RDAP', async () => {
   const fetchFn = fetchFnFromMap({ 'gleif.lei_records': { status: 200, json: { data: [] } } });
   const bundle = await fetchRegisters(
     { domain: 'example.com', company: 'Example Corp Inc', country: 'US' },
@@ -62,9 +62,13 @@ test('fetchRegisters: a non-UK country hint skips every UK-only register but sti
   assert.equal(bundle.cqc, undefined);
   assert.equal(bundle.fca, undefined);
   assert.equal(bundle.ico, undefined);
-  // Only GLEIF ran, and it found nothing: exactly one note.
-  assert.equal(bundle.notes.length, 1);
-  assert.equal(bundle.notes[0].register, 'gleif');
+  assert.equal(bundle.npi, undefined);
+  assert.equal(bundle.rdap, undefined);
+  // GLEIF and NPI (US-hinted, worldwide/self-gating) and RDAP (domain-keyed, always attempted)
+  // all ran and each found nothing: exactly three notes.
+  assert.equal(bundle.notes.length, 3);
+  const registersNoted = bundle.notes.map((n) => n.register).sort();
+  assert.deepEqual(registersNoted, ['gleif', 'npi', 'rdap']);
 });
 
 test('fetchRegisters: C-004 end-to-end -- a non-empty, non-matching companiesHouse response yields no row on the bundle', async () => {
