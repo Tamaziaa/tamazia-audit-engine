@@ -46,7 +46,6 @@ const { raceWithDeadline } = require('./deadline');
 // The deadline is a CAP, never a floor (Rule 8): a caller may only ask for a SHORTER wall time. 20s sits
 // well under the 120s mint budget and the 45s PECR-lane ceiling; a DOM extraction pass is fast.
 const DEFAULT_DEADLINE_MS = 20000;
-const MAX_DESCRIPTORS = 2000; // bound on the serialised in-page payload (a cap, never a floor - Rule 8)
 
 // normaliseOpts(opts) -> the two knobs this lane honours. deadlineMs is a hard CAP, never a floor (Rule
 // 8): a positive finite override is CLAMPED to the ceiling, and anything else falls back to the ceiling, so
@@ -426,5 +425,4 @@ module.exports = {
   isLargeText,
   normaliseOpts,
   DEFAULT_DEADLINE_MS,
-  MAX_DESCRIPTORS,
 };
