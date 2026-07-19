@@ -261,33 +261,37 @@ function _scoreSectors(tree, segments) {
 // rival whose cues are incidental body mentions. The floor is never lowered (deny-by-default stays:
 // the self-ID family must carry >= minCues distinct visible-text cues), so a domain substring with
 // no body corroboration resolves nothing. selfIdFamilies is a Set of canonical family keys.
+// _selfIdWinner: the C-013 domain self-identity override, or null when no self-ID family clears the
+// two-cue floor. Pulled out so _textWinner stays flat (the CodeScene Bumpy-Road/Complex-Method caps).
+function _selfIdWinner(candidates, minCues, selfIdFamilies) {
+  if (!selfIdFamilies || !selfIdFamilies.size) return null;
+  const own = candidates.find((c) => selfIdFamilies.has(c.family) && c.distinct >= minCues);
+  if (!own) return null;
+  const rival = candidates.find((c) => c.family !== own.family) || null;
+  return { winner: own, rival, self_identity: own.family };
+}
+
+// _rivalFamiliesAtFloor: the set of OTHER families (distinct from `topFamily`) that each independently
+// clear the two-cue floor - the multidisciplinary-conflict signal (C-007). Two or more of them means a
+// conglomerate / umbrella advisory firm ("a wealth management firm and law firm and corporate services
+// provider"), where picking the top family over its equally self-declared rivals would be a guess.
+function _rivalFamiliesAtFloor(candidates, topFamily, minCues) {
+  return new Set(candidates.filter((c) => c.family !== topFamily && c.distinct >= minCues).map((c) => c.family));
+}
+
 function _textWinner(candidates, minCues, selfIdFamilies) {
   if (!candidates.length) return { winner: null, rival: null };
-  if (selfIdFamilies && selfIdFamilies.size) {
-    const own = candidates.find((c) => selfIdFamilies.has(c.family) && c.distinct >= minCues);
-    if (own) {
-      const rival = candidates.find((c) => c.family !== own.family) || null;
-      return { winner: own, rival, self_identity: own.family };
-    }
-  }
+  const selfId = _selfIdWinner(candidates, minCues, selfIdFamilies);
+  if (selfId) return selfId;
   const top = candidates[0];
   const rival = candidates.find((c) => c.family !== top.family) || null;
   const rivalDistinct = rival ? rival.distinct : 0;
-  if (top.distinct >= minCues && top.distinct > rivalDistinct) {
-    // Multidisciplinary-conflict guard (C-007, "on conflict abstain, never guess"): a firm that
-    // presents TWO OR MORE OTHER families each independently clearing the two-cue floor is a
-    // conglomerate / umbrella advisory firm (e.g. "a wealth management firm and law firm and corporate
-    // services provider"), not a single-sector practice - so picking its top family over its equally
-    // self-declared rivals would be a guess. Abstain instead. A single-sector practice (one dominant
-    // family, every rival below the floor) is unaffected, so a pure US attorney firm still resolves
-    // law-firms even after the DEFECT-7 US legal terms enrich its cue count.
-    const rivalFamiliesAtFloor = new Set(
-      candidates.filter((c) => c.family !== top.family && c.distinct >= minCues).map((c) => c.family)
-    );
-    if (rivalFamiliesAtFloor.size >= 2) return { winner: null, rival, top, conflict: Array.from(rivalFamiliesAtFloor) };
-    return { winner: top, rival };
-  }
-  return { winner: null, rival, top };
+  if (top.distinct < minCues || top.distinct <= rivalDistinct) return { winner: null, rival, top };
+  // Abstain on a multidisciplinary conflict (C-007); a single-sector practice (one dominant family,
+  // every rival below the floor) is unaffected, so a pure US attorney firm still resolves law-firms.
+  const conflict = _rivalFamiliesAtFloor(candidates, top.family, minCues);
+  if (conflict.size >= 2) return { winner: null, rival, top, conflict: Array.from(conflict) };
+  return { winner: top, rival };
 }
 
 // ---------------------------------------------------------------------------------------------

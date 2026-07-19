@@ -689,6 +689,32 @@ function buildServes(state) {
   return serves;
 }
 
+// An OBSERVABLE US state nexus binds; anything else renders advisory (Rule 13 at the state level).
+// office_address / state_registration are Tier-A-strength observations; bar_authorisation is Tier-A
+// establishment in that state (a bar admission WITH a number, DEFECT-8). A bare mention or numberless
+// bar_admission prose is advisory.
+function isObservableStateBasis(basis) {
+  return basis === 'office_address' || basis === 'state_registration' || basis === 'bar_authorisation';
+}
+
+// _usStateSubs(stateHits) -> the US state sub-jurisdiction entries. Extracted from buildSubJurisdictions
+// so each country's block is its own small unit (the CodeScene Complex-Method cap). Bound wins over
+// advisory for the same state; the first advisory is kept when no bound hit exists.
+function _usStateSubs(stateHits) {
+  const states = new Map();
+  for (const hit of stateHits) {
+    const observable = isObservableStateBasis(hit.basis);
+    const status = observable ? 'bound' : 'advisory';
+    const prev = states.get(hit.code);
+    if (prev && (prev.status === 'bound' || status === 'advisory')) continue; // bound wins, first advisory kept
+    states.set(hit.code, {
+      country: 'US', code: hit.code, status, basis: hit.basis,
+      evidence: [{ tier: observable ? 'A' : 'C', kind: hit.basis, weight: observable ? TIER_WEIGHTS.A : TIER_WEIGHTS.C, source: hit.source, quote: hit.quote }],
+    });
+  }
+  return Array.from(states.values());
+}
+
 function buildSubJurisdictions(state, boundCodes) {
   const out = [];
   if (boundCodes.has('UK')) {
@@ -701,21 +727,7 @@ function buildSubJurisdictions(state, boundCodes) {
     }
     out.push(...nations.values());
   }
-  if (boundCodes.has('US')) {
-    const states = new Map();
-    for (const hit of state.stateHits) {
-      // office_address / state_registration / bar_authorisation are OBSERVABLE state nexuses -> bound
-      // (a bar authorisation with a number is Tier-A establishment in that state, DEFECT-8); a bare
-      // mention or bar_admission prose renders advisory (the Rule 13 doctrine at the state level).
-      const observable = hit.basis === 'office_address' || hit.basis === 'state_registration'
-        || hit.basis === 'bar_authorisation';
-      const status = observable ? 'bound' : 'advisory';
-      const prev = states.get(hit.code);
-      if (prev && (prev.status === 'bound' || status === 'advisory')) continue; // bound wins, first advisory kept
-      states.set(hit.code, { country: 'US', code: hit.code, status, basis: hit.basis, evidence: [{ tier: observable ? 'A' : 'C', kind: hit.basis, weight: observable ? TIER_WEIGHTS.A : TIER_WEIGHTS.C, source: hit.source, quote: hit.quote }] });
-    }
-    out.push(...states.values());
-  }
+  if (boundCodes.has('US')) out.push(..._usStateSubs(state.stateHits));
   // Free zones: at most ONE attaches; DIFC takes precedence over ADGM (E-221 doctrine).
   const zone = state.zones.DIFC ? 'DIFC' : (state.zones.ADGM ? 'ADGM' : null);
   if (zone && boundCodes.has('AE')) {
