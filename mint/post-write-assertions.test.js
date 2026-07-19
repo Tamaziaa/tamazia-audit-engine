@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { assertMinted, stateFor, rowQuery } = require('./post-write-assertions.js');
+const { assertMinted, stateFor, rowQuery, TRUTH_PACK_DEADLINE_MS } = require('./post-write-assertions.js');
 const { ENGINE_VERSION } = require('./version.js');
 
 const ROW = { slug: 'oakhurst-legal-example', hash: 'deadbeef' };
@@ -104,6 +104,46 @@ test('CodeRabbit fix: a REJECTING opts.truthPackFn promise is caught the same wa
   assert.strictEqual(r.state, 'render_mismatch');
   assert.strictEqual(r.checks.truthPack.ran, true);
   assert.match(r.checks.truthPack.reason, /truthPackFn threw/);
+});
+
+test('Rule 9 fix (PR #20 comment 3610487213): a HANGING opts.truthPackFn degrades to a ran-but-FAILED leg under a tiny override, and the assertion completes promptly, never hanging the mint', async () => {
+  const t0 = Date.now();
+  const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200, truthPackFn: () => new Promise(() => {}), truthPackDeadlineMs: 25 } });
+  const elapsed = Date.now() - t0;
+  assert.strictEqual(r.done, false);
+  assert.strictEqual(r.state, 'render_mismatch');
+  assert.strictEqual(r.checks.truthPack.ran, true, 'a hanging truth-pass is a ran-but-FAILED leg, never an honest not-run');
+  assert.strictEqual(r.checks.truthPack.ok, false);
+  assert.match(r.checks.truthPack.reason, /timed out after 25ms/);
+  assert.match(r.checks.truthPack.reason, /Rule 9/);
+  assert.ok(elapsed < 2000, 'the mint is never held hostage on a hanging truthPackFn (took ' + elapsed + 'ms against a 25ms cap)');
+});
+
+test('the timeout leg NEVER produces an unhandledRejection once the abandoned truthPackFn promise eventually rejects', async () => {
+  let onUnhandled = null;
+  const seen = [];
+  onUnhandled = (err) => seen.push(err);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200, truthPackFn: () => new Promise((_resolve, reject) => setTimeout(() => reject(new Error('late reject after the deadline won')), 30)), truthPackDeadlineMs: 5 } });
+    assert.strictEqual(r.state, 'render_mismatch');
+    assert.match(r.checks.truthPack.reason, /timed out after 5ms/);
+    // give the abandoned promise time to actually reject in the background.
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  assert.deepStrictEqual(seen, [], 'the late rejection was absorbed by the settled handler, never surfaced as an unhandledRejection');
+});
+
+test('opts.truthPackDeadlineMs overrides the module default when finite and positive; an invalid override falls back to TRUTH_PACK_DEADLINE_MS', async () => {
+  assert.ok(Number.isFinite(TRUTH_PACK_DEADLINE_MS) && TRUTH_PACK_DEADLINE_MS > 0, 'the exported default is a sane positive CAP');
+  const t0 = Date.now();
+  const bad = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200, truthPackFn: async () => ({ ok: true }), truthPackDeadlineMs: -5 } });
+  // a well-behaved (fast, resolving) truthPackFn still succeeds regardless of a bogus override value, since
+  // it settles long before ANY positive deadline (the module default) could fire.
+  assert.strictEqual(bad.done, true);
+  assert.ok(Date.now() - t0 < 2000);
 });
 
 test('an unsafe live URL is refused before any fetch (SSRF door), and stateFor prioritises the row leg', async () => {

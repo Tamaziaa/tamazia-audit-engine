@@ -23,7 +23,9 @@
 // proves each failure leg with no network; the truth-pack is injectable too (opts.truthPackFn) AND, absent
 // that seam, runs the REAL render-proof/truth-pack.js checker against opts.renderedText (T3b landed). Without
 // a truthPackFn AND without renderedText there is no live page text to assert, so the leg is honestly NOT RUN
-// (ran:false) and the mint stays minted_pending_render (Rule 7: done is withheld, never faked).
+// (ran:false) and the mint stays minted_pending_render (Rule 7: done is withheld, never faked). The injected
+// truthPackFn call itself is wrapped in a hard Promise.race deadline (TRUTH_PACK_DEADLINE_MS, overridable via
+// opts.truthPackDeadlineMs) so a hanging truth-pass degrades this leg, it never hangs the whole mint (Rule 9).
 
 const fs = require('fs');
 const path = require('path');
@@ -32,6 +34,11 @@ const { ENGINE_VERSION } = require('./version.js');
 const { defaultSqlFn, safeTable, DEFAULT_TABLE } = require('./persist.js');
 
 const LIVE_DEADLINE_MS = 10000; // a CAP on the live-200 probe (Rule 8/9).
+const TRUTH_PACK_DEADLINE_MS = 20000; // a CAP on the injected truthPackFn call (Rule 8/9): a hanging
+  // render truth-pass (e.g. a stuck browser) degrades the leg, it never hangs the mint. Sized like the
+  // other second-tier deadlines in this pipeline (mint/index.js LLM_CALL_DEADLINE_MS, mint/llm-seam.js
+  // DEFAULT_DEADLINE_MS) - heavier than the plain LIVE_DEADLINE_MS HTTP probe above, still well under the
+  // total mint budget. Overridable per call via opts.truthPackDeadlineMs (mint/index.js threads it).
 const TRUTH_PACK_REL = path.join('render-proof', 'truth-pack.spec.js'); // the render-truth lane harness (the named ledger gate)
 const TRUTH_PACK_MODULE_REL = path.join('render-proof', 'truth-pack.js'); // the PURE checker this unit invokes
 
@@ -87,25 +94,55 @@ async function defaultLiveFetch(url) {
 
 // ── (c) truth-pack: the render truth-pass (Rule 7 / C-124). Three sources, in priority order. ─────────────
 // truthPackFnLeg(payload, opts) -> the authoritative injected-fn leg, GUARDED (CodeRabbit,
-// mint/post-write-assertions.js:112): unlike a bare await, a throwing/rejecting opts.truthPackFn (e.g. a
-// stuck browser truth-pass) can no longer propagate an uncaught exception out of truthPackCheck/assertMinted
-// - it degrades to a ran-but-FAILED leg, mirroring runRealTruthPack's own fail-open contract below. A
-// bounded Promise.race deadline on this call is a tracked follow-up (Rule 8/9), not yet wired here.
-// truthPackFnResultLeg(r) -> the injected-fn leg shape for a resolved (non-throwing) truthPackFn result.
+// mint/post-write-assertions.js:112, PR #20 comment 3610487213): a throwing/rejecting/HANGING
+// opts.truthPackFn (e.g. a stuck browser truth-pass) can no longer propagate an uncaught exception NOR
+// hold the mint hostage - it degrades to a ran-but-FAILED leg under a hard Promise.race deadline (Rule
+// 8/9), mirroring runRealTruthPack's own fail-open contract below and defaultLiveFetch's cap above.
+//
+// truthPackDeadlineMs(opts) -> the CAP (ms) bounding the truthPackFn call: opts.truthPackDeadlineMs wins
+// when it is a finite positive number (the mint/index.js caller-override seam), else TRUTH_PACK_DEADLINE_MS.
+function truthPackDeadlineMs(opts) {
+  return Number.isFinite(opts.truthPackDeadlineMs) && opts.truthPackDeadlineMs > 0 ? opts.truthPackDeadlineMs : TRUTH_PACK_DEADLINE_MS;
+}
+// raceTruthPackFn(fn, payload, ms) -> Promise<{ timedOut, value?, error? }>, the SAME hard Promise.race
+// shape as llm/router.js's withDeadline (Rule 8/9): `settled` attaches BOTH a fulfil and a reject handler
+// to the call BEFORE racing it against the timer, so a late rejection from a slow fn resolves to an
+// { error } value here rather than ever surfacing as an unhandledRejection once the timer has already
+// won the race. The timer is cleared in a finally, so nothing dangles in the event loop (no hung
+// node:test runs).
+function raceTruthPackFn(fn, payload, ms) {
+  let timer = null;
+  const settled = Promise.resolve().then(() => fn(payload)).then(
+    (value) => ({ timedOut: false, value }),
+    (error) => ({ timedOut: false, error })
+  );
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ timedOut: true }), ms);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+  });
+  return Promise.race([settled, timeout]).finally(() => { if (timer) clearTimeout(timer); });
+}
+// truthPackFnResultLeg(r) -> the injected-fn leg shape for a resolved (non-throwing, non-timed-out)
+// truthPackFn result.
 function truthPackFnResultLeg(r) {
   const ok = Boolean(r && r.ok);
   const reason = (r && r.reason) || (ok ? null : 'truth-pack reported a render mismatch');
   return { ok, ran: true, reason };
 }
 async function truthPackFnLeg(payload, opts) {
-  try {
-    const r = await opts.truthPackFn(payload);
-    return truthPackFnResultLeg(r);
-  } catch (e) {
+  const ms = truthPackDeadlineMs(opts);
+  const raced = await raceTruthPackFn(opts.truthPackFn, payload, ms);
+  if (raced.timedOut) {
+    // FAIL-OPEN: a hanging truthPackFn is a broken render gate, not a pass (Rule 9). The mint is never
+    // held hostage on it; the leg RESOLVES ran-but-FAILED so done stays false, exactly like a throw below.
+    return { ok: false, ran: true, reason: 'truthPackFn timed out after ' + ms + 'ms (Rule 9: a hanging render truth-pass degrades the leg, never hangs the mint)' };
+  }
+  if (raced.error !== undefined) {
     // FAIL-OPEN: a throwing/rejecting truthPackFn is a broken render gate, not a pass. Recorded as a
     // ran-but-failed leg so done stays false; never a thrown mint (Rule 7/17), exactly like runRealTruthPack.
-    return { ok: false, ran: true, reason: 'truthPackFn threw: ' + String((e && e.message) || e).slice(0, 120) };
+    return { ok: false, ran: true, reason: 'truthPackFn threw: ' + String((raced.error && raced.error.message) || raced.error).slice(0, 120) };
   }
+  return truthPackFnResultLeg(raced.value);
 }
 // notRunLeg(reason) -> the shared { ok:false, ran:false, reason } shape for both honest NOT-RUN paths below.
 function notRunLeg(reason) { return { ok: false, ran: false, reason }; }
@@ -210,4 +247,5 @@ module.exports = {
   TRUTH_PACK_REL,
   TRUTH_PACK_MODULE_REL,
   LIVE_DEADLINE_MS,
+  TRUTH_PACK_DEADLINE_MS,
 };
