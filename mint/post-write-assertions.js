@@ -34,13 +34,17 @@ const TRUTH_PACK_REL = path.join('render-proof', 'truth-pack.spec.js');
 
 // ── (a) row read-back: prove the row exists AND is THIS engine's version (never a stale-version row) ──
 // rowQuery(table) -> the parameterised read-back by (slug, hash) - the SAME key the website read serves,
-// so a read-back hit is proof the exact live page has a backing row (C-103). engine_version is returned so
-// a stale-version row (C-177) is caught, not silently accepted.
+// so a read-back hit is proof the exact live page has a backing row (C-103). The engine version is read as
+// `payload_json->>'engine_version'` - the SAME expression the live BEFORE-INSERT trigger gates on, NOT a
+// column (audit_pages has no engine_version column) - and aliased to `engine_version` so a stale-version
+// row (C-177) is caught, not silently accepted. The `'engine_version'` JSON key is a fixed literal, never
+// user input, so it carries no injection surface; only the table stays a validated identifier.
 function rowQuery(table) {
-  return 'SELECT slug, hash, engine_version FROM ' + safeTable(table) + ' WHERE slug=$1 AND hash=$2 LIMIT 1';
+  return "SELECT slug, hash, payload_json->>'engine_version' AS engine_version FROM " + safeTable(table) + ' WHERE slug=$1 AND hash=$2 LIMIT 1';
 }
 // readBackRow(row, opts) -> { ok, reason?, engine_version? }. ok ONLY when a row comes back AND its
-// engine_version equals THIS engine's version (Rule 15/C-177: a stale-version row is not a valid mint).
+// engine_version (read off the payload_json marker) equals THIS engine's version (Rule 15/C-177: a
+// stale-version row is not a valid mint).
 async function readBackRow(row, opts) {
   const table = opts.table || (opts.env && opts.env.MINT_TABLE) || DEFAULT_TABLE;
   const sqlFn = typeof opts.sqlFn === 'function' ? opts.sqlFn : defaultSqlFn(opts.env || process.env);

@@ -1,15 +1,24 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { assertMinted, stateFor } = require('./post-write-assertions.js');
+const { assertMinted, stateFor, rowQuery } = require('./post-write-assertions.js');
 const { ENGINE_VERSION } = require('./version.js');
 
 const ROW = { slug: 'oakhurst-legal-example', hash: 'deadbeef' };
 const PAYLOAD = { meta: { domain: 'oakhurst-legal.example' } };
 
-// a sql door that returns a matching, current-version row for the read-back.
+// a sql door that returns a matching, current-version row for the read-back. In production the read-back
+// query aliases `payload_json->>'engine_version'` to `engine_version` (audit_pages has NO engine_version
+// column), so a faithful fake returns that aliased field - the version off the marker the trigger gates on.
 const okSql = async () => ({ ok: true, rows: [{ slug: ROW.slug, hash: ROW.hash, engine_version: ENGINE_VERSION }] });
 const ok200 = async () => ({ status: 200 });
+
+test('the read-back reads the version from the payload_json marker (payload_json->>engine_version), NOT a column', () => {
+  const q = rowQuery('audit_pages');
+  assert.match(q, /payload_json->>'engine_version' AS engine_version/, 'reads the marker expression the live trigger itself gates on');
+  assert.match(q, /WHERE slug=\$1 AND hash=\$2/, 'keyed on the real (slug, hash) barrier the website read serves');
+  assert.doesNotMatch(q, /,\s*engine_version\s+FROM/, 'never selects a bare (phantom) engine_version column');
+});
 
 test('all three legs green with an injected passing truth-pack -> done:true, state "done" (Rule 7)', async () => {
   const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200, truthPackFn: async () => ({ ok: true }) } });
