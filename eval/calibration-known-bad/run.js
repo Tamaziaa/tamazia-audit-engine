@@ -303,6 +303,34 @@ const CALIBRATIONS = [
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-domassert-label-no-false-accusation.js'],
   },
 
+  // ---- WS0 taxonomy one-door gate (tools/taxonomy-onedoor/check.js, Constitution Rule 22) ----
+  {
+    name: 'ws0-taxonomy-second-door',
+    description:
+      'the vocabulary one-door gate (Constitution Rule 22, Kimi WS0 / blueprint 2.3) must flag a second '
+      + 'door for the shared taxonomy: a hardcoded multi-segment SECTOR-PATH literal (a healthcare / '
+      + 'aesthetics / injectables path) and a JURISDICTION_AXES declaration authored outside '
+      + 'taxonomy/index.js (the aesthetics-vs-injectables vocabulary that must have exactly one source). '
+      + 'It must NOT flag a non-path dotted signal name or the allowed doors (taxonomy/, facts/vocabulary.js). '
+      + 'The gate scans in-memory + on-disk content so it needs NO compiled catalogue and runs safely before '
+      + 'the catalogue compile in CI.',
+    fixtures: ['ws0-taxonomy-stray-literal.js'],
+    checkerCandidates: ['tools/taxonomy-onedoor/check.js'],
+  },
+
+  // ---- WS0 lane-empty gate (tools/lane-empty-gate/check.js, blueprint 2.2 invariant c) ----
+  {
+    name: 'ws0-lane-empty-array-return',
+    description:
+      'the lane-empty gate (Kimi WS0 / blueprint 2.2 invariant c) must flag an evidence lane ERROR path '
+      + 'that returns an empty array as if it were a value ("empty-arrays-flowing-as-success is how the '
+      + 'blank page rendered clean") instead of a typed LaneError. It must NOT flag a catch that returns a '
+      + 'LaneError, a bare return-[] outside a catch, or a sized new Array(n). AST (acorn) gate; the fixture '
+      + 'is self-sufficient (a lane-shaped function), needs NO compiled catalogue, runs before the compile.',
+    fixtures: ['ws0-lane-empty-return.js'],
+    checkerCandidates: ['tools/lane-empty-gate/check.js'],
+  },
+
   // ---- P6: the dead non-English honesty gate, now wired (repetition-audit-2026-07-19.md class #4, C-022) ----
   {
     name: 'p6-corpus-language-gate-fires',
