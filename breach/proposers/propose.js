@@ -214,10 +214,20 @@ function prohibitedHitInSentence(detectionSpec, sentence) {
 
 // sentenceVerdict(detectionSpec, sentence) -> 'hit' | 'guarded' | 'skip'. Named so the per-sentence scan
 // below is a single dispatch rather than three inline nested ifs (the health-gate Deep Nesting cap).
+// THE NEGATION/REVIEW GUARD IS UNCONDITIONAL (C-048/C-060/C-090): a compliant self-declaration ("we do
+// NOT charge admin fees", "we do not offer guarantees") or a customer testimonial is guarded away for
+// EVERY prohibition pattern, curated or derived - the false-accusation direction is never relaxed.
+// THE isProse GATE IS SKIPPED FOR A CURATED PROHIBITED-PHRASE PATTERN (prose_exempt): a real violation
+// lives in a Title-Case hero heading or a short CTA ("Book your Botox treatment", "Guaranteed Results"),
+// exactly the strings isProse rejects (>=25 chars, >=4 words, <=70% Title-Case - hidden-defects.md RANK 2).
+// The curated phrase is itself the precision guarantee, so the heading it sits in IS admissible evidence;
+// a bare law-prose-derived pattern (not prose_exempt) still needs genuine prose so it never quotes a nav
+// run as evidence (C-089).
 function sentenceVerdict(detectionSpec, sentence) {
-  if (!prohibitedHitInSentence(detectionSpec, sentence)) return 'skip';
+  const hit = prohibitedHitInSentence(detectionSpec, sentence);
+  if (!hit) return 'skip';
   if (spec.isNegated(sentence) || spec.looksLikeReview(sentence)) return 'guarded';
-  if (!spec.isProse(sentence)) return 'skip';
+  if (!hit.prose_exempt && !spec.isProse(sentence)) return 'skip';
   return 'hit';
 }
 // findProhibitedQuoteOnPage(detectionSpec, page) -> { quote, guarded } for ONE page: the first hitting
@@ -358,12 +368,35 @@ function specTokens(detectionSpec) {
   for (const p of detectionSpec.patterns) for (const t of tokensOf(p)) out.add(t);
   return out;
 }
+// singularise(token) -> the token with a single trailing regular-plural 's' removed, for a SAFE
+// whole-token morphological match (cookie<->cookies, tracker<->trackers, disclosure<->disclosures).
+// Guard-claused so it can NEVER unify two distinct stems the way a substring match did: a trailing
+// 'ss' ('access', 'address') is preserved (not a plural), and a token of <=4 chars is returned
+// verbatim so a short concept token ('alt', 'wcag', 'bot') only ever matches EXACTLY. This strips at
+// most one character, so the result always shares the token's full stem: 'health' can never collapse
+// onto 'alt' (C-059: the "post"->postcode / "health".includes("alt") substring class is unrepresentable).
+function singularise(token) {
+  const s = String(token).toLowerCase();
+  if (s.length <= 4) return s;
+  if (s.endsWith('ss')) return s;
+  return s.endsWith('s') ? s.slice(0, -1) : s;
+}
+// tokenMatchesConcept(t, c) -> does obligation token `t` match concept token `c` as a WHOLE TOKEN:
+// exact equality, or equal after stripping one regular-plural 's' from each. NEVER an infix/substring
+// containment (C-059: word-boundary anchored, substring matching against a rule pattern string is banned;
+// the "health".includes("alt")==true false accusation of US_FTC_HBNR, healthcare-us.md defect B).
+function tokenMatchesConcept(t, c) {
+  if (t === c) return true;
+  return singularise(t) === singularise(c);
+}
 // tokensIntersectConcepts(tokens, conceptTokens) -> does the obligation's token SET intersect a concept's
-// generic token list, by exact membership OR containment (a 'disabilities' obligation token concerns the
-// 'disability' concept). The ONE token-intersection door, reused by the network-observation router
-// (obligationConcerns) and the dom_node router (obligationConcernsDom) so the two lanes share one rule.
+// generic token list, matched WHOLE TOKEN to WHOLE TOKEN (never by substring containment). The ONE
+// token-intersection door, reused by the network-observation router (obligationConcerns) and the dom_node
+// router (obligationConcernsDom) so the two lanes share one rule. A plural obligation token still concerns
+// its singular concept ('cookies' -> 'cookie') via singularise, but no token ever matches a concept it
+// merely CONTAINS as a substring - so 'health' never routes a DOM node to an accessibility 'alt' concept.
 function tokensIntersectConcepts(tokens, conceptTokens) {
-  return (conceptTokens || []).some((c) => tokens.has(c) || [...tokens].some((t) => t.includes(c)));
+  return (conceptTokens || []).some((c) => [...tokens].some((t) => tokenMatchesConcept(t, c)));
 }
 // obligationConcerns(detectionSpec, obsKind) -> does this behavioural obligation concern an observation
 // of this kind (token intersection with the generic concept set); gates C-039/C-042 to consent duties.

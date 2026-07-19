@@ -242,22 +242,13 @@ function patternsFromElement(elementText, evidenceType, pageClass) {
     .map((p) => buildAnchoredRegex(p))
     .filter(Boolean)
     .map((src) => ({ kind: 'anchored-regex', value: src, negation_guarded: evidenceType === 'absence' }));
-  addDerivedTokenPattern(patterns, phrases, tokens, evidenceType);
+  addDerivedTokenPattern(patterns, tokens, evidenceType);
   if (needsFindabilityPattern(evidenceType, pageClass, elementText)) {
     patterns.push({ kind: 'url-path', value: '/' + pageClass, negation_guarded: false });
   }
   return { patterns, unpatternable: patterns.length === 0 };
 }
 
-// A quoted prohibited phrase is the precise matcher; do not dilute it with a token-set. Without a quote,
-// only a DISTINCTIVE multi-token set (matched later within ONE sentence) is safe enough to pattern a
-// prohibition on; a single or generic token is refused (C-059/C-078). Recall is deliberately traded for
-// precision here - a missed prohibition is recoverable, a false accusation is not.
-function addProhibitionTokenPattern(patterns, phrases, tokens) {
-  if (phrases.length) return;
-  const distinctive = topDistinctive(tokens, 3);
-  if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: true });
-}
 function addRequirementTokenPattern(patterns, tokens) {
   const distinctive = topDistinctive(tokens, 2);
   if (distinctive.length >= 2) patterns.push({ kind: 'token-set', value: { tokens: distinctive, mode: 'all' }, negation_guarded: false });
@@ -267,13 +258,44 @@ function addRequirementTokenPattern(patterns, tokens) {
 function addLaneTokenPattern(patterns, tokens) {
   if (tokens.length) patterns.push({ kind: 'token-set', value: { tokens, mode: 'any' }, negation_guarded: false });
 }
-// addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) -> pushes the one token-set this
-// element contributes, polarity-aware per the doctrine above. Each evidence-type branch is its own named
-// helper (above) so this dispatcher stays a single conditional block (the "Bumpy Road" health-gate cap).
-function addDerivedTokenPattern(patterns, phrases, tokens, evidenceType) {
-  if (evidenceType === 'absence') { addProhibitionTokenPattern(patterns, phrases, tokens); return; }
+// addDerivedTokenPattern(patterns, tokens, evidenceType) -> pushes the one token-set this element
+// contributes, polarity-aware per the doctrine above. Each evidence-type branch is its own named helper
+// (above) so this dispatcher stays a single conditional block (the "Bumpy Road" health-gate cap).
+//
+// THE DESCRIPTIVE-TOKEN FALLBACK FOR A PROHIBITION IS DISABLED (hidden-defects.md RANK 1, the "paper
+// tiger"). It USED to derive a mode-'all' token-set from the LAW's DESCRIPTIVE PROSE (the duty/element
+// wording), so it patterned on how the OFFENCE IS DESCRIBED, never on how the VIOLATION APPEARS: the
+// CA_BPC_6157 rule compiled to [predictions,guarantees,warranties] and MISSED "We guarantee you will win
+// your case"; UK_MHRA_POM_AD_BAN compiled to [generic,brand,name] and MISSED "Book your Botox treatment".
+// A prohibition now matches ONLY on (a) a phrase quoted verbatim in the law prose (the anchored-regex
+// built above from quotedSpans, kept - the prose sometimes quotes the real offending phrase), and (b)
+// curated prohibited_phrases[] authored per record from the VIOLATING language (prohibitedPhrasePatterns,
+// added prose-exempt in specForObligation). The descriptive-token fallback that matched the law's own
+// words is gone; an 'absence' element that yields no quoted phrase contributes no token-set here, so a
+// record with neither a prose-quoted phrase nor authored prohibited_phrases is unpatternable and propose.js
+// abstains (the precision floor: a missed prohibition is recoverable, a false accusation is not - C-078/C-082).
+function addDerivedTokenPattern(patterns, tokens, evidenceType) {
+  if (evidenceType === 'absence') return; // prohibition matching is curated (prohibited_phrases) + prose-quoted only
   if (evidenceType === 'presence') { addRequirementTokenPattern(patterns, tokens); return; }
   addLaneTokenPattern(patterns, tokens);
+}
+// prohibitedPhrasePatterns(obligation, evidenceType) -> anchored-regex patterns built from the record's
+// curated prohibited_phrases[] (catalogue data, the one door for a law-adjacent fact - Rule 2). These are
+// the PRIMARY prohibition matcher: authored from the VIOLATING language as it appears on a page ("Botox",
+// "guarantee you will win"), each word-boundary anchored (buildAnchoredRegex, never a substring - C-059),
+// negation_guarded so a compliant self-declaration is skipped (C-048/C-060), and prose_exempt so propose.js
+// matches them on Title-Case headings and short CTAs too, not only long prose (hidden-defects.md RANK 2 -
+// real superlative/guarantee/POM claims live in hero headings, exactly what isProse rejects). Only a
+// PROHIBITION ('absence') carries them; any other evidence_type ignores the field.
+function prohibitedPhrasePatterns(obligation, evidenceType) {
+  if (evidenceType !== 'absence') return [];
+  const phrases = Array.isArray(obligation.prohibited_phrases) ? obligation.prohibited_phrases : [];
+  const out = [];
+  for (const phrase of phrases) {
+    const src = buildAnchoredRegex(phrase);
+    if (src) out.push({ kind: 'anchored-regex', value: src, negation_guarded: true, prose_exempt: true });
+  }
+  return out;
 }
 
 // dedupePatterns(patterns) -> patterns unique by (kind + normalised value), preserving order.
@@ -315,7 +337,11 @@ function specForObligation(record, obligation, dutyIdx) {
   const pageClass = pageClassFor(obligation);
   const surface = surfaceFor(obligation);
   const sources = [obligation.duty, ...(Array.isArray(obligation.elements) ? obligation.elements : [])];
-  const { patterns, unpatternable } = collectPatterns(sources, evidenceType, pageClass);
+  const { patterns: elementPatterns, unpatternable } = collectPatterns(sources, evidenceType, pageClass);
+  // Curated prohibited_phrases go FIRST so that when a phrase is ALSO quoted verbatim in the law prose
+  // (both compile to the identical anchored-regex source), dedupePatterns keeps the prose_exempt copy
+  // (first wins), so the heading-matching exemption is never lost to an isProse-gated prose-derived twin.
+  const patterns = prohibitedPhrasePatterns(obligation, evidenceType).concat(elementPatterns);
   return {
     record_id: record.id,
     duty_idx: dutyIdx,

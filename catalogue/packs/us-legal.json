@@ -769,6 +769,20 @@
       "no guarantee or prediction of result",
       "required disclaimer accompanies dramatisations, spokespersons or testimonials"
      ],
+     "prohibited_phrases": [
+      "guarantee you will win",
+      "guarantee you win",
+      "guaranteed to win",
+      "we guarantee a win",
+      "guaranteed results",
+      "guarantee results",
+      "guaranteed outcome",
+      "guaranteed result",
+      "guaranteed settlement",
+      "guaranteed compensation",
+      "guaranteed verdict",
+      "win your case guaranteed"
+     ],
      "evidence_type": "absence"
     }
    ],

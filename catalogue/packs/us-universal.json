@@ -42,6 +42,14 @@
       "no false or unsupported performance, health, earnings or savings claims",
       "no deceptive omission of a fact material to a purchase decision"
      ],
+     "prohibited_phrases": [
+      "miracle cure",
+      "cures all diseases",
+      "guaranteed to cure",
+      "melts away fat",
+      "lose weight while you sleep",
+      "get rich quick"
+     ],
      "evidence_type": "absence"
     },
     {

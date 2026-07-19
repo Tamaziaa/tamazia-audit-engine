@@ -225,6 +225,22 @@
       "no indirect POM references that imply a named POM",
       "consultation service may be offered without naming the POM"
      ],
+     "prohibited_phrases": [
+      "Botox",
+      "Dysport",
+      "Bocouture",
+      "Azzalure",
+      "Xeomin",
+      "botulinum toxin",
+      "anti-wrinkle injections",
+      "wrinkle-relaxing injections",
+      "fat jab",
+      "Wegovy",
+      "Ozempic",
+      "Mounjaro",
+      "semaglutide",
+      "tirzepatide"
+     ],
      "evidence_type": "absence"
     },
     {
@@ -1080,6 +1096,15 @@
       "no public-facing promotion of POM-V products",
       "OTC veterinary products advertised in line with their authorisation",
       "seller of veterinary medicines is registered where required"
+     ],
+     "prohibited_phrases": [
+      "buy Metacam",
+      "Metacam without a prescription",
+      "buy Bravecto",
+      "buy Nexgard",
+      "buy Apoquel",
+      "POM-V without a prescription",
+      "prescription medicine no prescription needed"
      ],
      "evidence_type": "absence"
     }
