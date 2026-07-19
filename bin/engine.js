@@ -178,7 +178,12 @@ async function cmdPacket(args) {
   const catalogue = loadCatalogueFrom(args);
   const result = await rerunScratch(site, args, { manifestStore, catalogue }, '-packet-scratch');
   const reportText = reportTextFrom(args);
-  const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings) : null;
+  // Kimi K3 finding O3 (live audit 2026-07-20): lintNoOrphanClaims accepts an artifact id set alongside
+  // finding ids (the module's own header always promised "cites a finding_id OR an artifact"); this run's
+  // own ArtifactStore is right here (result.captureIndex), so a report citing an artifact by its
+  // evidence_id or sha256 is honoured, not just a citation to a finding_id.
+  const artifactIds = result.captureIndex ? result.captureIndex.list().flatMap((a) => [a.evidence_id, a.sha256]) : [];
+  const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings, artifactIds) : null;
   const html = buildPacketHtml(Object.assign({}, result, { lintResult }));
   const outPath = packetOutPathFor(args, manifestStore);
   fs.writeFileSync(outPath, html, 'utf8');

@@ -20,17 +20,38 @@ const BANNED_PHRASES = Object.freeze([
 const SOFTENED_EQUIVALENT = 'potential issue identified by automated analysis';
 
 // FINDING_ID_RE / ARTIFACT_ID_RE: a citation is any bracketed or parenthetical token that names a
-// finding_id (16 hex chars, this repo's deriveFindingId() output length) or an evidence_id of the same
-// shape, OR the literal word "Finding" / "Evidence" followed by an id-looking token. Deliberately liberal
-// (this lint's job is to catch a sentence with NO citation at all, not to police citation formatting).
-const CITATION_RE = /\b(?:finding|evidence)[\s:#-]*([a-f0-9]{6,32})\b/i;
-const BARE_ID_RE = /\b[a-f0-9]{16}\b/i;
+// finding_id (16 hex chars, this repo's deriveFindingId() output length) or an evidence_id/artifact hash of
+// the same general shape, OR the literal word "Finding" / "Evidence" followed by an id-looking token.
+// Deliberately liberal (this lint's job is to catch a sentence with NO citation at all, not to police
+// citation formatting).
+//
+// Kimi K3 finding O3 (live audit 2026-07-20): this module's own header promises a citation is a finding_id
+// OR AN ARTIFACT, but the old bounds (CITATION_RE capped at 32 hex chars, BARE_ID_RE required EXACTLY 16)
+// could never match a full 64-char sha256 artifact hash (capture-index.js's own `sha256` field on every
+// captured artifact) - a report citing an artifact by its real hash was unmatchable by either regex, and
+// hasCitation() only ever checked finding_ids in the first place (see its own doc below). Both bounds now
+// run up to 64 hex chars (finding_id=16, evidence_id=16, sha256=64 - one shared upper bound covers all
+// three without narrowing what still counts as "an id-shaped token"), and hasCitation() accepts a caller-
+// supplied artifact id set alongside finding ids.
+const CITATION_RE = /\b(?:finding|evidence)[\s:#-]*([a-f0-9]{6,64})\b/i;
+const BARE_ID_RE = /\b[a-f0-9]{6,64}\b/i;
 
-// splitSentences(text) -> a naive but adequate sentence split for a compliance-report draft (splits on
-// '. '/'.\n'/'!'/'?' followed by whitespace or end of string; keeps the terminator on the sentence).
+// LIST_MARKER_BREAK_RE: a single newline is a real sentence boundary when the NEXT line opens with a list
+// marker ('-', '*', '•', or a numbered/lettered marker like '1.'/'2)') - Kimi K3 finding HIGH-6, live audit
+// 2026-07-20: the old split only broke on '\n\n' or on '. '+capital, so two bullet lines separated by ONE
+// newline (a normal Markdown-style list, e.g. a drafted report's own bullet findings) were glued into a
+// SINGLE "sentence" for citation purposes - a citation on the FIRST bullet made hasCitation() see it
+// anywhere in the glued blob and silently cover an UNCITED second bullet's claim right beside it.
+const LIST_MARKER_BREAK_RE = '\\n(?=\\s*(?:[-*•]|\\d+[.)])\\s)';
+
+// splitSentences(text) -> a naive but adequate sentence split for a compliance-report draft: splits on
+// '. '/'.\n'/'!'/'?' followed by whitespace+capital/digit/quote, on a blank line ('\n\n'+), OR on a single
+// newline immediately before a list-marker-opened line (see LIST_MARKER_BREAK_RE above) - keeps the
+// terminator on the sentence.
 function splitSentences(text) {
+  const re = new RegExp('(?<=[.!?])\\s+(?=[A-Z0-9"\'])|\\n{2,}|' + LIST_MARKER_BREAK_RE);
   return String(text || '')
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9"'])|\n{2,}/)
+    .split(re)
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -38,19 +59,29 @@ function splitSentences(text) {
 // isFactualSentence(sentence) -> a light heuristic: a sentence is treated as a FACTUAL CLAIM (and thus
 // required to carry a citation) when it contains a verb suggesting an assertion about the audited site
 // ('found', 'detected', 'shows', 'displays', 'fails to', 'does not', 'breaches', 'lacks', 'missing',
-// 'observed') rather than pure scaffolding prose ('This report covers...', headings, boilerplate). A
+// 'observed', 'promises', 'claims', 'states', 'advertises', 'guarantees', 'offers', 'asserts',
+// 'represents') rather than pure scaffolding prose ('This report covers...', headings, boilerplate). A
 // deliberately conservative heuristic: it is meant to catch orphaned accusations, not to police every
 // sentence in the document; a false "needs citation" is a cheaper failure mode than a false "this is fine".
-const CLAIM_VERBS = /\b(found|detected|shows?|displays?|fails? to|does not|breaches?|lacks?|missing|observed|is regulated|does provide|has published)\b/i;
+//
+// Kimi K3 finding HIGH-6 (live audit 2026-07-20): the original verb list had no MARKETING/PROMISE verbs at
+// all, so a factual claim about the audited site's own content phrased as "Your homepage promises
+// guaranteed returns." - the exact class of sentence a fin-promo/consumer-protection finding would need to
+// cite - required no citation whatsoever and slipped past the lint entirely.
+const CLAIM_VERBS = /\b(found|detected|shows?|displays?|fails? to|does not|breaches?|lacks?|missing|observed|is regulated|does provide|has published|promises?|claims?|states?|advertises?|guarantees?|offers?|asserts?|represents?)\b/i;
 function isFactualSentence(sentence) {
   return CLAIM_VERBS.test(sentence);
 }
 
-function hasCitation(sentence, knownFindingIds) {
+// hasCitation(sentence, knownIds) -> true when `sentence` names a REAL id from `knownIds` - either a
+// finding_id (via createFinding()'s output) or an artifact id (evidence_id/sha256, Kimi K3 finding O3: the
+// module's own header promises "finding_id OR an artifact", so `knownIds` is the UNION of both sets, built
+// once by lintNoOrphanClaims() below, never finding_ids alone).
+function hasCitation(sentence, knownIds) {
   const m = sentence.match(CITATION_RE);
-  if (m && knownFindingIds.has(m[1].toLowerCase())) return true;
+  if (m && knownIds.has(m[1].toLowerCase())) return true;
   const bare = sentence.match(BARE_ID_RE);
-  if (bare && knownFindingIds.has(bare[0].toLowerCase())) return true;
+  if (bare && knownIds.has(bare[0].toLowerCase())) return true;
   return false;
 }
 
@@ -88,26 +119,34 @@ function bannedPhraseViolation(sentence, findingsById) {
   return Object.assign({}, banned, { type: citedId ? 'banned_phrase_wrong_tier' : 'banned_phrase', cited_tier: tier });
 }
 
-// violationForSentence(sentence, findingsById, knownFindingIds) -> the ONE violation (if any) a single
-// sentence produces. An orphaned factual claim is reported once and never ALSO checked for a banned
-// phrase (an uncited sentence is already the worse finding; double-counting it would just be noise).
-function violationForSentence(sentence, findingsById, knownFindingIds) {
-  if (isFactualSentence(sentence) && !hasCitation(sentence, knownFindingIds)) {
+// violationForSentence(sentence, findingsById, knownIds) -> the ONE violation (if any) a single sentence
+// produces. An orphaned factual claim is reported once and never ALSO checked for a banned phrase (an
+// uncited sentence is already the worse finding; double-counting it would just be noise).
+function violationForSentence(sentence, findingsById, knownIds) {
+  if (isFactualSentence(sentence) && !hasCitation(sentence, knownIds)) {
     return { type: 'orphan_claim', sentence, reason: 'factual sentence cites no finding_id or artifact' };
   }
   return bannedPhraseViolation(sentence, findingsById);
 }
 
-// lintNoOrphanClaims(reportText, findings) -> { ok, violations: [{type, sentence, ...}] }.
+// lintNoOrphanClaims(reportText, findings, artifactIds) -> { ok, violations: [{type, sentence, ...}] }.
 //   - orphan_claim: a factual sentence with no finding/evidence citation at all.
 //   - banned_phrase: a top-tier phrase used without a CONFIRMED-class citation backing it.
 //   - banned_phrase_wrong_tier: a top-tier phrase citing a real finding that is NOT class CONFIRMED.
-function lintNoOrphanClaims(reportText, findings) {
+//
+// `artifactIds` (Kimi K3 finding O3, live audit 2026-07-20) is an OPTIONAL iterable of real artifact ids
+// (e.g. every captured artifact's evidence_id/sha256 for this run - bin/engine.js's `cmdPacket` wires the
+// run's own ArtifactStore through here) - a citation to a real artifact satisfies hasCitation() exactly like
+// a citation to a real finding_id, matching this module's own documented promise ("cite a finding_id or an
+// artifact"). Omitting it preserves the OLD (finding-ids-only) behaviour for any caller that has no
+// artifact set to hand - this is purely additive, never a narrowing of what already passed.
+function lintNoOrphanClaims(reportText, findings, artifactIds) {
   const list = Array.isArray(findings) ? findings : [];
   const findingsById = new Map(list.map((f) => [String(f.finding_id).toLowerCase(), f]));
-  const knownFindingIds = new Set(findingsById.keys());
+  const knownIds = new Set(findingsById.keys());
+  for (const id of (artifactIds || [])) knownIds.add(String(id).toLowerCase());
   const violations = splitSentences(reportText)
-    .map((sentence) => violationForSentence(sentence, findingsById, knownFindingIds))
+    .map((sentence) => violationForSentence(sentence, findingsById, knownIds))
     .filter(Boolean);
   return { ok: violations.length === 0, violations };
 }

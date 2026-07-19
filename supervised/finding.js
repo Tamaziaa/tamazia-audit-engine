@@ -46,6 +46,20 @@
 const crypto = require('crypto');
 const { FindingConstructionError } = require('./errors.js');
 
+// FINDING_BRAND: a private WeakSet marking every object createFinding()/withMitigation() actually returned
+// (Kimi K3 finding E4, live audit 2026-07-20; mirrors payload/contract/v1_2/core.js's own brands-WeakSet
+// idiom, reimplemented locally here rather than imported - Rule 1 does not require sharing a door across
+// architecturally separate layers, the same judgement call mint-gate.js's own header already makes for its
+// import surface). Without a brand, a hand-built plain object carrying every right-looking field
+// (finding_id, rule_id, quote, class, ...) is INDISTINGUISHABLE from a real Finding to any field-level check
+// - a look-alike could be fed straight to mint-gate.js and pass every structural test without ever having
+// gone through createFinding()'s validation. isFinding(v) is the one way to ask "is this a REAL Finding",
+// and mint-gate.js requires it before minting anything.
+const FINDING_BRAND = new WeakSet();
+function isFinding(v) {
+  return typeof v === 'object' && v !== null && FINDING_BRAND.has(v);
+}
+
 const FINDING_CLASS = Object.freeze({
   CONFIRMED: 'confirmed',
   LIKELY: 'likely',
@@ -138,13 +152,28 @@ function canonicalQuote(quote) {
   return Object.freeze({ evidence_id: quote.evidence_id, byte_start: quote.byte_start, byte_end: quote.byte_end, span_sha256: quote.span_sha256 });
 }
 
-// deriveFindingId(ruleId, quote) -> sha256(rule_id + '|' + evidence_id + '|' + byte_start + '-' + byte_end
-// + '|' + span_sha256). Deterministic: the SAME rule bound to the SAME byte range AND the same span bytes
-// always yields the SAME id, which is exactly what replay.js needs to recognise "this is the same finding
+// deriveFindingId(ruleId, quote, findingClass, jurisdiction) -> sha256(rule_id + '|' + class + '|' +
+// jurisdiction + '|' + evidence_id + '|' + byte_start + '-' + byte_end + '|' + span_sha256). Deterministic:
+// the SAME rule bound to the SAME byte range AND the same span bytes AND the same class/jurisdiction always
+// yields the SAME id, which is exactly what replay.js needs to recognise "this is the same finding
 // reproduced". Including span_sha256 means two findings at identical offsets but over DIFFERENT captured
 // bytes (a content change) get distinct ids, never a collision.
-function deriveFindingId(ruleId, quote) {
-  const basis = ruleId + '|' + quote.evidence_id + '|' + quote.byte_start + '-' + quote.byte_end + '|' + quote.span_sha256;
+//
+// class and jurisdiction are IN THE BASIS (Kimi K3 finding E1, live audit 2026-07-20): a mint-gate sign-off
+// is recorded PER finding_id (mint-gate.js's checkSignature keys a 'ship' decision to finding_id, and
+// orphan-lint.js's banned-phrase licence keys off a cited finding's OWN f.class read back off the SAME
+// finding_id at render time). Before this fix the basis carried only rule_id/quote, so a needs_human finding
+// could be signed, then REBUILT with class:'confirmed' (or a flipped jurisdiction) over the exact same
+// quote, and land on the IDENTICAL id - the old signature's 'ship' decision would silently cover the new,
+// never-reviewed, stronger-voice finding, and a jurisdiction flip would be invisible to any id-keyed check.
+// With class/jurisdiction in the basis, EITHER change mints a DIFFERENT finding_id, which has no recorded
+// signature decision, so mint-gate.js's checkSignature refuses it as UNDECIDED_FINDING - never silently
+// inherits an older, differently-scoped sign-off. A legitimate stage-6 downgrade never hits this: Claude's
+// suppress-only review (run-harness.js's own doc) never re-derives a Finding with a different class over the
+// same quote - it only appends a mitigation_log entry via withMitigation() below, which never touches
+// finding_id.
+function deriveFindingId(ruleId, quote, findingClass, jurisdiction) {
+  const basis = ruleId + '|' + findingClass + '|' + jurisdiction + '|' + quote.evidence_id + '|' + quote.byte_start + '-' + quote.byte_end + '|' + quote.span_sha256;
   return crypto.createHash('sha256').update(basis, 'utf8').digest('hex').slice(0, 16);
 }
 
@@ -202,7 +231,7 @@ function frozenMitigationLog(f) {
 // already-validated `f` and the canonicalised (already-frozen) `quote`.
 function buildFindingObject(f, quote) {
   return {
-    finding_id: deriveFindingId(f.rule_id, quote),
+    finding_id: deriveFindingId(f.rule_id, quote, f.class, f.jurisdiction),
     rule_id: f.rule_id,
     catalogue_hash: f.catalogue_hash,
     quote,
@@ -220,7 +249,9 @@ function buildFindingObject(f, quote) {
 function createFinding(fields) {
   const f = fields || {};
   assertFindingFields(f);
-  return Object.freeze(buildFindingObject(f, canonicalQuote(f.quote)));
+  const finding = Object.freeze(buildFindingObject(f, canonicalQuote(f.quote)));
+  FINDING_BRAND.add(finding);
+  return finding;
 }
 
 // withMitigation(finding, entry) -> a NEW frozen Finding with `entry` appended to mitigation_log (never
@@ -228,11 +259,39 @@ function createFinding(fields) {
 // this module). `entry` is expected to carry { source:'claude-adversarial', objection, artifact_ref,
 // verified, outcome } (stage 6's kill-log shape; see run-harness.js's applyAdversarialReview doc), but this
 // function does not itself validate that shape - it is a generic append, the caller owns the entry's fields.
-function withMitigation(finding, entry) {
-  if (!finding || typeof finding !== 'object') {
-    throw new FindingConstructionError('finding', 'withMitigation requires an existing Finding object');
-  }
-  return Object.freeze(Object.assign({}, finding, { mitigation_log: Object.freeze(finding.mitigation_log.concat([entry])) }));
+// deepFreezeClone(entry) -> a structuredClone of `entry`, deep-frozen (every nested plain object/array
+// frozen too, not just the top level - the same shallow-freeze gap CodeRabbit flagged for Finding.quote
+// applies here: Object.freeze(logEntry) alone would not stop a caller mutating a NESTED field of a recorded
+// verdict, e.g. entry.artifact_ref.byte_start, after it was appended to mitigation_log). structuredClone
+// severs the entry from whatever mutable object the caller still holds a reference to, so freezing the
+// clone can never be defeated by the caller mutating their own original object post-append (Kimi K3
+// finding E4).
+function deepFreezeClone(entry) {
+  const clone = structuredClone(entry === undefined ? null : entry);
+  return deepFreeze(clone);
+}
+function deepFreeze(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  for (const key of Object.keys(value)) deepFreeze(value[key]);
+  return value;
 }
 
-module.exports = { createFinding, withMitigation, FINDING_CLASS, deriveFindingId };
+// withMitigation(finding, entry) -> a NEW frozen, branded Finding with a deep-frozen CLONE of `entry`
+// appended to mitigation_log (never mutates the original - findings are immutable values once constructed,
+// per Rule 1 discipline extended to this module). `entry` is expected to carry { source:'claude-adversarial',
+// objection, artifact_ref, verified, outcome } (stage 6's kill-log shape; see run-harness.js's
+// applyAdversarialReview doc), but this function does not itself validate that shape - it is a generic
+// append, the caller owns the entry's fields. `finding` must be a REAL Finding produced by createFinding()
+// or a prior withMitigation() call (FINDING_BRAND-checked, Kimi K3 finding E4) - a field-correct look-alike
+// is refused here, the same discipline mint-gate.js enforces before minting.
+function withMitigation(finding, entry) {
+  if (!isFinding(finding)) {
+    throw new FindingConstructionError('finding', 'withMitigation requires a REAL Finding produced by createFinding() (or a prior withMitigation() call), not a look-alike object');
+  }
+  const next = Object.freeze(Object.assign({}, finding, { mitigation_log: Object.freeze(finding.mitigation_log.concat([deepFreezeClone(entry)])) }));
+  FINDING_BRAND.add(next);
+  return next;
+}
+
+module.exports = { createFinding, withMitigation, FINDING_CLASS, deriveFindingId, isFinding };
