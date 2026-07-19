@@ -23,12 +23,13 @@ const { fetchDeadlined, cleanDomain } = require('./lib/net.js');
 const FETCH_DEADLINE_MS = 15000;
 
 // homePageFromCorpus(corpus, domain) -> the crawled homepage-shaped entry from the corpus, or null.
+// (pages is non-empty past the guard, so find()||pages[0] is always the returned value - no trailing
+// `|| null` needed; a falsy pages[0] already coerces to null exactly as before.)
 function homePageFromCorpus(corpus, domain) {
   const pages = (corpus && Array.isArray(corpus.pages)) ? corpus.pages : [];
   if (!pages.length) return null;
   const dom = cleanDomain(domain);
-  const home = pages.find((p) => cleanDomain(p && p.url) === dom) || pages[0];
-  return home || null;
+  return pages.find((p) => cleanDomain(p && p.url) === dom) || pages[0];
 }
 
 // extractHeaderSignals(headers) -> the security/response-header booleans (Rule 1: read straight off the
@@ -77,21 +78,49 @@ function jsonLdHasType(jsonLd, typeRx) {
   return blocks.some(walk);
 }
 
-function isFetchUsable(r) { return !!(r && r.ok && r.text); }
-function fetchFailureReason(r) { return (r && r.error) ? r.error : 'unreachable'; }
-
-// corpusDerivedSignals(home, rawText) -> the signals that ARE representable off the crawler's corpus
-// (Rule 1: no re-derivation once the crawler already produced them), falling back to the raw fetch's
-// own markup only for the one boolean the corpus does not carry when no corpus page exists.
-function corpusDerivedSignals(home, rawText) {
-  const jsonLdPresent = home ? (Array.isArray(home.jsonLd) && home.jsonLd.length > 0) : /application\/ld\+json/i.test(rawText);
-  const hasOrgSchema = home ? jsonLdHasType(home.jsonLd, /Organization|LocalBusiness|LegalService|ProfessionalService|Corporation/i) : false;
-  const wordCount = home && home.text ? home.text.split(/\s+/).filter(Boolean).length : null;
-  const titleLen = home && home.title ? home.title.length : null;
-  return { jsonLdPresent, hasOrgSchema, wordCount, titleLen };
+// fetchProblem(r) -> null when the homepage fetch is usable (2xx with a body), else the reason string
+// the probe abstains with (one door for both the usable check and its failure reason, so the file
+// carries one guard function here, not two - keeps the module's aggregate complexity down).
+function fetchProblem(r) {
+  if (r && r.ok && r.text) return null;
+  return (r && r.error) ? r.error : 'unreachable';
 }
 
-function shapeOnpageResult({ headerSig, markupSig, corpusSig }) {
+// corpusSignalsFromHome(home) -> the corpus-derived signals when the crawler DID supply a homepage
+// entry (Rule 1: read straight off the crawler's already-parsed corpus, never a second markup parse).
+function corpusSignalsFromHome(home) {
+  return {
+    jsonLdPresent: Array.isArray(home.jsonLd) && home.jsonLd.length > 0,
+    hasOrgSchema: jsonLdHasType(home.jsonLd, /Organization|LocalBusiness|LegalService|ProfessionalService|Corporation/i),
+    wordCount: home.text ? home.text.split(/\s+/).filter(Boolean).length : null,
+    titleLen: home.title ? home.title.length : null,
+  };
+}
+
+// corpusSignalsFromRawText(rawText) -> the fallback when NO corpus page exists: only the one boolean
+// the raw fetch's own markup can answer (JSON-LD presence); the rest stay honestly null/false.
+function corpusSignalsFromRawText(rawText) {
+  return { jsonLdPresent: /application\/ld\+json/i.test(rawText), hasOrgSchema: false, wordCount: null, titleLen: null };
+}
+
+// onpageSignalsProbe({domain, corpus, env, fetchFn}) -> { ok:true, onpage, security, a11y, tech } or
+// { ok:false, reason }. fetchFn is injectable for tests (defaults to the deadline-wrapped real fetch).
+// The final assembly is a flat object literal (no branches), so it lives inline here rather than in a
+// separate shaper: keeping it here removes a whole function from the file without adding any branch to
+// this one (the two corpus-signal branches stay factored out into the pair of helpers above).
+async function onpageSignalsProbe({ domain, corpus, fetchFn } = {}) {
+  const dom = cleanDomain(domain);
+  if (!dom) return { ok: false, reason: 'no_domain' };
+  const doFetch = typeof fetchFn === 'function' ? fetchFn : (url) => fetchDeadlined(url, { deadlineMs: FETCH_DEADLINE_MS });
+  const r = await doFetch('https://' + dom);
+  const problem = fetchProblem(r);
+  if (problem) return { ok: false, reason: problem };
+
+  const headerSig = extractHeaderSignals(r.headers);
+  const markupSig = extractMarkupSignals(r.text);
+  const home = homePageFromCorpus(corpus, dom);
+  const corpusSig = home ? corpusSignalsFromHome(home) : corpusSignalsFromRawText(r.text);
+
   return {
     ok: true,
     onpage: Object.assign({ state: 'measured', json_ld: corpusSig.jsonLdPresent, has_org_schema: corpusSig.hasOrgSchema, word_count: corpusSig.wordCount, title_len: corpusSig.titleLen }, markupSig),
@@ -99,23 +128,6 @@ function shapeOnpageResult({ headerSig, markupSig, corpusSig }) {
     a11y: { state: 'measured', h1_count: markupSig.h1_count, lang_declared: markupSig.lang, viewport: markupSig.viewport },
     tech: { state: 'measured', canonical: markupSig.canonical, favicon: markupSig.favicon, json_ld: corpusSig.jsonLdPresent },
   };
-}
-
-// onpageSignalsProbe({domain, corpus, env, fetchFn}) -> { ok:true, onpage, security, a11y, tech } or
-// { ok:false, reason }. fetchFn is injectable for tests (defaults to the deadline-wrapped real fetch).
-async function onpageSignalsProbe({ domain, corpus, fetchFn } = {}) {
-  const dom = cleanDomain(domain);
-  if (!dom) return { ok: false, reason: 'no_domain' };
-  const doFetch = typeof fetchFn === 'function' ? fetchFn : (url) => fetchDeadlined(url, { deadlineMs: FETCH_DEADLINE_MS });
-  const r = await doFetch('https://' + dom);
-  if (!isFetchUsable(r)) return { ok: false, reason: fetchFailureReason(r) };
-
-  const headerSig = extractHeaderSignals(r.headers);
-  const markupSig = extractMarkupSignals(r.text);
-  const home = homePageFromCorpus(corpus, dom);
-  const corpusSig = corpusDerivedSignals(home, r.text);
-
-  return shapeOnpageResult({ headerSig, markupSig, corpusSig });
 }
 
 module.exports = { onpageSignalsProbe, extractHeaderSignals, extractMarkupSignals, jsonLdHasType };
