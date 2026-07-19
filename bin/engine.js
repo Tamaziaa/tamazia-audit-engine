@@ -136,7 +136,8 @@ async function cmdRun(args) {
   return 0;
 }
 
-// rerunScratch(site, args, manifestStore, catalogue, suffix) -> Promise<RunResult>. Several commands
+// rerunScratch(site, args, ctx, suffix) -> Promise<RunResult>. `ctx` is {manifestStore, catalogue} - the
+// run's PRIMARY store/catalogue, bundled into one argument (never four loose ones). Several commands
 // (packet, mint, replay) need a LIVE ArtifactStore to re-read real bytes for an already-run run_id
 // (capture-index.js's manifest projection is hash-only - see its own doc), so they re-run the harness
 // over the SAME site. That rerun must NEVER be given the run's own runId + primary manifestStore:
@@ -146,9 +147,9 @@ async function cmdRun(args) {
 // regeneration. A scratch run_id (`<run_id><suffix>`) with a FRESH ManifestStore (same baseDir, so it
 // still lands under the same store root, just its own separate .jsonl file) keeps the rerun's manifest
 // noise completely apart from the authoritative record, exactly the isolation cmdReplay already used.
-async function rerunScratch(site, args, manifestStore, catalogue, suffix) {
-  const scratchStore = new ManifestStore({ baseDir: manifestStore.baseDir });
-  return runSupervised(site, Object.assign({ runId: args['run-id'] + suffix, manifestStore: scratchStore, catalogue }, captureOptsFrom(args)));
+async function rerunScratch(site, args, ctx, suffix) {
+  const scratchStore = new ManifestStore({ baseDir: ctx.manifestStore.baseDir });
+  return runSupervised(site, Object.assign({ runId: args['run-id'] + suffix, manifestStore: scratchStore, catalogue: ctx.catalogue }, captureOptsFrom(args)));
 }
 
 // runStartEntryFor(manifestStore, runId) -> the run's own 'run_start' manifest entry, or throws when no
@@ -175,7 +176,7 @@ async function cmdPacket(args) {
   const runStart = runStartEntryFor(manifestStore, args['run-id']);
   const site = args.site || runStart.site;
   const catalogue = loadCatalogueFrom(args);
-  const result = await rerunScratch(site, args, manifestStore, catalogue, '-packet-scratch');
+  const result = await rerunScratch(site, args, { manifestStore, catalogue }, '-packet-scratch');
   const reportText = reportTextFrom(args);
   const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings) : null;
   const html = buildPacketHtml(Object.assign({}, result, { lintResult }));
@@ -206,7 +207,7 @@ async function cmdReplay(args) {
   const catalogue = loadCatalogueFrom(args);
   let captureIndex = null;
   if (args.site) {
-    const rerun = await rerunScratch(args.site, args, manifestStore, catalogue, '-replay-scratch');
+    const rerun = await rerunScratch(args.site, args, { manifestStore, catalogue }, '-replay-scratch');
     captureIndex = rerun.captureIndex;
   }
   const report = replayRun({ store: manifestStore, runId: args['run-id'], captureIndex, catalogue });
@@ -246,7 +247,7 @@ async function cmdMint(args) {
   assertMintArgs(args);
   const manifestStore = storeFrom(args);
   const catalogue = loadCatalogueFrom(args);
-  const result = await rerunScratch(args.site, args, manifestStore, catalogue, '-mint-scratch');
+  const result = await rerunScratch(args.site, args, { manifestStore, catalogue }, '-mint-scratch');
   const attempt = await attemptMint(manifestStore, args, result, catalogue);
   process.stdout.write(JSON.stringify(attempt.output, null, 2) + '\n');
   return attempt.code;

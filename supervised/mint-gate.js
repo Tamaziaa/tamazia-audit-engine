@@ -149,21 +149,33 @@ function withPersistTimeout(promise, ms) {
 // input.stubPersist === false AND a real persist function is supplied - production wiring for a later
 // phase; this v0 defaults to stub always unless explicitly told otherwise, and even then requires an
 // explicit persistFn injection (there is no accidental path to a real Neon/R2 write from this module).
+// isStubPersist(i) -> true unless the caller explicitly opted out with stubPersist:false AND supplied a
+// real persistFn (there is no accidental path to a real Neon/R2 write from this module).
+function isStubPersist(i) {
+  if (i.stubPersist === false) return typeof i.persistFn !== 'function';
+  return true;
+}
+
+// resolvedPersistTimeoutMs(i) -> the persist budget for this call. A caller MAY lower it (e.g. a test
+// proving the timeout path fires), never raise it past PERSIST_TIMEOUT_MS (Rule 8: a cap the caller can
+// tighten, never loosen).
+function resolvedPersistTimeoutMs(i) {
+  if (!Number.isFinite(i.persistTimeoutMs) || i.persistTimeoutMs <= 0) return PERSIST_TIMEOUT_MS;
+  return Math.min(i.persistTimeoutMs, PERSIST_TIMEOUT_MS);
+}
+
 async function mintGate(input) {
   const i = input || {};
   const decision = evaluateMintGate(i);
   if (!decision.ok) {
     throw new MintRefusalError(decision.reasonCode, decision.detail, { runId: i.runId });
   }
-  const stubPersist = i.stubPersist !== false; // STUB_PERSIST is the default; a real write needs an explicit opt-out.
-  if (stubPersist || typeof i.persistFn !== 'function') {
-    return { proceeded: true, mode: 'stub', persisted: null, signature: decision.signature, findingsShipped: (i.findings || []).length };
+  const findingsShipped = (i.findings || []).length;
+  if (isStubPersist(i)) {
+    return { proceeded: true, mode: 'stub', persisted: null, signature: decision.signature, findingsShipped };
   }
-  // A caller MAY lower the persist budget (e.g. a test proving the timeout path fires), never raise it
-  // past PERSIST_TIMEOUT_MS (Rule 8: a cap the caller can tighten, never loosen).
-  const persistTimeoutMs = Number.isFinite(i.persistTimeoutMs) && i.persistTimeoutMs > 0 ? Math.min(i.persistTimeoutMs, PERSIST_TIMEOUT_MS) : PERSIST_TIMEOUT_MS;
-  const persisted = await withPersistTimeout(i.persistFn(i.findings, i), persistTimeoutMs);
-  return { proceeded: true, mode: 'live', persisted, signature: decision.signature, findingsShipped: (i.findings || []).length };
+  const persisted = await withPersistTimeout(i.persistFn(i.findings, i), resolvedPersistTimeoutMs(i));
+  return { proceeded: true, mode: 'live', persisted, signature: decision.signature, findingsShipped };
 }
 
 module.exports = { mintGate, evaluateMintGate, checkSignature, checkQuotes, checkCatalogue, checkCoverageManifest, REFUSAL_CODES, ManifestStore };
