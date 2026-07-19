@@ -20,8 +20,10 @@
 //       'done'                   all three green - the ONLY state that carries done:true.
 //
 // The row read-back and the live check are DEPENDENCY-INJECTED (opts.sqlFn / opts.liveFetch) so node:test
-// proves each failure leg with no network; the truth-pack is injectable too (opts.truthPackFn) AND falls
-// back to a real presence probe of render-proof/truth-pack.spec.js, which does not exist until T3b.
+// proves each failure leg with no network; the truth-pack is injectable too (opts.truthPackFn) AND, absent
+// that seam, runs the REAL render-proof/truth-pack.js checker against opts.renderedText (T3b landed). Without
+// a truthPackFn AND without renderedText there is no live page text to assert, so the leg is honestly NOT RUN
+// (ran:false) and the mint stays minted_pending_render (Rule 7: done is withheld, never faked).
 
 const fs = require('fs');
 const path = require('path');
@@ -30,7 +32,8 @@ const { ENGINE_VERSION } = require('./version.js');
 const { defaultSqlFn, safeTable, DEFAULT_TABLE } = require('./persist.js');
 
 const LIVE_DEADLINE_MS = 10000; // a CAP on the live-200 probe (Rule 8/9).
-const TRUTH_PACK_REL = path.join('render-proof', 'truth-pack.spec.js');
+const TRUTH_PACK_REL = path.join('render-proof', 'truth-pack.spec.js'); // the render-truth lane harness (the named ledger gate)
+const TRUTH_PACK_MODULE_REL = path.join('render-proof', 'truth-pack.js'); // the PURE checker this unit invokes
 
 // ── (a) row read-back: prove the row exists AND is THIS engine's version (never a stale-version row) ──
 // rowQuery(table) -> the parameterised read-back by (slug, hash) - the SAME key the website read serves,
@@ -82,21 +85,61 @@ async function defaultLiveFetch(url) {
   } finally { clearTimeout(timer); }
 }
 
-// ── (c) truth-pack: the render truth-pass (T3b). Injected checker (tests) OR a real presence probe. ──
-// truthPackCheck(payload, opts) -> { ok, ran, reason? }. An injected opts.truthPackFn is authoritative
-// (tests use it to prove the done:true and render_mismatch legs). Absent, this PROBES for
-// render-proof/truth-pack.spec.js: while it does not exist (the reality until T3b lands), the check is
-// { ran:false, ok:false, reason:'render-proof not landed (T3b)' } and the mint stays minted_pending_render.
+// ── (c) truth-pack: the render truth-pass (Rule 7 / C-124). Three sources, in priority order. ─────────────
+// truthPackCheck(payload, opts) -> { ok, ran, reason? }.
+//   1. opts.truthPackFn (authoritative): the live orchestrator captures the browser-extracted page text and
+//      wires it into a closure here at run time (the injection seam mint/index.js forwards). Tests use it to
+//      drive the done:true and render_mismatch legs directly. THE SEAM IS PRESERVED - it wins when present.
+//   2. else, render-proof/truth-pack.js (the pure checker) + opts.renderedText: run the REAL pack against the
+//      supplied live page text. This is the default path now T3b has landed.
+//   3. else: honestly NOT RUN. Without a truthPackFn AND without renderedText there is no page text to
+//      assert, so the leg stays { ran:false } and the mint stays minted_pending_render (Rule 7: done is
+//      withheld, never faked).
 async function truthPackCheck(payload, opts) {
   if (typeof opts.truthPackFn === 'function') {
     const r = await opts.truthPackFn(payload);
     return { ok: Boolean(r && r.ok), ran: true, reason: (r && r.reason) || (r && r.ok ? null : 'truth-pack reported a render mismatch') };
   }
-  const abs = path.join(__dirname, '..', TRUTH_PACK_REL);
+  const abs = path.join(__dirname, '..', TRUTH_PACK_MODULE_REL);
   if (!fs.existsSync(abs)) return { ok: false, ran: false, reason: 'render-proof not landed (T3b)' };
-  // The spec exists but this unit does not own its invocation contract (T3b): record it present-but-not-run
-  // rather than guess an API. done stays false (Rule 7) until T3b wires the invocation here.
-  return { ok: false, ran: false, reason: 'render-proof/truth-pack.spec.js present but its invocation contract is owned by T3b; not run here' };
+  if (typeof opts.renderedText !== 'string' || opts.renderedText === '') {
+    // Honest NOT-RUN: the pack exists but no live page text was captured for THIS mint. Leads with the real
+    // reason (renderedText not supplied) and keeps the contiguous 'render-proof not landed for this mint'
+    // marker so the render proof's absence for this mint reads uniformly to every consumer of this leg.
+    return { ok: false, ran: false, reason: 'renderedText not supplied to truthPackCheck; render-proof not landed for this mint (pass opts.renderedText to run the real render pack)' };
+  }
+  return runRealTruthPack(abs, payload, opts);
+}
+
+// payloadDate(payload) -> the payload's own generatedAt stamp (meta.date), the default source for the render
+// freshness check ('opts.generatedAt is the payload's'); undefined when the payload carries none.
+function payloadDate(payload) { return payload && payload.meta && payload.meta.date != null ? payload.meta.date : undefined; }
+
+// runRealTruthPack(abs, payload, opts) -> the pure checker's verdict as { ok, ran:true, reason }. generatedAt
+// defaults to the payload's own date; the injected clock (opts.now), catalogue and HMAC opts pass through
+// untouched. A checker that fails to load OR throws is recorded as a ran-but-FAILED leg (render_mismatch),
+// never a thrown mint (Rule 7/17): a broken render gate is not a pass.
+function runRealTruthPack(abs, payload, opts) {
+  let checker;
+  try { checker = require(abs); }
+  catch (e) {
+    // FAIL-OPEN: a truth-pack module that will not load is a broken render gate, not a pass. Recorded as a
+    // ran-but-failed leg so done stays false; never a thrown mint (Rule 7/17).
+    return { ok: false, ran: true, reason: 'render-proof/truth-pack.js failed to load: ' + String((e && e.message) || e).slice(0, 120) };
+  }
+  const checkOpts = Object.assign({}, opts, { generatedAt: opts.generatedAt != null ? opts.generatedAt : payloadDate(payload) });
+  try {
+    const r = checker.check(payload, opts.renderedText, checkOpts);
+    if (r && r.ok) return { ok: true, ran: true, reason: null };
+    const first = r && Array.isArray(r.violations) ? r.violations[0] : null;
+    const n = r && Array.isArray(r.violations) ? r.violations.length : 0;
+    return { ok: false, ran: true, reason: 'render truth-pack found ' + n + ' violation(s)' + (first ? ': [' + first.rule + '] ' + first.detail : '') };
+  } catch (e) {
+    // FAIL-OPEN: a throw inside the pure checker is a broken gate, recorded as a failed (not passed) leg so
+    // done stays false; never a thrown mint (Rule 7/17). The pure checker is written not to throw; this is
+    // defence in depth around the require boundary.
+    return { ok: false, ran: true, reason: 'render truth-pack threw: ' + String((e && e.message) || e).slice(0, 120) };
+  }
 }
 
 // stateFor(checks) -> the single terminal state, naming the FIRST failing leg in write-order (row, then
@@ -133,5 +176,6 @@ module.exports = {
   stateFor,
   rowQuery,
   TRUTH_PACK_REL,
+  TRUTH_PACK_MODULE_REL,
   LIVE_DEADLINE_MS,
 };

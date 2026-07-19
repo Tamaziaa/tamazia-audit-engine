@@ -289,21 +289,39 @@ const TAXONOMY = [
     class: 'exposure-error',
     description: 'Fine maths wrong: statutory maxima summed, cross-law cap borrow, wrong currency, hardcoded fine-rate regexes, £0 collapse after a field rename, voluntary code showing a statutory fine.',
     catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 T3b: render-proof/truth-pack.spec.js LANDED, backed by the pure checker
+    // render-proof/truth-pack.js. Its exposure-headline rule (C-094/C-096) asserts the headline exposure
+    // figure appears AND the statutory ceiling never appears as a bare headline (every occurrence of the
+    // formatted ceiling sits within CEILING_PROXIMITY_CHARS of the word 'ceiling'); earned by a seeded
+    // bare-ceiling known-bad. Wired into the mint done-gate via mint/post-write-assertions.js (the real check
+    // runs on opts.renderedText). The gap-gate-landed rule requires this flip once the named gate exists.
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-094', 'C-095', 'C-096', 'C-097', 'C-098', 'C-099', 'C-100', 'C-101', 'C-103', 'C-105', 'C-106'],
   },
   {
     class: 'consistency-error',
     description: 'The rendered page disagreeing with the payload: three different framework counts, headline number on no card, hollow cards, invented enforcement filler, jurisdiction claimed with 0 frameworks.',
     catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 T3b: render-proof/truth-pack.spec.js LANDED. Three checker rules cover this class -
+    // money-provenance (every rendered GBP amount traces to a payload figure, C-112/C-114/C-115),
+    // framework-provenance (every violation/needs_review framework name is shown and no law-name-shaped
+    // string outside the payload/catalogue set appears, Rule 2/C-112) and voice (a needs_review name never
+    // co-occurs with a confident-breach phrase, C-111) - plus the standing not-legal-advice line (C-200).
+    // Each is earned by a seeded known-bad; wired into the mint via mint/post-write-assertions.js.
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-111', 'C-113', 'C-114', 'C-115', 'C-116', 'C-117', 'C-118', 'C-119', 'C-124', 'C-125'],
   },
   {
     class: 'render-security-freshness',
     description: 'Stale/insecure render surface: hand-maintained asset version served stale bundles, HMAC gated on an unbound secret, superseded pages served 200 as current.',
     catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 T3b: render-proof/truth-pack.spec.js LANDED. Its render-security-freshness rule
+    // (C-122/C-123) fails a render whose generatedAt is missing/unparseable or older than maxAgeDays at the
+    // INJECTED clock (no ambient Date.now in the pure checker), and - when opts.requireHmac is set - a URL
+    // lacking sig+exp; earned by seeded stale-stamp and missing-sig known-bads. requireHmac deliberately
+    // STAYS FALSE until the website binds AUDIT_HMAC_SECRET end-to-end (C-122: dead security code is theatre;
+    // the gate exists so turning it on is a one-flag change the day the secret lands).
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-121', 'C-122', 'C-123', 'C-126'],
   },
   {
@@ -346,7 +364,12 @@ const TAXONOMY = [
     class: 'coverage-truth',
     description: 'Coverage claimed that was never computed: "all 400+ frameworks screened", a compliance_unassessed flag nothing read, a rule falling back to the whole corpus when its target page was unfetched.',
     catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P1', shipped: true,
+    // GUARDED as of P4 T3b: render-proof/truth-pack.spec.js LANDED. Its counts-coherence rule (C-117/C-118)
+    // asserts the render shows frameworksBinding and rulesChecked from the ONE counts object and carries the
+    // screened label ("screened the catalogue; N bind you" - a data-driven value, never a magic '400+'
+    // total); earned by a seeded dropped-coverage-line known-bad. Wired into the mint via
+    // mint/post-write-assertions.js. The gap-gate-landed rule requires this flip once the named gate exists.
+    status: 'guarded', phase: null, past_severity: 'P1', shipped: true,
     caution: ['C-118', 'C-125'],
   },
 ];

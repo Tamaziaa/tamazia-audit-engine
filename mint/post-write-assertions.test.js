@@ -1,11 +1,21 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 const { assertMinted, stateFor, rowQuery } = require('./post-write-assertions.js');
 const { ENGINE_VERSION } = require('./version.js');
 
 const ROW = { slug: 'oakhurst-legal-example', hash: 'deadbeef' };
 const PAYLOAD = { meta: { domain: 'oakhurst-legal.example' } };
+
+// The render-proof golden fixtures - a real composed v1.1 payload and its recorded render - let the mint
+// prove the DEFAULT path actually RUNS the pure truth-pack when live page text is supplied (T3b).
+const FIX = path.join(__dirname, '..', 'render-proof', 'fixtures');
+const GOLDEN = JSON.parse(fs.readFileSync(path.join(FIX, 'audit-golden-v11.json'), 'utf8'));
+const GOLDEN_TEXT = fs.readFileSync(path.join(FIX, 'audit-golden-v11.rendered.txt'), 'utf8');
+const RENDER_NOW = Date.parse('2026-07-20T00:00:00Z'); // one day after the golden's generatedAt: a fresh render
+const LIVE_URL = 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef';
 
 // a sql door that returns a matching, current-version row for the read-back. In production the read-back
 // query aliases `payload_json->>'engine_version'` to `engine_version` (audit_pages has NO engine_version
@@ -26,12 +36,32 @@ test('all three legs green with an injected passing truth-pack -> done:true, sta
   assert.strictEqual(r.state, 'done');
 });
 
-test('truth-pack ABSENT (render-proof not landed) -> done:false, state "minted_pending_render" (the current reality)', async () => {
-  const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200 } });
+test('truth-pack pack present but NO renderedText supplied -> done:false, state "minted_pending_render", NOT RUN (honest)', async () => {
+  // T3b landed render-proof/truth-pack.js, but without a truthPackFn AND without live page text there is
+  // nothing to assert, so the leg is honestly not-run and the mint withholds done (Rule 7).
+  const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: LIVE_URL, opts: { sqlFn: okSql, liveFetch: ok200 } });
   assert.strictEqual(r.done, false, 'a mint is NEVER done on a missing leg (the phantom-data class, C-249)');
   assert.strictEqual(r.state, 'minted_pending_render');
   assert.strictEqual(r.checks.truthPack.ran, false);
-  assert.match(r.checks.truthPack.reason, /render-proof not landed/);
+  assert.match(r.checks.truthPack.reason, /renderedText not supplied/, 'the honest reason names the missing input');
+});
+
+test('DEFAULT path RUNS the real pack: renderedText + a matching golden render -> all three green, done:true (Rule 7)', async () => {
+  const r = await assertMinted({ row: ROW, payload: GOLDEN, liveUrl: LIVE_URL, opts: { sqlFn: okSql, liveFetch: ok200, renderedText: GOLDEN_TEXT, now: RENDER_NOW } });
+  assert.strictEqual(r.checks.truthPack.ran, true, 'the real pure checker actually ran');
+  assert.strictEqual(r.checks.truthPack.ok, true);
+  assert.strictEqual(r.done, true);
+  assert.strictEqual(r.state, 'done');
+});
+
+test('DEFAULT path CATCHES a render mismatch: renderedText missing the not-legal-advice line -> render_mismatch', async () => {
+  const badText = GOLDEN_TEXT.replace(GOLDEN.notLegalAdvice, '');
+  const r = await assertMinted({ row: ROW, payload: GOLDEN, liveUrl: LIVE_URL, opts: { sqlFn: okSql, liveFetch: ok200, renderedText: badText, now: RENDER_NOW } });
+  assert.strictEqual(r.checks.truthPack.ran, true);
+  assert.strictEqual(r.checks.truthPack.ok, false);
+  assert.strictEqual(r.done, false);
+  assert.strictEqual(r.state, 'render_mismatch');
+  assert.match(r.checks.truthPack.reason, /violation/);
 });
 
 test('KNOWN-BAD calibration: the row read-back returns NO row -> done:false, state "row_missing" (C-103)', async () => {
