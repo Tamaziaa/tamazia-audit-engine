@@ -41,6 +41,20 @@ test('an empty object is not a valid v1.2 payload', () => {
   assert.ok(decode.validateV1_2({}).length > 0);
 });
 
+test('HIGH-4: a payload with lattice-shaped verdicts (kind field) but NO declared payload_version is shape-sniffed into v1.2, never silently downgraded to v1.1', () => {
+  const shaped = { verdicts: [{ kind: 'Breach' }] };
+  assert.equal(decode.payloadVersionOf(shaped), '1.2');
+  // and it is then correctly refused for lacking the required v1.2 envelope fields (fail closed, not a
+  // silent pass-through under the weaker v1.1 render-contract validator).
+  assert.ok(decode.validateV1_2(shaped).length > 0);
+});
+
+test('HIGH-4: a genuinely v1.1 payload (findings[]-shaped, no lattice verdicts) still routes to v1.1', () => {
+  assert.equal(decode.payloadVersionOf({ findings: [] }), '1.1');
+  assert.equal(decode.payloadVersionOf({ verdicts: [] }), '1.1'); // empty verdicts: nothing lattice-shaped
+  assert.equal(decode.payloadVersionOf({ verdicts: [{ id: 'x' }] }), '1.1'); // no `kind` field: not lattice-shaped
+});
+
 test('a v1.2 absence-Breach verdict with a weak certificate is rejected structurally', () => {
   const p = {
     payload_version: '1.2', taxonomy_version: '1.0.0', catalogue_hash: 'a'.repeat(64),

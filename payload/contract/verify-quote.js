@@ -78,12 +78,53 @@ function tamperedOrOutOfBounds(entry, buf, quote) {
   if (want != null && sha256Hex(buf) !== want) return true;
   return quote.byte_end > buf.length;
 }
-// sliceMatches(buf, quote) -> the declared text must BE the byte slice; with no declared text a non-empty
-// in-bounds slice is the verified quote.
+// SPAN_HASH_RE: span_sha256 must be a 64-char lowercase-hex commitment (mirrors v1_2/evidence.js's Quote
+// constructor and supervised/verify-quote.js's proven pattern).
+const SPAN_HASH_RE = /^[0-9a-f]{64}$/;
+// hasSpanCommitment(quote) -> the quote carries a well-formed span_sha256. Without this a bare offset range
+// with no declared text would degenerate to "any non-empty in-bounds slice verifies" (CRITICAL-1): the span
+// commitment is the mandatory tamper anchor that makes a hand-assembled quote unrepresentable regardless of
+// whether `text` is supplied.
+function hasSpanCommitment(quote) {
+  return typeof quote.span_sha256 === 'string' && SPAN_HASH_RE.test(quote.span_sha256);
+}
+// UNICODE_REPLACEMENT: U+FFFD, the character UTF-8 decoding substitutes for a byte sequence that is not
+// valid UTF-8 (including a multi-byte codepoint split by an offset boundary). A slice or a declared text
+// containing it signals a byte-level split/corruption; comparing DECODED strings that both contain U+FFFD
+// can make two different byte sequences read as "equal" (O6). The fix below compares raw BYTES, never
+// decoded strings, so this constant remains only for the reject-on-replacement-char defence in depth.
+const UNICODE_REPLACEMENT = '�';
+// declaredTextIsCorrupt(quote) -> true when a non-empty declared text carries the Unicode replacement
+// character. A corrupted/lossy decode can never be an honest declaration, so it is REJECTED outright
+// (never silently treated as "no text declared" - that would let the byte-only fallback below wave through
+// client-facing prose nobody ever verified, C-035's detection/evidence-surface disagreement in a new guise).
+function declaredTextIsCorrupt(quote) {
+  return typeof quote.text === 'string' && quote.text !== '' && quote.text.indexOf(UNICODE_REPLACEMENT) !== -1;
+}
+// declaredTextBuffer(quote) -> a UTF-8 Buffer of the declared text, or null when none is declared.
+function declaredTextBuffer(quote) {
+  if (quote.text == null || quote.text === '') return null;
+  return Buffer.from(quote.text, 'utf8');
+}
+// sliceMatches(buf, quote) -> the declared text (encoded back to UTF-8 bytes) must BYTE-EQUAL the byte
+// slice; with no declared text a non-empty in-bounds slice is the verified quote. Comparing BYTES (never
+// decoded strings) closes O6: a slice that splits a multi-byte character decodes to U+FFFD, and a decoded
+// string comparison would let a declared text also containing U+FFFD "match" bytes that are not that text.
+// A corrupted declared text is rejected outright, never silently ignored.
 function sliceMatches(buf, quote) {
-  const slice = buf.slice(quote.byte_start, quote.byte_end).toString('utf8');
-  if (quote.text != null && quote.text !== '') return slice === quote.text;
+  if (declaredTextIsCorrupt(quote)) return false;
+  const slice = buf.slice(quote.byte_start, quote.byte_end);
+  const declared = declaredTextBuffer(quote);
+  if (declared) return slice.equals(declared);
   return slice.length > 0;
+}
+// spanCommitmentMatches(buf, quote) -> the quote's span_sha256 recomputed over the ACTUAL byte slice. This
+// is the mandatory tamper anchor (CRITICAL-1): even when no `text` is declared, a hand-assembled offset
+// range cannot verify unless its span_sha256 was genuinely computed over these exact bytes.
+function spanCommitmentMatches(buf, quote) {
+  if (!hasSpanCommitment(quote)) return false;
+  const slice = buf.slice(quote.byte_start, quote.byte_end);
+  return sha256Hex(slice) === quote.span_sha256;
 }
 function verifyQuote(evidenceStore, quote) {
   if (!hasFields(quote)) return false;
@@ -92,6 +133,7 @@ function verifyQuote(evidenceStore, quote) {
   const buf = asBuffer(entry.bytes);
   if (!buf) return false;
   if (tamperedOrOutOfBounds(entry, buf, quote)) return false;
+  if (!spanCommitmentMatches(buf, quote)) return false;
   return sliceMatches(buf, quote);
 }
 

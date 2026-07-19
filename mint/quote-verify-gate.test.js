@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const { assertMintablePayload } = require('./quote-verify-gate.js');
 const v1_2 = require('../payload/contract/v1_2.js');
 const { buildMinimalValidPayload } = require('../payload/contract/index.js');
+const { sha256Hex } = require('../payload/contract/verify-quote.js');
 
 const CAT_HASH = 'a'.repeat(64);
 const CATALOGUE = {
@@ -34,7 +35,15 @@ function violationVerdict(text) {
     kind: 'Breach', breach_kind: 'violation', class: 'confirmed',
     law: { law_id: 'REAL_LAW', catalogue_hash: CAT_HASH },
     penalty: { law_id: 'REAL_LAW', penalty_id: 'primary', catalogue_hash: CAT_HASH },
-    quote: { evidence_id: 'ev1', byte_start: start, byte_end: start + text.length, text },
+    quote: { evidence_id: 'ev1', byte_start: start, byte_end: start + text.length, text, span_sha256: sha256Hex(Buffer.from(text, 'utf8')) },
+  };
+}
+function absenceVerdict(certificate) {
+  return {
+    kind: 'Breach', breach_kind: 'absence', class: 'confirmed',
+    law: { law_id: 'REAL_LAW', catalogue_hash: CAT_HASH },
+    penalty: { law_id: 'REAL_LAW', penalty_id: 'primary', catalogue_hash: CAT_HASH },
+    quote: null, certificate,
   };
 }
 
@@ -52,7 +61,7 @@ test('a v1.2 payload with a real verified quote and resolvable refs is mintable'
 
 test('the mint REFUSES a v1.2 payload whose quote does not verify against the evidence (fabrication)', () => {
   const fabricated = violationVerdict(TARGET);
-  fabricated.quote = { evidence_id: 'ev1', byte_start: START, byte_end: START + TARGET.length, text: 'We store nothing' };
+  fabricated.quote = { evidence_id: 'ev1', byte_start: START, byte_end: START + TARGET.length, text: 'We store nothing', span_sha256: sha256Hex(Buffer.from('We store nothing', 'utf8')) };
   assert.throws(() => assertMintablePayload(v1_2PayloadWith([fabricated]), { catalogue: CATALOGUE, evidenceStore: STORE }), /does not verify against the fetched evidence/);
 });
 
@@ -88,4 +97,79 @@ test('when the payload declares its own evidence, a quote must reference one of 
   // with the matching record declared, it mints.
   p.evidence = [{ id: 'ev1', lane: 'static', status: { kind: 'OK' }, url_final: 'https://x/', fetched_at: 't', bytes_sha256: v1_2.sha256Hex(BYTES) }];
   assert.equal(assertMintablePayload(p, { catalogue: CATALOGUE, evidenceStore: STORE }).checkedQuotes, 1);
+});
+
+// ── CRITICAL-2 repro: a self-certified "we searched everywhere and found nothing" absence breach ────────
+// decode.js's structural check (threshold_met===true, >=2 distinct discovery_methods) already refuses a
+// certificate with threshold_met:false or fewer than 2 methods (proven by the decode.test.js suite this
+// gate depends on). What it CANNOT catch: threshold_met is a bare boolean the certificate's own producer
+// sets, with no derivation from pages_fetched/planned/fetched, so a certificate claiming zero real pages
+// fetched can still self-assert threshold_met:true and sail through structural validation.
+test('CRITICAL-2: the mint REFUSES an absence Breach whose certificate shows ZERO genuine pages fetched, despite a self-asserted threshold_met:true', () => {
+  const fabricatedCert = { pages_fetched: [], discovery_methods: ['guess', 'random'], planned: 0, fetched: 0, failed: [], threshold_met: true };
+  const bad = v1_2PayloadWith([absenceVerdict(fabricatedCert)]);
+  assert.throws(
+    () => assertMintablePayload(bad, { catalogue: CATALOGUE }),
+    /shows no genuine search/
+  );
+});
+
+test('CRITICAL-2: a genuine absence Breach certificate (real pages fetched, threshold met, 2 distinct methods) mints', () => {
+  const realCert = { pages_fetched: ['/privacy', '/terms'], discovery_methods: ['sitemap', 'footer_scan'], planned: 2, fetched: 2, failed: [], threshold_met: true };
+  const good = v1_2PayloadWith([absenceVerdict(realCert)]);
+  const res = assertMintablePayload(good, { catalogue: CATALOGUE });
+  assert.equal(res.ok, true);
+});
+
+// ── HIGH-4 repro: version-confusion downgrade ─────────────────────────────────────────────────────────
+// Before the fix: assertMintablePayload routed purely on the DECLARED payload_version. A payload carrying
+// a v1.2-shaped verdicts[] array (Breach/Clean/Unknown `kind` fields, fabricated law/quote inside) but
+// omitting payload_version (or declaring a stale '1.1') fell through as a silent v1.1 pass-through
+// (checkedQuotes:0, checkedRefs:0): the mint never re-verified a single quote, law or penalty in it.
+test('HIGH-4: a v1.2-shaped verdicts[] payload with NO declared payload_version is NOT silently passed through as v1.1', () => {
+  const shaped = {
+    // payload_version deliberately omitted
+    taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [],
+    verdicts: [violationVerdict(TARGET)],
+    coverage: manifest(),
+  };
+  // shape-sniffed into the v1.2 lattice path (not the old silent 0/0 v1.1 pass-through): the lattice
+  // validator then correctly refuses it for lacking the required payload_version field - "shape-sniff, or
+  // refuse as malformed" (HIGH-4's fix), never mint under the weaker v1.1 contract that never checks a
+  // fabricated law/quote inside lattice-shaped verdicts at all.
+  assert.throws(
+    () => assertMintablePayload(shaped, { catalogue: CATALOGUE, evidenceStore: STORE }),
+    /structurally invalid.*payload_version must be/
+  );
+});
+
+test('HIGH-4: a v1.2-shaped verdicts[] payload that DOES declare payload_version "1.2" and is otherwise complete mints and is fully checked', () => {
+  const shaped = {
+    payload_version: '1.2',
+    taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [],
+    verdicts: [violationVerdict(TARGET)],
+    coverage: manifest(),
+  };
+  const res = assertMintablePayload(shaped, { catalogue: CATALOGUE, evidenceStore: STORE });
+  assert.equal(res.version, '1.2');
+  assert.equal(res.checkedQuotes, 1);
+  assert.equal(res.checkedRefs, 2);
+});
+
+test('HIGH-4: a v1.2-shaped verdicts[] payload declaring a stale payload_version "1.1" is refused, not passed through', () => {
+  const shaped = {
+    payload_version: '1.1',
+    taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [],
+    verdicts: [violationVerdict(TARGET)],
+    coverage: manifest(),
+  };
+  assert.throws(
+    () => assertMintablePayload(shaped, { catalogue: CATALOGUE, evidenceStore: STORE }),
+    /structurally invalid|payload_version must be/
+  );
+});
+
+test('HIGH-4: a genuinely v1.1 payload (no lattice-shaped verdicts) still passes straight through', () => {
+  const res = assertMintablePayload(buildMinimalValidPayload(), {});
+  assert.deepEqual(res, { ok: true, version: '1.1', checkedQuotes: 0, checkedRefs: 0 });
 });

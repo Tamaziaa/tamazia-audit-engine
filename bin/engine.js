@@ -178,12 +178,30 @@ async function cmdPacket(args) {
   const catalogue = loadCatalogueFrom(args);
   const result = await rerunScratch(site, args, { manifestStore, catalogue }, '-packet-scratch');
   const reportText = reportTextFrom(args);
-  const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings) : null;
+  // Kimi K3 finding O3 (live audit 2026-07-20): lintNoOrphanClaims accepts an artifact id set alongside
+  // finding ids (the module's own header always promised "cites a finding_id OR an artifact"); this run's
+  // own ArtifactStore is right here (result.captureIndex), so a report citing an artifact by its
+  // evidence_id or sha256 is honoured, not just a citation to a finding_id.
+  const artifactIds = result.captureIndex ? result.captureIndex.list().flatMap((a) => [a.evidence_id, a.sha256]) : [];
+  const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings, artifactIds) : null;
   const html = buildPacketHtml(Object.assign({}, result, { lintResult }));
   const outPath = packetOutPathFor(args, manifestStore);
   fs.writeFileSync(outPath, html, 'utf8');
   process.stdout.write(JSON.stringify({ runId: args['run-id'], packetPath: outPath, findingCount: result.candidateFindings.length }, null, 2) + '\n');
   return 0;
+}
+
+// reportSha256From(args, body) -> the founder's commitment to the report bytes they signed (Kimi K3
+// finding HIGH-E3). Preference order: an explicit report_sha256 in the decisions JSON (already a hash), or
+// the sha256 computed HERE over the exact --report-text file bytes, or null (a findings-only signature that
+// covers no drafted report). Computing it from the file the founder reviewed is the honest binding: the
+// signature commits to the precise bytes, and mint-gate.js refuses any later edit.
+function reportSha256From(args, body) {
+  if (typeof body.report_sha256 === 'string' && body.report_sha256) return body.report_sha256;
+  if (args['report-text'] && fs.existsSync(args['report-text'])) {
+    return require('crypto').createHash('sha256').update(fs.readFileSync(args['report-text'], 'utf8'), 'utf8').digest('hex');
+  }
+  return undefined;
 }
 
 function cmdSign(args) {
@@ -196,6 +214,7 @@ function cmdSign(args) {
     overall: args.overall || body.overall,
     findingDecisions: body.findingDecisions || [],
     note: body.note,
+    report_sha256: reportSha256From(args, body),
   });
   process.stdout.write(JSON.stringify(entry, null, 2) + '\n');
   return 0;
@@ -232,10 +251,16 @@ function resolvedCatalogue(catalogue) {
 // propagate as an uncaught CLI crash, since a refusal is an expected, reportable outcome here, not a bug.
 async function attemptMint(manifestStore, args, result, catalogue) {
   try {
+    // The drafted report (--report-text) is passed to the gate so it can BIND it to the founder's signed
+    // report_sha256 and run the no-orphan-lint as a hard refusal (Kimi K3 finding HIGH-E3). Passing '' when
+    // no file is given would look like an (unsigned) empty report and be refused; instead pass undefined so
+    // a findings-only mint (no report in play) still proceeds.
+    const reportText = reportTextFrom(args) || undefined;
     const outcome = await mintGate({
       store: manifestStore, runId: args['run-id'], findings: result.candidateFindings,
       captureIndex: result.captureIndex, catalogue: resolvedCatalogue(catalogue),
       coverageManifest: result.coverageManifest, stubPersist: args['stub-persist'] !== 'false',
+      report: reportText,
     });
     return { code: 0, output: outcome };
   } catch (e) {
