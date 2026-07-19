@@ -167,3 +167,22 @@ test('E2E: the post-write assertions confirm row + live-200 but withhold done wh
   assert.match(res.postWrite.truthPack.reason, /render-proof not landed/);
   assert.ok(res.payload && res.row, 'the payload and row are real, not phantom');
 });
+
+test('E2E: opts.truthPackDeadlineMs threads through mint() -> assertMinted (Rule 8/9 caller-override seam, PR #20 comment 3610487213)', async () => {
+  const stores = makeStores();
+  const t0 = Date.now();
+  const res = await mint(DOMAIN, {
+    fetchFn, launchBrowser, registersFetchFn, llmCall: scriptedDecline, providers: [],
+    sqlFn: stores.sqlFn, putFn: stores.putFn, liveFetch: async () => ({ status: 200 }),
+    now: () => 1700000000000, generatedAt: '2026-07-19', env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' },
+    truthPackFn: () => new Promise(() => {}), // a hanging render truth-pass (e.g. a stuck browser); never settles
+    truthPackDeadlineMs: 25,
+  });
+  const elapsed = Date.now() - t0;
+  assert.strictEqual(res.refusal, null, 'a served UK law firm is NOT refused');
+  assert.strictEqual(res.done, false, 'a hanging truth-pass never flips done (Rule 7)');
+  assert.strictEqual(res.status, 'render_mismatch');
+  assert.strictEqual(res.postWrite.truthPack.ran, true, 'a hanging leg is ran-but-FAILED, never an honest not-run');
+  assert.match(res.postWrite.truthPack.reason, /timed out after 25ms/, 'the tiny override, not the 20s module default, bounded THIS mint');
+  assert.ok(elapsed < 5000, 'mint() itself returned promptly under the override, never held hostage on the hanging truthPackFn (' + elapsed + 'ms elapsed)');
+});

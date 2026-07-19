@@ -1,0 +1,23 @@
+Harbourgate Estates - compliance, SEO and GEO audit
+Prepared 2026-07-19
+
+Median enforcement exposure: £12,500
+This is the midpoint of the typical enforcement band across the confirmed breaches, de-duplicated to one figure per statute family and never a sum of maxima.
+Single statutory ceiling: £500,000 - the highest maximum across the breached families, shown once and never summed.
+
+Frameworks that bind you
+
+Consumer Protection from Unfair Trading Regulations 2008 - National Trading Standards, UK
+Citation: Consumer Protection from Unfair Trading Regulations 2008, Regulation 3
+Typical enforcement band: £5,000 to £20,000
+Evidenced on your live site: "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges" detected on https://harbourgate-estates.example/sell.
+
+Money Laundering Regulations 2017 - HMRC, UK
+Citation: Money Laundering Regulations 2017, Regulation 27
+Indicative enforcement band (for review): £10,000 to £50,000
+Under review: no published customer due-diligence or supervision statement was found on the crawled pages (seen on https://harbourgate-estates.example/about); this may implicate the framework above and is flagged for your verification.
+
+Coverage
+Screened the catalogue. 2 of 3 assessed frameworks bind you. Rules checked: 7.
+
+This automated audit is not legal advice; findings are evidence-backed observations for your review and verification with your own advisers.

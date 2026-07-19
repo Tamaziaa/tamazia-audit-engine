@@ -1,0 +1,77 @@
+{
+  "_fixtureNote": "STRUCTURAL FIXTURE, NOT A REAL FIRM AND NOT LIVE LAW (Constitution Rule 16). 'Harbourgate Estates' is a pseudonymous UK estate agency invented for this render-proof golden; the framework names/penalties are realistic ILLUSTRATIVE fixtures in the compose.test.js tradition ('real-looking law names are illustrative fixtures, not asserted as live law'), never a claim about any real firm or a substitute for the compiled catalogue. This is the INPUT to payload/composer/compose.js; the golden payload it composes is render-proof/fixtures/audit-golden-v11.json. Regenerate both this file's downstream artifacts with: node render-proof/fixtures/gen-fixtures.js",
+  "domain": "harbourgate-estates.example",
+  "generatedAt": "2026-07-19",
+  "facts": {
+    "identity": {
+      "display_name": { "value": "Harbourgate Estates" },
+      "legal_name": { "value": "Harbourgate Estates Limited" },
+      "company_number": { "value": "00000000" }
+    },
+    "jurisdiction": { "bound": [{ "jurisdiction": "UK" }] },
+    "sector": { "value": { "sector": "real-estate" } }
+  },
+  "applicability": {
+    "applicable": [
+      {
+        "id": "UK_CPUT_2008",
+        "name": "Consumer Protection from Unfair Trading Regulations 2008",
+        "citation": { "act": "Consumer Protection from Unfair Trading Regulations 2008", "section": "Regulation 3" },
+        "penalty": { "typical_low": 5000, "typical_high": 20000, "statutory_max": 500000, "currency": "GBP" },
+        "regulator": { "name": "National Trading Standards" },
+        "jurisdiction": "UK",
+        "website_obligations": [
+          { "duty": "state material information about a property honestly and not mislead by omission" },
+          { "duty": "avoid aggressive or misleading pricing claims in listings" },
+          { "duty": "disclose referral fees and any financial interest to consumers" }
+        ]
+      },
+      {
+        "id": "UK_MLR_2017",
+        "name": "Money Laundering Regulations 2017",
+        "citation": { "act": "Money Laundering Regulations 2017", "section": "Regulation 27" },
+        "penalty": { "typical_low": 10000, "typical_high": 50000, "statutory_max": null, "currency": "GBP" },
+        "regulator": { "name": "HMRC" },
+        "jurisdiction": "UK",
+        "website_obligations": [
+          { "duty": "register the business for anti-money-laundering supervision" },
+          { "duty": "carry out customer due diligence before acting" },
+          { "duty": "keep a written risk assessment" },
+          { "duty": "publish the identity of the nominated officer where required" }
+        ]
+      }
+    ],
+    "excluded": [
+      { "id": "US_STATE_PRIVACY_EXAMPLE", "name": "US state consumer-privacy statute (excluded: no US nexus)" }
+    ],
+    "counts": { "frameworksAssessed": 3, "frameworksBinding": 2, "rulesChecked": 7 }
+  },
+  "findings": [
+    {
+      "record_id": "UK_CPUT_2008",
+      "kind": "presence-breach",
+      "state": "violation",
+      "artifact": {
+        "type": "quote",
+        "text": "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges",
+        "page_url": "https://harbourgate-estates.example/sell"
+      },
+      "page_url": "https://harbourgate-estates.example/sell",
+      "evidence_quote": "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges"
+    },
+    {
+      "record_id": "UK_MLR_2017",
+      "kind": "coverage-gap",
+      "state": "needs_review",
+      "artifact": {
+        "type": "coverage_proof",
+        "pages_crawled": 14,
+        "page_url": "https://harbourgate-estates.example/about"
+      },
+      "page_url": "https://harbourgate-estates.example/about",
+      "description": "no published customer due-diligence or supervision statement was found on the crawled pages"
+    }
+  ],
+  "coverage": { "render_class": "assessable", "reachable": true },
+  "report": { "ran": true }
+}

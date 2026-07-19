@@ -10,8 +10,8 @@
   "totals": {
     "defects": 267,
     "classes": 43,
-    "guarded_classes": 39,
-    "gap_classes": 4,
+    "guarded_classes": 43,
+    "gap_classes": 0,
     "act": 17
   },
   "classification_note": "Sweep defects are triaged category->class with a message-keyword refinement for the \"other\" bucket (see build-crossref.js). This is best-effort triage of tool output; the load-bearing contract is the class->gate mapping, enforced by check.js.",
@@ -591,9 +591,9 @@
     {
       "class": "exposure-error",
       "description": "Fine maths wrong: statutory maxima summed, cross-law cap borrow, wrong currency, hardcoded fine-rate regexes, £0 collapse after a field rename, voluntary code showing a statutory fine.",
-      "catching_gate": "render-proof/truth-pack.spec.js",
-      "status": "gap",
-      "phase": "P4",
+      "catching_gate": "payload/composer/compose.test.js",
+      "status": "guarded",
+      "phase": null,
       "past_severity": "P0",
       "shipped_to_client": true,
       "caution_pointers": [
@@ -615,8 +615,8 @@
       "class": "consistency-error",
       "description": "The rendered page disagreeing with the payload: three different framework counts, headline number on no card, hollow cards, invented enforcement filler, jurisdiction claimed with 0 frameworks.",
       "catching_gate": "render-proof/truth-pack.spec.js",
-      "status": "gap",
-      "phase": "P4",
+      "status": "guarded",
+      "phase": null,
       "past_severity": "P0",
       "shipped_to_client": true,
       "caution_pointers": [
@@ -637,8 +637,8 @@
       "class": "render-security-freshness",
       "description": "Stale/insecure render surface: hand-maintained asset version served stale bundles, HMAC gated on an unbound secret, superseded pages served 200 as current.",
       "catching_gate": "render-proof/truth-pack.spec.js",
-      "status": "gap",
-      "phase": "P4",
+      "status": "guarded",
+      "phase": null,
       "past_severity": "P0",
       "shipped_to_client": true,
       "caution_pointers": [
@@ -713,9 +713,9 @@
     {
       "class": "coverage-truth",
       "description": "Coverage claimed that was never computed: \"all 400+ frameworks screened\", a compliance_unassessed flag nothing read, a rule falling back to the whole corpus when its target page was unfetched.",
-      "catching_gate": "render-proof/truth-pack.spec.js",
-      "status": "gap",
-      "phase": "P4",
+      "catching_gate": "payload/composer/compose.test.js",
+      "status": "guarded",
+      "phase": null,
       "past_severity": "P1",
       "shipped_to_client": true,
       "caution_pointers": [
@@ -1599,8 +1599,8 @@
     {
       "class": "exposure-error",
       "caution_pointer": "C-094",
-      "catching_gate": "render-proof/truth-pack.spec.js",
-      "status": "gap",
+      "catching_gate": "payload/composer/compose.test.js",
+      "status": "guarded",
       "id": "SW-0049",
       "source": "sweep",
       "act": false,

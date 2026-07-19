@@ -162,23 +162,55 @@ green, selfTest() proven both directions by hand), never taken on faith:
   change with no bump / with a bump / test-only), the real CLI invoked in each - exit 1, exit 0, exit 0
   respectively (commands recorded in the W4 self-report). Fully CI-repeatable.
 
+## Closed this phase (P4 T3b, 2026-07-19)
+
+The final four P4 gap classes flip from `gap` to `guarded` this pass, verified before flipping (the gate file
+exists, its node:test suite is green, and each rule earns its zero against a seeded known-bad by hand), never
+taken on faith:
+
+- **exposure-error, consistency-error, render-security-freshness, coverage-truth ->
+  `render-proof/truth-pack.spec.js`.** The gate file exists, backed by the pure checker
+  `render-proof/truth-pack.js` (`check(payload, renderedText, opts) -> {ok, violations}`, zero I/O, injected
+  catalogue + clock, never a Date.now). Seven rules, each mapped to its caution pointer and each earned by a
+  seeded known-bad in the spec: notLegalAdvice (C-200), exposure-headline (C-094/C-096 -> **exposure-error**),
+  money-provenance + framework-provenance + voice (C-111/C-112/C-114/C-115 -> **consistency-error**),
+  counts-coherence (C-117/C-118 -> **coverage-truth**) and render-security-freshness (C-122 ->
+  **render-security-freshness**). The golden render - a REAL composed v1.1 payload recorded as a fixture -
+  passes every rule with zero violations; each seeded known-bad (a fabricated GBP amount, a stripped
+  not-legal-advice line, the ceiling as a bare headline, a confident-voiced needs_review name, a dropped
+  counts line, a stale generatedAt, a missing-sig HMAC URL) trips exactly its named rule and only it. `node
+  --test render-proof/truth-pack.spec.js` passes in full (20 tests); it also runs under `npm test` via the
+  `render-proof/truth-pack.test.js` discovery shim (Node's default runner discovers `*.test.js`, not
+  `*.spec.js`, so the named-gate `.spec.js` would otherwise be a hollow green). Wired into the mint done-gate:
+  `mint/post-write-assertions.js` now runs the REAL pack when the caller supplies `opts.renderedText` and,
+  absent both a `truthPackFn` and `renderedText`, stays honestly not-run so the mint withholds `done` (Rule 7).
+  requireHmac stays FALSE until the website binds `AUDIT_HMAC_SECRET` end-to-end (C-122: dead security code is
+  theatre; the gate exists so turning it on is a one-flag change). **Honest deviation, recorded once:** the
+  task's canonical fixture source (the website lux renderer `public/audit/audit-lux.js` + `functions/audit/
+  _lux.js` + `_qa/qa_lux.mjs`, the v11 golden, and jsdom) does not exist at this commit - the p4-t4 lux
+  renderer is a separate in-flight prototype and jsdom, though declared in the website devDependencies, is not
+  installed - so the recorded render is produced by a committed faithful reference renderer
+  (`render-proof/fixtures/reference-render.js`) via `node render-proof/fixtures/gen-fixtures.js`; the checker
+  is renderer-AGNOSTIC (it reads visible text), so re-recording from the lux renderer when it lands changes no
+  rule. The golden firm is pseudonymous and the law names are illustrative fixtures, never a claim about a
+  real firm or live law (Rule 16 / the compose.test.js tradition).
+
 ## Phase-owned gaps (rebuild the ranked list with `node tools/history-regression/check.js`)
 
-4 phase-owned gap classes remain, all P4, all render-proof/truth-pack.spec.js-gated (T3b). `applicability-leak`
-closed in P4 T0, `phantom-data` closed in P4 T1, and `cache-version` closed in P4 W4 (above). The P3 wave
-already closed `deadline-hang` and `module-scope-state` (their gates - `tools/domain-gates/deadline-audit.js`
-and `tools/no-module-state/check.js` - are live and marked `guarded` in the ledger), so none of those five
-are listed here; the checker confirms exactly the four below.
+**ZERO phase-owned gap classes remain (P4 T3b, 2026-07-19).** Every historical failure class now names a LIVE
+guarding gate. `applicability-leak` closed in P4 T0, `phantom-data` in P4 T1, `cache-version` in P4 W4, and
+the final four render classes (`exposure-error`, `consistency-error`, `render-security-freshness`,
+`coverage-truth`) in P4 T3b (above), all `render-proof/truth-pack.spec.js`-gated. The P3 wave had already
+closed `deadline-hang` and `module-scope-state`. `node tools/history-regression/check.js` exits 0 with
+**43 guarded classes, 0 gap classes**, 0 integrity violations - the "NOT YET GUARDED" block is now empty.
 
 | Phase | Class | Planned gate | Past severity |
 |---|---|---|---|
-| P4 | exposure-error | render-proof/truth-pack.spec.js | P0 |
-| P4 | consistency-error | render-proof/truth-pack.spec.js | P0 |
-| P4 | render-security-freshness | render-proof/truth-pack.spec.js | P0 |
-| P4 | coverage-truth | render-proof/truth-pack.spec.js | P1 |
+| - | (none - every class is guarded) | - | - |
 
-This table is derived from the ledger; the checker is the source of truth. If a planned gate above
-now exists, the checker fails with `gap-gate-landed` until the class is flipped to `guarded`.
+This table is derived from the ledger; the checker is the source of truth. If a future gap class is added it
+reappears here, and the checker fails with `gap-gate-landed` the moment its planned gate file lands, until the
+class is flipped to `guarded`.
 
 **Handoff resolved (P4 T0, 2026-07-19):** the eight P3-closed classes above (`host-substring`,
 `budget-floor`, `evidence-lane-silent`, `crawl-poverty`, `llm-unverified`, `breach-artifact`,
@@ -196,3 +228,44 @@ check.js` was green throughout because it reads `docs/failure-ledger/crossref.js
 `cache-version` now also closed, `node tools/history-regression/check.js` exits 0 with **39 guarded
 classes, 4 gap classes**, 0 integrity violations; the four remaining gaps are exactly the render-proof
 classes listed above, all T3b-owned.
+
+**Update (P4 T3b, 2026-07-19):** the four render classes (`exposure-error`, `consistency-error`,
+`render-security-freshness`, `coverage-truth`) closed with `render-proof/truth-pack.spec.js`.
+`docs/failure-ledger/crossref.json` was flipped surgically (the four class rows + the one `exposure-error`
+defect entry: status `gap` -> `guarded`, phase `P4` -> `null`, totals recomputed to 43 guarded / 0 gap) to
+agree with `tools/history-regression/taxonomy.js`, following the W4/T1 precedent. `node
+tools/history-regression/check.js` now exits 0 with **43 guarded classes, 0 gap classes**, 0 integrity
+violations - no P4 gap rows remain.
+
+**Update (P4 T3b CodeRabbit pass, 2026-07-19): two rows corrected for honesty, still 0 gap.** CodeRabbit
+review on PR #20 found the T3b entry above overstated what `render-proof/truth-pack.spec.js` alone proves,
+for two rows:
+
+- **`exposure-error` and `coverage-truth` re-attributed to `payload/composer/compose.test.js`.** The render
+  truth-pack can only prove the RENDER matches whatever the PAYLOAD already says; it cannot prove the
+  payload's own exposure maths or coverage counts were correctly COMPUTED - a wrong figure computed upstream
+  (statutory maxima summed, a coverage count never read) would render-match itself perfectly and pass
+  truth-pack cleanly. The gate that actually proves the computation right is `payload/composer/compose.js`'s
+  dedicated tests in `compose.test.js` ("exposure never sums statutory maxima...", "exposure de-dupes to one
+  figure per family...", "the three framework counts read connect() counts VERBATIM...",
+  "screenedLabel reflects the site-level coverage state..."). Both classes stay `guarded` (a real, passing,
+  on-point gate exists for each), only the `catching_gate` pointer moves to the file that actually earns the
+  claim; `render-proof/truth-pack.spec.js` remains a real, additional, but DISTINCT render-drift guard for
+  both classes (its exposure-headline and counts-coherence rules), not the producer-correctness gate the row
+  used to claim.
+- **`render-security-freshness` narrowed to the freshness subcase only.** The class's own description names
+  "HMAC gated on an unbound secret" as a historical failure mode; `render-proof/truth-pack.js`'s HMAC check
+  (`checkSecurity()`) only runs when `opts.requireHmac` is true, and requireHmac stays FALSE everywhere in
+  the live mint path until the website binds `AUDIT_HMAC_SECRET` end-to-end (still true today - see
+  `docs/discovery/digest-website-render.md`: the HMAC block is currently inert, the only live access barrier
+  is the 8-char hash). The row stays `guarded` because the freshness half (generatedAt vs the injected clock)
+  is genuinely unconditional and live on every mint, but the taxonomy.js comment now says explicitly that the
+  HMAC subcase is NOT covered by this "guarded" claim until the secret binds and a deterministic CI test
+  exercises the mint with `requireHmac: true` actually turned on - "dead security code is theatre" (C-122)
+  applies to a disabled check exactly as much as to a missing one.
+
+Both `payload/composer/compose.test.js` and `render-proof/truth-pack.spec.js` are live files, so this is a
+same-status re-attribution and an honesty narrowing, not a new gap: `node tools/history-regression/check.js`
+still exits 0 with **43 guarded classes, 0 gap classes**, 0 integrity violations after
+`docs/failure-ledger/crossref.json` was rebuilt from the corrected `taxonomy.js`
+(`node tools/history-regression/build-crossref.js --sweep tools/sweep/out/ledger.json`).
