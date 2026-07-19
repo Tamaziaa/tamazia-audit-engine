@@ -120,10 +120,120 @@ function captureOnePage(page, fetchedAt) {
     return { artifact: null, error: new LaneError('capture', 'empty_page', 'page ' + JSON.stringify(page.url) + ' carried no readable visible text; not hashed as a real artifact') };
   }
   const bytes = Buffer.from(normalised, 'utf8');
+  const raw = captureRawFor(page, normalised);
   return {
     error: null,
-    artifact: { evidence_id: evidenceIdFor(page.url, 'static'), url: page.url, lane: 'static', sha256: sha256Hex(bytes), length: bytes.length, fetched_at: fetchedAt, bytes },
+    artifact: {
+      evidence_id: evidenceIdFor(page.url, 'static'), url: page.url, lane: 'static', sha256: sha256Hex(bytes), length: bytes.length, fetched_at: fetchedAt, bytes,
+      // ── raw-vs-normalised durability fields (Kimi K3 HIGH-E2, see the section below) ──
+      rawAvailable: Boolean(raw),
+      rawBytes: raw ? raw.rawBytes : null,
+      rawSha256: raw ? raw.rawSha256 : null,
+      rawLength: raw ? raw.rawBytes.length : null,
+      boundaries: raw ? raw.boundaries : [],
+    },
   };
+}
+
+// ── raw-vs-normalised durability (Kimi K3 HIGH-E2) ─────────────────────────────────────────────────────
+// The hash chain above anchors ONLY to the NORMALISED text (this module's own bytes convention, documented
+// at the top of this file). That proves the normalised buffer is untouched; it does NOT prove the
+// normalised buffer corresponds to what actually shipped on the page - a future normaliser bug, or a
+// phantom sentence stitched from two unrelated sibling DOM nodes (a "Free"+"VPS" pill-badge pair joined
+// into "Free VPS"), would verify perfectly under the existing scheme alone. This section adds a SECOND,
+// independent commitment: the RAW fetched bytes (page.rawHtml, when the crawler supplies it -
+// evidence/crawler/crawl.js's contentPageFrom), plus a raw<->normalised boundary map so
+// supervised/verify-quote.js's verifyRawProvenance() can tell whether a quoted span crosses a point where
+// two originally separate raw text runs were stitched together with NO source separator between them. This
+// is ADDITIVE ONLY: every field/behaviour above is unchanged, and a page with no rawHtml (an older bundle
+// or a replay/manifest-rehydrated record) simply captures without it (rawAvailable:false, never a
+// fabricated commitment for bytes that were never actually captured - Rule 4, fail closed).
+
+const MAX_RAW_PAGE_BYTES = 4 * 1024 * 1024; // per-page cap on raw HTML captured (Rule 8: a cap, never a floor)
+
+// decodeBasicEntities(s) -> the small set of entities that would otherwise break a raw-text-run match
+// against the (already fully entity-decoded) normalised buffer built by extract.js's stripHtml. Deliberately
+// a SMALL, independent list: this function only has to make run-location succeed often enough to build a
+// boundary map, not reproduce extract.js's full decoder (which stays the one producer of the actual
+// decoded corpus text - Rule 1; a run this cannot locate is simply skipped, see buildBoundaryMap).
+function decodeBasicEntities(s) {
+  return String(s)
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, ' ');
+}
+
+// splitTextRuns(rawHtml) -> ordered array of trimmed, whitespace-collapsed, non-empty text runs found
+// between HTML tags/comments/non-content elements, in DOM order. A small, independent, purpose-built
+// re-implementation (NOT an import of extract.js's stripHtml) - it exists only to locate WHERE stripHtml's
+// own separators fall in its output, never to produce the corpus text itself.
+function splitTextRuns(rawHtml) {
+  let s = String(rawHtml == null ? '' : rawHtml);
+  s = s.replace(/<!--[\s\S]*?-->/g, ' ');
+  s = s.replace(/<(script|style|noscript|template|svg|iframe|head)\b[\s\S]*?<\/\1\s*>/gi, ' ');
+  s = s.replace(/<(?:script|style|noscript|template|svg|iframe|head)\b[^>]*>[\s\S]*$/i, ' ');
+  const runs = [];
+  const re = /<[^>]+>/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const seg = normaliseWhitespace(decodeBasicEntities(s.slice(last, m.index))).trim();
+    if (seg) runs.push(seg);
+    last = re.lastIndex;
+  }
+  const tail = normaliseWhitespace(decodeBasicEntities(s.slice(last))).trim();
+  if (tail) runs.push(tail);
+  return runs;
+}
+
+// boundaryPunctuated(before, after) -> false exactly when NEITHER side of a raw-run join carries a
+// sentence/word-closing (before) or -opening (after) character - the phantom-join signature: two sibling
+// raw text nodes concatenated with no source separator ever having existed between them.
+function boundaryPunctuated(before, after) {
+  const endsPunct = /[.!?:;,)\]}"'’”-]\s*$/.test(before);
+  const startsPunct = /^\s*[("'‘“[-]/.test(after);
+  return endsPunct || startsPunct;
+}
+
+// buildBoundaryMap(normalisedText, runs) -> ordered [{ charOffset, byteOffset, punctuated }] for every
+// point where two consecutive raw text runs meet inside `normalisedText` (stripHtml's own output, read
+// verbatim - this function never mutates or re-derives it). Runs are located with a MONOTONIC search
+// cursor, so a run this cannot find (a whitespace-collapse edge case between the two independent stripping
+// implementations) is skipped rather than mis-anchored: a missed boundary makes the map UNDER-report risk,
+// it can never fabricate one.
+function buildBoundaryMap(normalisedText, runs) {
+  const boundaries = [];
+  let searchFrom = 0;
+  let prevEnd = -1;
+  let prevRun = '';
+  for (const run of runs) {
+    const idx = normalisedText.indexOf(run, searchFrom);
+    if (idx === -1) continue;
+    if (prevEnd !== -1 && idx > prevEnd) {
+      boundaries.push({
+        charOffset: prevEnd,
+        byteOffset: Buffer.byteLength(normalisedText.slice(0, prevEnd), 'utf8'),
+        punctuated: boundaryPunctuated(prevRun, run),
+      });
+    }
+    prevEnd = idx + run.length;
+    searchFrom = prevEnd;
+    prevRun = run;
+  }
+  return boundaries;
+}
+
+// captureRawFor(page, normalisedText) -> { rawBytes, rawSha256, boundaries } | null. null when the page
+// carries no rawHtml (older bundle/replay input, or a single page whose raw body exceeds MAX_RAW_PAGE_BYTES)
+// - the caller records rawAvailable:false rather than fabricating a raw commitment for bytes that were
+// never actually captured (Rule 4: fail closed on the raw layer specifically, the normalised capture above
+// is entirely unaffected either way).
+function captureRawFor(page, normalisedText) {
+  if (typeof page.rawHtml !== 'string' || !page.rawHtml) return null;
+  const rawBytes = Buffer.from(page.rawHtml, 'utf8');
+  if (rawBytes.length > MAX_RAW_PAGE_BYTES) return null;
+  const runs = splitTextRuns(page.rawHtml);
+  const boundaries = buildBoundaryMap(normalisedText, runs);
+  return { rawBytes, rawSha256: sha256Hex(rawBytes), boundaries };
 }
 
 // unreachableSiteError(stageManifest) -> a LaneError when the crawl lane recorded the domain as
