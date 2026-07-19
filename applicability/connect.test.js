@@ -205,6 +205,54 @@ test('gate 4: a restricted sub_sector matches when the firm sub_sector is a memb
   assert.deepEqual(connect(firm, catalogue).applicable.map((r) => r.id), ['SUB']);
 });
 
+// ── GATE 4 sub-sector: ancestor/sector/synonym-aware binding (P6 connection-integrity, D4) ─────────────
+// The classifier only ever emits a detection-tree LEAF sub-sector; the catalogue restricts records with
+// the coarse PARENT label, a SYNONYM, or the leaf. Exact string membership stranded 9 of 12 uk-healthcare
+// tags and every us-legal record. These prove the ancestor-aware bind and, crucially, that it does not
+// over-bind across sectors.
+
+test('gate 4 sub-sector (D4 Site 1): a Botox clinic (leaf injectables) binds a record restricted to the PARENT label aesthetics', () => {
+  const botox = [rec({ id: 'MHRA', sector: ['healthcare'], sub_sector: ['aesthetics', 'gp-clinic', 'pharmacy'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), sector: sectorFact('aesthetics', 'injectables') });
+  assert.deepEqual(connect(firm, botox).applicable.map((r) => r.id), ['MHRA'],
+    'an injectables leaf binds the coarse aesthetics parent label (the Botox/injectables miss, now fixed)');
+});
+
+test('gate 4 sub-sector (D4 Site 2): a GP clinic (leaf general-practice) binds a record restricted to the SYNONYM gp-clinic', () => {
+  const cqc = [rec({ id: 'CQC20A', sector: ['healthcare'], sub_sector: ['gp-clinic', 'dental', 'hospital'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'general-practice') });
+  assert.deepEqual(connect(firm, cqc).applicable.map((r) => r.id), ['CQC20A'],
+    'the CQC rating record binds a GP lead via the gp-clinic->general-practice synonym');
+});
+
+test('gate 4 sub-sector: a US law firm (leaf solicitors) binds records restricted to the SYNONYMS law-firm/attorney (us-legal was 100% dead)', () => {
+  const aba = [rec({ id: 'ABA', jurisdiction: 'US', sector: ['legal'], sub_sector: ['law-firm', 'attorney'] })];
+  const firm = { jurisdiction: { bound: [{ jurisdiction: 'US', tier_evidence: [{ tier: 'A', kind: 'register' }] }], serves: [], sub_jurisdictions: [], abstained: false },
+    sector: sectorFact('law-firms', 'solicitors'), capabilities: null };
+  assert.deepEqual(connect(firm, aba).applicable.map((r) => r.id), ['ABA']);
+});
+
+test('gate 4 sub-sector: newly-reachable opticians and vets bind their previously-DEAD records', () => {
+  const optician = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'optometry') });
+  assert.deepEqual(connect(optician, [rec({ id: 'GOC', sector: ['healthcare'], sub_sector: ['optometry'] })]).applicable.map((r) => r.id), ['GOC']);
+  const vet = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'veterinary') });
+  assert.deepEqual(connect(vet, [rec({ id: 'RCVS', sector: ['healthcare'], sub_sector: ['veterinary'] })]).applicable.map((r) => r.id), ['RCVS']);
+});
+
+test('gate 4 sub-sector: ancestor-aware binding does NOT over-bind across siblings (a dental firm never gets the aesthetics-only record)', () => {
+  const dentalFirm = factsFor({ jurisdiction: boundUK(), sector: sectorFact('dental', 'general-dental') });
+  const aestheticsOnly = [rec({ id: 'BOTOX_U18', sector: ['healthcare'], sub_sector: ['aesthetics'] })];
+  const { applicable, excluded } = connect(dentalFirm, aestheticsOnly);
+  assert.equal(applicable.length, 0, 'a dental firm must not inherit an aesthetics-only injectables rule');
+  assert.match(excluded[0].reason, /gate-4 sub-sector/);
+});
+
+test('gate 4 sub-sector: a general healthcare firm (general-practice) does NOT bind an aesthetics-only record', () => {
+  const gp = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'general-practice') });
+  const aestheticsOnly = [rec({ id: 'BOTOX_U18', sector: ['healthcare'], sub_sector: ['aesthetics'] })];
+  assert.equal(connect(gp, aestheticsOnly).applicable.length, 0);
+});
+
 // ── GATE 5: activity tags ────────────────────────────────────────────────────────────────────────────
 
 test('gate 5: a record whose EVERY activity tag is present:false is excluded (basis disproven)', () => {

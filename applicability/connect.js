@@ -245,7 +245,16 @@ function gateSector(record, ctx) {
   return gateSubSector(record, ctx);
 }
 
-// gateSubSector(record, ctx) -> the sub-sector half of gate 4.
+// gateSubSector(record, ctx) -> the sub-sector half of gate 4. ANCESTOR-AWARE (P6 connection-integrity):
+// the classifier only ever emits a detection-tree LEAF sub-sector (injectables, general-practice,
+// solicitors), while the catalogue restricts records with the coarse PARENT label (aesthetics, dental,
+// law-firms), a SYNONYM (gp-clinic, attorney), or the leaf. Exact set membership therefore stranded 9 of
+// 12 uk-healthcare tags and every us-legal record (empirical-healthcare D4). The bind test is folded
+// through facts/vocabulary.js#subSectorBinds (the ONE door for the relation): a tag binds when it is the
+// firm's exact leaf, a canonical sector/family the firm belongs to (ctx.firmSectorSet, the same set the
+// sector half already built), or a synonym of the firm's leaf. This never over-binds across sectors: the
+// sector half of gate 4 has already run, so the firm's sector matches the record's. A null firm
+// sub-sector still fails a restricted record fail-closed (a restricted record needs a proven sub-sector).
 function gateSubSector(record, ctx) {
   const sub = Array.isArray(record.sub_sector) ? record.sub_sector : [];
   if (sub.length === 0) return null;
@@ -253,9 +262,10 @@ function gateSubSector(record, ctx) {
     return 'gate-4 sub-sector: record is restricted to sub-sectors [' + sub.join(', ')
       + '] but the firm sub-sector is unresolved/null (fail-closed: a restricted record needs a proven sub-sector)';
   }
-  if (!sub.includes(ctx.firmSubSector)) {
+  if (!vocabulary.subSectorBinds(sub, ctx.firmSubSector, ctx.firmSectorSet)) {
     return 'gate-4 sub-sector: firm sub-sector ' + JSON.stringify(ctx.firmSubSector)
-      + ' is not in the record restricted set [' + sub.join(', ') + ']';
+      + ' (sector [' + Array.from(ctx.firmSectorSet || []).join(', ') + ']) is not the leaf, a parent'
+      + ' sector/family, or a synonym of any record sub-sector [' + sub.join(', ') + ']';
   }
   return null;
 }

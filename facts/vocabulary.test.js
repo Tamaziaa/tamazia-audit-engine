@@ -387,3 +387,64 @@ test('the sector tree holds no catalogue-owned law facts (no regulators, no fram
     assert.ok(!('frameworks' in sub), parentId + '/' + subId + ' must not carry framework codes (catalogue-owned)');
   });
 });
+
+// ---------------------------------------------------------------------------------
+// Sub-sector binding taxonomy (P6 connection-integrity, empirical-healthcare D4)
+// ---------------------------------------------------------------------------------
+
+test('every P6-added detection leaf (healthcare + legal) is real, ships a matching sample, and is classifier-emittable', () => {
+  const added = [
+    ['healthcare', 'care-home'], ['healthcare', 'optometry'], ['healthcare', 'physiotherapy'],
+    ['healthcare', 'veterinary'], ['healthcare', 'pharmaceutical'], ['healthcare', 'medical-devices'],
+    ['healthcare', 'supplements'], ['law-firms', 'licensed-conveyancers'], ['law-firms', 'legal-executives'],
+  ];
+  for (const [parent, leaf] of added) {
+    const node = vocab.SECTORS[parent].sub[leaf];
+    assert.ok(node, parent + '/' + leaf + ' must be a detection leaf');
+    assert.ok(node.detect instanceof RegExp && node.detect.test(node.sample), parent + '/' + leaf + ' detect must match its sample');
+    assert.ok(vocab.CLASSIFIER_SUB_SECTORS.includes(leaf), leaf + ' must be classifier-emittable');
+  }
+});
+
+test('every SUB_SECTOR_SYNONYMS target is a real classifier-emittable leaf (one door integrity)', () => {
+  for (const [syn, leaf] of Object.entries(vocab.SUB_SECTOR_SYNONYMS)) {
+    assert.ok(vocab.CLASSIFIER_SUB_SECTORS.includes(leaf), 'synonym ' + syn + ' -> ' + leaf + ' must target a real leaf');
+    assert.ok(vocab.isCanonicalSubSector(syn), 'synonym key ' + syn + ' must itself be a canonical sub-sector');
+  }
+});
+
+test('subSectorBinds: exact leaf, coarse parent/family label, and synonym all bind', () => {
+  assert.equal(vocab.subSectorBinds(['injectables'], 'injectables', new Set(['aesthetics', 'healthcare'])), true, 'exact leaf');
+  assert.equal(vocab.subSectorBinds(['aesthetics'], 'injectables', new Set(['aesthetics', 'healthcare'])), true, 'parent sector label');
+  assert.equal(vocab.subSectorBinds(['gp-clinic'], 'general-practice', new Set(['healthcare'])), true, 'synonym');
+  assert.equal(vocab.subSectorBinds(['law-firm', 'attorney'], 'solicitors', new Set(['law-firms'])), true, 'US synonyms');
+});
+
+test('subSectorBinds does NOT over-bind: a sibling leaf never matches an unrelated coarse label', () => {
+  assert.equal(vocab.subSectorBinds(['aesthetics'], 'general-dental', new Set(['dental', 'healthcare'])), false,
+    'a dental firm is not aesthetics');
+  assert.equal(vocab.subSectorBinds(['injectables'], 'general-practice', new Set(['healthcare'])), false,
+    'a GP is not an injectables firm');
+  assert.equal(vocab.subSectorBinds([], 'injectables', new Set(['aesthetics'])), false, 'an empty tag list never binds here');
+});
+
+test('isReachableSubSector: leaves, sector-node parent labels and synonyms are reachable; a typo and a firm-structure tag are not', () => {
+  for (const t of ['injectables', 'care-home', 'veterinary', 'aesthetics', 'dental', 'law-firms', 'gp-clinic', 'attorney']) {
+    assert.equal(vocab.isReachableSubSector(t), true, t + ' should be reachable');
+  }
+  for (const t of ['not-a-real-thing', 'solo-practice', 'wellness', 'conveyancing']) {
+    assert.equal(vocab.isReachableSubSector(t), false, t + ' should be unreachable');
+  }
+});
+
+test('recordSubSectorBindable: empty binds all; one reachable tag suffices; all-unreachable is dead', () => {
+  assert.equal(vocab.recordSubSectorBindable([]), true, 'empty = no restriction');
+  assert.equal(vocab.recordSubSectorBindable(['wellness', 'supplements']), true, 'one reachable tag (supplements) suffices');
+  assert.equal(vocab.recordSubSectorBindable(['wellness']), false, 'a sole unreachable tag is a dead record');
+  assert.equal(vocab.recordSubSectorBindable(['conveyancing', 'probate']), false, 'all-unreachable is dead');
+});
+
+test('the sub-sector binding taxonomy exports are deep-frozen (a consumer cannot mutate the one door)', () => {
+  assert.ok(Object.isFrozen(vocab.SUB_SECTOR_SYNONYMS));
+  assert.ok(Object.isFrozen(vocab.CLASSIFIER_SUB_SECTORS));
+});

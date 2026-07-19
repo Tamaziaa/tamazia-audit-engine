@@ -102,6 +102,14 @@ const CALIBRATIONS = [
     ],
   },
   {
+    name: 'catalogue-sub-sector-binding',
+    description: 'a schema-clean record whose sub_sector[] can bind no classifiable firm: an unknown/typo tag and a canonical-but-unreachable tag, so gate-4 can never attach it (the Botox/injectables miss, empirical-healthcare D4)',
+    fixtures: ['p6-sub-sector-unbindable.json'],
+    checkerCandidates: [
+      'catalogue/linters/sub-sector-binding.js',
+    ],
+  },
+  {
     name: 'catalogue-only-literals',
     description: 'fine amount / regulator name / law title authored as a literal in code',
     fixtures: ['fabricated-fine-literal.js'],

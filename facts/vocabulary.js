@@ -107,6 +107,20 @@ const SECTORS = {
   'law-firms': {
     label: 'Solicitors & law firms',
     sub: {
+      // P6: licensed conveyancers (CLC-regulated) and chartered legal executives (CILEX) are distinct
+      // regulated legal professions the catalogue restricts UK_CLC_TRANSPARENCY / UK_CILEX_TRANSPARENCY
+      // to; the classifier could previously only emit 'solicitors', so those records were unbindable.
+      // Listed BEFORE solicitors so a firm that self-identifies as a licensed conveyancer / legal
+      // executive resolves to the specific leaf; a normal solicitors firm never matches these
+      // (their cues do not appear on a solicitors site) and falls through to solicitors unchanged.
+      'licensed-conveyancers': {
+        detect: /\blicensed conveyancers?\b|\bclc regulated\b|\bcouncil for licensed conveyancers\b/i,
+        sample: 'we are licensed conveyancers, CLC regulated by the Council for Licensed Conveyancers',
+      },
+      'legal-executives': {
+        detect: /\bchartered legal executives?\b|\blegal executives?\b|\bcilex\b|\bchartered institute of legal executives\b/i,
+        sample: 'our chartered legal executives are CILEX members of the Chartered Institute of Legal Executives',
+      },
       solicitors: {
         detect: /\bsolicitors?\b|\bconveyancing\b|\bprobate\b|\blaw firm\b|\blegal advice\b/i,
         sample: 'our solicitors provide conveyancing and probate; ask our law firm for legal advice',
@@ -148,6 +162,45 @@ const SECTORS = {
       pharmacy: {
         detect: /\bpharmac(?:y|ist|ies)\b|\bchemist\b|\bdispensing\b/i,
         sample: 'our pharmacy and dispensing chemist',
+      },
+      // P6 connection-integrity: leaves the catalogue already restricts records to (care-home,
+      // optometry, physiotherapy, veterinary) but which the detection tree could not previously emit,
+      // so UK_CARE_HOME_FEES / UK_GOC_OPTICIANS / UK_VMD_POMV_AD / UK_RCVS_ADVERTISING were permanently
+      // unbindable (empirical-healthcare D4). Each ships a known-positive sample; every alternation
+      // branch is \b-anchored (C-059) and avoids the hospital-care 'clinic'/'hospital' cues so a real
+      // firm resolves to the specific leaf, not the generic one.
+      'care-home': {
+        // 'care provider' was dropped (CodeRabbit review PR #24): it is a generic phrase ordinary GP /
+        // primary-care sites use, so it over-matched. The remaining branches are care-home-specific.
+        detect: /\bcare home\b|\bnursing home\b|\bresidential care\b|\bdomiciliary care\b/i,
+        sample: 'our residential care home and nursing home provide domiciliary care',
+      },
+      optometry: {
+        detect: /\boptometr(?:y|ist|ists)\b|\bopticians?\b|\beye (?:test|tests|examination|exam)\b|\bspectacles\b|\bcontact lenses\b/i,
+        sample: 'our opticians provide an eye test, spectacles and contact lenses from a registered optometrist',
+      },
+      physiotherapy: {
+        detect: /\bphysiotherap(?:y|ist|ists)\b|\bphysio\b|\bmanual therapy\b|\bmusculoskeletal\b|\bsports (?:injury|therapy) clinic\b/i,
+        sample: 'our physiotherapy service offers physio, manual therapy and musculoskeletal rehabilitation for sports injury',
+      },
+      veterinary: {
+        detect: /\bveterinar(?:y|ian|ians|ies)\b|\bvets?\b|\banimal hospital\b|\bpet clinic\b/i,
+        sample: 'our veterinary practice and vets care for your pet; a qualified veterinarian',
+      },
+      // US-healthcare product firms the catalogue restricts records to (pharmaceutical, medical-devices,
+      // supplements). Distinct from the pharmacy leaf (dispensing chemist); FDA/FTC records target the
+      // maker/seller, not a dispensing pharmacy.
+      pharmaceutical: {
+        detect: /\bpharmaceuticals?\b|\bdrug manufactur(?:er|ing|ers)\b|\bmedicines? manufactur(?:er|ing|ers)\b/i,
+        sample: 'a pharmaceutical manufacturer; our pharmaceuticals and medicines manufacturing',
+      },
+      'medical-devices': {
+        detect: /\bmedical devices?\b|\bimplantable devices?\b|\bin vitro diagnostics?\b|\bmedical equipment manufactur(?:er|ing)\b/i,
+        sample: 'a medical devices manufacturer of implantable devices and in vitro diagnostics',
+      },
+      supplements: {
+        detect: /\bfood supplements?\b|\bdietary supplements?\b|\bnutritional supplements?\b|\bnutraceuticals?\b|\bvitamin supplements?\b/i,
+        sample: 'we sell dietary supplements, food supplements and nutraceuticals',
       },
     },
   },
@@ -550,6 +603,97 @@ const SUB_EXCLUSIVE = {
   solicitors: { parent: 'law-firms', sub: 'solicitors' },
 };
 
+// =================================================================================
+// 2d. SUB-SECTOR BINDING TAXONOMY (P6 connection-integrity, the one door for sub_sector attachment).
+//
+// The catalogue authors a RICHER sub_sector vocabulary (CANONICAL_SUB_SECTORS) than the detection tree
+// can emit. facts/sector.js#resolveSubSector only ever emits a detection-tree LEAF key (injectables,
+// general-practice, solicitors, ...). A catalogue record may instead be tagged with:
+//   - the exact leaf ('mental-health', 'solicitors'),
+//   - a coarse PARENT label that is a top-level SECTORS node key ('aesthetics', 'dental', 'law-firms',
+//     'barristers', 'professional-services') - the firm's own sector or family, or
+//   - a SYNONYM of a leaf ('gp-clinic' for 'general-practice', 'attorney' for 'solicitors').
+// Exact string-equality alone (the pre-P6 gate-4) stranded 9 of 12 uk-healthcare tags and 100% of the
+// us-legal records: a real Botox clinic resolves to leaf 'injectables' and could never match a record
+// restricted to the parent label 'aesthetics' (empirical-healthcare D4; hidden-defects D6 saw the SAME
+// tokens as schema-valid because CANONICAL_SUB_SECTORS carries both the parent labels and the leaves -
+// schema validity was never the same fact as runtime binding). This block is the ONE producer of the
+// binding relation (Rule 1): applicability/connect.js gate-4 reads subSectorBinds and never re-derives
+// it, and the catalogue compile gate reads recordSubSectorBindable so no future record can be tagged
+// with a sub_sector no classifiable firm could ever carry.
+
+// SUB_SECTOR_SYNONYMS: a catalogue sub_sector tag -> the detection-tree LEAF it denotes. These are
+// alternative NAMES for a leaf the classifier does emit (not a coarser category - those are covered by
+// the sector/family match in subSectorBinds). Every target MUST be a real detection-tree sub key.
+const SUB_SECTOR_SYNONYMS = {
+  'gp-clinic': 'general-practice',
+  hospital: 'hospital-care',
+  fertility: 'fertility-ivf',
+  telehealth: 'telemedicine',
+  chambers: 'general',       // the barristers detection leaf key
+  'law-firm': 'solicitors',  // US singular form
+  attorney: 'solicitors',    // US term for a solicitor-equivalent
+};
+
+// CLASSIFIER_SUB_SECTORS: every sub key the classifier can actually emit (every SECTORS[x].sub key).
+const CLASSIFIER_SUB_SECTORS = [];
+for (const _cn of Object.values(SECTORS)) {
+  for (const _ck of Object.keys(_cn.sub || {})) {
+    if (CLASSIFIER_SUB_SECTORS.indexOf(_ck) === -1) CLASSIFIER_SUB_SECTORS.push(_ck);
+  }
+}
+const CLASSIFIER_SUB_SECTOR_SET = new Set(CLASSIFIER_SUB_SECTORS);
+
+// _toKeySet(value) -> a Set from a Set (as-is), an array, a truthy scalar (wrapped), or nullish (empty).
+// The one place firmSectorKeys is coerced, so subSectorBinds stays a flat one-liner.
+function _toKeySet(value) {
+  if (value instanceof Set) return value;
+  if (Array.isArray(value)) return new Set(value);
+  return new Set(value ? [value] : []);
+}
+
+// _tagBindsFirm(tag, firmSubSector, firmSectorSet) -> does ONE record sub_sector tag bind this firm:
+// (a) the firm's exact leaf, (b) a canonical sector/family the firm belongs to (the coarse parent
+// label), or (c) a synonym of the firm's leaf. The three-way disjunction lives here so subSectorBinds
+// is a single .some() (keeps both methods flat - the CodeScene Complex-Method class).
+function _tagBindsFirm(tag, firmSubSector, firmSectorSet) {
+  if (firmSectorSet.has(tag)) return true;                    // coarse parent = firm sector/family
+  if (!firmSubSector) return false;                           // remaining tests need a resolved leaf
+  return tag === firmSubSector || SUB_SECTOR_SYNONYMS[tag] === firmSubSector; // exact leaf | synonym
+}
+
+// subSectorBinds(recordSubSectors, firmSubSector, firmSectorKeys) -> true iff a firm resolved to leaf
+// `firmSubSector` (with canonical sector/family keys `firmSectorKeys`, the set gate-4 already builds via
+// canonicalSector + familyOf) is bound by a record whose sub_sector[] is `recordSubSectors`. See
+// _tagBindsFirm for the per-tag rule. Over-binding across sectors is prevented upstream: gate-4's sector
+// half runs first, so this is only asked for a firm whose sector already matched the record. Pure; no
+// default; an empty tag list never binds (gate-4 treats empty sub_sector as "no restriction" first).
+function subSectorBinds(recordSubSectors, firmSubSector, firmSectorKeys) {
+  const tags = Array.isArray(recordSubSectors) ? recordSubSectors : [];
+  const secSet = _toKeySet(firmSectorKeys);
+  return tags.some((tag) => _tagBindsFirm(tag, firmSubSector, secSet));
+}
+
+// isReachableSubSector(tag) -> true iff SOME classifiable firm can be bound by a record carrying `tag`:
+// it is a detection leaf, a canonical sector key (coarse parent label), or a synonym of a leaf.
+function isReachableSubSector(tag) {
+  const t = String(tag == null ? '' : tag);
+  if (!t) return false;
+  if (CLASSIFIER_SUB_SECTOR_SET.has(t)) return true;                              // a leaf a firm resolves to
+  if (CANONICAL_SECTOR_SET.has(t)) return true;                                   // a sector/family parent label
+  return Object.prototype.hasOwnProperty.call(SUB_SECTOR_SYNONYMS, t);            // a synonym of a leaf
+}
+
+// recordSubSectorBindable(subSectors) -> true when a record's sub_sector[] can bind at least one
+// classifiable firm. Empty binds every in-sector firm (never a sub-sector break); a non-empty list must
+// carry at least one reachable tag. The catalogue compile gate fails closed on any record for which this
+// is false (a silently dead record - the empirical-healthcare D4 defect made permanent-proof).
+function recordSubSectorBindable(subSectors) {
+  const arr = Array.isArray(subSectors) ? subSectors : [];
+  if (arr.length === 0) return true;
+  return arr.some((t) => isReachableSubSector(t));
+}
+
 // DOMAIN self-identity tokens (the C-013 high-precision own-identity self-ID, applied to the ONE
 // signal outside the visible body that names what a firm IS: its own registrable domain label).
 // Each entry is [substring, sector-family]: an UNAMBIGUOUS profession word that, when it appears in
@@ -838,6 +982,12 @@ const EXPORTS = {
   CANONICAL_SECTORS,
   CANONICAL_SUB_SECTORS,
   SUB_EXCLUSIVE,
+  // sub-sector binding taxonomy (P6 connection-integrity; the one door for sub_sector attachment)
+  SUB_SECTOR_SYNONYMS,
+  CLASSIFIER_SUB_SECTORS,
+  subSectorBinds,
+  isReachableSubSector,
+  recordSubSectorBindable,
   DOMAIN_SELF_IDENTITY,
   sectorSelfIdFromDomain,
   // regex compilation door (facts/sector.js delegates every detect-pattern compilation here)
