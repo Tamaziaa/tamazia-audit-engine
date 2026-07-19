@@ -94,6 +94,48 @@ test('inputHost: a raw operator domain becomes a canonical host through the pars
   assert.equal(sf.inputHost('has a space'), '', 'an unparseable input yields no host');
 });
 
+test('DEFECT-1: resolveNavigableUrl prepends https:// to a BARE domain (the engine\'s own mint(url,opts) calling convention)', () => {
+  assert.equal(sf.resolveNavigableUrl('lomond.co.uk'), 'https://lomond.co.uk/');
+  assert.equal(sf.resolveNavigableUrl('EXAMPLE.com:8443'), 'https://example.com:8443/');
+});
+
+test('resolveNavigableUrl preserves an explicit scheme exactly (never re-forces https, never silently downgrades)', () => {
+  assert.equal(sf.resolveNavigableUrl('http://lomond.co.uk'), 'http://lomond.co.uk/');
+  assert.equal(sf.resolveNavigableUrl('https://lomond.co.uk/some/path?x=1'), 'https://lomond.co.uk/some/path?x=1');
+});
+
+test('resolveNavigableUrl returns "" for genuinely unparseable input (the caller\'s own goto/deadline/catch chain then records the loud lane failure)', () => {
+  assert.equal(sf.resolveNavigableUrl(''), '');
+  assert.equal(sf.resolveNavigableUrl('has a space'), '');
+  assert.equal(sf.resolveNavigableUrl(null), '');
+});
+
+test('CodeRabbit PR #25 (round 3): resolveNavigableUrl refuses any non-http(s) scheme, never handing a real browser a local-file/script/data target', () => {
+  assert.equal(sf.resolveNavigableUrl('file:///etc/passwd'), '', 'a file: target must never reach page.goto()');
+  assert.equal(sf.resolveNavigableUrl('javascript:alert(1)'), '');
+  assert.equal(sf.resolveNavigableUrl('data:text/html,<script>alert(1)</script>'), '');
+  assert.equal(sf.resolveNavigableUrl('blob:https://lomond.co.uk/x'), '');
+  // an http(s) target is unaffected by the scheme floor (the common, safe path stays exactly as before).
+  assert.equal(sf.resolveNavigableUrl('https://lomond.co.uk'), 'https://lomond.co.uk/');
+});
+
+test('CodeRabbit PR #25 (round 4): a single-slash pseudo-scheme (no "://") never becomes a dangerous URL either - it is swallowed by the bare-domain branch, never the scheme-preserving one', () => {
+  // The scheme-preservation test (line ~252) requires a literal "://"; "file:/etc/passwd" (ONE slash) does
+  // NOT match it, so this door treats it exactly like a bare domain: "https://" is prepended and the whole
+  // string parses as an (odd, DNS-doomed) https:// URL whose HOST happens to be "file" - it can never
+  // become an actual file:/javascript:/data: navigation, because only an input that already carries "://"
+  // ever has its scheme preserved, and that path is the one the scheme floor above gates. This locks the
+  // real behaviour in (not the literal "" CodeRabbit's suggested diff proposed, which does not hold: these
+  // inputs resolve to a benign https: URL, never a dangerous one, so asserting them to "" would be
+  // asserting something false about this door and silently mask what actually happens on this input class).
+  assert.equal(sf.resolveNavigableUrl('file:/etc/passwd'), 'https://file/etc/passwd');
+  assert.equal(new URL(sf.resolveNavigableUrl('file:/etc/passwd')).protocol, 'https:', 'never file:');
+  assert.equal(sf.resolveNavigableUrl('data:/text/html,hi'), 'https://data/text/html,hi');
+  assert.equal(new URL(sf.resolveNavigableUrl('data:/text/html,hi')).protocol, 'https:', 'never data:');
+  assert.equal(sf.resolveNavigableUrl('javascript:/alert(1)'), 'https://javascript/alert(1)');
+  assert.equal(new URL(sf.resolveNavigableUrl('javascript:/alert(1)')).protocol, 'https:', 'never javascript:');
+});
+
 test('acceptedSiteSet: the set of registrable domains that count as this site', () => {
   assert.deepEqual([...sf.acceptedSiteSet('www.example.com')], ['example.com']);
   assert.deepEqual([...sf.acceptedSiteSet('https://blog.example.co.uk/x')], ['example.co.uk']);

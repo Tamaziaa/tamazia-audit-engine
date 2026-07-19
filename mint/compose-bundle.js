@@ -47,17 +47,27 @@ const REGISTER_DEADLINE_MS = 6000;
 
 // normaliseOpts(opts) -> the injected surfaces + the clock, with production defaults. fetchFn defaults to
 // the real safe http/https primitive; launchBrowser/registersFetchFn default to production transports.
+// fnOr(v, fallback) -> v when it is a function, else fallback. The one repeated shape every injectable
+// surface below uses ("an opt override, else the production default"); pulling it out keeps normaliseOpts
+// itself a flat object literal with no inline conditionals (CodeScene Complex Method).
+function fnOr(v, fallback) { return typeof v === 'function' ? v : fallback; }
+
 function normaliseOpts(opts) {
   const o = opts || {};
   return {
-    fetchFn: typeof o.fetchFn === 'function' ? o.fetchFn : createFetchFn({ deadlineMs: o.perPageMs }),
-    launchBrowser: typeof o.launchBrowser === 'function' ? o.launchBrowser : null,
-    fetchLink: typeof o.fetchLink === 'function' ? o.fetchLink : null,
-    registersFetchFn: typeof o.registersFetchFn === 'function' ? o.registersFetchFn : makeRegistersFetch(REGISTER_DEADLINE_MS),
+    fetchFn: fnOr(o.fetchFn, createFetchFn({ deadlineMs: o.perPageMs })),
+    launchBrowser: fnOr(o.launchBrowser, null),
+    fetchLink: fnOr(o.fetchLink, null),
+    registersFetchFn: fnOr(o.registersFetchFn, makeRegistersFetch(REGISTER_DEADLINE_MS)),
     env: o.env || process.env,
-    now: typeof o.now === 'function' ? o.now : Date.now,
-    log: typeof o.log === 'function' ? o.log : null,
+    now: fnOr(o.now, Date.now),
+    log: fnOr(o.log, null),
     crawlOpts: o.crawlOpts || {},
+    // TEST-ONLY seam (DEFECT-6, CodeRabbit PR #25 comment 3610846889): threaded through to BOTH browser
+    // lanes' own resolvePlaywrightLauncher() calls so a test can deterministically prove the "no Playwright
+    // driver installed" path for either lane, without depending on whether the optionalDependency happens
+    // to be present in node_modules. Production never sets this.
+    resolveChromium: fnOr(o.resolveChromium, undefined),
   };
 }
 
@@ -131,7 +141,7 @@ async function runCrawlLane(domain, cfg, manifest) {
 // records its own lane:{ran,reason} (playwright-unavailable/deadline/error/ran); this only threads the
 // injected launcher + clock and mirrors the lane's outcome onto the manifest (C-041).
 async function runObserveLane(url, cfg, manifest) {
-  const res = await observe(url, { launchBrowser: cfg.launchBrowser || undefined, fetchLink: cfg.fetchLink || undefined, deadlineMs: OBSERVE_DEADLINE_MS, now: cfg.now });
+  const res = await observe(url, { launchBrowser: cfg.launchBrowser || undefined, fetchLink: cfg.fetchLink || undefined, deadlineMs: OBSERVE_DEADLINE_MS, now: cfg.now, resolveChromium: cfg.resolveChromium });
   manifest.push({ stage: 'observe', ran: Boolean(res.lane && res.lane.ran), reason: (res.lane && res.lane.reason) || null, observed: Array.isArray(res.observed) ? res.observed.length : 0 });
   return { observed: res.observed || [], consentControl: res.consentControl || { found: false }, lane: res.lane || { ran: false, reason: 'no-lane' } };
 }
@@ -170,7 +180,7 @@ async function forceClose(holder, cfg) {
 // A launcher that will not resolve (no injected browser, no Playwright driver) records the lane unavailable
 // LOUDLY (C-041) without attempting a launch. Never throws into the mint (Rule 4).
 async function runDomLane(url, cfg, manifest) {
-  const launch = typeof cfg.launchBrowser === 'function' ? cfg.launchBrowser : await resolvePlaywrightLauncher({ now: cfg.now });
+  const launch = typeof cfg.launchBrowser === 'function' ? cfg.launchBrowser : await resolvePlaywrightLauncher({ now: cfg.now, resolveChromium: cfg.resolveChromium });
   if (typeof launch !== 'function') {
     manifest.push({ stage: 'domAssert', ran: false, reason: 'playwright-unavailable', launch: 'second-bounded-launch (not attempted: no launcher)' });
     return { nodes: [], lane: { ran: false, reason: 'playwright-unavailable' } };
@@ -238,12 +248,20 @@ function bundleId(domain, now) {
 async function composeBundle(url, opts) {
   const cfg = normaliseOpts(opts);
   const domain = safeFetch.inputHost(url);
+  // DEFECT-1 fix: the ONE entry point that normalises the operator-supplied url into an absolute,
+  // schemed URL BEFORE it reaches either browser lane. The engine's own documented calling convention
+  // (mint(url, opts), mint/worker.js, live-dry-run.js) passes a BARE domain ("lomond.co.uk"); Playwright's
+  // page.goto() requires a scheme and THROWS on a bare host ("Cannot navigate to invalid URL"). The crawl
+  // lane already normalises its own copy (evidence/crawler/crawl.js); navUrl is the same normalisation
+  // applied once here so observe() and the domAssert second launch navigate the SAME resolved target,
+  // never the raw operator string (Rule 1: one door, tools/lib/safe-fetch.js#resolveNavigableUrl).
+  const navUrl = safeFetch.resolveNavigableUrl(url);
   const manifest = [];
   const started = cfg.now();
 
   const crawlLane = await runCrawlLane(domain, cfg, manifest);
-  const observeLane = await runObserveLane(url, cfg, manifest);
-  const domLane = await runDomLane(url, cfg, manifest);
+  const observeLane = await runObserveLane(navUrl, cfg, manifest);
+  const domLane = await runDomLane(navUrl, cfg, manifest);
   const registers = await runRegisterLane(domain, cfg, manifest);
 
   const bundle = {

@@ -67,6 +67,10 @@ function normaliseOpts(opts) {
     launchBrowser: o.launchBrowser,
     fetchLink: o.fetchLink,
     oracle: o.oracle || { isTrackerHost, classifyCookie, oracleMeta },
+    // TEST-ONLY seam (DEFECT-6): overrides playwright-adapter.js's real driver resolution so a test can
+    // prove the "no driver installed" path without depending on whether Playwright's optionalDependency
+    // happens to be present in node_modules. Production code never sets this.
+    resolveChromium: typeof o.resolveChromium === 'function' ? o.resolveChromium : undefined,
   };
 }
 
@@ -297,7 +301,14 @@ async function runObservation(url, cfg, launcher, holder) {
   const control = await safeFindControl(page);
   const consentControl = await checkConsentControl(control, cfg);
   await attemptConsent(page, control);                    // injected clicker (accept)
-  const post = await snapshotState(page, capture, cfg);   // AFTER consent, for the diff
+  // DEFECT-8b (investigation note): a script that was BLOCKED pre-consent (e.g. a GDPR-plugin-gated tag,
+  // confirmed live on a real site during this fix - see DORMANT.md) is only INJECTED into the DOM by the
+  // consent click; it needs the same settle window pre-navigation already gets before its own network
+  // request can fire. Without this, the POST snapshot was taken immediately after the click, so a
+  // newly-unblocked tracker could be systematically under-counted in the pre/post diff even though the
+  // PRE-consent capture (the actual PECR breach signal this lane exists for) was already correct.
+  if (typeof page.settle === 'function') await page.settle(cfg.settleMs);
+  const post = await snapshotState(page, capture, cfg);   // AFTER consent (+ settle), for the diff
   const observed = buildObserved(pre, consentControl, cfg);
   await browser.close();
   holder.browser = null;
@@ -322,7 +333,7 @@ async function forceClose(holder, cfg) {
 
 async function resolveLauncher(cfg) {
   if (typeof cfg.launchBrowser === 'function') return cfg.launchBrowser;
-  return resolvePlaywrightLauncher({ now: cfg.now });
+  return resolvePlaywrightLauncher({ now: cfg.now, resolveChromium: cfg.resolveChromium });
 }
 
 async function observeWithLauncher(url, cfg, launcher) {

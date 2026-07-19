@@ -114,15 +114,19 @@ async function runBreachLane(bundle, applicable, catalogue, llm, cfg) {
   return { findings, report };
 }
 
-// buildPayload(bundle, facts, app, findings, cfg) -> the contract-valid v1.1 payload. compose() reads
-// connect()'s counts VERBATIM (threaded whole via `applicability`), joins each finding to its catalogue
-// record, and runs the contract validator on its own output (throws on any violation - fail closed).
-function buildPayload(bundle, facts, app, findings, cfg) {
+// buildPayload(bundle, facts, app, findings, cfg, stageManifest) -> the contract-valid v1.1 payload.
+// compose() reads connect()'s counts VERBATIM (threaded whole via `applicability`), joins each finding to
+// its catalogue record, and runs the contract validator on its own output (throws on any violation - fail
+// closed). stageManifest (DEFECT-6) is the SAME manifest composeBundle() already produced for this mint;
+// passing it through (never re-derived - Rule 1) lets compose() project a LOUD payload.coverageCaveats
+// entry for any browser lane (observe/domAssert) that did not run, so its absence is visible to the client,
+// not just to the engine's own stageManifest.
+function buildPayload(bundle, facts, app, findings, cfg, stageManifest) {
   const pages = bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
   const site = coverageContract.computeCoverage(pages, sectorFamilyOf(facts));
   return compose({
     domain: bundle.domain, generatedAt: cfg.generatedAt, facts, applicability: app,
-    findings, coverage: { site }, familyKeyFn: conflicts.familyKey,
+    findings, coverage: { site }, familyKeyFn: conflicts.familyKey, stageManifest,
   });
 }
 
@@ -168,7 +172,7 @@ async function mint(url, opts = {}) {
   const llm = resolveLlm(opts, cfg);
   const { findings, report } = await runBreachLane(bundle, app.applicable, catalogue, llm, cfg);
 
-  const payload = buildPayload(bundle, facts, app, findings, cfg);
+  const payload = buildPayload(bundle, facts, app, findings, cfg, stageManifest);
   const missing = validatePayload(payload);
   if (missing.length) throw new Error('mint: compose produced a contract-invalid payload (construction bug, failing closed): ' + missing.join(', '));
 

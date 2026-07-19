@@ -353,6 +353,49 @@ function screenedLabel(coverage) {
   return siteReadLimited(coverage) ? 'Screened the catalogue on a limited read of your site' : 'Screened the catalogue';
 }
 
+// ── coverage caveats: a browser lane's absence/failure, projected LOUDLY into the client payload ───────
+// DEFECT-6 (RANK 3 / C-041): the stageManifest already records ran/reason for the observe (PECR
+// pre-consent) and domAssert (accessibility DOM scan) lanes - but that manifest is an ENGINE artifact, not
+// part of what a client reads. "56 of 151 behavioural obligations silently disabled on a clean deploy" is
+// invisible in the SHIPPED REPORT even though it is visible in the manifest (RANK 17's own finding: "visible
+// in the manifest is not visible in the client report"). buildCoverageCaveats projects the SAME fact
+// (Rule 1: never re-derived, read straight off the one stageManifest the mint already produced) into a
+// payload field the render can show, so a client reading their audit is told, in plain language, that a
+// whole evidence class did not run - never a silent clean pass.
+const BROWSER_LANE_LABEL = Object.freeze({
+  observe: 'pre-consent tracking observation (cookies and trackers fired before you accept consent)',
+  domAssert: 'automated accessibility DOM scan',
+});
+// laneCaveat(stage, entry) -> one caveat object for a lane that did NOT run, or null when it ran fine (or
+// the manifest carries no entry for it at all - an older/synthetic input, never a throw).
+function laneCaveat(stage, entry) {
+  if (!entry || entry.ran) return null;
+  const label = BROWSER_LANE_LABEL[stage] || stage;
+  const reason = str(entry.reason) || 'unknown';
+  return {
+    lane: stage,
+    reason,
+    message: 'The ' + label + ' did not run for this audit (' + reason + '). Its findings are not represented here; this absence must not be read as a clean result for that evidence class.',
+  };
+}
+// BROWSER_LANE_STAGES: the only two stages ever projected into coverageCaveats (a crawl/register degrade
+// already speaks for itself elsewhere in the payload - an empty corpus, zero matched registers - but an
+// absent/failed browser lane leaves no other trace anywhere in the client-facing shape, Rule 4/C-041).
+const BROWSER_LANE_STAGES = Object.freeze(['observe', 'domAssert']);
+// stageManifestByStage(stageManifest) -> Map<stage, entry>, the manifest keyed for a single O(1) lookup
+// per stage below (kept as its own small function so buildCoverageCaveats stays a flat filter/map, no
+// nested loop-plus-conditional).
+function stageManifestByStage(stageManifest) {
+  return new Map(arr(stageManifest).filter((entry) => entry && entry.stage).map((entry) => [entry.stage, entry]));
+}
+// buildCoverageCaveats(stageManifest) -> [{lane,reason,message}], always an array (possibly empty).
+function buildCoverageCaveats(stageManifest) {
+  const byStage = stageManifestByStage(stageManifest);
+  return BROWSER_LANE_STAGES
+    .map((stage) => laneCaveat(stage, byStage.get(stage)))
+    .filter(Boolean);
+}
+
 // assertFindingsWellFormed(findings) -> throws (fail closed, Rule 3 + Rule 10) if any projected finding
 // lacks a typed artifact, carries a non-enum state, or wears confident voice without being a violation.
 // This is defence in depth BEYOND validatePayload (which is path-level only): the item-shape invariants
@@ -369,8 +412,12 @@ function assertFindingsWellFormed(findings) {
 /**
  * compose(inputs) -> a contract-valid v1.1 payload. Pure, synchronous, no clock (timestamps arrive via
  * inputs.generatedAt). See the file header for the inputs shape and the safety contract.
- * inputs = { domain, generatedAt, facts, applicability, findings, report, coverage,
+ * inputs = { domain, generatedAt, facts, applicability, findings, report, coverage, stageManifest?,
  *            seo?, geo?, competitors?, pricing?, trajectory?, dims?, corpus?, familyKeyFn?, ... }
+ * inputs.stageManifest (DEFECT-6, optional) is the SAME manifest composeBundle() already produces
+ * (mint/compose-bundle.js); it is never re-derived here, only projected into payload.coverageCaveats so a
+ * client sees, in plain language, when the observe/domAssert browser lanes did not run - absent, it
+ * defaults to an empty coverageCaveats[] (never a throw, never a fabricated caveat).
  * Throws (fail closed) if it would emit a contract-invalid payload or a malformed finding.
  */
 function compose(inputs) {
@@ -394,6 +441,7 @@ function compose(inputs) {
     counts,
     confirmed,
     screenedLabel: screenedLabel(i.coverage),
+    coverageCaveats: buildCoverageCaveats(i.stageManifest),
   }, coverageCounts, buildExposure(findings, recordIndex, familyKeyFn));
 
   // Analysis/scaffold first, spine second: the spine is authoritative for its keys (no overlap today).
@@ -422,6 +470,7 @@ module.exports = {
   buildFrameworks,
   buildCoverageCounts,
   screenedLabel,
+  buildCoverageCaveats,
   indexRecords,
   assertFindingsWellFormed,
 };

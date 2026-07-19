@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tamazia.co.uk/schemas/audit-payload/v1.1.0/payload.schema.json",
+  "$id": "https://tamazia.co.uk/schemas/audit-payload/v1.2.0/payload.schema.json",
   "title": "Tamazia audit payload contract",
-  "version": "1.1.0",
-  "description": "Audit payload contract, ported from the field inventory in tamazia-website functions/audit/_contract.js (REQUIRED, NONEMPTY, exact-count invariants). This schema is the source of truth for the @tamazia/audit-contract package: the engine composes a payload that satisfies it, the renderer consumes it and re-derives nothing. Leaf types are deliberately permissive (present-and-non-null is the base contract); P4 tightens leaf types as payloadToD() moves into this repo. catalogueSize is DELIBERATELY NULLABLE and not required: the engine does not yet emit a catalogue count and the render must never invent one - it prints screenedLabel instead. v1.1 is a purely ADDITIVE minor: it adds the compliance side the skeleton lacked - findings[] (REQUIRED presence, may be empty: a compliant firm has zero findings), applicability (what the catalogue said binds this firm and how each fared), notLegalAdvice (the standing line, C-200), and the $defs/exposureWaterfallShape documenting the per-family target shape while the legacy website shape stays valid. Every v1.0 path is untouched.",
+  "version": "1.2.0",
+  "description": "Audit payload contract, ported from the field inventory in tamazia-website functions/audit/_contract.js (REQUIRED, NONEMPTY, exact-count invariants). This schema is the source of truth for the @tamazia/audit-contract package: the engine composes a payload that satisfies it, the renderer consumes it and re-derives nothing. Leaf types are deliberately permissive (present-and-non-null is the base contract); P4 tightens leaf types as payloadToD() moves into this repo. catalogueSize is DELIBERATELY NULLABLE and not required: the engine does not yet emit a catalogue count and the render must never invent one - it prints screenedLabel instead. v1.1 is a purely ADDITIVE minor: it adds the compliance side the skeleton lacked - findings[] (REQUIRED presence, may be empty: a compliant firm has zero findings), applicability (what the catalogue said binds this firm and how each fared), notLegalAdvice (the standing line, C-200), and the $defs/exposureWaterfallShape documenting the per-family target shape while the legacy website shape stays valid. v1.2 (P6, DEFECT-6) is also purely ADDITIVE: it adds coverageCaveats[] (NOT required; defaults to an empty array), a LOUD, client-visible projection of the mint's own stageManifest naming any browser evidence lane (observe, domAssert) that did not run for this audit, so an absent/failed lane is never a silent clean result. Every v1.0 and v1.1 path is untouched.",
   "type": "object",
   "required": [
     "meta",
@@ -79,6 +79,19 @@
     "frameworksBinding": { "$ref": "#/$defs/nonNull" },
     "screenedLabel": { "$ref": "#/$defs/nonNull" },
     "rulesChecked": { "$ref": "#/$defs/nonNull" },
+    "coverageCaveats": {
+      "$comment": "DEFECT-6/RANK 3: NOT required (older/synthetic payloads carry none, and defaults to an empty array). One entry per browser evidence lane (observe, domAssert) that did NOT run for this audit - projected straight off the mint's own stageManifest (Rule 1: never re-derived) so an absent/failed lane is LOUD in the client-facing payload, never a silent clean pass (C-041).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lane", "reason", "message"],
+        "properties": {
+          "lane": { "type": "string" },
+          "reason": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    },
     "scoring": {
       "type": "object",
       "required": ["formula", "why", "inputs", "bands"],
