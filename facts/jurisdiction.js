@@ -119,6 +119,30 @@ const US_STATE_CODES = ('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA M
 // case-sensitive: a state code + ZIP is a US office address ("New York, NY 10118")
 const US_ADDRESS_RX = new RegExp('\\b(' + US_STATE_CODES.join('|') + ')\\s+(\\d{5})(?:-\\d{4})?\\b');
 
+// The full spelled-out US state -> code map, for the SPELLED-OUT address form ("Van, Texas 75790").
+// Real US footers write the state name in full at least as often as the two-letter code; the code-only
+// US_ADDRESS_RX missed every one of those (healthcare-US Defect D: "488 West Main Ste. 101 Van, Texas
+// 75790"). Ambiguous names (Georgia the country, Washington the person/DC) are safe HERE because the
+// detector requires an adjacent 5-digit ZIP, which a country/surname mention never carries: the ZIP is
+// the disambiguator. Separate from the deliberately-narrow US_STATE_NAMES prose set (which stays 9
+// unambiguous names, because it is read WITHOUT a ZIP anchor in establishment spans and Tier-C prose).
+const US_STATE_NAME_TO_CODE = Object.freeze({
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID',
+  illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS',
+  missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH',
+  oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA',
+  washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY',
+});
+// Longest names first so "new york" wins over any shorter prefix; case-insensitive (prose casing varies).
+const US_STATE_NAME_ADDRESS_RX = new RegExp(
+  '\\b(' + Object.keys(US_STATE_NAME_TO_CODE).sort((a, b) => b.length - a.length).join('|')
+  + ')\\b[\\s,]{1,3}(\\d{5})(?:-\\d{4})?(?!\\d)', 'i'
+);
+
 const UK_POSTCODE_RX = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/; // case-sensitive by design
 const IE_EIRCODE_RX = /\b(?:D6W|[ACDEFHKNPRTVWXY]\d{2})\s?[ACDEFHKNPRTVWXY0-9]{4}\b/;
 const IE_CONTEXT_RX = /\b(?:ireland|dublin|cork|galway|limerick|waterford)\b/i;
@@ -131,7 +155,21 @@ const UK_AREA_NI = ['BT'];
 
 // Phone country codes, longest prefix first at match time.
 const PHONE_CODES = Object.freeze({ 971: 'AE', 353: 'IE', 44: 'UK', 49: 'DE', 33: 'FR', 31: 'NL', 34: 'ES', 39: 'IT', 1: 'US' });
-const PHONE_RX = /(?:\+|\b00)(\d(?:[\s().-]?\d){6,14})/g;
+// A country-code phone number. {0,3} between digit groups (not the old {0,1}) tolerates real-world
+// separators: "+44 (0) 7896 085 553" carries " (" and ") " runs the old single-separator form could
+// not span, so a genuine UK number stalled at "44" and never reached the 6-digit floor, silently
+// costing the phone Tier-B kind (empirical legal-UK Fix 4: postcode + this phone should have bound UK).
+const PHONE_RX = /(?:\+|\b00)(\d(?:[\s().-]{0,3}\d){6,14})/g;
+
+// A US/Canada domestic-format phone (NANP): "(813) 800-0810", "903-963-6850". US consumer sites almost
+// never write the "+1" prefix PHONE_RX needs, so an ordinary domestic number never contributed a phone
+// Tier-B kind and a real US firm was left one kind short of the two-kind floor (empirical legal-US
+// Finding 4; healthcare-US Defect D). The area code first digit is 2-9 (NANP never starts an area code
+// 0/1), so a leading-0 UK/IE domestic number can never match; the (?<![\d+]) guard stops it firing on a
+// slice of a longer international number (that number binds via PHONE_RX on its own country code). This
+// contributes ONE Tier-B phone kind attributed to US; binding still needs a SECOND independent US kind
+// (a real US postcode from a US address), so a mere .com or a lone domestic number never binds US.
+const US_DOMESTIC_PHONE_RX = /(?<![\d+])\(?([2-9]\d{2})\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)/g;
 
 // ccTLD suffixes, longest first.
 const CCTLD_MAP = Object.freeze([
@@ -209,7 +247,34 @@ const AE_FEDERAL_DP_TOKEN = 'AE_FEDERAL_DATA_PROTECTION';
 
 const BAR_ADMISSION_RX = /\b(?:admitted|called)\s+to\s+(?:the\s+)?(?:[a-z. ]{0,25}\s)?(?:bar|roll)\b|\bbar\s+admissions?\b/i;
 
-const ADDRESS_CONTEXT_RX = /\b(?:office|offices|address|registered|located|street|st\.|road|rd\.|lane|avenue|ave\.|floor|suite|house|building|square|place|park|way|quay|hill)\b/i;
+// US STATE-BAR AUTHORISATION (DEFECT-8, empirical legal-US Finding 3). AUTHORITY_TOKENS above named UK/
+// IE/DE/SEC authorities but NO US state bar, so a US attorney stating their OWN bar admission WITH a bar
+// number could never reach Tier A, and every established_in-only state advertising record (CA_RPC_CH7,
+// NY_RPC_7_1, FL_BAR_*, TX_TDRPC_*, IL_RPC_7) stayed permanently unbindable. A state-bar authorisation
+// binds the attorney to THAT state, which is the legally-correct establishment nexus: state bar
+// advertising rules bind licensed/established attorneys, never a firm merely serving a client there - so
+// the authority-token route (Tier A establishment), NOT a serves_customers_in fallback, is the correct
+// fix (a serves fallback would over-bind a NY firm to CA rules for one CA client). These are detection
+// tokens only; the client-facing authority NAME always comes from the catalogue (Rule 2).
+const US_BAR_AUTHORITIES = Object.freeze([
+  { rx: /\b(?:the\s+)?state bar of california\b|\bcalifornia state bar\b/i, state: 'CA' },
+  { rx: /\bthe florida bar\b|\bflorida (?:state )?bar\b/i, state: 'FL' },
+  { rx: /\b(?:the\s+)?state bar of texas\b|\btexas (?:state )?bar\b/i, state: 'TX' },
+  { rx: /\bnew york state (?:bar|unified court system)\b|\bnew york (?:state )?bar\b/i, state: 'NY' },
+  { rx: /\b(?:the\s+)?(?:illinois state bar|state bar of illinois)\b/i, state: 'IL' },
+]);
+// A bar/credential number: a legal-credential word IMMEDIATELY before 4-9 digits, so an unrelated number
+// on the page (a phone, a year, a price) can never satisfy it. Mirrors the UK doctrine (C-014): an
+// authorisation claim with NO number stays Tier C and never binds - a firm merely NAMING a state bar
+// ("you may complain to the State Bar of California") is not regulated by it.
+const US_BAR_NUMBER_RX = /\b(?:bar|attorney|admission|registration|licen[cs]e)\s*(?:no\.?|number|#|id|reg\.?)?\.?\s*#?\s*(\d{4,9})\b/i;
+
+// Address-context words that let the (less self-evidently postal) UK/IE postcode detectors fire. 'ste',
+// 'unit' and 'apt' were added (empirical: US/UK footers use "Ste. 101", "Unit 10", "Apt 4"); they are
+// bare words so the trailing \b lands on the word boundary before the abbreviation's dot ("Ste." -> the
+// \b sits between "e" and "."), unlike the pre-existing dotted "st\." forms which only match glued to a
+// following word char. The US state+ZIP detectors do NOT depend on this gate (they self-anchor below).
+const ADDRESS_CONTEXT_RX = /\b(?:office|offices|address|registered|located|street|st\.|road|rd\.|lane|avenue|ave\.|floor|suite|ste|unit|apt|house|building|square|place|park|way|quay|hill)\b/i;
 
 const REGION_TOKENS = Object.freeze([
   { code: 'region:middle-east', rx: /\bmiddle\s+east(?:ern)?\b/i },
@@ -229,8 +294,13 @@ const REGISTER_NAME_FIELDS = ['name', 'legalName', 'legal_name', 'title', 'compa
 // ---------------------------------------------------------------------------
 
 function splitSentences(text) {
+  // The (?![0-9]) guard keeps an abbreviation-then-number together ("Bar No. 245123", "SRA No. 512345",
+  // "Ste. 101"): a real sentence never starts with a bare digit, so refusing to split before one only
+  // ever rejoins an abbreviation, never a genuine boundary. It stays SAFE for establishment anchoring
+  // (C-009): a period followed by a LETTER still splits, so two establishment clauses ("... England.
+  // Based in the USA.") are never merged into one anchoring span.
   return String(text || '')
-    .split(/[\n\r]+|(?<=[.!?])\s+/)
+    .split(/[\n\r]+|(?<=[.!?])\s+(?![0-9])/)
     .map((s) => s.replace(/\s+/g, ' ').trim())
     .filter((s) => s.length > 0);
 }
@@ -387,6 +457,13 @@ function collectGlobalTextSignals(docs, state) {
     const code = phoneJurisdiction(digits);
     if (code) addEvidence(state, code, 'B', 'phone', 'corpus', m[0]);
   }
+  // US/Canada domestic-format numbers carry no country code, so PHONE_RX (which needs +/00) never sees
+  // them; this is the ONLY realistic phone Tier-B kind on an ordinary US small-business site. Attributed
+  // to US: binding still needs a second independent US kind (a US postcode), which Canada's postal format
+  // can never supply, so a NANP number never falsely binds US on its own.
+  for (const m of allText.matchAll(US_DOMESTIC_PHONE_RX)) {
+    addEvidence(state, 'US', 'B', 'phone', 'corpus', m[0]);
+  }
   for (const doc of docs) {
     for (const cur of CURRENCY_SIGNALS) {
       const m = doc.text.match(cur.rx);
@@ -455,6 +532,25 @@ function analyseAuthorisation(sentence, source, state, contributed) {
   }
 }
 
+// analyseUsBarAuthorisation: a US state-bar authorisation naming the state's bar WITH a bar number is
+// Tier-A establishment in that state (DEFECT-8). Emits the same Tier-A 'authorisation' establishment
+// kind connect.js gate-6 reads, plus a BOUND state hit (basis 'bar_authorisation'). Without a number it
+// is only a mention (Tier C, never binds), exactly like a UK authority claim with no number (C-014); the
+// existing "admitted to the New York bar" prose therefore still renders advisory, never bound.
+function analyseUsBarAuthorisation(sentence, source, state, contributed) {
+  const hasNumber = US_BAR_NUMBER_RX.test(sentence);
+  for (const tok of US_BAR_AUTHORITIES) {
+    if (!tok.rx.test(sentence)) continue;
+    if (hasNumber) {
+      addEvidence(state, 'US', 'A', 'authorisation', source, sentence);
+      contributed.add('US');
+      state.stateHits.push({ code: tok.state, basis: 'bar_authorisation', source, quote: clip(sentence) });
+    } else {
+      addEvidence(state, 'US', 'C', 'authority_mention', source, sentence);
+    }
+  }
+}
+
 function recordZone(state, zone, source, sentence) {
   if (!state.zones[zone]) state.zones[zone] = { evidence: [] };
   const ev = state.zones[zone].evidence;
@@ -472,17 +568,32 @@ function analyseFreezones(sentence, source, state) {
 }
 
 function analyseTierB(sentence, source, state) {
+  // US postal address is SELF-ANCHORING: a state token (two-letter code OR a full state name) immediately
+  // followed by a 5-digit ZIP is unmistakably a US address, so it does not need a separate context word -
+  // which real footers routinely split onto the line above ("Head Office" / "... Texas 75790"), leaving
+  // the address line contextless (healthcare-US Defect D). The ZIP anchors both forms; binding still
+  // needs a SECOND independent Tier-B kind, so a lone spurious postcode can never bind on its own.
+  const usCode = sentence.match(US_ADDRESS_RX);
+  if (usCode) {
+    addEvidence(state, 'US', 'B', 'postcode', source, sentence);
+    state.stateHits.push({ code: usCode[1], basis: 'office_address', source, quote: clip(sentence) });
+  }
+  const usName = sentence.match(US_STATE_NAME_ADDRESS_RX);
+  if (usName) {
+    const st = US_STATE_NAME_TO_CODE[usName[1].toLowerCase()];
+    if (st) {
+      addEvidence(state, 'US', 'B', 'postcode', source, sentence);
+      state.stateHits.push({ code: st, basis: 'office_address', source, quote: clip(sentence) });
+    }
+  }
+  // UK and IE postcodes still require an address-context word or the footer surface: their formats read
+  // less unambiguously as postal in isolated prose than a US state+ZIP does.
   const inAddressContext = ADDRESS_CONTEXT_RX.test(sentence) || source === 'footer';
   if (inAddressContext) {
     const uk = sentence.match(UK_POSTCODE_RX);
     if (uk) {
       addEvidence(state, 'UK', 'B', 'postcode', source, sentence);
       state.ukPostcodes.push({ postcode: uk[0], source, quote: clip(sentence) });
-    }
-    const us = sentence.match(US_ADDRESS_RX);
-    if (us) {
-      addEvidence(state, 'US', 'B', 'postcode', source, sentence);
-      state.stateHits.push({ code: us[1], basis: 'office_address', source, quote: clip(sentence) });
     }
     if (IE_EIRCODE_RX.test(sentence) && IE_CONTEXT_RX.test(sentence)) {
       addEvidence(state, 'IE', 'B', 'postcode', source, sentence);
@@ -516,6 +627,7 @@ function analyseSentence(sentence, source, state) {
   if (!isServiceOffer) {
     analyseEstablishment(sentence, source, state, contributed);
     analyseAuthorisation(sentence, source, state, contributed);
+    analyseUsBarAuthorisation(sentence, source, state, contributed);
     analyseFreezones(sentence, source, state);
   }
   analyseTierB(sentence, source, state);
@@ -592,7 +704,11 @@ function buildSubJurisdictions(state, boundCodes) {
   if (boundCodes.has('US')) {
     const states = new Map();
     for (const hit of state.stateHits) {
-      const observable = hit.basis === 'office_address' || hit.basis === 'state_registration';
+      // office_address / state_registration / bar_authorisation are OBSERVABLE state nexuses -> bound
+      // (a bar authorisation with a number is Tier-A establishment in that state, DEFECT-8); a bare
+      // mention or bar_admission prose renders advisory (the Rule 13 doctrine at the state level).
+      const observable = hit.basis === 'office_address' || hit.basis === 'state_registration'
+        || hit.basis === 'bar_authorisation';
       const status = observable ? 'bound' : 'advisory';
       const prev = states.get(hit.code);
       if (prev && (prev.status === 'bound' || status === 'advisory')) continue; // bound wins, first advisory kept

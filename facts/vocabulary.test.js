@@ -448,3 +448,31 @@ test('the sub-sector binding taxonomy exports are deep-frozen (a consumer cannot
   assert.ok(Object.isFrozen(vocab.SUB_SECTOR_SYNONYMS));
   assert.ok(Object.isFrozen(vocab.CLASSIFIER_SUB_SECTORS));
 });
+
+// DEFECT-7 (empirical legal-US Finding 1): each US legal term added to the law-firms/solicitors leaf
+// ships a KNOWN-POSITIVE (it fires the detect) AND is proven not to fire on a cross-sector negative,
+// so a physiotherapy or insurance page cannot score a legal cue on "personal injury"/"counsel".
+test('DEFECT-7: every US legal term is a known-positive on the solicitors detect (no dead branch, C-050)', () => {
+  const detect = vocab.SECTORS['law-firms'].sub.solicitors.detect;
+  const positives = [
+    'call our attorney', 'our attorneys', 'a lawyer', 'personal injury lawyers', 'our law office',
+    'we handle litigation', 'John Doe, Esq.', 'a trial attorney', 'of counsel to the firm',
+    'independent legal counsel', 'personal injury claim',
+  ];
+  for (const p of positives) {
+    assert.ok(detect.test(p), 'the solicitors detect must fire on the US legal term: ' + JSON.stringify(p));
+  }
+});
+
+test('DEFECT-7: the US legal terms do NOT fire on cross-sector negatives (personal injury/counsel anchoring)', () => {
+  const detect = vocab.SECTORS['law-firms'].sub.solicitors.detect;
+  const negatives = [
+    'we treat personal injury and sports injuries',   // physiotherapy: "personal injury" not followed by a legal word
+    'grief counselling and career counsel',           // "counsel" only binds as "of/legal counsel"
+    'the picturesque lakeside clinic',                 // "esque" must never match the \besq\b honorific
+    'our attorneyship programme for graduates',        // \battorneys?\b must not fire inside a larger word
+  ];
+  for (const n of negatives) {
+    assert.ok(!detect.test(n), 'the solicitors detect must NOT fire on the non-legal phrase: ' + JSON.stringify(n));
+  }
+});

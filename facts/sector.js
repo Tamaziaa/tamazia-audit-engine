@@ -273,7 +273,20 @@ function _textWinner(candidates, minCues, selfIdFamilies) {
   const top = candidates[0];
   const rival = candidates.find((c) => c.family !== top.family) || null;
   const rivalDistinct = rival ? rival.distinct : 0;
-  if (top.distinct >= minCues && top.distinct > rivalDistinct) return { winner: top, rival };
+  if (top.distinct >= minCues && top.distinct > rivalDistinct) {
+    // Multidisciplinary-conflict guard (C-007, "on conflict abstain, never guess"): a firm that
+    // presents TWO OR MORE OTHER families each independently clearing the two-cue floor is a
+    // conglomerate / umbrella advisory firm (e.g. "a wealth management firm and law firm and corporate
+    // services provider"), not a single-sector practice - so picking its top family over its equally
+    // self-declared rivals would be a guess. Abstain instead. A single-sector practice (one dominant
+    // family, every rival below the floor) is unaffected, so a pure US attorney firm still resolves
+    // law-firms even after the DEFECT-7 US legal terms enrich its cue count.
+    const rivalFamiliesAtFloor = new Set(
+      candidates.filter((c) => c.family !== top.family && c.distinct >= minCues).map((c) => c.family)
+    );
+    if (rivalFamiliesAtFloor.size >= 2) return { winner: null, rival, top, conflict: Array.from(rivalFamiliesAtFloor) };
+    return { winner: top, rival };
+  }
   return { winner: null, rival, top };
 }
 
@@ -284,7 +297,14 @@ function _textWinner(candidates, minCues, selfIdFamilies) {
 
 const _TELE_RX = /\btele(medicine|health)\b|online (doctor|gp|consultation)|remote (consultation|appointment)|virtual (gp|doctor|clinic)/i;
 const _BAR_RX = /\bbarrister|\bchambers\b|\binstruct(ing)? counsel\b|direct access|public access|\bk\.?c\.?\b|\bq\.?c\.?\b/i;
-const _SOL_RX = /\bsolicitor|regulated by the (solicitors regulation authority|sra)\b|\bsra (number|no|id)\b|\bsra[- ]?regulated\b/i;
+// The "this is a solicitor/attorney firm, NOT barristers chambers" guard. Extended with the US
+// attorney self-identification (DEFECT-7): a US firm names itself with attorney/lawyer/law office, and
+// must never be flipped to barristers by an incidental "Chambers USA" directory ranking on the page
+// (empirical: munsch.com carries "Chambers USA 2026 rankings" yet is a Texas attorney firm). The bare
+// phrase "law firm" is deliberately NOT included: a UK firm can pair a generic "law firm" line with a
+// genuine barristers self-ID ("our barrister team ... direct access"), which must still resolve
+// barristers - only the American-specific attorney/lawyer/law-office self-ID defeats the guard.
+const _SOL_RX = /\bsolicitor|regulated by the (solicitors regulation authority|sra)\b|\bsra (number|no|id)\b|\bsra[- ]?regulated\b|\battorneys?\b|\blawyers?\b|\blaw offices?\b/i;
 
 function resolveSubSector(tree, parent, corpusText) {
   const lc = String(corpusText || '').toLowerCase();

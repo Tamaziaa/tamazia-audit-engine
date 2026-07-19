@@ -638,3 +638,50 @@ test('P6 anti-misclassification: a real-estate sample with a "studio apartment" 
     'the fitness "studios" leaf must never fire on a real-estate "studio apartment"');
   assert.notEqual(r.value && r.value.sub_sector, 'gyms');
 });
+
+// ---------------------------------------------------------------------------------------------
+// DEFECT-7 (empirical legal-US Finding 1): the legal detect vocabulary was British-only, so a US
+// law firm scored zero legal cues and misclassified. Each case is a POSITIVE control (a US attorney
+// site resolves law-firms) paired with the cross-sector NEGATIVE controls the task requires (a
+// healthcare site and an insurance site that mention "personal injury"/"counsel"/"litigation" must
+// NOT be pulled into legal). Run against the REAL vocabulary (the injected test tree omits US terms).
+// ---------------------------------------------------------------------------------------------
+
+test('DEFECT-7 positive: a US personal-injury attorney site resolves law-firms/solicitors (ask4sam.net class)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  // Brand-style domain (no "law"/"lawyer" substring), so the domain self-ID cannot rescue it - the body
+  // vocabulary alone must classify, which it could not before the US terms landed.
+  const r = sector.resolveSector(realBundle('ask4sam.net',
+    'Our attorneys and personal injury lawyers have recovered over one billion dollars for injury '
+    + 'victims. Contact our law office for litigation and trial representation. Samuel Miklos, Esq.'));
+  assert.equal(r.value && r.value.sector, 'law-firms', 'a US PI attorney site must resolve legal, not healthcare/hospitality');
+  assert.equal(r.value && r.value.sub_sector, 'solicitors', 'the leaf that binds us-legal records tagged attorney/law-firm via SUB_SECTOR_SYNONYMS');
+});
+
+test('DEFECT-7 positive: a Florida PI firm using American practice terms resolves law-firms (seriousaccidents.com class)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('seriousaccidents.com',
+    'Pines Salomon are experienced personal injury attorneys. Our trial lawyers handle car accident '
+    + 'litigation and wrongful death cases. Speak to an attorney at our law office today.'));
+  assert.equal(r.value && r.value.sector, 'law-firms');
+});
+
+test('DEFECT-7 negative: a physiotherapy clinic that TREATS "personal injury" stays healthcare, never legal', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('meadow-physio.co.uk',
+    'Our physiotherapy clinic offers physio, manual therapy and musculoskeletal rehabilitation. We '
+    + 'treat personal injury cases, sports injuries and whiplash. Book physiotherapy with our team.'));
+  assert.equal(r.value && r.value.sector, 'healthcare',
+    'a physio clinic treating "personal injury cases" must never be pulled into legal (the two-cue floor + richer physio vocabulary win)');
+  assert.notEqual(r.value && r.value.sector, 'law-firms');
+});
+
+test('DEFECT-7 negative: an insurer offering "litigation support" and "legal counsel" stays finance, never legal', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('shieldsure-insurance.co.uk',
+    'ShieldSure is an insurance company offering home insurance and car insurance from a leading '
+    + 'insurer and underwriter. We provide litigation support and legal counsel for insurance claims.'));
+  assert.equal(r.value && r.value.sector, 'finance',
+    'an insurer with two incidental legal phrases must stay finance: its own insurance vocabulary out-scores the legal cues');
+  assert.notEqual(r.value && r.value.sector, 'law-firms');
+});

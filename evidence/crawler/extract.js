@@ -93,6 +93,18 @@ function extractOgMeta(html) {
   return out;
 }
 
+// sanitizeJsonControlChars(raw) -> raw with every unescaped control character (U+0000..U+001F) replaced
+// by a space. JSON forbids a raw control char INSIDE a string, yet real sites emit one (a raw newline/tab
+// in a review body), breaking strict JSON.parse and silently dropping the block's OWN structured address
+// (empirical legal-US Finding 4: avidlawyers.com's LegalService JSON-LD carried addressRegion FL /
+// postalCode 33605 but a control char in an unrelated reviewBody failed the parse). Replacing with a
+// space is STRUCTURE-PRESERVING (inter-token whitespace stays whitespace) and only ever neutralises a
+// byte that was already illegal; an escaped sequence ("\n" = backslash + n, two ordinary chars) is
+// untouched. This RECOVERS the site's own data, never fabricates: nothing is added.
+function sanitizeJsonControlChars(raw) {
+  return String(raw).replace(/[\u0000-\u001F]/g, ' ');
+}
+
 function extractJsonLd(html) {
   const out = [];
   const re = /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script\s*>/gi;
@@ -101,7 +113,13 @@ function extractJsonLd(html) {
     const raw = m[1].trim();
     if (!raw) continue;
     try { out.push(JSON.parse(raw)); }
-    catch (e) { /* FAIL-OPEN: invalid JSON-LD on the live site is a fact about the site; record nothing, fabricate nothing (no partial-parse guesses). */ }
+    catch (e) {
+      // First parse failed. A raw control char inside a string is the single most common real-site cause
+      // (see sanitizeJsonControlChars); retry ONCE on the neutralised copy so a live firm's structured
+      // address is not lost to one broken review snippet.
+      try { out.push(JSON.parse(sanitizeJsonControlChars(raw))); }
+      catch (e2) { /* FAIL-OPEN: genuinely invalid JSON-LD (not just a stray control char) is a fact about the site; record nothing, fabricate nothing (no partial-parse guesses). */ }
+    }
   }
   return out;
 }
@@ -189,5 +207,5 @@ function pageContentClass(status, html) {
 
 module.exports = {
   decodeEntities, stripHtml, extractTitle, extractOgMeta, extractJsonLd,
-  extractFooterText, extractHrefs, buildPage, pageContentClass,
+  sanitizeJsonControlChars, extractFooterText, extractHrefs, buildPage, pageContentClass,
 };

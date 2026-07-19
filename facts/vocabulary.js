@@ -121,9 +121,21 @@ const SECTORS = {
         detect: /\bchartered legal executives?\b|\blegal executives?\b|\bcilex\b|\bchartered institute of legal executives\b/i,
         sample: 'our chartered legal executives are CILEX members of the Chartered Institute of Legal Executives',
       },
+      // DEFECT-7 (empirical legal-US Finding 1): the detect vocabulary was British-only
+      // (solicitor/conveyancing/probate), so a US law firm using American practice terms scored ZERO
+      // legal cues and misclassified (ask4sam.net read as healthcare off its medical-malpractice blog;
+      // seriousaccidents.com read as hospitality off a "Hotels Nearby" widget) despite "attorney" x366.
+      // The US terms below are \b-anchored (C-059) and each ships a known-positive (vocabulary.test.js
+      // + the p6 controls). 'personal injury' is anchored to a following LEGAL word (lawyer/law/claim/
+      // ...) and 'counsel' only as 'of/legal counsel', so a physiotherapy clinic treating "personal
+      // injury" or an insurer offering "legal counsel" never scores a legal cue on that phrase alone;
+      // and the two-cue-beats-rival floor (facts/sector.js) means even a stray legal cue can never
+      // out-score a healthcare/finance site's own richer vocabulary (proven by the cross-sector
+      // negative controls). A firm still resolves to sub_sector 'solicitors', which binds the us-legal
+      // records tagged 'attorney'/'law-firm' through the merged SUB_SECTOR_SYNONYMS door (PR #24).
       solicitors: {
-        detect: /\bsolicitors?\b|\bconveyancing\b|\bprobate\b|\blaw firm\b|\blegal advice\b/i,
-        sample: 'our solicitors provide conveyancing and probate; ask our law firm for legal advice',
+        detect: /\bsolicitors?\b|\bconveyancing\b|\bprobate\b|\blaw firm\b|\blaw offices?\b|\blegal advice\b|\battorneys?\b|\blawyers?\b|\bpersonal injury (?:lawyer|lawyers|attorney|attorneys|law|claim|claims|lawsuit|settlement)\b|\blitigation\b|\bof counsel\b|\blegal counsel\b|\besq\.?\b|\btrial (?:lawyer|lawyers|attorney|attorneys)\b/i,
+        sample: 'our attorneys and personal injury lawyers run a law office; contact our trial attorney, Jane Doe, Esq., for litigation, conveyancing and legal advice',
       },
     },
   },

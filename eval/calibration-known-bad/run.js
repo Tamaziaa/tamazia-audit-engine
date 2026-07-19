@@ -269,6 +269,22 @@ const CALIBRATIONS = [
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-onedoor-second-producer.js'],
   },
 
+  // ---- P6 facts-layer integrity (facts/jurisdiction.js, facts/vocabulary.js; repetition class #5) ----
+  {
+    name: 'p6-facts-binding-controls',
+    description:
+      'the facts-layer integrity fixes (DEFECT-3 real US/UK address+phone binding, DEFECT-7 US legal '
+      + 'classifier, DEFECT-8 US state-bar Tier-A establishment) each carry a POSITIVE and a NEGATIVE '
+      + 'control (the repetition-audit meta-discipline: no green until a fail-closed control proves the '
+      + 'OPPOSITE result is reachable). A real US/UK firm must bind its own jurisdiction and a US attorney '
+      + 'site must classify law-firms, while a .com or lone domestic number never binds, a healthcare/'
+      + 'insurance site never classifies legal, and a bare bar mention never binds. Self-driving fixture; '
+      + 'the facts legs are self-sufficient (NO compiled catalogue), an OPTIONAL leg proves CA_RPC_CH7 '
+      + 'binds a bar-authorised firm and is excluded without Tier-A establishment on the real catalogue',
+    fixtures: ['p6-facts-binding-controls.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-facts-binding-controls.js'],
+  },
+
   // ---- W6 risk-tier dom_node routing (breach/adjudicator, the C-048 false-accusation class) ----
   {
     name: 'p4-risk-domnode-never-hard-violation',
