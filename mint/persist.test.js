@@ -61,7 +61,9 @@ test('the default Neon door reads the host from the connection string and refuse
   const res = await sqlFn('SELECT 1', []);
   assert.strictEqual(res.ok, false);
   assert.strictEqual(res.error, 'neon_unconfigured');
-  assert.strictEqual(persist.neonHostFrom('postgres://u:p@db.host.tld/main'), 'db.host.tld');
+  // a scheme-agnostic placeholder (never a real connection string; Rule 16, no credential-shape literal in
+  // any file): neonHostFrom extracts only the part between '@' and '/', whatever the scheme.
+  assert.strictEqual(persist.neonHostFrom('db-scheme://a@db.host.tld/main'), 'db.host.tld');
 });
 
 test('the default R2 door refuses an unconfigured env (no token/account) without opening a socket', async () => {

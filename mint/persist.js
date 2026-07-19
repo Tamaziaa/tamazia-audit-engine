@@ -163,8 +163,11 @@ async function withAbort(ms, fn) {
   const timer = setTimeout(() => controller.abort(), ms);
   if (timer && typeof timer.unref === 'function') timer.unref();
   try { return await fn(controller.signal); }
-  catch (e) { return { ok: false, status: 0, error: String((e && e.message) || e).slice(0, 120) }; }
-  finally { clearTimeout(timer); }
+  catch (e) {
+    // FAIL-OPEN: a persistence write that throws/aborts becomes a typed { ok:false } RESULT (the caller's
+    // post-write assertions read it and refuse to flip done, Rule 7); it never throws into the mint (Rule 9).
+    return { ok: false, status: 0, error: String((e && e.message) || e).slice(0, 120) };
+  } finally { clearTimeout(timer); }
 }
 
 // liveUrlFor(slug, hash, env) -> the audit URL the post-write live-200 check hits, from the website route.

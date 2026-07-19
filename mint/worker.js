@@ -58,6 +58,8 @@ async function mintOne(url, deadlineMs, mintFn) {
     const r = raced.value || {};
     return { url, status: r.status || 'unknown', done: Boolean(r.done), slug: r.slug || null, hash: r.hash || null, refusal: r.refusal || null, error: null };
   } catch (e) {
+    // FAIL-OPEN: a thrown mint becomes a RECORDED error line, never a crash of the batch (Rule 4); the queue
+    // keeps an honest record and the remaining urls still mint.
     return { url, status: 'error', done: false, slug: null, hash: null, refusal: null, error: String((e && e.message) || e).slice(0, 200) };
   }
 }

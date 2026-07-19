@@ -71,8 +71,11 @@ async function defaultLiveFetch(url) {
   const timer = setTimeout(() => controller.abort(), LIVE_DEADLINE_MS);
   if (timer && typeof timer.unref === 'function') timer.unref();
   try { const r = await fetch(url, { method: 'GET', signal: controller.signal }); return { status: r.status }; }
-  catch (e) { return { status: 0, error: String((e && e.message) || e).slice(0, 120) }; }
-  finally { clearTimeout(timer); }
+  catch (e) {
+    // FAIL-OPEN: a live-check throw/abort becomes a typed { status:0 } (a failed leg), so stateFor reports
+    // 'unreachable' and done stays false; it never throws into the mint (Rule 7/9).
+    return { status: 0, error: String((e && e.message) || e).slice(0, 120) };
+  } finally { clearTimeout(timer); }
 }
 
 // ── (c) truth-pack: the render truth-pass (T3b). Injected checker (tests) OR a real presence probe. ──

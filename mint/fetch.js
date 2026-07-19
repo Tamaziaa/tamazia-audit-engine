@@ -125,6 +125,27 @@ function failResult(status, reason) {
   return { ok: false, status: status || 0, body: '', finalUrl: null, contentType: null, reason };
 }
 
+// isRedirect(res) -> the response is a 30x with a Location header (a hop to follow).
+function isRedirect(res) {
+  return REDIRECT_STATUSES.has(res.status) && Boolean(res.headers) && Boolean(res.headers.location);
+}
+// resolveRedirect(res, current) -> the absolute next-hop URL, or null when the Location is unparseable.
+function resolveRedirect(res, current) {
+  try { return new URL(res.headers.location, current).href; }
+  catch (_e) { return null; /* FAIL-OPEN: a malformed Location cannot be followed safely; the caller turns null into a typed failResult so the crawl continues, never a throw or a silent success. */ }
+}
+// hopOutcome(res, current) -> { redirectTo } (a hop to follow) OR { result } (the final/failure result).
+// The per-hop branching lives here so followChain stays a flat loop (the health-gate decision-point cap).
+function hopOutcome(res, current) {
+  if (!res || res.error) return { result: failResult(0, res && res.error ? String(res.error.message || res.error).slice(0, 160) : 'no response') };
+  if (isRedirect(res)) {
+    const next = resolveRedirect(res, current);
+    return next ? { redirectTo: next } : { result: failResult(res.status, 'unparseable redirect target') };
+  }
+  const status = Number(res.status) || 0;
+  return { result: { ok: status >= 200 && status < 300, status, body: String(res.body || ''), finalUrl: current, contentType: contentTypeOf(res.headers) } };
+}
+
 // followChain(startUrl, cfg) -> the final {ok, status, body, finalUrl, contentType} after following up to
 // cfg.maxRedirects hops, each re-validated for host safety. A hop error / an exhausted redirect budget
 // resolves to a typed failResult (never throws): the crawl records a failed slot and continues (Rule 9).
@@ -137,17 +158,9 @@ async function followChain(startUrl, cfg) {
     // SSRF class). httpFetchOnce re-checks too (defence in depth); an injected fake transport is guarded by
     // this check alone, so the safety cannot be defeated by swapping the transport.
     if (!parseSafeFetchTarget(current)) return failResult(0, 'refused unsafe or malformed fetch target: ' + String(current).slice(0, 120));
-    const res = await cfg.fetchOnce(current, cfg);
-    if (!res || res.error) return failResult(0, res && res.error ? String(res.error.message || res.error).slice(0, 160) : 'no response');
-    if (REDIRECT_STATUSES.has(res.status) && res.headers && res.headers.location) {
-      let next;
-      try { next = new URL(res.headers.location, current).href; }
-      catch (_e) { return failResult(res.status, 'unparseable redirect target'); /* FAIL-OPEN: a malformed Location cannot be followed safely; a typed failure lets the crawl continue, never a throw or a silent success. */ }
-      current = next;
-      continue;
-    }
-    const status = Number(res.status) || 0;
-    return { ok: status >= 200 && status < 300, status, body: String(res.body || ''), finalUrl: current, contentType: contentTypeOf(res.headers) };
+    const outcome = hopOutcome(await cfg.fetchOnce(current, cfg), current);
+    if (outcome.result) return outcome.result;
+    current = outcome.redirectTo;
   }
   return failResult(0, 'more than ' + cfg.maxRedirects + ' redirects');
 }

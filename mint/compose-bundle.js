@@ -119,6 +119,8 @@ async function runCrawlLane(domain, cfg, manifest) {
     manifest.push({ stage: 'crawl', ran: true, reason: res.reason || null, unreachable: Boolean(res.unreachable), pages });
     return { corpus: res.corpus || { pages: [] }, documents: res.documents || { records: [], unparsed: [] }, telemetry: res.telemetry || {} };
   } catch (e) {
+    // FAIL-OPEN: a crawl construction throw (an unfetchable domain shape) degrades to an empty corpus
+    // RECORDED on the manifest (facts then abstain -> the ICP gate refuses); it never throws into the mint.
     manifest.push({ stage: 'crawl', ran: false, reason: 'error', message: String((e && e.message) || e).slice(0, 160) });
     return { corpus: { pages: [] }, documents: { records: [], unparsed: [] }, telemetry: {} };
   }
@@ -156,7 +158,11 @@ async function forceClose(holder, cfg) {
   holder.browser = null;
   if (!browser || typeof browser.close !== 'function') return;
   try { await raceWithDeadline(Promise.resolve().then(() => browser.close()), 5000, cfg.now); }
-  catch (e) { safeLog(cfg.log, { stage: 'domAssert', kind: 'force-close-failed', msg: String((e && e.message) || e).slice(0, 120) }); }
+  catch (e) {
+    // FAIL-OPEN: a browser that will not close cannot block the mint (the runner is ephemeral and reaps the
+    // process); the failure is RECORDED to the log and never rethrown into the mint (Rule 4).
+    safeLog(cfg.log, { stage: 'domAssert', kind: 'force-close-failed', msg: String((e && e.message) || e).slice(0, 120) });
+  }
 }
 
 // runDomLane(url, cfg, manifest) -> { nodes, lane }. The SECOND bounded launch, recorded on the manifest.
@@ -174,7 +180,7 @@ async function runDomLane(url, cfg, manifest) {
     const raced = await raceWithDeadline(domLanePipeline(url, launch, cfg, holder), DOM_LANE_DEADLINE_MS, cfg.now);
     result = raced.timedOut ? { nodes: [], lane: { ran: false, reason: 'deadline', elapsedMs: raced.elapsed } } : raced.value;
   } catch (e) {
-    // FAIL-OPEN (Rule 4): a launch/goto/evaluate failure degrades the DOM lane to a recorded error, never
+    // FAIL-OPEN: (Rule 4) a launch/goto/evaluate failure degrades the DOM lane to a recorded error, never
     // throws into the mint. domAssert itself already records evaluate faults; this catches launch/goto.
     result = { nodes: [], lane: { ran: false, reason: 'error', message: String((e && e.message) || e).slice(0, 160) } };
   } finally {
@@ -198,6 +204,8 @@ async function runRegisterLane(domain, cfg, manifest) {
     manifest.push({ stage: 'registers', ran: true, matched, notes: Array.isArray(registers.notes) ? registers.notes.length : 0 });
     return registers;
   } catch (e) {
+    // FAIL-OPEN: the one register throw is a missing fetchFn; it degrades to an empty register set RECORDED
+    // on the manifest (propose then abstains on register duties), never a throw into the mint (C-041).
     manifest.push({ stage: 'registers', ran: false, reason: 'error', message: String((e && e.message) || e).slice(0, 160) });
     return { notes: [] };
   }
