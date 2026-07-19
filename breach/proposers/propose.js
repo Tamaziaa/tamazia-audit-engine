@@ -443,6 +443,12 @@ function isDomViolationForObligation(detectionSpec, node) {
 // concerns, carrying the node as its dom_node artifact. The spread precedes the discriminator so a stray
 // node.type can never overwrite the canonical dom_node type (ledger decision 1: the artifact-type enum is
 // the one door). The candidate shape is candidate()'s, identical to every other observed-lane candidate.
+// W6: a RISK-tier node (insecure-form, pre-ticked-consent) STILL becomes a candidate here exactly like a
+// deterministic one - the finding tier is a downstream routing concern, not a proposal filter. The `tier`
+// the DOM lane stamped (evidence/browser/dom-assert.js) rides straight onto the artifact through the
+// `...node` spread, so the adjudicator's evidence-kind classifier can route a confirmed risk node to
+// needs-review rather than a hard violation. The risk tier must never fall through to nothing here: an
+// under-reported insecure form is the opposite (silent) error to the false accusation W6 fixes.
 function domNodeCandidates(detectionSpec, domNodes) {
   const out = [];
   for (const node of (Array.isArray(domNodes) ? domNodes : [])) {
