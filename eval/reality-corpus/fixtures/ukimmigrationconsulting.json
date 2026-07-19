@@ -1,0 +1,26 @@
+{
+  "domain": "ukimmigrationconsulting.com",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://ukimmigrationconsulting.com/",
+        "title": "UK Immigration Consulting",
+        "text": "UK Immigration Consulting is the OISC regulated UK Immigration Advisory. We provide immigration advice and visa application support. GTM-M664B3D loads at the top of the page."
+      },
+      {
+        "url": "https://ukimmigrationconsulting.com/about-us",
+        "title": "About Us",
+        "text": "UK Immigration Consulting provides expert immigration advice. Queen Victoria House, 794 Cranbrook Road, Ilford IG6 1HZ."
+      },
+      {
+        "url": "https://ukimmigrationconsulting.com/contact",
+        "title": "Contact",
+        "text": "Contact UK Immigration Consulting. Address: Queen Victoria House, 794 Cranbrook Road, Ilford, IG6 1HZ, UK. Phone: +44 (0) 7896 085 553."
+      }
+    ],
+    "footerText": "UK Immigration Consulting, Queen Victoria House, 794 Cranbrook Road, Ilford IG6 1HZ, UK. +44 (0) 7896 085 553."
+  },
+  "registers": {}
+}

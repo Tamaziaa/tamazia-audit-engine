@@ -1,0 +1,31 @@
+{
+  "domain": "londondoctorsclinic.co.uk",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://londondoctorsclinic.co.uk/",
+        "title": "London Doctors Clinic",
+        "text": "London Doctors Clinic, trading name of The Doctors Clinic Group Ltd, company no. 08841773. 18 London locations plus an online-GP arm offering online doctor and online GP service consultations. London Doctors Clinic is regulated by the Care Quality Commission. Our GPs and doctors provide private GP appointments, blood tests, and health checks across London clinics."
+      },
+      {
+        "url": "https://londondoctorsclinic.co.uk/contact/",
+        "title": "Contact",
+        "text": "Contact London Doctors Clinic. Complaints: see our complaints procedure below."
+      },
+      {
+        "url": "https://londondoctorsclinic.co.uk/corporate-health/",
+        "title": "Corporate Health",
+        "text": "Corporate wellness training courses for employers, delivered by our clinical education team, plus staff health checks. Ask about insurance-backed corporate healthcare plans and payment plan options for larger organisations."
+      },
+      {
+        "url": "https://londondoctorsclinic.co.uk/travel-clinic/",
+        "title": "Travel Clinic",
+        "text": "Our travel clinic and travel vaccination service is popular with guests staying nearby: a boutique hotel and resort with a guesthouse close to our Marylebone location often refers visitors to us before their trip."
+      }
+    ],
+    "footerText": "London Doctors Clinic. CQC provider page: cqc.org.uk/provider/1-2378030568/services."
+  },
+  "registers": {}
+}

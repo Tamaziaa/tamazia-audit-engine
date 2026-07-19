@@ -1,0 +1,26 @@
+{
+  "domain": "rothwellandevans.co.uk",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://rothwellandevans.co.uk/",
+        "title": "Rothwell & Evans Solicitors | Swinton, Manchester",
+        "text": "Rothwell and Evans Limited, trading as Rothwell & Evans Solicitors. Authorised and Regulated by The Solicitors Regulation Authority, SRA number 565285 / 566624. Company Number 07743894, registered office Swinton, Manchester. Conveyancing, family law, wills, probate and elderly-client services, notary public. Code of Conduct. google-analytics.com/analytics.js UA-137048680-1 loads unconditionally, no cookie consent banner present anywhere on the page."
+      },
+      {
+        "url": "https://rothwellandevans.co.uk/conveyancing/domestic-conveyancing/",
+        "title": "Domestic Conveyancing",
+        "text": "Domestic conveyancing services for residential property purchase and sale. Our conveyancing team handles freehold and leasehold transactions across Greater Manchester."
+      },
+      {
+        "url": "https://rothwellandevans.co.uk/wills-probate-elderly-client-services/probate/",
+        "title": "Probate",
+        "text": "Uncontested probate and estate administration services for families across Greater Manchester."
+      }
+    ],
+    "footerText": "Rothwell and Evans Limited, Company Number 07743894. Authorised and Regulated by The Solicitors Regulation Authority. Code of Conduct."
+  },
+  "registers": {}
+}
