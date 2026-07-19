@@ -45,13 +45,33 @@ function tierOf(rule_id) {
   return Object.prototype.hasOwnProperty.call(DOM_RULE_TIER, rule_id) ? DOM_RULE_TIER[rule_id] : 'risk';
 }
 
+// WCAG_SC maps each dom-assert rule_id to its WCAG success criterion, or null for the two non-WCAG
+// duties (insecure-form is a transport-security concern, pre-ticked-consent a consent-law one). Like
+// DOM_RULE_TIER, this is a pure function of rule_id, so nodeOf DERIVES it rather than taking it as a
+// separate argument at every one of the ~11 call sites (keeps nodeOf's own argument count low and
+// removes a class of typo-drift between a call site's literal and the rule it names).
+const WCAG_SC = Object.freeze({
+  'image-alt': '1.1.1',
+  'label': '1.3.1',
+  'html-has-lang': '3.1.1',
+  'link-name': '4.1.2',
+  'button-name': '4.1.2',
+  'color-contrast': '1.4.3',
+  'insecure-form': null,
+  'pre-ticked-consent': null,
+});
+function wcagScOf(rule_id) {
+  return Object.prototype.hasOwnProperty.call(WCAG_SC, rule_id) ? WCAG_SC[rule_id] : null;
+}
+
 // ── the canonical node shape (Rule 1: one door for the dom_node artifact fields) ──────────────────────
-// nodeOf(...) -> { rule_id, selector, snippet, wcag_sc, state, tier } and NOTHING else. Every predicate
-// below returns exactly this shape (or null for a pass), so the verifier and the proposer read one stable
-// shape. `tier` is stamped from the one DOM_RULE_TIER door above so a node carries its finding tier from
-// the moment it is observed; the proposer spreads it onto the artifact and the adjudicator routes on it.
-function nodeOf(rule_id, selector, snippet, wcag_sc, state) {
-  return { rule_id, selector, snippet, wcag_sc, state, tier: tierOf(rule_id) };
+// nodeOf(d, rule_id, state) -> { rule_id, selector, snippet, wcag_sc, state, tier } and NOTHING else.
+// Every predicate below returns exactly this shape (or null for a pass), so the verifier and the
+// proposer read one stable shape. `selector`/`snippet` are read off the descriptor `d` (every descriptor
+// already carries them, so they are never a repeated positional argument at the call site); `wcag_sc` and
+// `tier` are both derived from `rule_id` through their own one-door lookups above.
+function nodeOf(d, rule_id, state) {
+  return { rule_id, selector: d.selector, snippet: d.snippet, wcag_sc: wcagScOf(rule_id), state, tier: tierOf(rule_id) };
 }
 
 // ── pure decision predicates (the honesty core; each is a pure function of ONE plain descriptor) ───────
@@ -59,7 +79,7 @@ function nodeOf(rule_id, selector, snippet, wcag_sc, state) {
 // image-alt (WCAG 1.1.1): a violation ONLY when the alt attribute is entirely absent. alt="" is a PASS
 // (the decorative-image marking), so hasAlt:true -> null even for an empty alt.
 function imgNode(d) {
-  return d.hasAlt ? null : nodeOf('image-alt', d.selector, d.snippet, '1.1.1', 'violation');
+  return d.hasAlt ? null : nodeOf(d, 'image-alt', 'violation');
 }
 
 // label (WCAG 1.3.1): input/select/textarea with no label association.
@@ -113,8 +133,8 @@ function hasAnyLabelRoute(d) {
 function controlNode(d) {
   if (EXCLUDED_CONTROL_TYPES.has(d.controlType)) return null;
   if (labelTextOf(d) !== '') return null; // a real, resolved accessible name from any valid route -> pass.
-  if (hasAnyLabelRoute(d)) return nodeOf('label', d.selector, d.snippet, '1.3.1', 'incomplete'); // ambiguous, never a confident accusation.
-  return nodeOf('label', d.selector, d.snippet, '1.3.1', 'violation'); // no association of any kind: genuinely unlabelled.
+  if (hasAnyLabelRoute(d)) return nodeOf(d, 'label', 'incomplete'); // ambiguous, never a confident accusation.
+  return nodeOf(d, 'label', 'violation'); // no association of any kind: genuinely unlabelled.
 }
 
 // html-has-lang (WCAG 3.1.1): the <html> lang attribute must be present and a well-formed language tag.
@@ -122,7 +142,7 @@ const VALID_LANG = /^[a-z]{2}(-[A-Za-z0-9]+)*$/i;
 function htmlNode(d) {
   const lang = typeof d.lang === 'string' ? d.lang.trim() : '';
   if (lang !== '' && VALID_LANG.test(lang)) return null;
-  return nodeOf('html-has-lang', d.selector, d.snippet, '3.1.1', 'violation');
+  return nodeOf(d, 'html-has-lang', 'violation');
 }
 
 // link-name / button-name (WCAG 4.1.2): an empty accessible name. The name is the first non-empty of the
@@ -141,10 +161,10 @@ function accessibleNameEmpty(d) {
   return firstNonEmpty([d.text, d.ariaLabel, d.ariaLabelledbyText, d.imgAltInside, d.titleText]) === '';
 }
 function linkNode(d) {
-  return accessibleNameEmpty(d) ? nodeOf('link-name', d.selector, d.snippet, '4.1.2', 'violation') : null;
+  return accessibleNameEmpty(d) ? nodeOf(d, 'link-name', 'violation') : null;
 }
 function buttonNode(d) {
-  return accessibleNameEmpty(d) ? nodeOf('button-name', d.selector, d.snippet, '4.1.2', 'violation') : null;
+  return accessibleNameEmpty(d) ? nodeOf(d, 'button-name', 'violation') : null;
 }
 
 // color-contrast (WCAG 1.4.3): parse two CSS colour strings. A ratio is only REAL when both are fully
@@ -196,10 +216,10 @@ function contrastIsFlat(d) {
   return Boolean(fg) && Boolean(bg) && fg.a === 1 && bg.a === 1;
 }
 function contrastNode(d) {
-  if (!contrastIsFlat(d)) return nodeOf('color-contrast', d.selector, d.snippet, '1.4.3', 'incomplete');
+  if (!contrastIsFlat(d)) return nodeOf(d, 'color-contrast', 'incomplete');
   const ratio = contrastRatio(parseColour(d.fg), parseColour(d.bg));
   const threshold = isLargeText(d.fontPx, d.bold) ? 3.0 : 4.5;
-  if (ratio < threshold) return nodeOf('color-contrast', d.selector, d.snippet, '1.4.3', 'violation');
+  if (ratio < threshold) return nodeOf(d, 'color-contrast', 'violation');
   return null; // a real, measured, sufficient ratio -> a genuine pass (not a silent one).
 }
 
@@ -207,7 +227,7 @@ function contrastNode(d) {
 // WCAG success criterion).
 function formNode(d) {
   const insecure = d.pageScheme === 'https:' && d.actionScheme === 'http:';
-  return insecure ? nodeOf('insecure-form', d.selector, d.snippet, null, 'violation') : null;
+  return insecure ? nodeOf(d, 'insecure-form', 'violation') : null;
 }
 
 // pre-ticked-consent: a checkbox pre-checked (the checked ATTRIBUTE, the initial state) whose associated
@@ -219,7 +239,7 @@ function namesConsent(text) {
 }
 function checkboxNode(d) {
   const preTicked = Boolean(d.checkedAttr) && namesConsent(d.labelText);
-  return preTicked ? nodeOf('pre-ticked-consent', d.selector, d.snippet, null, 'violation') : null;
+  return preTicked ? nodeOf(d, 'pre-ticked-consent', 'violation') : null;
 }
 
 // CHECK_PREDICATE: the one dispatch table from a descriptor's `check` tag to its pure predicate.
@@ -267,5 +287,7 @@ module.exports = {
   isLargeText,
   DOM_RULE_TIER,
   tierOf,
+  WCAG_SC,
+  wcagScOf,
   CHECK_PREDICATE,
 };

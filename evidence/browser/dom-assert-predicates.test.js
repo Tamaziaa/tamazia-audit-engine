@@ -25,7 +25,7 @@ test('the module is requirable directly (not only through dom-assert.js) and exp
 });
 
 test('nodeOf stamps the tier from the DOM_RULE_TIER door; controlNode grades a plain descriptor with no browser', () => {
-  const violation = nodeOf('label', 'input#x', '<input id="x">', '1.3.1', 'violation');
+  const violation = nodeOf({ selector: 'input#x', snippet: '<input id="x">' }, 'label', 'violation');
   assert.deepEqual(Object.keys(violation).sort(), ['rule_id', 'selector', 'snippet', 'state', 'tier', 'wcag_sc']);
   assert.equal(violation.tier, 'deterministic');
 

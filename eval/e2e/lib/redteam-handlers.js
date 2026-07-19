@@ -277,6 +277,24 @@ function rtPromptInjectPolicy(entry) {
 // stated honestly rather than claimed as a confident catch it is not - the gate's confident-firing path
 // is proven separately and directly in evidence/crawler/language.test.js and
 // eval/calibration-known-bad/fixtures/p6-corpus-language-gate-fires.js on longer samples.
+// attachDetectedLanguage(bundle) -> the evidence/crawler/language.js detectLanguage() result over this
+// bundle's own crawled text, attached to bundle.corpus.language when confident (exercising the REAL
+// producer -> consumer wiring propose.js's isNonEnglishGated reads); left undefined when the sample sits
+// below the detector's deliberate sufficiency floor (Rule 6).
+function attachDetectedLanguage(bundle) {
+  const sampleText = (bundle.corpus.pages || []).map((p) => p && p.text).join('\n');
+  const detected = detectLanguage({ htmlLang: '', text: sampleText });
+  if (detected) bundle.corpus.language = detected;
+  return detected;
+}
+
+// languageDetectorNote(detected) -> the honest reason-string fragment describing what detectLanguage()
+// did on this fixture's own text - confident and wired, or below the confidence floor by design.
+function languageDetectorNote(detected) {
+  if (detected) return 'resolved "' + detected + '" and was attached to bundle.corpus.language, actually firing propose.js\'s isNonEnglishGated';
+  return 'resolved undefined - this fixture\'s short sample sits below the confidence floor by design; the gate\'s confident path is proven on longer samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
+}
+
 async function rtForeignLanguage(entry) {
   const bundle = ((entry || {}).input || {}).bundle;
   if (!bundle || !bundle.corpus) return { status: 'skipped', reason: 'entry carries no French corpus bundle' };
@@ -284,20 +302,15 @@ async function rtForeignLanguage(entry) {
   if (sec.value != null) {
     return { status: 'escaped', reason: 'sector classified (' + JSON.stringify(sec.value) + ') from non-English prose without English cues (C-022): an English sector pack could attach' };
   }
-  const sampleText = (bundle.corpus.pages || []).map((p) => p && p.text).join('\n');
-  const detected = detectLanguage({ htmlLang: '', text: sampleText });
-  if (detected) bundle.corpus.language = detected; // exercise the REAL producer -> consumer wiring when confident.
+  const detected = attachDetectedLanguage(bundle);
   const result = await runPipeline(bundle.domain || 'rt-e-foreign.test', bundle, { breachInProcess: true });
   const violations = (result.breach.findings || []).filter((f) => f && f.state === 'violation');
   if (violations.length > 0) {
     return { status: 'escaped', reason: violations.length + ' text-derived violation(s) emitted on a non-English corpus (C-022)' };
   }
-  const languageNote = detected
-    ? 'resolved "' + detected + '" and was attached to bundle.corpus.language, actually firing propose.js\'s isNonEnglishGated'
-    : 'resolved undefined - this fixture\'s short sample sits below the confidence floor by design; the gate\'s confident path is proven on longer samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
   return {
     status: 'caught',
-    reason: 'facts/sector.js abstains on the French corpus (English-anchored two-cue scorer) so no English sector pack attaches; evidence/crawler/language.js detectLanguage() was also run over this fixture\'s text (' + languageNote + '); the breach lane emits zero text-derived violations either way',
+    reason: 'facts/sector.js abstains on the French corpus (English-anchored two-cue scorer) so no English sector pack attaches; evidence/crawler/language.js detectLanguage() was also run over this fixture\'s text (' + languageDetectorNote(detected) + '); the breach lane emits zero text-derived violations either way',
   };
 }
 
