@@ -71,6 +71,31 @@ test('replayRun on a run with no signature reports ok:false (nothing was ever sh
   assert.match(report.notes[0], /no signature/);
 });
 
+// CodeRabbit review (PR #36): a shipped finding_id with NO matching record in the run's latest
+// candidate_findings snapshot (e.g. a later rerun produced a different candidate set) must never be
+// silently excluded from checkedCount/incidents - that is a vacuous ok:true (caution.md C-236). It is now
+// its own typed incident (reasonCode 'missing_finding_record'), so replay can never report success while
+// some shipped finding was never actually re-verified.
+test('REPLAY INCIDENT: a shipped finding_id absent from the latest candidate_findings snapshot is flagged, never silently excluded', () => {
+  const s = store();
+  const { captureIndex, finding } = seedRun(s, 'run-replay-missing', 'this text contains an EVIDENCED phrase for real');
+  // The LATEST signature ships BOTH the real seeded finding (present on candidate_findings, genuinely
+  // verifiable) AND a second finding_id that was never recorded there at all (re-signing overwrites which
+  // decisions are "latest" - signature-store.js's own doc).
+  recordSignature(s, 'run-replay-missing', {
+    overall: 'SIGN',
+    findingDecisions: [
+      { finding_id: finding.finding_id, decision: 'ship' },
+      { finding_id: 'never-recorded-finding-id', decision: 'ship' },
+    ],
+  });
+  const report = replayRun({ store: s, runId: 'run-replay-missing', captureIndex, catalogue: { content_hash: 'HASH1' } });
+  assert.strictEqual(report.ok, false);
+  assert.strictEqual(report.shippedCount, 2);
+  assert.strictEqual(report.checkedCount, 1); // only the real, found record was actually quote-checked
+  assert.ok(report.incidents.some((inc) => inc.findingId === 'never-recorded-finding-id' && inc.reasonCode === 'missing_finding_record'));
+});
+
 test('catalogue_drift is noted when the currently-loaded catalogue hash differs from the run-time one', () => {
   const s = store();
   const { captureIndex } = seedRun(s, 'run-drift', 'this text contains an EVIDENCED phrase for real');

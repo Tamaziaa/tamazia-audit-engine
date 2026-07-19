@@ -83,3 +83,28 @@ test('sha256Hex matches node crypto directly (no silent second hash algorithm)',
   const buf = Buffer.from('cross-check');
   assert.strictEqual(sha256Hex(buf), crypto.createHash('sha256').update(buf).digest('hex'));
 });
+
+// CodeRabbit review (PR #36): a repeated URL/lane pair must never silently overwrite an already-captured
+// artifact's bytes/hash/provenance in the ArtifactStore's Map (keyed by evidence_id) - the SECOND capture
+// is refused with a typed error, the FIRST one's bytes are kept.
+test('KNOWN-BAD CALIBRATION FIXTURE: a duplicate URL/lane capture is refused, never silently overwrites the first', () => {
+  const bundle = bundleWithPages([
+    { url: 'https://example.com/', text: 'the FIRST capture of this page' },
+    { url: 'https://example.com/', text: 'a SECOND, different capture of the same url' },
+  ]);
+  const store = buildCaptureIndex(bundle);
+  assert.strictEqual(store.list().length, 1);
+  assert.strictEqual(store.list()[0].bytes.toString('utf8'), normaliseWhitespace('the FIRST capture of this page'));
+  assert.ok(store.errors.some((e) => e.reasonCode === 'duplicate_evidence_id'));
+});
+
+// CodeRabbit review (PR #36): capture-index.js's own header now documents MAX_PAGES/MAX_TOTAL_BYTES as an
+// outer safety ceiling (Rule 8: budgets are caps, never floors) - hitting either FAILS CLOSED (a typed
+// error, capture stops) rather than silently hashing an unbounded corpus.
+test('KNOWN-BAD CALIBRATION FIXTURE: exceeding MAX_PAGES stops the capture with a typed budget error, not a silent unbounded loop', () => {
+  const pages = [];
+  for (let i = 0; i < 205; i += 1) pages.push({ url: 'https://example.com/p' + i, text: 'page number ' + i + ' has some real readable text' });
+  const store = buildCaptureIndex(bundleWithPages(pages));
+  assert.ok(store.list().length <= 200);
+  assert.ok(store.errors.some((e) => e.reasonCode === 'page_budget_exceeded'));
+});

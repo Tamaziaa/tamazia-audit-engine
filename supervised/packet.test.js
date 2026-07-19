@@ -70,3 +70,16 @@ test('user-controlled text is HTML-escaped (no raw injection from a hostile rule
   assert.doesNotMatch(html, /<img src=x onerror/);
   assert.match(html, /&lt;img/);
 });
+
+// CodeRabbit review (PR #36): plain JSON.stringify never escapes '<', so a run.runId (CLI-supplied via
+// --run-id) containing a literal "</script>" would close the packet's own inline <script> block early and
+// let arbitrary markup run when a reviewer opens the packet - the same class of hole esc() already closes
+// for the rest of the document, just inside a <script> context where HTML-escaping is the wrong tool
+// (safeJson's < escape is the right one there).
+test('a hostile run_id containing "</script>" cannot close the inline script tag early', () => {
+  const run = sampleRun();
+  run.runId = 'run-</script><script>alert(1)</script>';
+  const html = buildPacketHtml(run);
+  assert.doesNotMatch(html, /<\/script><script>alert\(1\)/);
+  assert.match(html, /run_id: "run-\\u003c\/script>/);
+});

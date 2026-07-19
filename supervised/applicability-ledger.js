@@ -9,11 +9,22 @@
 // connect()'s `excluded` entries carry a free-text `reason` string, not yet a typed UNKNOWN-vs-NOT_APPLICABLE
 // distinction (that lives in the full WS0 taxonomy this repo has not merged - see the blueprint's
 // gateBound()/evaluateRemainingGates() three-valued design). Until that lands, this module classifies an
-// excluded reason as `unknown` when it names an evidence gap ('abstain', 'unresolved', 'no evidence',
-// 'unknown') and `not_applicable` otherwise - documented here as the one, explicit heuristic, not hidden
-// inside a bigger function.
-
-const UNKNOWN_REASON_HINTS = ['abstain', 'unresolved', 'no evidence', 'unknown', 'insufficient'];
+// excluded reason as `unknown` when it names an evidence gap and `not_applicable` otherwise - documented
+// here as the one, explicit heuristic, not hidden inside a bigger function.
+//
+// HINT COVERAGE (CodeRabbit review, PR #36): a reason phrased outside this hint list would be reported as
+// a CONFIRMED not_applicable even when it is really an unresolved evidence gap - the worse of the two
+// mislabels (a genuine "we don't know" rendered as a false "definitely does not apply"). 'nexus' and 'no
+// matching evidence' were added because applicability/connect.js's own gate-6 exclusion message ("gate-6
+// required-nexus: none of [...] is satisfied for jurisdiction ...") is exactly this shape: the record's
+// required_nexus was never PROVEN satisfied, which is an evidence gap, not a proven negative - unlike
+// gate-2/3/4/5's exclusions, which are genuine definite mismatches (a firm's sub-sector/sector/activity
+// tags provably do not intersect the record's own restriction) and correctly stay not_applicable. The
+// default itself stays not_applicable, not flipped to unknown wholesale (applicability-ledger.test.js's
+// own "definite gate-failure reason" fixture already pins that a real negative determination must render
+// as not_applicable, not unknown - flipping the default would make every genuine non-applicability
+// determination look like an unresolved abstention, the opposite failure mode).
+const UNKNOWN_REASON_HINTS = ['abstain', 'unresolved', 'no evidence', 'no matching evidence', 'unknown', 'insufficient', 'nexus'];
 
 function classifyExcludedReason(reason) {
   const r = String(reason || '').toLowerCase();

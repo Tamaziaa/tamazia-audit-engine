@@ -122,6 +122,28 @@ function evaluateMintGate(input) {
   return { ok: true, signature: sig.signature };
 }
 
+// PERSIST_TIMEOUT_MS: the hard ceiling on the live persistFn path (Rule 8/Rule 9: any external call -
+// LLM, browser, register API, or here a future Neon/R2 write - without a bounded Promise.race is a
+// defect; CodeRabbit review, PR #36). Not yet reachable in v0 (STUB_PERSIST is always the default and no
+// caller anywhere in this repo wires a real persistFn), but the seam exists and must fail closed the
+// moment it is used, not hang the caller indefinitely on a stuck write.
+const PERSIST_TIMEOUT_MS = 30000;
+
+// withPersistTimeout(promise, ms) -> races `promise` against a plain timer that REJECTS (never silently
+// resolves as if nothing happened) when the ceiling elapses first, so a hung persistFn surfaces as a
+// loud, typed rejection rather than an indefinite await. Kept local and dependency-free (no import from
+// evidence/'s own per-lane deadline primitives - Rule 1 does not require sharing a door across
+// architecturally separate layers; this module's own header already commits to the smallest possible
+// import surface, mirrored here).
+function withPersistTimeout(promise, ms) {
+  let timer = null;
+  const timeout = new Promise((resolve, reject) => {
+    timer = setTimeout(() => reject(new Error('mint-gate: persistFn exceeded its ' + ms + 'ms budget (Rule 8: budgets are caps, never floors)')), ms);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // mintGate(input) -> { proceeded: true, mode, persisted? }. Throws MintRefusalError on any failed check
 // (typed, explicit reason - never a bare boolean false the caller might ignore). `mode` is 'stub' unless
 // input.stubPersist === false AND a real persist function is supplied - production wiring for a later
@@ -137,7 +159,10 @@ async function mintGate(input) {
   if (stubPersist || typeof i.persistFn !== 'function') {
     return { proceeded: true, mode: 'stub', persisted: null, signature: decision.signature, findingsShipped: (i.findings || []).length };
   }
-  const persisted = await i.persistFn(i.findings, i);
+  // A caller MAY lower the persist budget (e.g. a test proving the timeout path fires), never raise it
+  // past PERSIST_TIMEOUT_MS (Rule 8: a cap the caller can tighten, never loosen).
+  const persistTimeoutMs = Number.isFinite(i.persistTimeoutMs) && i.persistTimeoutMs > 0 ? Math.min(i.persistTimeoutMs, PERSIST_TIMEOUT_MS) : PERSIST_TIMEOUT_MS;
+  const persisted = await withPersistTimeout(i.persistFn(i.findings, i), persistTimeoutMs);
   return { proceeded: true, mode: 'live', persisted, signature: decision.signature, findingsShipped: (i.findings || []).length };
 }
 

@@ -114,5 +114,8 @@ test('an unreachable site still produces a run with a typed capture LaneError, n
     ...HERMETIC, fetchFn: failingFetch, catalogue: tinyCatalogue(), manifestStore, runId: 'test-run-unreachable',
   });
   assert.strictEqual(result.candidateFindings.length, 0);
-  assert.ok(result.captureIndex.errors.length >= 0); // always inspectable, never throws away the fact of failure
+  // CodeRabbit review (PR #36): `.length >= 0` is true for every array unconditionally and proves
+  // nothing; a REAL LaneError must actually be recorded for the unreachable site, or this test cannot
+  // fail even if the capture layer silently swallowed the failure.
+  assert.ok(result.captureIndex.errors.length > 0, 'expected a recorded LaneError for the unreachable site');
 });

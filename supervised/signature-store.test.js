@@ -54,6 +54,24 @@ test('a finding decision missing "decision" or an invalid decision value throws'
   assert.throws(() => recordSignature(s, 'run-6', { overall: 'SIGN', findingDecisions: [{ finding_id: 'f1', decision: 'maybe' }] }));
 });
 
+// CodeRabbit review (PR #36): shippedFindingIds() reads a Set, so it cannot tell "decided twice, both
+// ship" from "decided twice, drop-then-ship" apart from "decided twice, ship-then-drop" - a duplicate
+// finding_id within ONE findingDecisions array is ambiguous no matter which two decisions it pairs, and
+// must be rejected at the write boundary rather than silently resolved by Set semantics.
+test('KNOWN-BAD CALIBRATION FIXTURE: a duplicate finding_id within one findingDecisions array is rejected, even a genuine ship+ship repeat', () => {
+  const s = store();
+  assert.throws(
+    () => recordSignature(s, 'run-7', { overall: 'SIGN', findingDecisions: [{ finding_id: 'f1', decision: 'drop' }, { finding_id: 'f1', decision: 'ship' }] }),
+    /duplicate decision for finding f1/,
+  );
+  assert.throws(
+    () => recordSignature(s, 'run-7', { overall: 'SIGN', findingDecisions: [{ finding_id: 'f1', decision: 'ship' }, { finding_id: 'f1', decision: 'ship' }] }),
+    /duplicate decision for finding f1/,
+  );
+  // Nothing was ever recorded for this run_id - the rejected call must not have partially appended.
+  assert.strictEqual(latestSignature(s, 'run-7'), null);
+});
+
 test('latestSignature returns null when no signature was ever recorded', () => {
   const s = store();
   assert.strictEqual(latestSignature(s, 'never-signed'), null);

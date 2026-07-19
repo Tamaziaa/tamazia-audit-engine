@@ -50,6 +50,22 @@ test('KNOWN-BAD CALIBRATION FIXTURE 3: a tampered artifact (byte flipped after c
   assert.strictEqual(result.reason, REFUSAL_REASONS.HASH_MISMATCH);
 });
 
+// CodeRabbit review (PR #36): every OTHER known-bad fixture in this file fails before reaching the
+// span_sha256 check at all (no_artifact/range/hash_mismatch), so the anti-drift branch itself - the
+// entire point of span_sha256 (a well-formed, IN-BOUNDS range that STILL fails because it does not hash
+// to its own claimed commitment) - had no known-bad fixture of its own and could regress silently while
+// every other test stayed green.
+test('KNOWN-BAD CALIBRATION FIXTURE 4 (THE ANTI-DRIFT PROOF): a real, in-bounds range with a tampered span_sha256 is REJECTED', () => {
+  const store = storeWithOnePage('The quick brown fox jumps over the lazy dog.');
+  const real = resolveQuoteSpan(store, 'https://x.example/', 'brown fox');
+  assert.strictEqual(verifyQuote(store, real), true); // sanity: the real span genuinely passes first
+  const tamperedHash = real.span_sha256[0] === 'a' ? 'b' + real.span_sha256.slice(1) : 'a' + real.span_sha256.slice(1);
+  const drifted = Object.assign({}, real, { span_sha256: tamperedHash });
+  const result = verifyQuoteDetailed(store, drifted);
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.reason, REFUSAL_REASONS.SPAN_HASH_MISMATCH);
+});
+
 test('an inverted or zero-width range is rejected even against a real artifact', () => {
   const store = storeWithOnePage('some real text');
   const artifact = store.list()[0];

@@ -36,13 +36,27 @@ function rehydrateArtifactStore() {
   return null;
 }
 
-// shippedRecordsFor(entries, signature) -> the shipped finding records (from the run's own
-// 'candidate_findings' manifest entry) whose finding_id has an explicit 'ship' decision in `signature`.
-function shippedRecordsFor(entries, signature) {
+// shippedDecisionsFor(entries, signature) -> { records, missingIds, shippedCount }. `records` are the
+// shipped finding records actually present in the run's own 'candidate_findings' manifest entry;
+// `missingIds` are shipped finding_ids with NO matching record there at all (e.g. the harness produced a
+// different candidate set on a later rerun). A missing shipped finding must never be silently excluded
+// from the report - without this, replayRun() could return ok:true having verified STRICTLY FEWER
+// findings than the signature actually shipped, a vacuous pass (CodeRabbit review, PR #36; caution.md
+// C-236: "don't treat vacuous passes as proof").
+function shippedDecisionsFor(entries, signature) {
   const candidateEntry = [...entries].reverse().find((e) => e.stage === 'candidate_findings');
   const shipped = shippedFindingIds(signature);
-  const records = candidateEntry && Array.isArray(candidateEntry.findings) ? candidateEntry.findings : [];
-  return records.filter((f) => shipped.has(f.finding_id));
+  const allRecords = candidateEntry && Array.isArray(candidateEntry.findings) ? candidateEntry.findings : [];
+  const records = allRecords.filter((f) => shipped.has(f.finding_id));
+  const foundIds = new Set(records.map((f) => f.finding_id));
+  const missingIds = [...shipped].filter((id) => !foundIds.has(id));
+  return { records, missingIds, shippedCount: shipped.size };
+}
+
+// missingRecordIncidents(missingIds) -> a ReplayIncident per shipped finding_id absent from the latest
+// candidate_findings snapshot - it was never re-verified, so it can never count as a pass.
+function missingRecordIncidents(missingIds) {
+  return missingIds.map((id) => new ReplayIncident(id, 'missing_finding_record', 'shipped finding ' + id + ' has no matching record in the latest candidate_findings snapshot; it was never re-verified'));
 }
 
 // checkShippedQuotes(shippedRecords, captureIndex) -> { incidents: ReplayIncident[], checkedCount, note? }.
@@ -96,17 +110,18 @@ function replayRun(input) {
     return { runId, ok: false, incidents: [], checkedCount: 0, notes: ['no signature recorded; nothing was ever shipped to replay'] };
   }
 
-  const shippedRecords = shippedRecordsFor(entries, signature);
+  const { records: shippedRecords, missingIds, shippedCount } = shippedDecisionsFor(entries, signature);
   const captureIndex = i.captureIndex instanceof ArtifactStore ? i.captureIndex : rehydrateArtifactStore();
   const quoteCheck = checkShippedQuotes(shippedRecords, captureIndex);
   const runStart = entries.find((e) => e.stage === 'run_start');
   const driftNote = catalogueDriftNote(i.catalogue, runStart);
   const notes = [quoteCheck.note, driftNote].filter(Boolean);
+  const incidents = quoteCheck.incidents.concat(missingRecordIncidents(missingIds));
 
   return {
-    runId, ok: quoteCheck.incidents.length === 0,
-    incidents: quoteCheck.incidents.map((inc) => ({ findingId: inc.findingId, reasonCode: inc.reasonCode, detail: inc.detail })),
-    checkedCount: quoteCheck.checkedCount, shippedCount: shippedRecords.length, notes,
+    runId, ok: incidents.length === 0,
+    incidents: incidents.map((inc) => ({ findingId: inc.findingId, reasonCode: inc.reasonCode, detail: inc.detail })),
+    checkedCount: quoteCheck.checkedCount, shippedCount, notes,
   };
 }
 

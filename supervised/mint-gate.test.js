@@ -134,3 +134,35 @@ test('evaluateMintGate is a pure, non-throwing form usable for a preview check',
   assert.strictEqual(decision.ok, false);
   assert.strictEqual(decision.reasonCode, REFUSAL_CODES.NO_SIGNATURE);
 });
+
+// CodeRabbit review (PR #36): the live persistFn path had no bounded timeout, so a hung external write
+// could block mintGate() forever. It is stub-only in v0 (no caller anywhere wires a real persistFn), but
+// the seam and its safety property are tested now, before it is ever used for real.
+test('mintGate LIVE mode calls persistFn and returns its result when it resolves within budget', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  recordSignature(s, 'run-live', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const persistFn = async () => ({ neonRowId: 42 });
+  const outcome = await mintGate({
+    store: s, runId: 'run-live', findings: [finding], captureIndex,
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+    stubPersist: false, persistFn,
+  });
+  assert.strictEqual(outcome.mode, 'live');
+  assert.deepStrictEqual(outcome.persisted, { neonRowId: 42 });
+});
+
+test('REFUSAL (via rejection): a persistFn that never resolves is bounded by a timeout, never hangs the caller', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  recordSignature(s, 'run-hang', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const hungPersistFn = () => new Promise(() => {}); // never settles
+  await assert.rejects(
+    () => mintGate({
+      store: s, runId: 'run-hang', findings: [finding], captureIndex,
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      stubPersist: false, persistFn: hungPersistFn, persistTimeoutMs: 25,
+    }),
+    /exceeded its 25ms budget/
+  );
+});

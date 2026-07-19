@@ -127,11 +127,15 @@ function validateQuote(quote) {
   assertQuoteSpanHash(quote);
 }
 
-// canonicalQuote(quote) -> the exact FOUR fields a Finding's quote may carry, in a fixed key order (used
-// both to freeze the stored value and to hash it for finding_id derivation - never trusts extra fields a
-// caller might have attached). span_sha256 is the one-way commitment to the exact bytes (see validateQuote).
+// canonicalQuote(quote) -> the exact FOUR fields a Finding's quote may carry, in a fixed key order,
+// FROZEN (CodeRabbit review, PR #36: Object.freeze(finding) is shallow - without freezing the quote
+// itself too, a caller could mutate finding.quote.byte_start/byte_end/span_sha256 AFTER finding_id was
+// derived from the original values, leaving a Finding whose id no longer matches its own quote while
+// every signature/mint-gate check that trusts finding_id as the integrity key stays none the wiser).
+// Never trusts extra fields a caller might have attached. span_sha256 is the one-way commitment to the
+// exact bytes (see validateQuote).
 function canonicalQuote(quote) {
-  return { evidence_id: quote.evidence_id, byte_start: quote.byte_start, byte_end: quote.byte_end, span_sha256: quote.span_sha256 };
+  return Object.freeze({ evidence_id: quote.evidence_id, byte_start: quote.byte_start, byte_end: quote.byte_end, span_sha256: quote.span_sha256 });
 }
 
 // deriveFindingId(ruleId, quote) -> sha256(rule_id + '|' + evidence_id + '|' + byte_start + '-' + byte_end
@@ -187,8 +191,15 @@ function resolvedEngineVersion(f) {
   return isNonEmptyString(f.engine_version) ? f.engine_version : require('../mint/version.js').ENGINE_VERSION;
 }
 
+// frozenMitigationLog(f) -> a FROZEN copy of f.mitigation_log (or a frozen [] when none was supplied) -
+// the array itself is frozen, not just the Finding that carries it (same shallow-freeze gap as the quote:
+// Object.freeze(finding) alone does not stop finding.mitigation_log.push(...) mutating the array in place).
+function frozenMitigationLog(f) {
+  return Object.freeze(Array.isArray(f.mitigation_log) ? f.mitigation_log.slice() : []);
+}
+
 // buildFindingObject(f, quote) -> the plain (not yet frozen) Finding fields, all read straight off the
-// already-validated `f` and the canonicalised `quote`.
+// already-validated `f` and the canonicalised (already-frozen) `quote`.
 function buildFindingObject(f, quote) {
   return {
     finding_id: deriveFindingId(f.rule_id, quote),
@@ -198,7 +209,7 @@ function buildFindingObject(f, quote) {
     jurisdiction: f.jurisdiction,
     class: f.class,
     engine_version: resolvedEngineVersion(f),
-    mitigation_log: Array.isArray(f.mitigation_log) ? f.mitigation_log.slice() : [],
+    mitigation_log: frozenMitigationLog(f),
   };
 }
 
@@ -221,7 +232,7 @@ function withMitigation(finding, entry) {
   if (!finding || typeof finding !== 'object') {
     throw new FindingConstructionError('finding', 'withMitigation requires an existing Finding object');
   }
-  return Object.freeze(Object.assign({}, finding, { mitigation_log: finding.mitigation_log.concat([entry]) }));
+  return Object.freeze(Object.assign({}, finding, { mitigation_log: Object.freeze(finding.mitigation_log.concat([entry])) }));
 }
 
 module.exports = { createFinding, withMitigation, FINDING_CLASS, deriveFindingId };

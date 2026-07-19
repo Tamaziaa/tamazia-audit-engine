@@ -6,7 +6,7 @@ const { resolveQuoteSpan } = require('./quote-resolver.js');
 const { verifyQuote } = require('./verify-quote.js');
 
 function store() {
-  return buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/privacy', text: 'We use cookies before you consent to them, which is a PECR problem.' }] } });
+  return buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/privacy', text: 'We use cookies before you consent to them, which some visitors will find intrusive.' }] } });
 }
 
 test('resolveQuoteSpan finds a real substring and the resulting span PASSES verify_quote', () => {

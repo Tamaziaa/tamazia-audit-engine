@@ -16,6 +16,17 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// safeJson(value) -> JSON.stringify(value), with every '<' escaped to its < code unit. Plain
+// JSON.stringify never escapes '<', so a value embedded directly inside an inline <script> block (e.g.
+// run.runId, which the CLI's --run-id can set to anything) could contain a literal "</script>" and close
+// the tag early, letting arbitrary markup run in a reviewer's browser (CodeRabbit review, PR #36) - this
+// defeats the packet's own "self-contained, no hidden side channel" guarantee just as surely as the
+// unescaped-HTML hole esc() already closes for the rest of the document. The < escape decodes back
+// to the exact same '<' once the browser's JS parser reads the script text, so no data is lost.
+function safeJson(value) {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
 function findingRow(finding, excerptsByFindingId) {
   const ex = excerptsByFindingId.get(finding.finding_id);
   const quoteHtml = ex
@@ -99,14 +110,14 @@ function buildPacketHtml(run) {
     + '<pre id="export-out"></pre></div>'
     + '<script>'
     + 'document.getElementById("export-btn").addEventListener("click", function () {'
-    + 'var findingIds = ' + JSON.stringify(findings.map((f) => f.finding_id)) + ';'
+    + 'var findingIds = ' + safeJson(findings.map((f) => f.finding_id)) + ';'
     + 'var decisions = findingIds.map(function (id) {'
     + 'var d = document.querySelector(\'input[name="decision-\' + id + \'"]:checked\');'
     + 'var r = document.querySelector(\'select[name="reason-\' + id + \'"]\');'
     + 'return { finding_id: id, decision: d ? d.value : null, reason_code: r ? r.value : null };'
     + '});'
     + 'var overallEl = document.querySelector(\'input[name="overall"]:checked\');'
-    + 'var out = { run_id: ' + JSON.stringify(run.runId) + ', overall: overallEl ? overallEl.value : null, findingDecisions: decisions };'
+    + 'var out = { run_id: ' + safeJson(run.runId) + ', overall: overallEl ? overallEl.value : null, findingDecisions: decisions };'
     + 'document.getElementById("export-out").textContent = JSON.stringify(out, null, 2);'
     + '});'
     + '</script>'

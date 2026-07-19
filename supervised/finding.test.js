@@ -54,12 +54,29 @@ test('missing rule_id / catalogue_hash / jurisdiction / class all throw', () => 
   assert.throws(() => createFinding(Object.assign({}, VALID, { class: 'super-confident' })));
 });
 
+// CodeRabbit review (PR #36): Object.freeze(finding) is shallow - a caller mutating finding.quote's own
+// fields AFTER finding_id was derived would silently invalidate the anti-drift guarantee this whole
+// module exists for (finding_id would no longer match the mutated quote, but every consumer that trusts
+// finding_id as the integrity key would not know). The quote object and the mitigation_log array must
+// both be frozen too, not just the top-level Finding.
+test('the quote and mitigation_log are frozen too (not just the top-level Finding) - a mutation attempt fails or is a no-op', () => {
+  const f = createFinding(VALID);
+  assert.ok(Object.isFrozen(f.quote));
+  assert.ok(Object.isFrozen(f.mitigation_log));
+  const originalByteStart = f.quote.byte_start;
+  assert.throws(() => { 'use strict'; f.quote.byte_start = 99999; });
+  assert.strictEqual(f.quote.byte_start, originalByteStart);
+  assert.throws(() => { 'use strict'; f.mitigation_log.push({ fake: true }); });
+  assert.strictEqual(f.mitigation_log.length, 0);
+});
+
 test('withMitigation appends without mutating the original frozen finding', () => {
   const f = createFinding(VALID);
   const f2 = withMitigation(f, { source: 'claude-adversarial', outcome: 'unverifiable' });
   assert.strictEqual(f.mitigation_log.length, 0);
   assert.strictEqual(f2.mitigation_log.length, 1);
   assert.ok(Object.isFrozen(f2));
+  assert.ok(Object.isFrozen(f2.mitigation_log));
 });
 
 test('the KNOWN-BAD calibration fixture: a fabricated finding with a fake byte range is still SHAPE-valid here (construction only checks shape, not reality) but must fail verify_quote downstream', () => {

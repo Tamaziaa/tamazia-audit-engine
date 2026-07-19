@@ -41,10 +41,28 @@ function assertOneDecision(d) {
     throw new Error('signature-store: finding ' + d.finding_id + ' decision must be "ship" or "drop", got ' + JSON.stringify(d.decision));
   }
 }
-// assertValidFindingDecisions(findingDecisions) -> throws unless it is an array of valid decisions.
+// assertNoDuplicateFindingId(seen, d) -> throws if d.finding_id was already decided earlier in the SAME
+// findingDecisions array (regardless of whether the two decisions agree - CodeRabbit review, PR #36:
+// shippedFindingIds() reads a Set, so ordering/duplicates are invisible to it once the signature is
+// recorded; a ['drop','ship'] pair for the same finding_id would silently resolve to shipped no matter
+// which the signer actually meant last. Rejected here, at the write boundary, so an ambiguous signature
+// can never be recorded at all - fail closed, matching this file's own doctrine that a finding never
+// decided is NOT shipped; a finding decided TWICE, differently, is exactly as untrustworthy).
+function assertNoDuplicateFindingId(seen, d) {
+  if (seen.has(d.finding_id)) {
+    throw new Error('signature-store: duplicate decision for finding ' + d.finding_id + ' in the same signature call (ambiguous ship/drop is rejected, never last-write-wins)');
+  }
+  seen.add(d.finding_id);
+}
+// assertValidFindingDecisions(findingDecisions) -> throws unless it is an array of valid decisions, each
+// naming a DIFFERENT finding_id (see assertNoDuplicateFindingId's own doc for why a duplicate is fatal).
 function assertValidFindingDecisions(findingDecisions) {
   if (!Array.isArray(findingDecisions)) throw new Error('signature-store: findingDecisions must be an array');
-  for (const d of findingDecisions) assertOneDecision(d);
+  const seen = new Set();
+  for (const d of findingDecisions) {
+    assertOneDecision(d);
+    assertNoDuplicateFindingId(seen, d);
+  }
 }
 
 // asManifestStore(store) -> store when it is already a real ManifestStore, else a fresh default one (the

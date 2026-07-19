@@ -21,10 +21,22 @@
 //
 // Extra-page requests ARE allowed and hashed like any other capture (spec section 2): buildCaptureIndex()
 // accepts every page present on bundle.corpus.pages, however many the crawler chose to fetch - it does not
-// cap or select a subset.
+// SELECT A SUBSET of what the crawler already decided to fetch. That is not the same claim as "unbounded":
+// this repo's own doctrine is "budgets are caps, never floors" (Constitution Rule 8), and the crawler's own
+// page cap (evidence/crawler/discover.js's maxPages) is a SEPARATE module this one must not blindly trust
+// forever - a defence-in-depth outer ceiling belongs here too (CodeRabbit review, PR #36). MAX_PAGES/
+// MAX_TOTAL_BYTES below are that ceiling: hit either one and the capture FAILS CLOSED with a typed
+// LaneError, rather than either hashing an unbounded corpus or silently truncating a "clean" partial one.
 
 const crypto = require('crypto');
 const { LaneError } = require('./errors.js');
+
+// MAX_PAGES / MAX_TOTAL_BYTES: hard ceilings on one capture run (Rule 8: caps, never floors, and never
+// silently raised). Generous relative to any real single-site audit (the crawler's own default maxPages
+// is far lower in practice) so this never fires on a normal run; its only job is to turn a compromised or
+// misbehaving upstream bundle into a typed, visible refusal instead of an unbounded hash/allocate loop.
+const MAX_PAGES = 200;
+const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB of normalised text, summed across the whole capture.
 
 // normaliseWhitespace(s) -> s with every run of whitespace collapsed to a single ASCII space. Deliberately
 // the SAME rule as breach/verifiers/quote-match.js's normaliseWhitespace (kept as an independent, small,
@@ -133,15 +145,49 @@ function pagesOfBundle(bundle) {
   return corpus && Array.isArray(corpus.pages) ? corpus.pages : [];
 }
 
-// captureAllPages(pages, fetchedAt) -> { artifacts, errors }, one captureOnePage() outcome per page,
-// sorted into the two lists (never both for the same page - captureOnePage()'s own contract).
+// processOnePage(page, fetchedAt, state) -> { action: 'accept'|'skip'|'stop', artifact?, error? }. One
+// page's full fate against the running MAX_PAGES/MAX_TOTAL_BYTES budgets and the already-seen evidence_id
+// set, so captureAllPages()'s own loop is a plain three-way dispatch, never a chain of independent ifs.
+// 'stop' means the whole capture halts here (a budget was hit - Rule 8, never silently truncate past a
+// cap and call the result clean); 'skip' means only THIS page is refused (malformed/empty/duplicate) and
+// capture continues with the next one.
+function processOnePage(page, fetchedAt, state) {
+  if (state.count >= MAX_PAGES) {
+    return { action: 'stop', error: new LaneError('capture', 'page_budget_exceeded', 'capture stopped: more than ' + MAX_PAGES + ' readable pages in this bundle (Rule 8: budgets are caps, never floors)') };
+  }
+  const captured = captureOnePage(page, fetchedAt);
+  if (captured.error) return { action: 'skip', error: captured.error };
+  const artifact = captured.artifact;
+  if (state.seenIds.has(artifact.evidence_id)) {
+    return { action: 'skip', error: new LaneError('capture', 'duplicate_evidence_id', 'duplicate URL/lane capture for ' + JSON.stringify(artifact.url) + ' (evidence_id ' + artifact.evidence_id + ' already captured this run; the earlier bytes are kept, never silently overwritten)') };
+  }
+  if (state.totalBytes + artifact.length > MAX_TOTAL_BYTES) {
+    return { action: 'stop', error: new LaneError('capture', 'byte_budget_exceeded', 'capture stopped: total captured text would exceed ' + MAX_TOTAL_BYTES + ' bytes (Rule 8: budgets are caps, never floors)') };
+  }
+  return { action: 'accept', artifact };
+}
+
+// recordAccepted(state, artifacts, artifact) -> pushes artifact into both the running state (so later
+// pages are checked against it) and the accepted-artifacts list.
+function recordAccepted(state, artifacts, artifact) {
+  artifacts.push(artifact);
+  state.seenIds.add(artifact.evidence_id);
+  state.totalBytes += artifact.length;
+  state.count += 1;
+}
+
+// captureAllPages(pages, fetchedAt) -> { artifacts, errors }. Walks pages in order, dispatching each to
+// processOnePage(); 'stop' ends the walk immediately (a hit budget), 'skip' records the error and moves
+// on, 'accept' records the artifact and updates the running budget/duplicate state.
 function captureAllPages(pages, fetchedAt) {
   const artifacts = [];
   const errors = [];
+  const state = { seenIds: new Set(), totalBytes: 0, count: 0 };
   for (const page of pages) {
-    const captured = captureOnePage(page, fetchedAt);
-    if (captured.artifact) artifacts.push(captured.artifact);
-    if (captured.error) errors.push(captured.error);
+    const outcome = processOnePage(page, fetchedAt, state);
+    if (outcome.action === 'stop') { errors.push(outcome.error); break; }
+    if (outcome.action === 'skip') { errors.push(outcome.error); continue; }
+    recordAccepted(state, artifacts, outcome.artifact);
   }
   return { artifacts, errors };
 }

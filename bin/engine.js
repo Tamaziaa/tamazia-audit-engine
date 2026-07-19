@@ -136,6 +136,21 @@ async function cmdRun(args) {
   return 0;
 }
 
+// rerunScratch(site, args, manifestStore, catalogue, suffix) -> Promise<RunResult>. Several commands
+// (packet, mint, replay) need a LIVE ArtifactStore to re-read real bytes for an already-run run_id
+// (capture-index.js's manifest projection is hash-only - see its own doc), so they re-run the harness
+// over the SAME site. That rerun must NEVER be given the run's own runId + primary manifestStore:
+// runSupervised() unconditionally appends a fresh run_start/capture/facts/... stage set on every call,
+// and the manifest is an append-only legal audit trail (manifest-store.js's own doc: "editing history is
+// not an option") - reusing the real run_id would silently duplicate every stage entry on each
+// regeneration. A scratch run_id (`<run_id><suffix>`) with a FRESH ManifestStore (same baseDir, so it
+// still lands under the same store root, just its own separate .jsonl file) keeps the rerun's manifest
+// noise completely apart from the authoritative record, exactly the isolation cmdReplay already used.
+async function rerunScratch(site, args, manifestStore, catalogue, suffix) {
+  const scratchStore = new ManifestStore({ baseDir: manifestStore.baseDir });
+  return runSupervised(site, Object.assign({ runId: args['run-id'] + suffix, manifestStore: scratchStore, catalogue }, captureOptsFrom(args)));
+}
+
 // runStartEntryFor(manifestStore, runId) -> the run's own 'run_start' manifest entry, or throws when no
 // manifest exists for that run_id at all (a packet can only ever be built for a run that actually ran).
 function runStartEntryFor(manifestStore, runId) {
@@ -160,7 +175,7 @@ async function cmdPacket(args) {
   const runStart = runStartEntryFor(manifestStore, args['run-id']);
   const site = args.site || runStart.site;
   const catalogue = loadCatalogueFrom(args);
-  const result = await runSupervised(site, Object.assign({ runId: args['run-id'], manifestStore, catalogue }, captureOptsFrom(args)));
+  const result = await rerunScratch(site, args, manifestStore, catalogue, '-packet-scratch');
   const reportText = reportTextFrom(args);
   const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings) : null;
   const html = buildPacketHtml(Object.assign({}, result, { lintResult }));
@@ -188,13 +203,12 @@ function cmdSign(args) {
 async function cmdReplay(args) {
   if (!args['run-id']) throw new Error('engine replay: --run-id <id> is required');
   const manifestStore = storeFrom(args);
+  const catalogue = loadCatalogueFrom(args);
   let captureIndex = null;
   if (args.site) {
-    const catalogue = loadCatalogueFrom(args);
-    const rerun = await runSupervised(args.site, Object.assign({ runId: args['run-id'] + '-replay-scratch', manifestStore: new ManifestStore({ baseDir: manifestStore.baseDir }), catalogue }, captureOptsFrom(args)));
+    const rerun = await rerunScratch(args.site, args, manifestStore, catalogue, '-replay-scratch');
     captureIndex = rerun.captureIndex;
   }
-  const catalogue = loadCatalogueFrom(args);
   const report = replayRun({ store: manifestStore, runId: args['run-id'], captureIndex, catalogue });
   process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   return report.ok ? 0 : 1;
@@ -232,7 +246,7 @@ async function cmdMint(args) {
   assertMintArgs(args);
   const manifestStore = storeFrom(args);
   const catalogue = loadCatalogueFrom(args);
-  const result = await runSupervised(args.site, Object.assign({ runId: args['run-id'], manifestStore, catalogue }, captureOptsFrom(args)));
+  const result = await rerunScratch(args.site, args, manifestStore, catalogue, '-mint-scratch');
   const attempt = await attemptMint(manifestStore, args, result, catalogue);
   process.stdout.write(JSON.stringify(attempt.output, null, 2) + '\n');
   return attempt.code;

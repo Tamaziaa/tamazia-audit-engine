@@ -18,6 +18,15 @@ test('parseArgs handles --flag value, --bool-flag (no value), and positional arg
   assert.strictEqual(args2.verbose, true);
 });
 
+test('parseArgs accumulates a REPEATED flag into an array, in order (the --fixture-html multi-page seam)', () => {
+  const args = parseArgs(['run', '--fixture-html', 'https://x/=a.html', '--fixture-html', 'https://x/privacy=b.html']);
+  assert.deepStrictEqual(args['fixture-html'], ['https://x/=a.html', 'https://x/privacy=b.html']);
+  // A flag given only ONCE stays a plain scalar, never a 1-element array (no existing single-occurrence
+  // caller - args.site, args['run-id'], etc. - should ever see its value's shape change).
+  const single = parseArgs(['run', '--fixture-html', 'https://x/=a.html']);
+  assert.strictEqual(single['fixture-html'], 'https://x/=a.html');
+});
+
 test('an unknown command returns exit code 2 and does not throw', async () => {
   const code = await main(['nonsense-command']);
   assert.strictEqual(code, 2);
