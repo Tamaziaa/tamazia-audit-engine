@@ -13,7 +13,7 @@ const assert = require('node:assert/strict');
 const {
   domAssert, buildNodes, imgNode, controlNode, htmlNode, linkNode, buttonNode,
   contrastNode, formNode, checkboxNode, contrastRatio, isLargeText, DEFAULT_DEADLINE_MS, normaliseOpts,
-  DOM_RULE_TIER, tierOf,
+  DOM_RULE_TIER, tierOf, labelTextOf, hasAnyLabelRoute, EXCLUDED_CONTROL_TYPES,
 } = require('./dom-assert.js');
 
 // A fake wrapped page: evaluate(fn) ignores fn (it cannot run the real DOM walk without a browser) and
@@ -40,17 +40,71 @@ test('image-alt: a missing alt attribute is a violation; alt="" (hasAlt:true) is
   assert.equal(imgNode({ hasAlt: true }), null, 'alt="" is decorative marking, never a violation');
 });
 
-// ── label (WCAG 1.3.1): association satisfied by a label element, aria-label OR aria-labelledby ────────
-test('label: an unlabelled input is a violation; any association passes; hidden/submit/button are skipped', () => {
-  const bare = { selector: 'input:nth-of-type(1)', snippet: '<input>', controlType: 'text', hasLabelElement: false, hasAriaLabel: false, hasAriaLabelledby: false };
-  assert.equal(controlNode(bare).state, 'violation');
-  assert.equal(controlNode(bare).wcag_sc, '1.3.1');
-  assert.equal(controlNode(Object.assign({}, bare, { hasLabelElement: true })), null);
-  assert.equal(controlNode(Object.assign({}, bare, { hasAriaLabel: true })), null);
-  assert.equal(controlNode(Object.assign({}, bare, { hasAriaLabelledby: true })), null);
-  for (const controlType of ['hidden', 'submit', 'button']) {
-    assert.equal(controlNode(Object.assign({}, bare, { controlType })), null, controlType + ' is not a labellable control');
+// ── label (WCAG 1.3.1): the false-accusation fix (legal-uk.md Fix 2) ────────────────────────────────
+// bareControl(): a descriptor with EVERY labelling-route field explicitly empty/false - the "genuinely
+// unlabelled" baseline every positive/negative-control test below diffs from.
+function bareControl(over) {
+  return Object.assign({
+    selector: 'input:nth-of-type(1)', snippet: '<input>', controlType: 'text',
+    labelElementText: '', forIdLabelText: '', wrappingLabelText: '', ariaLabelText: '', ariaLabelledbyText: '', titleText: '',
+    hasLabelElementRef: false, hasForIdLabelRef: false, hasWrappingLabelRef: false,
+    hasAriaLabelAttr: false, hasAriaLabelledbyAttr: false, hasTitleAttr: false,
+  }, over || {});
+}
+
+// POSITIVE CONTROL: a genuinely unlabelled input (no route of any kind) still yields the violation -
+// the fix must not have traded a false accusation for a false negative.
+test('label POSITIVE CONTROL: a genuinely unlabelled input is still a violation', () => {
+  const v = controlNode(bareControl());
+  assert.equal(v.state, 'violation');
+  assert.equal(v.rule_id, 'label');
+  assert.equal(v.wcag_sc, '1.3.1');
+});
+
+// NEGATIVE CONTROLS: every valid WCAG 1.3.1/4.1.2 labelling route yields NOTHING (never a violation, not
+// even an 'incomplete') when it resolves to real text - each route tested INDEPENDENTLY of the others.
+test('label NEGATIVE CONTROLS: every valid labelling route on its own yields nothing', () => {
+  assert.equal(controlNode(bareControl({ labelElementText: 'Your Name', hasLabelElementRef: true })), null, 'native .labels (wrapping label) association');
+  assert.equal(controlNode(bareControl({ forIdLabelText: 'Your Phone No', hasForIdLabelRef: true })), null, 'explicit label[for=id] association');
+  assert.equal(controlNode(bareControl({ wrappingLabelText: 'Email address', hasWrappingLabelRef: true })), null, 'ancestor-walk wrapping <label>');
+  assert.equal(controlNode(bareControl({ ariaLabelText: 'Search', hasAriaLabelAttr: true })), null, 'aria-label');
+  assert.equal(controlNode(bareControl({ ariaLabelledbyText: 'Postcode', hasAriaLabelledbyAttr: true })), null, 'aria-labelledby resolved to text');
+  assert.equal(controlNode(bareControl({ titleText: 'Enter your postcode', hasTitleAttr: true })), null, 'title (WCAG H65, the weakest valid route)');
+});
+
+// THE REGRESSION FIX ITSELF: the WPForms/Elementor false-positive class (legal-uk.md Fix 2, 6/6 false
+// "missing label" violations). Native `el.labels` is EMPTY (simulating the duplicate-id class: `.labels`
+// resolves only the FIRST element sharing an id) but a real `label[for="id"]` textually matches - the
+// control must still pass. Before this fix, `hasLabelElement:false` alone shipped a hard violation.
+test('label REGRESSION: native .labels empty (duplicate-id class) but an explicit for/id match exists -> no false accusation', () => {
+  const wpforms = bareControl({ selector: 'input#wpforms-1523-field_1', forIdLabelText: 'Name', hasForIdLabelRef: true, hasLabelElementRef: false });
+  assert.equal(controlNode(wpforms), null, 'a genuine for/id label the browser could not resolve via .labels must not false-accuse');
+});
+
+// AMBIGUOUS: a labelling route structurally EXISTS but resolves to empty text (an authored-but-blank
+// <label>, an aria-labelledby target with no text) - never a confident violation, degrades to incomplete
+// (which propose.js's dom_node router never turns into a shipped finding - "do not flag").
+test('label AMBIGUOUS: a structurally-present but textually-empty label route degrades to incomplete, never violation', () => {
+  const emptyLabel = controlNode(bareControl({ hasForIdLabelRef: true })); // label[for] exists, resolves to ''
+  assert.equal(emptyLabel.state, 'incomplete');
+  assert.equal(emptyLabel.rule_id, 'label');
+  const emptyLabelledby = controlNode(bareControl({ hasAriaLabelledbyAttr: true })); // aria-labelledby present, target text empty
+  assert.equal(emptyLabelledby.state, 'incomplete');
+});
+
+// hidden/submit/button/reset/image: not labellable controls (name comes from value/alt, not <label>).
+test('label: hidden/submit/button/reset/image input types are never checked (their name is not a <label>)', () => {
+  for (const controlType of ['hidden', 'submit', 'button', 'reset', 'image']) {
+    assert.equal(controlNode(bareControl({ controlType })), null, controlType + ' is not a labellable control');
   }
+  assert.deepEqual([...EXCLUDED_CONTROL_TYPES].sort(), ['button', 'hidden', 'image', 'reset', 'submit']);
+});
+
+test('labelTextOf / hasAnyLabelRoute: the two pure helpers behind the conservative split', () => {
+  assert.equal(labelTextOf(bareControl()), '');
+  assert.equal(labelTextOf(bareControl({ titleText: 'Postcode' })), 'Postcode');
+  assert.equal(hasAnyLabelRoute(bareControl()), false);
+  assert.equal(hasAnyLabelRoute(bareControl({ hasTitleAttr: true })), true);
 });
 
 // ── html-has-lang (WCAG 3.1.1): present + well-formed passes; empty/malformed is the violation ────────
@@ -64,15 +118,20 @@ test('html-has-lang: empty or malformed lang is a violation; a valid tag passes'
 });
 
 // ── link-name / button-name (WCAG 4.1.2): empty accessible name is the violation ──────────────────────
-test('link-name / button-name: an empty accessible name is a violation; any name source passes', () => {
-  const empty = { selector: 'a:nth-of-type(1)', snippet: '<a href>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '' };
+// The sibling-predicate audit the false-accusation fix requires (mission brief): link-name/button-name
+// already checked text/aria-label/aria-labelledby/img-alt independently (no single-signal flaw like the
+// label predicate's native-.labels dependency), but shared the SAME `title` omission - added here too.
+test('link-name / button-name: an empty accessible name is a violation; any name source (incl. title) passes', () => {
+  const empty = { selector: 'a:nth-of-type(1)', snippet: '<a href>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '', titleText: '' };
   assert.equal(linkNode(empty).rule_id, 'link-name');
   assert.equal(linkNode(empty).state, 'violation');
   assert.equal(linkNode(Object.assign({}, empty, { text: 'Contact us' })), null);
   assert.equal(linkNode(Object.assign({}, empty, { imgAltInside: 'Home' })), null, 'an <img alt> inside supplies the name');
-  const btn = { selector: 'button:nth-of-type(1)', snippet: '<button>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '' };
+  assert.equal(linkNode(Object.assign({}, empty, { titleText: 'Go to the homepage' })), null, 'title (WCAG H33/H65) supplies a real, if weak, accessible name');
+  const btn = { selector: 'button:nth-of-type(1)', snippet: '<button>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '', titleText: '' };
   assert.equal(buttonNode(btn).rule_id, 'button-name');
   assert.equal(buttonNode(Object.assign({}, btn, { ariaLabel: 'Close' })), null);
+  assert.equal(buttonNode(Object.assign({}, btn, { titleText: 'Close this dialog' })), null, 'title supplies a real accessible name for a button too');
 });
 
 // ── color-contrast (WCAG 1.4.3): the flatness gate is the honesty core (Rule 10) ──────────────────────
@@ -127,6 +186,7 @@ test('pre-ticked-consent: a pre-checked consent checkbox is a violation; uncheck
 test('every emitted node has EXACTLY the six contract keys (including the W6 tier)', () => {
   const samples = [
     imgNode({ selector: 'img', snippet: '<img>', hasAlt: false }),
+    controlNode(bareControl()),
     htmlNode({ selector: 'html', snippet: '<html>', lang: '' }),
     formNode({ selector: 'form', snippet: '<form>', pageScheme: 'https:', actionScheme: 'http:' }),
     contrastNode({ selector: 'p', snippet: '<p>', fg: 'rgb(1,1,1)', bg: 'rgb(2,2,2)', bgImage: 'none', fontPx: 16, bold: false }),
@@ -140,9 +200,9 @@ test('every emitted node carries its finding TIER from the DOM_RULE_TIER door', 
   // pre-ticked-consent are RISK indicators (a real observation, but a risk-based legal characterisation).
   assert.equal(imgNode({ selector: 'img', snippet: '<img>', hasAlt: false }).tier, 'deterministic');
   assert.equal(htmlNode({ selector: 'html', snippet: '<html>', lang: '' }).tier, 'deterministic');
-  assert.equal(controlNode({ selector: 'input', snippet: '<input>', controlType: 'text', hasLabelElement: false, hasAriaLabel: false, hasAriaLabelledby: false }).tier, 'deterministic');
-  assert.equal(linkNode({ selector: 'a', snippet: '<a href>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '' }).tier, 'deterministic');
-  assert.equal(buttonNode({ selector: 'button', snippet: '<button>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '' }).tier, 'deterministic');
+  assert.equal(controlNode(bareControl()).tier, 'deterministic');
+  assert.equal(linkNode({ selector: 'a', snippet: '<a href>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '', titleText: '' }).tier, 'deterministic');
+  assert.equal(buttonNode({ selector: 'button', snippet: '<button>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '', titleText: '' }).tier, 'deterministic');
   assert.equal(contrastNode({ selector: 'p', snippet: '<p>', fg: 'rgb(150,150,150)', bg: 'rgb(200,200,200)', bgImage: 'none', fontPx: 16, bold: false }).tier, 'deterministic');
   assert.equal(formNode({ selector: 'form', snippet: '<form>', pageScheme: 'https:', actionScheme: 'http:' }).tier, 'risk', 'an insecure form is a risk indicator (Art 32), not a deterministic breach');
   assert.equal(checkboxNode({ selector: 'input', snippet: '<input checked>', checkedAttr: true, labelText: 'Sign me up for the newsletter' }).tier, 'risk', 'a pre-ticked consent box is a consent-law risk indicator');

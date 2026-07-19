@@ -28,6 +28,7 @@ const extract = require('./extract.js');
 const discover = require('./discover.js');
 const coverage = require('./coverage-contract.js');
 const { collectDocuments, isPdfLike } = require('../documents/documents.js');
+const { detectLanguage } = require('./language.js');
 
 const CORPUS_CAP_FLOOR = 50000;      // below this, footer disclosures fall past the cut (russell-cooke, C-024)
 const CORPUS_CAP_DEFAULT = 500000;
@@ -209,14 +210,32 @@ function isFetchableDomain(dom) {
 function pageFetcher(homeUrl, home, opts, perPageMs) {
   return (u) => (u === homeUrl ? Promise.resolve(home) : fetchPage(opts.fetchFn, u, perPageMs, opts.timers));
 }
+// resolveLanguage(pages, homeHtml, record) -> the corpus.language value, or undefined (Constitution
+// Rule 1: the ONE producing door for the fact breach/proposers/propose.js's isNonEnglishGated already
+// reads - caution.md C-022, hidden-defects.md RANK 6). Combines the homepage's declared <html lang> with
+// a stopword-density read of the actually-crawled text (evidence/crawler/language.js); undefined (Rule
+// 6: unknown never gates) is left off the corpus object entirely below, exactly like footerText already
+// is when empty. A confident non-English result is ALSO recorded as a loud telemetry note (the C-041
+// doctrine every other degraded/notable lane in this file already follows), not just a silent field.
+function resolveLanguage(pages, homeHtml, record) {
+  const htmlLang = extract.extractHtmlLang(homeHtml);
+  const text = pages.map((p) => p.text).join('\n');
+  const language = detectLanguage({ htmlLang, text });
+  if (language && !/^en\b/i.test(language)) {
+    record('non-english-corpus', 'the crawled corpus reads as non-English (language=' + language
+      + '); English-anchored detection patterns gate to compliance_unassessed rather than risking a false-clean audit (C-022)');
+  }
+  return language;
+}
+
 // buildResult(parts) -> the assembled EvidenceBundle. Split out of crawl so the orchestrator's own body
 // stays a flat sequence of awaited steps (the health-gate function-length/Complex Method caps).
 function buildResult(parts) {
-  const { dom, pages, footerText, home, homeKlass, docResult, opts, truncated, telemetry, notes } = parts;
+  const { dom, pages, footerText, homeHtml, home, homeKlass, docResult, opts, truncated, telemetry, notes, record } = parts;
   const unreachable = pages.length === 0;
   return {
     domain: dom,
-    corpus: { pages, footerText: footerText || undefined },
+    corpus: { pages, footerText: footerText || undefined, language: resolveLanguage(pages, homeHtml, record) },
     unreachable,
     reason: blockReason(home, homeKlass, pages.length),
     documents: { records: docResult.documents, unparsed: docResult.unparsed },
@@ -251,10 +270,10 @@ async function crawl(domain, opts = {}) {
   const footerText = extract.extractFooterText(homeHtml);
   const docResult = await followFooterDocuments(ctx, homeHtml, pages);
 
-  return buildResult({ dom, pages, footerText, home, homeKlass, docResult, opts, truncated, telemetry, notes });
+  return buildResult({ dom, pages, footerText, homeHtml, home, homeKlass, docResult, opts, truncated, telemetry, notes, record });
 }
 
 module.exports = {
   crawl, resolveCap, normaliseDomain, accumulateCorpus, contentPageFrom, footerLinks, blockReason,
-  resolveBudgets, makeRecorder, fetchHomepage, discoverFetchList, followFooterDocuments,
+  resolveBudgets, makeRecorder, fetchHomepage, discoverFetchList, followFooterDocuments, resolveLanguage,
 };

@@ -38,6 +38,7 @@ const extract = require('../../../evidence/crawler/extract.js');
 const { classifyCookie } = require('../../../evidence/browser/oracle.js');
 const { verifyQuote } = require('../../../breach/verifiers/index.js');
 const { runFactsDoors, runPipeline } = require('./pipeline.js');
+const { detectLanguage } = require('../../../evidence/crawler/language.js');
 // RT-B1/RT-B2 exercise the LIVE C-134 sanitisation door (llm/prompts/) and the C-092 verdict gate
 // (breach/adjudicator/verdict.js) directly - the specific gates for the prompt-injection class, the
 // same way rtQuoteDrift exercises the verifier and rtEssentialCookie the cookie oracle.
@@ -262,15 +263,61 @@ function rtPromptInjectPolicy(entry) {
 }
 
 // ── RT-E: foreign-language corpus (C-022) ────────────────────────────────────────────────────────────
-// A wholly non-English corpus must not yield a text-derived VIOLATION. The LIVE load-bearing defence is
-// the facts layer: facts/sector.js's two-cue scorer is English-anchored, so it ABSTAINS on French (no
-// sector -> no English sector-specific regex pack attaches); the breach lane then emits no text-derived
-// violation. Binding FR/EU from the .fr ccTLD + a +33 phone is a legitimate FACT and is allowed (the
-// must_not is on FINDINGS, not on facts). C-022 quarantine posture applied at the harness boundary. The
-// compliance_unassessed language DETECTOR itself is a later-phase gate (owner: Breach/Applicability).
+// A wholly non-English corpus must not yield a text-derived VIOLATION. TWO independent defences now
+// apply, both exercised below (P6, repetition-audit-2026-07-19.md class #4): (1) facts/sector.js's
+// two-cue scorer is English-anchored, so it ABSTAINS on French (no sector -> no English sector-specific
+// regex pack attaches); (2) evidence/crawler/language.js's detectLanguage() - the previously-dead
+// corpus.language producer, now wired at crawl.js's one corpus-assembly door - is run here directly over
+// this fixture's crawled text and, when it resolves confidently, attached to the bundle BEFORE the
+// pipeline runs, so propose.js's isNonEnglishGated (which always correctly read the field) actually
+// fires. Binding FR/EU from the .fr ccTLD + a +33 phone is a legitimate FACT and is allowed (the
+// must_not is on FINDINGS, not on facts). NOTE: this fixture's single short paragraph (~47 words) sits
+// below detectLanguage()'s deliberate sufficiency floor (Rule 6: ambiguity never gates), so it resolves
+// undefined here and defence (1) remains the one that actually fires for THIS specific fixture; this is
+// stated honestly rather than claimed as a confident catch it is not - the gate's confident-firing path
+// is proven separately and directly in evidence/crawler/language.test.js and
+// eval/calibration-known-bad/fixtures/p6-corpus-language-gate-fires.js on longer samples.
+// attachDetectedLanguage(bundle) -> the evidence/crawler/language.js detectLanguage() result over this
+// bundle's own crawled text, attached to bundle.corpus.language when confident (exercising the REAL
+// producer -> consumer wiring propose.js's isNonEnglishGated reads); left undefined when the sample sits
+// below the detector's deliberate sufficiency floor (Rule 6).
+function attachDetectedLanguage(bundle) {
+  const sampleText = (bundle.corpus.pages || []).map((p) => p && p.text).join('\n');
+  const detected = detectLanguage({ htmlLang: '', text: sampleText });
+  if (detected) bundle.corpus.language = detected;
+  return detected;
+}
+
+// isGatingLanguage(detected) -> true only when `detected` would actually trip propose.js's
+// isNonEnglishGated (a non-empty tag that does NOT start with "en"). Mirrors that function's own
+// /^en\b/i test exactly, so this reporting helper cannot drift from the real gate's contract.
+function isGatingLanguage(detected) {
+  return typeof detected === 'string' && detected !== '' && !/^en\b/i.test(detected);
+}
+
+// languageDetectorNote(detected) -> the honest reason-string fragment describing what detectLanguage()
+// did on this fixture's own text, and whether that result ACTUALLY fires propose.js's isNonEnglishGated
+// (an "en" result passes through ungated - reporting it as "actually firing" would misstate the gate's
+// own contract, the exact class this note exists to avoid getting wrong).
+function languageDetectorNote(detected) {
+  // detectLanguage() returns undefined for TWO distinct reasons it does not distinguish in its return
+  // value (too little text below MIN_SAMPLE_WORDS, OR enough text sitting in the ambiguous middle
+  // density band) - this note stays neutral about WHICH, rather than presuming "short sample" when the
+  // real cause could equally be a genuinely ambiguous-but-substantial corpus (Rule 6: unknown never
+  // gates, and an honest note never claims a reason it cannot verify).
+  if (!detected) return 'resolved undefined - the sample did not clear the detector\'s confidence floor (too little text, or an ambiguous density, by design); the gate\'s confident path is proven on longer, more decisively-worded samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
+  if (isGatingLanguage(detected)) return 'resolved "' + detected + '" and was attached to bundle.corpus.language, actually firing propose.js\'s isNonEnglishGated';
+  return 'resolved "' + detected + '" (English) and was attached to bundle.corpus.language; isNonEnglishGated does not gate an English result, so it passed through unfired';
+}
+
 async function rtForeignLanguage(entry) {
   const bundle = ((entry || {}).input || {}).bundle;
   if (!bundle || !bundle.corpus) return { status: 'skipped', reason: 'entry carries no French corpus bundle' };
+  // Language detection precedes classification (C-022 doctrine): attach BEFORE the sector check, not
+  // after, so a non-English corpus is gated ahead of any classification attempt, matching the real
+  // crawl.js -> facts pipeline order (crawl.js's resolveLanguage() sets corpus.language before facts
+  // ever run on the bundle it produced).
+  const detected = attachDetectedLanguage(bundle);
   const sec = runFactsDoors(bundle).sector || {};
   if (sec.value != null) {
     return { status: 'escaped', reason: 'sector classified (' + JSON.stringify(sec.value) + ') from non-English prose without English cues (C-022): an English sector pack could attach' };
@@ -282,7 +329,7 @@ async function rtForeignLanguage(entry) {
   }
   return {
     status: 'caught',
-    reason: 'facts/sector.js abstains on the French corpus (English-anchored two-cue scorer) so no English sector pack attaches, and the breach lane emits zero text-derived violations; the compliance_unassessed language detector itself is a later-phase gate (owner: Breach/Applicability, C-022) - documented scope limit, not a silent gap',
+    reason: 'facts/sector.js abstains on the French corpus (English-anchored two-cue scorer) so no English sector pack attaches; evidence/crawler/language.js detectLanguage() was also run over this fixture\'s text (' + languageDetectorNote(detected) + '); the breach lane emits zero text-derived violations either way',
   };
 }
 
