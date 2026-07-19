@@ -57,6 +57,17 @@ function primaryTaxonomy(taxonomies) {
   return list.find((t) => t && t.primary === true) || list[0] || null;
 }
 
+// _cleanTaxonomyRow(t) -> {code, desc, primary, state} for one raw NPPES taxonomy entry.
+function _cleanTaxonomyRow(t) {
+  return { code: t.code, desc: t.desc || null, primary: t.primary === true, state: t.state || null };
+}
+
+// _cleanTaxonomies(taxonomies) -> the raw taxonomy list normalised to row shape, dropping any
+// entry with no code (a taxonomy row is useless without its NUCC code).
+function _cleanTaxonomies(taxonomies) {
+  return taxonomies.filter((t) => t && t.code).map(_cleanTaxonomyRow);
+}
+
 function buildRow(candidate) {
   const r = candidate.raw;
   const taxonomies = Array.isArray(r.taxonomies) ? r.taxonomies : [];
@@ -67,9 +78,7 @@ function buildRow(candidate) {
     enumeration_type: r.enumeration_type || null,
     taxonomy_code: primary ? primary.code : null,
     taxonomy_desc: primary ? primary.desc : null,
-    taxonomies: taxonomies
-      .filter((t) => t && t.code)
-      .map((t) => ({ code: t.code, desc: t.desc || null, primary: t.primary === true, state: t.state || null })),
+    taxonomies: _cleanTaxonomies(taxonomies),
   };
 }
 

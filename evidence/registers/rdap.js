@@ -34,35 +34,51 @@ function buildRequest(domain) {
   return { url: BOOTSTRAP_BASE + encodeURIComponent(domain), headers: { Accept: 'application/rdap+json' }, requestKey: 'rdap.domain' };
 }
 
-// vcardCountry(vcardArray) -> the country token from a vCard `adr` property, or null. vCard 4.0 JSON
-// shape: ["vcard", [["version",{},"text","4.0"], ["adr",{},"text",[pobox,ext,street,locality,region,
-// postcode,country]], ...]]. The country is always the 7th (index 6) element of the `adr` value array.
+// _vcardProps(vcardArray) -> the vCard 4.0 JSON property list, or []. Shape:
+// ["vcard", [["version",{},"text","4.0"], ["adr",{},"text",[...]], ...]].
+function _vcardProps(vcardArray) {
+  return Array.isArray(vcardArray) && Array.isArray(vcardArray[1]) ? vcardArray[1] : [];
+}
+
+// _adrCountry(prop) -> the country token from a single vCard property if it is an `adr` entry, or
+// null otherwise. The country is always the 7th (index 6) element of the `adr` value array:
+// [pobox,ext,street,locality,region,postcode,country].
+function _adrCountry(prop) {
+  if (!Array.isArray(prop) || prop[0] !== 'adr') return null;
+  const parts = prop[3];
+  const country = Array.isArray(parts) ? parts[6] : null;
+  return typeof country === 'string' && country.trim() ? country.trim() : null;
+}
+
+// vcardCountry(vcardArray) -> the country token from a vCard `adr` property, or null.
 function vcardCountry(vcardArray) {
-  const props = Array.isArray(vcardArray) && Array.isArray(vcardArray[1]) ? vcardArray[1] : [];
-  for (const prop of props) {
-    if (!Array.isArray(prop) || prop[0] !== 'adr') continue;
-    const parts = prop[3];
-    const country = Array.isArray(parts) ? parts[6] : null;
-    if (typeof country === 'string' && country.trim()) return country.trim();
+  for (const prop of _vcardProps(vcardArray)) {
+    const country = _adrCountry(prop);
+    if (country) return country;
   }
   return null;
 }
 
-// findRegistrantCountry(entities) -> the country from the FIRST entity carrying an explicit
-// 'registrant' role, searched recursively (an entity may nest sub-entities, e.g. an 'abuse' contact
-// nested under a 'registrar'). Any other role (registrar, admin, tech, abuse) is never read as a
+// _entityRegistrantCountry(ent) -> the country from THIS single entity if it carries an explicit
+// 'registrant' role, or null. Any other role (registrar, admin, tech, abuse) is never read as a
 // registrant signal — a wrong role read here would be exactly the "WHOIS registrar mistaken for
 // registrant" class of bug this module exists to avoid.
+function _entityRegistrantCountry(ent) {
+  if (!ent || typeof ent !== 'object') return null;
+  const roles = Array.isArray(ent.roles) ? ent.roles : [];
+  if (!roles.includes('registrant')) return null;
+  return vcardCountry(ent.vcardArray);
+}
+
+// findRegistrantCountry(entities) -> the country from the FIRST entity carrying an explicit
+// 'registrant' role, searched recursively (an entity may nest sub-entities, e.g. an 'abuse' contact
+// nested under a 'registrar').
 function findRegistrantCountry(entities, depth) {
   if (!Array.isArray(entities) || depth > 4) return null;
   for (const ent of entities) {
-    if (!ent || typeof ent !== 'object') continue;
-    const roles = Array.isArray(ent.roles) ? ent.roles : [];
-    if (roles.includes('registrant')) {
-      const country = vcardCountry(ent.vcardArray);
-      if (country) return country;
-    }
-    const nested = findRegistrantCountry(ent.entities, depth + 1);
+    const direct = _entityRegistrantCountry(ent);
+    if (direct) return direct;
+    const nested = findRegistrantCountry(ent && ent.entities, depth + 1);
     if (nested) return nested;
   }
   return null;
@@ -72,6 +88,32 @@ function isWellFormedResponse(res) {
   return Boolean(res) && res.status === 200 && res.json != null && typeof res.json === 'object';
 }
 
+// The note-builders below each cover exactly one lookupRdap outcome branch, so lookupRdap itself
+// reads as a flat sequence of guards (no nested or multi-statement branch bodies).
+function _noDomainNote(log) {
+  return makeNote({ register: 'rdap', kind: 'no_match', reason: 'no_domain', detail: 'no domain supplied to look up', log });
+}
+
+function _fetchFailureNote(outcome, log) {
+  const reason = outcome.reason === 'timeout' ? 'timeout' : 'fetch_error';
+  const detail = outcome.reason === 'timeout' ? 'no response within the call deadline' : 'fetch failed: ' + (outcome.error && outcome.error.message);
+  return makeNote({ register: 'rdap', kind: 'degraded', reason, detail, log });
+}
+
+function _unexpectedResponseNote(res, log) {
+  return makeNote({ register: 'rdap', kind: 'degraded', reason: 'unexpected_response', detail: 'RDAP answered with status ' + (res && res.status), log });
+}
+
+function _registrantRedactedNote(log) {
+  return makeNote({
+    register: 'rdap',
+    kind: 'no_match',
+    reason: 'registrant_redacted',
+    detail: 'RDAP response carried no registrant-role entity with a country (WHOIS-privacy redaction is the norm; C-004 doctrine applied to a redacted register)',
+    log,
+  });
+}
+
 // lookupRdap({domain, fetchFn, deadlineMs, log}) -> Promise<{row, note}>. `row`, when present, is
 // ALWAYS Tier C (registrant_country is a weak, frequently-absent signal per the blueprint; this
 // module never asserts a tier — facts/jurisdiction.js is the one door that grades tiers, Rule 1 — it
@@ -79,24 +121,18 @@ function isWellFormedResponse(res) {
 // no registration id, nothing but a bare country token).
 async function lookupRdap({ domain, fetchFn, deadlineMs, log }) {
   const clean = typeof domain === 'string' ? domain.trim().toLowerCase() : '';
-  if (!clean) {
-    return { row: null, note: makeNote({ register: 'rdap', kind: 'no_match', reason: 'no_domain', detail: 'no domain supplied to look up', log }) };
-  }
+  if (!clean) return { row: null, note: _noDomainNote(log) };
+
   const { url, headers, requestKey } = buildRequest(clean);
   const outcome = await withDeadline(() => fetchFn(url, { headers, requestKey }), deadlineMs || DEFAULT_DEADLINE_MS, 'rdap');
-  if (!outcome.ok) {
-    const reason = outcome.reason === 'timeout' ? 'timeout' : 'fetch_error';
-    const detail = outcome.reason === 'timeout' ? 'no response within the call deadline' : 'fetch failed: ' + (outcome.error && outcome.error.message);
-    return { row: null, note: makeNote({ register: 'rdap', kind: 'degraded', reason, detail, log }) };
-  }
+  if (!outcome.ok) return { row: null, note: _fetchFailureNote(outcome, log) };
+
   const res = outcome.value;
-  if (!isWellFormedResponse(res)) {
-    return { row: null, note: makeNote({ register: 'rdap', kind: 'degraded', reason: 'unexpected_response', detail: 'RDAP answered with status ' + (res && res.status), log }) };
-  }
+  if (!isWellFormedResponse(res)) return { row: null, note: _unexpectedResponseNote(res, log) };
+
   const country = findRegistrantCountry(res.json.entities, 0);
-  if (!country) {
-    return { row: null, note: makeNote({ register: 'rdap', kind: 'no_match', reason: 'registrant_redacted', detail: 'RDAP response carried no registrant-role entity with a country (WHOIS-privacy redaction is the norm; C-004 doctrine applied to a redacted register)', log }) };
-  }
+  if (!country) return { row: null, note: _registrantRedactedNote(log) };
+
   return {
     row: { registrant_country: country, source: 'rdap', fetched_at: new Date().toISOString(), query: clean },
     note: null,

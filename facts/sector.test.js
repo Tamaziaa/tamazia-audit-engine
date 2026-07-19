@@ -287,6 +287,23 @@ test('_npiSubSector: absent register, or absent registers.npi, returns null', ()
   assert.equal(sector._npiSubSector(null), null);
 });
 
+// CodeRabbit PR #30 (facts/sector.js:387): flagged _NPI_DESC_SUBSECTOR's literal sub-sector ids as
+// duplicating facts/vocabulary.js's CANONICAL_SUB_SECTORS/SUB_SECTOR_SYNONYMS union, risking silent
+// drift if a sub-sector id is ever renamed there. A full data-source migration was judged out of
+// scope for a resolver-decomposition PR (Rule: decompose for complexity, never change resolver
+// behaviour), so this test closes the drift risk instead: every id the table can emit must be a
+// real canonical sub-sector per the real vocabulary. It fails loudly, not silently, on drift.
+test('_NPI_DESC_SUBSECTOR: every sub-sector id it can emit is canonical per facts/vocabulary.js', () => {
+  if (!REAL_VOCAB) {
+    console.warn('[sector.test] skipped: facts/vocabulary.js not present');
+    return;
+  }
+  assert.ok(sector._NPI_DESC_SUBSECTOR.length > 0);
+  for (const [, sub] of sector._NPI_DESC_SUBSECTOR) {
+    assert.ok(REAL_VOCAB.isCanonicalSubSector(sub), sub + ' is not a canonical sub-sector in facts/vocabulary.js (drift)');
+  }
+});
+
 // ---------------------------------------------------------------------------------------------
 // Register cross-check (C-004, C-014, C-016)
 // ---------------------------------------------------------------------------------------------

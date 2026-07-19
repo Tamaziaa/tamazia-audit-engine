@@ -386,22 +386,35 @@ const _NPI_DESC_SUBSECTOR = [
   [/\btelehealth\b|\btelemedicine\b/i, 'telemedicine'],
 ];
 
-// _npiSubSector(registers) -> {sub, desc, code} | null. Reads the primary taxonomy first, then
-// falls back through any secondary taxonomies the register returned (a multi-specialty
-// organisation's primary taxonomy may be a broad, unmatched group while a secondary one is
-// specific), so the sub-sector is only left unset when NOTHING the register reported matches.
-function _npiSubSector(registers) {
-  const npi = registers && registers.npi;
-  if (!npi) return null;
+// _npiCandidateDescs(npi) -> [{desc, code}] in priority order: the primary taxonomy first, then
+// every secondary taxonomy the register returned (a multi-specialty organisation's primary
+// taxonomy may be a broad, unmatched group while a secondary one is specific).
+function _npiCandidateDescs(npi) {
   const candidates = [];
   if (npi.taxonomy_desc) candidates.push({ desc: npi.taxonomy_desc, code: npi.taxonomy_code || null });
   for (const t of Array.isArray(npi.taxonomies) ? npi.taxonomies : []) {
     if (t && t.desc) candidates.push({ desc: t.desc, code: t.code || null });
   }
-  for (const c of candidates) {
-    for (const [rx, sub] of _NPI_DESC_SUBSECTOR) {
-      if (rx.test(c.desc)) return { sub, desc: c.desc, code: c.code };
-    }
+  return candidates;
+}
+
+// _matchNpiSubSector(candidate) -> {sub, desc, code} | null for ONE candidate description against
+// the _NPI_DESC_SUBSECTOR regex table, or null if nothing matches it.
+function _matchNpiSubSector(candidate) {
+  for (const [rx, sub] of _NPI_DESC_SUBSECTOR) {
+    if (rx.test(candidate.desc)) return { sub, desc: candidate.desc, code: candidate.code };
+  }
+  return null;
+}
+
+// _npiSubSector(registers) -> {sub, desc, code} | null. The sub-sector is only left unset when
+// NOTHING the register reported (primary or any secondary taxonomy) matches.
+function _npiSubSector(registers) {
+  const npi = registers && registers.npi;
+  if (!npi) return null;
+  for (const candidate of _npiCandidateDescs(npi)) {
+    const match = _matchNpiSubSector(candidate);
+    if (match) return match;
   }
   return null;
 }
@@ -464,6 +477,106 @@ function _abstain(evidence, contradictions, diagnostics) {
   return { fact: 'sector', value: null, confidence: 'abstain', evidence, contradictions, diagnostics };
 }
 
+// Sentinel returned by the two register-contradiction strategies below to mean "abstain now, with
+// evidence/contradictions exactly as already recorded", distinct from a plain `null`, which means
+// "this strategy declined to fire; fall through to the next one, or to deny-by-default". Keeping
+// these distinguishable is what makes resolveSector's dispatch below byte-identical to the
+// original inline branching (only the deny-by-default path adds the trailing SIC evidence entry).
+const ABSTAIN_NOW = Symbol('sector-abstain-now');
+
+// Every strategy below reads/writes a single shared `ctx` object rather than each taking its own
+// long parameter list: {decisive, sicFams, self_identity, bundle, evidence, contradictions}.
+
+// _fromTextWinner(winner, ctx) -> {sector, confidence} | null. Register cross-check on the text
+// winner: ANY decisive register or SIC family that contradicts the text family means null (never
+// ship a contradicted sector); the caller maps null to ABSTAIN_NOW.
+function _fromTextWinner(winner, ctx) {
+  const { decisive, sicFams, self_identity, bundle, evidence, contradictions } = ctx;
+  const fam = winner.family;
+  const regConflicts = decisive.filter((d) => d.family !== fam);
+  const sicConflict = sicFams.size > 0 && !sicFams.has(fam);
+  for (const c of winner.cues) evidence.push({ kind: 'text-cue', source: c.source, quote: c.quote });
+  if (self_identity === winner.family) {
+    evidence.push({ kind: 'domain-self-identity', source: 'domain', quote: String((bundle && bundle.domain) || '') });
+  }
+  for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
+  if (sicFams.size > 0) evidence.push({ kind: 'register', source: 'companies-house-sic', quote: 'SIC families: ' + Array.from(sicFams).join(', ') });
+  if (regConflicts.length || sicConflict) {
+    contradictions.push({
+      kind: 'register-contradiction',
+      detail: 'text evidence resolves ' + winner.sector + ' but register evidence implies '
+        + (regConflicts.map((d) => d.family + ' (' + d.register + ')').concat(sicConflict ? ['SIC ' + Array.from(sicFams).join('/')] : []).join(', ')),
+      text_sector: winner.sector,
+    });
+    return null;
+  }
+  return { sector: winner.sector, confidence: (decisive.length || sicFams.has(fam)) ? 'register' : 'corroborated' };
+}
+
+// _fromDecisiveRegistersOnly(ctx) -> {sector, confidence} | null. No confident text sector: a
+// decisive regulator register resolves the family outright (C-014), unless the decisive registers
+// disagree among themselves (null = the caller maps this to ABSTAIN_NOW).
+function _fromDecisiveRegistersOnly(ctx) {
+  const { decisive, evidence, contradictions } = ctx;
+  const fams = new Set(decisive.map((d) => d.family));
+  if (fams.size > 1) {
+    contradictions.push({ kind: 'register-contradiction', detail: 'decisive registers disagree: ' + decisive.map((d) => d.register).join(', ') });
+    for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
+    return null;
+  }
+  for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
+  return { sector: decisive[0].family, confidence: 'register' };
+}
+
+// _fromWeakCorroboration(candidates, ctx) -> {sector, confidence} | null. Thin cross-source
+// corroboration: exactly one distinct text cue, unrivalled by any cue from another family,
+// agreeing with a Companies House SIC family. Two independent sources (text plus register data)
+// but below the two-cue standard, so it attaches as WEAK, never more. A null here is NOT a
+// contradiction (nothing to abstain loudly about); the caller falls through to deny-by-default.
+function _fromWeakCorroboration(candidates, ctx) {
+  const { sicFams, evidence } = ctx;
+  const top = candidates[0];
+  const rival = candidates.find((c) => c.family !== top.family);
+  if (top.distinct !== 1 || rival || !sicFams.has(top.family)) return null;
+  for (const c of top.cues) evidence.push({ kind: 'text-cue', source: c.source, quote: c.quote });
+  evidence.push({ kind: 'register', source: 'companies-house-sic', quote: 'SIC families: ' + Array.from(sicFams).join(', ') });
+  return { sector: top.sector, confidence: 'weak' };
+}
+
+// _selectSector(candidates, winner, ctx) -> {sector, confidence} | ABSTAIN_NOW | null. Dispatches
+// to exactly one of the three resolution strategies above, in priority order (text winner, then a
+// decisive register alone, then thin corroboration), so resolveSector's own body stays flat.
+function _selectSector(candidates, winner, ctx) {
+  if (winner) return _fromTextWinner(winner, ctx) || ABSTAIN_NOW;
+  if (ctx.decisive.length) return _fromDecisiveRegistersOnly(ctx) || ABSTAIN_NOW;
+  if (candidates.length) return _fromWeakCorroboration(candidates, ctx);
+  return null;
+}
+
+// _resolveSubSectorForSector(tree, sector, allText, ctx) -> {parent, subSector}. Runs the
+// vocabulary sub-sector match, then, for healthcare only, lets an NPI register taxonomy
+// corroborate or override the text-derived sub-sector (a hard register signal beats a lexicon cue).
+function _resolveSubSectorForSector(tree, sector, allText, ctx) {
+  const subRes = resolveSubSector(tree, sector, allText);
+  let subSector = subRes.sub || null;
+  if (sector === 'healthcare') {
+    const npiSub = _npiSubSector((ctx.bundle && ctx.bundle.registers) || {});
+    if (npiSub) {
+      if (subSector && subSector !== npiSub.sub) {
+        ctx.evidence.push({
+          kind: 'register',
+          source: 'npi',
+          quote: 'NPI taxonomy "' + npiSub.desc + '" (' + (npiSub.code || 'no code') + ') overrides the text-derived sub-sector "' + subSector + '"',
+        });
+      } else {
+        ctx.evidence.push({ kind: 'register', source: 'npi', quote: 'NPI taxonomy: ' + npiSub.desc + ' (' + (npiSub.code || 'no code') + ')' });
+      }
+      subSector = npiSub.sub;
+    }
+  }
+  return { parent: subRes.parent, subSector };
+}
+
 function resolveSector(bundle, options = {}) {
   const vocab = _vocab(options);
   const tree = vocab.TREE;
@@ -482,86 +595,21 @@ function resolveSector(bundle, options = {}) {
   const { winner, self_identity } = _textWinner(candidates, 2, selfIdFamilies);
   const decisive = _decisiveRegisters((bundle && bundle.registers) || {});
   const sicFams = _sicFamilies((bundle && bundle.registers) || {});
+  const ctx = { decisive, sicFams, self_identity, bundle, evidence, contradictions };
 
-  let sector = null;
-  let confidence = 'abstain';
-
-  if (winner) {
-    // Register cross-check on the text winner. ANY decisive register or SIC family that
-    // contradicts the text family downgrades to abstain (never ship a contradicted sector).
-    const fam = winner.family;
-    const regConflicts = decisive.filter((d) => d.family !== fam);
-    const sicConflict = sicFams.size > 0 && !sicFams.has(fam);
-    for (const c of winner.cues) evidence.push({ kind: 'text-cue', source: c.source, quote: c.quote });
-    if (self_identity === winner.family) {
-      evidence.push({ kind: 'domain-self-identity', source: 'domain', quote: String((bundle && bundle.domain) || '') });
-    }
-    for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
-    if (sicFams.size > 0) evidence.push({ kind: 'register', source: 'companies-house-sic', quote: 'SIC families: ' + Array.from(sicFams).join(', ') });
-    if (regConflicts.length || sicConflict) {
-      contradictions.push({
-        kind: 'register-contradiction',
-        detail: 'text evidence resolves ' + winner.sector + ' but register evidence implies '
-          + (regConflicts.map((d) => d.family + ' (' + d.register + ')').concat(sicConflict ? ['SIC ' + Array.from(sicFams).join('/')] : []).join(', ')),
-        text_sector: winner.sector,
-      });
-      return _finish(_abstain(evidence, contradictions, diagnostics), options, tree, vocab);
-    }
-    sector = winner.sector;
-    confidence = (decisive.length || sicFams.has(fam)) ? 'register' : 'corroborated';
-  } else if (decisive.length) {
-    // No confident text sector: a decisive regulator register resolves the family outright
-    // (C-014), unless the decisive registers disagree among themselves.
-    const fams = new Set(decisive.map((d) => d.family));
-    if (fams.size > 1) {
-      contradictions.push({ kind: 'register-contradiction', detail: 'decisive registers disagree: ' + decisive.map((d) => d.register).join(', ') });
-      for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
-      return _finish(_abstain(evidence, contradictions, diagnostics), options, tree, vocab);
-    }
-    sector = decisive[0].family;
-    confidence = 'register';
-    for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
-  } else if (candidates.length) {
-    // Thin cross-source corroboration: exactly one distinct text cue, unrivalled by any cue
-    // from another family, agreeing with a Companies House SIC family. Two independent sources
-    // (text plus register data) but below the two-cue standard, so it attaches as WEAK, never more.
-    const top = candidates[0];
-    const rival = candidates.find((c) => c.family !== top.family);
-    if (top.distinct === 1 && !rival && sicFams.has(top.family)) {
-      sector = top.sector;
-      confidence = 'weak';
-      for (const c of top.cues) evidence.push({ kind: 'text-cue', source: c.source, quote: c.quote });
-      evidence.push({ kind: 'register', source: 'companies-house-sic', quote: 'SIC families: ' + Array.from(sicFams).join(', ') });
-    }
-  }
-
-  if (!sector) {
+  const outcome = _selectSector(candidates, winner, ctx);
+  if (outcome === ABSTAIN_NOW) return _finish(_abstain(evidence, contradictions, diagnostics), options, tree, vocab);
+  if (!outcome) {
     // Deny by default: no two-cue winner, no decisive register, no corroborated single cue.
     if (sicFams.size > 0) evidence.push({ kind: 'register', source: 'companies-house-sic', quote: 'SIC families: ' + Array.from(sicFams).join(', ') });
     return _finish(_abstain(evidence, contradictions, diagnostics), options, tree, vocab);
   }
 
-  const subRes = resolveSubSector(tree, sector, allText);
-  let subSector = subRes.sub || null;
-  if (sector === 'healthcare') {
-    const npiSub = _npiSubSector((bundle && bundle.registers) || {});
-    if (npiSub) {
-      if (subSector && subSector !== npiSub.sub) {
-        evidence.push({
-          kind: 'register',
-          source: 'npi',
-          quote: 'NPI taxonomy "' + npiSub.desc + '" (' + (npiSub.code || 'no code') + ') overrides the text-derived sub-sector "' + subSector + '"',
-        });
-      } else {
-        evidence.push({ kind: 'register', source: 'npi', quote: 'NPI taxonomy: ' + npiSub.desc + ' (' + (npiSub.code || 'no code') + ')' });
-      }
-      subSector = npiSub.sub;
-    }
-  }
+  const { parent, subSector } = _resolveSubSectorForSector(tree, outcome.sector, allText, ctx);
   const result = {
     fact: 'sector',
-    value: { sector: subRes.parent || sector, sub_sector: subSector },
-    confidence,
+    value: { sector: parent || outcome.sector, sub_sector: subSector },
+    confidence: outcome.confidence,
     evidence,
     contradictions,
     diagnostics,
@@ -722,5 +770,6 @@ module.exports = {
   _isClientIndustryMention,
   _sicFamilies,
   _npiSubSector,
+  _NPI_DESC_SUBSECTOR,
   SERVED_CELLS,
 };

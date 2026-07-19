@@ -71,6 +71,13 @@ test('lookupRdap: a timeout degrades loudly, never hangs (Rule 9)', async () => 
   assert.equal(r.note.reason, 'timeout');
 });
 
+test('lookupRdap: a fetch error (rejection) degrades with fetch_error, not timeout (CodeRabbit PR #30)', async () => {
+  const fetchFn = async () => { throw new Error('ECONNREFUSED'); };
+  const r = await lookupRdap({ domain: 'example.com', fetchFn, deadlineMs: 500 });
+  assert.equal(r.row, null);
+  assert.equal(r.note.reason, 'fetch_error');
+});
+
 test('lookupRdap: a non-200 status degrades with unexpected_response', async () => {
   const fetchFn = async () => ({ status: 404, json: null });
   const r = await lookupRdap({ domain: 'example.com', fetchFn, deadlineMs: 500 });

@@ -81,9 +81,12 @@ function buildLookups(query, hints, opts) {
     { key: 'npi', run: () => lookupNpi(args) },
   ];
   if (hints && hints.domain) {
+    // Reuses the shared `args` object (same fetchFn/deadlineMs/log/domain every other lookup
+    // receives from callArgs) rather than re-reading opts/hints directly, so RDAP cannot silently
+    // diverge if callArgs ever normalises these fields (CodeRabbit PR #30).
     lookups.push({
       key: 'rdap',
-      run: () => lookupRdap({ domain: hints.domain, fetchFn: opts.fetchFn, deadlineMs: opts.deadlineMs, log: opts.log }),
+      run: () => lookupRdap({ domain: args.domain, fetchFn: args.fetchFn, deadlineMs: args.deadlineMs, log: args.log }),
     });
   }
   if (tryUkRegisters(hints)) {
