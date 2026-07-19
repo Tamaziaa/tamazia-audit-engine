@@ -277,11 +277,53 @@ function _selfIdWinner(candidates, minCues, selfIdFamilies) {
 }
 
 // _rivalFamiliesAtFloor: the set of OTHER families (distinct from `topFamily`) that each independently
-// clear the two-cue floor - the multidisciplinary-conflict signal (C-007). Two or more of them means a
-// conglomerate / umbrella advisory firm ("a wealth management firm and law firm and corporate services
-// provider"), where picking the top family over its equally self-declared rivals would be a guess.
+// clear the two-cue floor. Two or more of them is the BREADTH signal of a possible conglomerate / umbrella
+// advisory firm ("a wealth management firm and law firm and corporate services provider"). Breadth alone
+// is not a conflict; the dominance guard below decides whether it is a genuine tie or a clear winner.
 function _rivalFamiliesAtFloor(candidates, topFamily, minCues) {
   return new Set(candidates.filter((c) => c.family !== topFamily && c.distinct >= minCues).map((c) => c.family));
+}
+
+// Winner-dominance doctrine (the fix for the #28 sector over-abstention). The multidisciplinary-conflict
+// gate must RESPECT THE WINNER'S DOMINANCE: a firm where the top family dominates is a single-sector
+// practice with incidental body mentions (a real GP group scoring healthcare 32 against a stray hospitality
+// 7), and it MUST classify; only a genuine tie, where the top does NOT dominate, is a conglomerate worth
+// abstaining on. Dominance is graded on TWO independent axes, each demonstrably load-bearing on a real site:
+//   - PROPORTIONAL (DOMINANCE_RATIO): the winner shows at least 1.5x the nearest rival family's distinct
+//     cues. This catches a genuine high-count near-tie that an absolute test would miss: an aesthetics clinic
+//     scoring aesthetics 8 vs hospitality 6 (ratio 1.33) abstains, because 8 and 6 are too close to call.
+//   - ABSOLUTE (DOMINANCE_MIN_CUES): the winner carries at least 7 distinct cues in its own right. Cue count
+//     is a proxy for CONTENT VOLUME, and a THIN winner that merely out-scores a spread of under-detected
+//     business lines is not a confident single-sector classification. This catches the case a ratio test
+//     cannot: knightsbridge.ae self-declares as "lawyers, wealth planners, real estate ... corporate services
+//     provider, law firm, immigration advisory", scoring law-firms 6 vs finance 2 (ratio 3.0, MORE dominant
+//     proportionally than a real law firm), yet is a genuine conglomerate the reference set binds to
+//     professional-services; its 6-cue winner is below the floor, so it abstains.
+// Both thresholds are chosen from the real empirical corpus, not a guess: the value 7 sits strictly between
+// the genuine conglomerate (knightsbridge, winner 6) and the tightest CORRECT single-sector firm (a Texas
+// family practice, healthcare 8 vs hospitality 3), and 1.5 sits in the gap between the tightest correct
+// winner (a NY personal-injury firm, law-firms 19 vs the incidental healthcare 12, ratio 1.58) and the
+// aesthetics near-tie (1.33). Both the constructed 7/6/6 conglomerate and the real knightsbridge shape are
+// preserved as negative controls in the P6 calibration fixture and the node:test suite.
+const DOMINANCE_RATIO = 1.5;
+const DOMINANCE_MIN_CUES = 7;
+
+function _winnerDominates(topDistinct, rivalDistinct) {
+  return topDistinct >= DOMINANCE_MIN_CUES && topDistinct >= DOMINANCE_RATIO * rivalDistinct;
+}
+
+// _conflictAbstain: the multidisciplinary-conflict decision. Returns the abstain envelope (winner null, with
+// the conflicting families named) when the top family faces a GENUINE tie - two or more rival families at
+// the floor AND a top that does NOT dominate (deny-by-default, Rule 6) - or null when the top should
+// classify because its cues dominate rivals whose mentions are incidental. Pulled out so _textWinner stays
+// flat (the CodeScene Complex-Method cap); the #28 regression fix lives in the _winnerDominates guard here.
+function _conflictAbstain(candidates, top, rival, minCues) {
+  const conflict = _rivalFamiliesAtFloor(candidates, top.family, minCues);
+  const rivalDistinct = rival ? rival.distinct : 0;
+  if (conflict.size >= 2 && !_winnerDominates(top.distinct, rivalDistinct)) {
+    return { winner: null, rival, top, conflict: Array.from(conflict) };
+  }
+  return null;
 }
 
 function _textWinner(candidates, minCues, selfIdFamilies) {
@@ -292,11 +334,7 @@ function _textWinner(candidates, minCues, selfIdFamilies) {
   const rival = candidates.find((c) => c.family !== top.family) || null;
   const rivalDistinct = rival ? rival.distinct : 0;
   if (top.distinct < minCues || top.distinct <= rivalDistinct) return { winner: null, rival, top };
-  // Abstain on a multidisciplinary conflict (C-007); a single-sector practice (one dominant family,
-  // every rival below the floor) is unaffected, so a pure US attorney firm still resolves law-firms.
-  const conflict = _rivalFamiliesAtFloor(candidates, top.family, minCues);
-  if (conflict.size >= 2) return { winner: null, rival, top, conflict: Array.from(conflict) };
-  return { winner: top, rival };
+  return _conflictAbstain(candidates, top, rival, minCues) || { winner: top, rival };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -789,6 +827,7 @@ module.exports = {
   loadVocabulary,
   // exported for tests and the calibration harness
   _scoreSectors,
+  _textWinner,
   _segments,
   _isClientIndustryMention,
   _sicFamilies,

@@ -41,7 +41,7 @@ module.exports = {
   options: {
     doNotFollow: { path: 'node_modules' },
     exclude: { path: '(^|/)(node_modules|docs|reports|coverage|[.]git|[.]jscpd-report|[.]stryker-tmp)($|/)' },
-    includeOnly: '^(applicability|breach|catalogue|eval|evidence|facts|llm|mint|payload|render-proof|tools)/',
+    includeOnly: '^(applicability|breach|catalogue|eval|evidence|facts|llm|mint|payload|render-proof|taxonomy|tools)/',
     moduleSystems: ['cjs', 'es6'],
     enhancedResolveOptions: {
       exportsFields: ['exports'],

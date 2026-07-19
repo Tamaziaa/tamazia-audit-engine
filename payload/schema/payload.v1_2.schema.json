@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tamazia.co.uk/schemas/audit-payload-lattice/v1.2/payload.schema.json",
+  "title": "Tamazia audit payload v1.2 - typed verdict lattice",
+  "payload_version": "1.2",
+  "description": "The formal statement of the payload v1.2 verdict-lattice envelope (Kimi WS0, blueprint 2.2). This is a DIFFERENT axis from the render-contract schema in payload.schema.json (whose own minor happens to be 1.2.0): here payload_version '1.2' names the typed lattice that carries evidence records, per-law verdicts (Breach|Clean|Unknown), and the coverage manifest. The runtime constructors in payload/contract/v1_2.js are the enforcement (a fabricated quote/law/penalty is a type error there); this schema plus payload/contract/decode.js's validateV1_2 is the structural belt to those braces, and the versioned decoder routes a payload with no payload_version (or '1.1') to the existing render-contract validator instead. Additive: the v1.1 path is untouched.",
+  "type": "object",
+  "required": ["payload_version", "taxonomy_version", "catalogue_hash", "evidence", "verdicts", "coverage"],
+  "properties": {
+    "payload_version": { "const": "1.2" },
+    "taxonomy_version": { "type": "string", "minLength": 1 },
+    "catalogue_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidenceRecord" } },
+    "verdicts": { "type": "array", "items": { "$ref": "#/$defs/verdict" } },
+    "coverage": { "$ref": "#/$defs/coverageManifest" }
+  },
+  "$defs": {
+    "laneStatus": {
+      "type": "object",
+      "required": ["kind"],
+      "oneOf": [
+        { "properties": { "kind": { "const": "OK" } }, "required": ["kind"] },
+        { "properties": { "kind": { "const": "LaneError" }, "reason_code": { "type": "string", "minLength": 1 } }, "required": ["kind", "reason_code"] }
+      ]
+    },
+    "evidenceRecord": {
+      "type": "object",
+      "required": ["id", "lane", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "lane": { "enum": ["static", "browser", "register", "probe"] },
+        "status": { "$ref": "#/$defs/laneStatus" },
+        "url_final": { "type": ["string", "null"] },
+        "redirect_chain": { "type": "array", "items": { "type": "string" } },
+        "fetched_at": { "type": ["string", "null"] },
+        "bytes_sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "content_type": { "type": ["string", "null"] },
+        "headers": { "type": "object" },
+        "dom_selector": { "type": ["string", "null"] },
+        "byte_range": { "type": ["array", "null"], "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+      }
+    },
+    "quote": {
+      "type": "object",
+      "required": ["evidence_id", "byte_start", "byte_end"],
+      "properties": {
+        "evidence_id": { "type": "string", "minLength": 1 },
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_end": { "type": "integer", "minimum": 0 },
+        "text": { "type": ["string", "null"] }
+      }
+    },
+    "lawRef": {
+      "type": "object",
+      "required": ["law_id", "catalogue_hash"],
+      "properties": {
+        "law_id": { "type": "string", "minLength": 1 },
+        "catalogue_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "penaltyRef": {
+      "type": "object",
+      "required": ["law_id", "penalty_id", "catalogue_hash"],
+      "properties": {
+        "law_id": { "type": "string", "minLength": 1 },
+        "penalty_id": { "type": "string", "minLength": 1 },
+        "catalogue_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "coverageCertificate": {
+      "type": "object",
+      "required": ["pages_fetched", "discovery_methods", "threshold_met"],
+      "properties": {
+        "pages_fetched": { "type": "array", "items": { "type": "string" } },
+        "discovery_methods": { "type": "array", "items": { "type": "string" } },
+        "page_classes_searched": { "type": "object" },
+        "planned": { "type": "number" },
+        "fetched": { "type": "number" },
+        "failed": { "type": "array", "items": { "type": "string" } },
+        "threshold_met": { "type": "boolean" }
+      }
+    },
+    "coverageManifest": {
+      "type": "object",
+      "required": ["checks_planned", "checks_run", "checks_unrun", "lanes", "evidence_ids", "catalogue_hash", "taxonomy_version", "payload_version"],
+      "properties": {
+        "checks_planned": { "type": "array", "items": { "type": "string" } },
+        "checks_run": { "type": "array", "items": { "type": "string" } },
+        "checks_unrun": {
+          "type": "array",
+          "items": { "type": "object", "required": ["check", "reason"], "properties": { "check": { "type": "string", "minLength": 1 }, "reason": { "type": "string", "minLength": 1 } } }
+        },
+        "lanes": { "type": "array", "items": { "type": "object", "required": ["lane", "status"], "properties": { "lane": { "type": "string" }, "status": { "type": "string" } } } },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "catalogue_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "taxonomy_version": { "type": "string", "minLength": 1 },
+        "payload_version": { "const": "1.2" }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "required": ["kind"],
+      "oneOf": [
+        {
+          "title": "Breach",
+          "required": ["kind", "breach_kind", "law", "penalty", "class"],
+          "properties": {
+            "kind": { "const": "Breach" },
+            "breach_kind": { "enum": ["violation", "absence", "behavioural"] },
+            "class": { "enum": ["confirmed", "likely"] },
+            "law": { "$ref": "#/$defs/lawRef" },
+            "penalty": { "$ref": "#/$defs/penaltyRef" },
+            "quote": { "oneOf": [{ "$ref": "#/$defs/quote" }, { "type": "null" }] },
+            "certificate": { "oneOf": [{ "$ref": "#/$defs/coverageCertificate" }, { "type": "null" }] }
+          }
+        },
+        {
+          "title": "Clean",
+          "required": ["kind", "coverage"],
+          "properties": {
+            "kind": { "const": "Clean" },
+            "coverage": { "$ref": "#/$defs/coverageManifest" }
+          }
+        },
+        {
+          "title": "Unknown",
+          "required": ["kind", "reason_code", "missing"],
+          "properties": {
+            "kind": { "const": "Unknown" },
+            "reason_code": { "type": "string", "minLength": 1 },
+            "missing": { "type": "string", "minLength": 1 },
+            "coverage": { "oneOf": [{ "$ref": "#/$defs/coverageManifest" }, { "type": "null" }] }
+          }
+        }
+      ]
+    }
+  }
+}
