@@ -15,6 +15,9 @@
 //   2. OBSERVED FACTS BYPASS THE MODEL (C-084). A browser-observed event or a register row is a FACT,
 //      not a reading of a page. evidence-kind.js routes it straight to `violation` with its artifact;
 //      the model, which structurally cannot see a cookie jar, never gets to "insufficient" it away.
+//      EXCEPTION (W6): a RISK-tier dom_node (insecure-form under UK GDPR Art 32, pre-ticked-consent) is a
+//      confirmed observation but a risk-based legal characterisation, so evidence-kind.js routes it to
+//      needs-review (review:true) carrying its dom_node artifact - never a hard violation (C-048, Rule 6).
 //   3. ABSTAIN BY DEFAULT (Rule 6 + Rule 12 gate 4). A text-derived candidate becomes a `violation`
 //      ONLY on an explicit, well-formed `breach` verdict for its exact id. LLM absent, timed out,
 //      errored, silent on this id, or ambiguous -> needs_review. Never violation, never pass by default.
@@ -158,6 +161,16 @@ function stampBypass(f, kind) {
 function stampReject(f, reason) {
   baseAdj(f, 'needs_review', false, 'kind_rejected');
   f.adjudication_reason = String(reason || 'evidence-kind rejected').slice(0, 160);
+}
+// stampRiskReview(f, reason): W6. A RISK-tier dom_node (insecure-form, pre-ticked-consent) is a CONFIRMED
+// observation, but its legal characterisation is risk-based (UK GDPR Art 32), not deterministic. It skips
+// the LLM (there is no text to adjudicate) yet, unlike an observed_fact, it does NOT ship as a violation:
+// it is quarantined to needs_review carrying its dom_node artifact - evidence-backed (Rule 3), never a
+// hard accusation (Rule 6/Rule 10, the C-048 class). adjudicated:false because no model ruled on it and
+// the legal conclusion is deliberately withheld for the controller's own Art 32 risk assessment.
+function stampRiskReview(f, reason) {
+  baseAdj(f, 'needs_review', false, 'risk_indicator');
+  f.adjudication_reason = String(reason || 'risk-indicator observation -> needs_review (C-048)').slice(0, 160);
 }
 function stampAbstain(f, reason) {
   baseAdj(f, 'needs_review', false, 'unadjudicated');
@@ -404,26 +417,32 @@ async function adjudicateText(text, ctx, opts, report) {
   }
 }
 
-// classifyAll(candidates) -> partition into bypass (observation/register), text (absence to adjudicate)
-// and rejected (masqueraded kind or no artifact). Attaches a transient _ek deleted before return.
+// classifyAll(candidates) -> partition into bypass (observation/register), riskReview (a confirmed
+// risk-indicator dom_node routed to needs-review, W6), text (absence to adjudicate) and rejected
+// (masqueraded kind or no artifact). Attaches a transient _ek deleted before return. The riskReview check
+// precedes bypass: a risk dom_node is a valid observation (so it never reaches rejected) but must NOT join
+// the bypass-to-violation set (it carries bypass:false anyway) and must NOT join the text set (there is no
+// text to adjudicate) - it is its own quarantine route.
 function classifyAll(candidates) {
   const bypass = [];
   const text = [];
   const rejected = [];
+  const riskReview = [];
   for (const f of candidates) {
     const ek = classifyEvidenceKind(f);
     f._ek = ek;
     if (!ek.valid) rejected.push(f);
+    else if (ek.review) riskReview.push(f);
     else if (ek.bypass) bypass.push(f);
     else text.push(f);
   }
-  return { bypass, text, rejected };
+  return { bypass, riskReview, text, rejected };
 }
 
 function emptyReport(total) {
   return {
     ran: false, llm_available: false, timed_out: false, total,
-    observed_fact: 0, register_fact: 0, rejected: 0, text_derived: 0,
+    observed_fact: 0, register_fact: 0, risk_review: 0, rejected: 0, text_derived: 0,
     violation: 0, needs_review: 0, pass: 0, batches: [],
   };
 }
@@ -462,11 +481,13 @@ async function adjudicate(verifiedCandidates, bundle, options) {
   const report = emptyReport(candidates.length);
   if (candidates.length === 0) return { findings: candidates, report };
 
-  const { bypass, text, rejected } = classifyAll(candidates);
+  const { bypass, riskReview, text, rejected } = classifyAll(candidates);
   for (const f of bypass) {
     stampBypass(f, f._ek.kind);
     if (f._ek.kind === 'register') report.register_fact++; else report.observed_fact++;
   }
+  // W6: a confirmed risk-indicator dom_node quarantines to needs-review (never a hard violation, C-048).
+  for (const f of riskReview) { stampRiskReview(f, f._ek.reason); report.risk_review++; }
   for (const f of rejected) { stampReject(f, f._ek.reason); report.rejected++; }
 
   report.text_derived = text.length;

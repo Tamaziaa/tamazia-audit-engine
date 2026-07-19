@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  classifyEvidenceKind, artifactKindOf, declaredKindOf,
+  classifyEvidenceKind, artifactKindOf, declaredKindOf, isRiskTierDomNode,
   OBSERVED_ARTIFACT_TYPES, REGISTER_ARTIFACT_TYPES, KINDS, BYPASS_KINDS,
 } = require('./evidence-kind.js');
 
@@ -156,4 +156,50 @@ test('the classifier never throws on malformed input', () => {
     const c = classifyEvidenceKind(bad);
     assert.equal(c.valid, false, 'malformed input can never be a valid bypass');
   }
+});
+
+// ── W6: the risk-tier dom_node partition (a confirmed observation that must NOT bypass to a hard
+//    violation - insecure-form under Art 32, pre-ticked-consent) ──────────────────────────────────────
+function domNode(over) {
+  return cand({ artifact: Object.assign({ type: 'dom_node', rule_id: 'insecure-form', selector: 'form#x', snippet: '<form>', state: 'violation' }, over) });
+}
+
+test('a RISK-tier dom_node is a valid observation but routes to needs-review (review:true, bypass:false) - NEVER a hard violation (C-048)', () => {
+  const c = classifyEvidenceKind(domNode({ tier: 'risk' }));
+  assert.equal(c.kind, 'observation', 'the insecure form IS observed - it is an observation, not a text reading');
+  assert.equal(c.valid, true, 'a confirmed risk node is a real, evidence-backed observation (never rejected)');
+  assert.equal(c.bypass, false, 'a risk indicator must NEVER take the observed-fact bypass-to-violation');
+  assert.equal(c.review, true, 'it routes to the needs-review quarantine');
+  assert.match(c.reason, /risk-indicator|C-048/i);
+});
+
+test('a DETERMINISTIC-tier dom_node keeps the observed-fact bypass-to-violation (the accessibility class is unchanged)', () => {
+  const c = classifyEvidenceKind(domNode({ rule_id: 'image-alt', tier: 'deterministic' }));
+  assert.equal(c.kind, 'observation');
+  assert.equal(c.bypass, true, 'a missing alt IS the breach - it still bypasses to a hard violation');
+  assert.equal(c.review, false);
+  assert.equal(c.valid, true);
+});
+
+test('a tier-ABSENT dom_node (a legacy/ported node) keeps the bypass-to-violation (W6 backward safety)', () => {
+  const c = classifyEvidenceKind(domNode({ tier: undefined }));
+  assert.equal(c.bypass, true, 'no tier field -> deterministic -> bypass, so an existing dom_node is byte-unchanged');
+  assert.equal(c.review, false);
+});
+
+test('MASQUERADE beats the risk route: a risk dom_node mislabelled `absence` is REJECTED, never risk-reviewed', () => {
+  assert.equal(classifyEvidenceKind(domNode({ tier: 'risk' })).review, true, 'sanity: the un-masqueraded risk node reviews');
+  const masq = classifyEvidenceKind(Object.assign(domNode({ tier: 'risk' }), { evidence_kind: 'absence' }));
+  assert.equal(masq.valid, false, 'a declared kind disagreeing with the observed artifact is rejected first');
+  assert.equal(masq.review, false, 'a rejected candidate is quarantined as kind_rejected, not risk-reviewed');
+  assert.equal(masq.bypass, false);
+});
+
+test('isRiskTierDomNode: only a dom_node artifact with tier==="risk" qualifies (a tiered network_event does not)', () => {
+  assert.equal(isRiskTierDomNode(domNode({ tier: 'risk' })), true);
+  assert.equal(isRiskTierDomNode(domNode({ tier: 'deterministic' })), false);
+  assert.equal(isRiskTierDomNode(domNode({ tier: undefined })), false, 'an absent tier is not a risk tier');
+  assert.equal(isRiskTierDomNode(cand({ artifact: { type: 'network_event', tier: 'risk' } })), false, 'a non-dom_node type never carries a finding tier');
+  assert.equal(isRiskTierDomNode(cand({})), false);
+  assert.equal(isRiskTierDomNode(null), false);
 });
