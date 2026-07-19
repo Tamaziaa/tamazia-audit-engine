@@ -86,7 +86,7 @@ test('gate 1: an abstained jurisdiction envelope attaches nothing; every record 
   const { applicable, excluded, counts } = connect(factsFor({ jurisdiction }), catalogue);
   assert.equal(applicable.length, 0);
   assert.equal(excluded.length, 2, 'every record is excluded');
-  for (const e of excluded) assert.match(e.reason, /gate-1 jurisdiction: the jurisdiction fact abstained/);
+  for (const e of excluded) assert.match(e.reason, /gate-1 jurisdiction unbound \(the jurisdiction fact abstained/);
   assert.deepEqual(counts, { frameworksAssessed: 0, frameworksBinding: 0, rulesChecked: 0 });
 });
 

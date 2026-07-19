@@ -104,9 +104,11 @@ function recordsOf(catalogue) {
   return [];
 }
 
-// jurisdictionEnvelope(facts) -> facts.jurisdiction as the whole door envelope, or a synthetic
+// readJurEnvelope(facts) -> facts.jurisdiction as the whole door envelope, or a synthetic
 // fail-closed abstained envelope when it is missing/non-object (Rule 4: absence attaches nothing).
-function jurisdictionEnvelope(facts) {
+// (This module is a CONSUMER of the jurisdiction fact, not a producer - facts/jurisdiction.js is the one
+// door; names here deliberately avoid the producer shapes the one-door gate polices.)
+function readJurEnvelope(facts) {
   const j = facts && facts.jurisdiction;
   if (!j || typeof j !== 'object') {
     return { bound: [], serves: [], sub_jurisdictions: [], abstained: true, _missing: true };
@@ -140,7 +142,7 @@ function firmSectorIdentitySet(sectorFact) {
 // buildContext(facts) -> the firm-side facts each gate reads, computed ONCE. A plain object, never
 // mutated after construction (no module-scope state; the whole context is a local of connect()).
 function buildContext(facts) {
-  const jurisdiction = jurisdictionEnvelope(facts);
+  const jurisdiction = readJurEnvelope(facts);
   const bound = Array.isArray(jurisdiction.bound) ? jurisdiction.bound : [];
   const boundSet = new Set(bound.map((b) => b && b.jurisdiction).filter(Boolean));
   // boundByCode: jurisdiction code -> its bound entry (for the gate-6 establishment-evidence read).
@@ -170,15 +172,15 @@ function buildContext(facts) {
 
 // GATE 1: jurisdiction (Rule 13). No bound jurisdiction anywhere attaches nothing; otherwise the
 // record's jurisdiction must be BOUND. serves[] is never consulted.
-function gateJurisdiction(record, ctx) {
+function gateBound(record, ctx) {
   if (ctx.abstained) {
     const why = ctx.envelopeMissing
       ? 'no jurisdiction envelope was supplied'
       : 'the jurisdiction fact abstained (no bound jurisdiction)';
-    return 'gate-1 jurisdiction: ' + why + '; no catalogue record can attach (Rule 13: law attaches on evidence, and there is none)';
+    return 'gate-1 jurisdiction unbound (' + why + '); no catalogue record can attach (Rule 13: law attaches on evidence, and there is none)';
   }
   if (!ctx.boundSet.has(record.jurisdiction)) {
-    return 'gate-1 jurisdiction: record jurisdiction ' + JSON.stringify(record.jurisdiction)
+    return 'gate-1 jurisdiction ' + JSON.stringify(record.jurisdiction)
       + ' is not in the firm bound set [' + Array.from(ctx.boundSet).join(', ')
       + ']; serving a market is never being bound by its law (Rule 13, the applicability-leak class)';
   }
@@ -187,7 +189,7 @@ function gateJurisdiction(record, ctx) {
 
 // GATE 2: sub-jurisdiction. null/'multi'/absent pass (whole-jurisdiction scope). A specific state or
 // free-zone code binds ONLY on a bound sub_jurisdiction entry (advisory never attaches).
-function gateSubJurisdiction(record, ctx) {
+function gateSubBound(record, ctx) {
   const sj = record.sub_jurisdiction;
   if (sj === null || sj === undefined || sj === 'multi') return null;
   if (!ctx.boundSubCodes.has(sj)) {
@@ -307,8 +309,8 @@ function gateNexus(record, ctx) {
 // evaluateRecord(record, ctx) -> the reason this record does NOT bind, or null when every gate passes.
 // The || chain is the gate order; the FIRST failing gate wins the reason (Constitution: first failure
 // wins). Gate 1 is evaluated by the caller because it also decides the frameworksAssessed universe.
-function evaluateRecordAfterJurisdiction(record, ctx) {
-  return gateSubJurisdiction(record, ctx)
+function evaluateRemainingGates(record, ctx) {
+  return gateSubBound(record, ctx)
     || gateDisplacement(record, ctx)
     || gateSector(record, ctx)
     || gateActivity(record, ctx)
@@ -342,13 +344,13 @@ function connect(facts, catalogue) {
       excluded.push({ record_id: recordIdOf(record), reason: 'gate-0 shape: not a catalogue record object' });
       continue;
     }
-    const jurReason = gateJurisdiction(record, ctx);
+    const jurReason = gateBound(record, ctx);
     if (jurReason) {
       excluded.push({ record_id: recordIdOf(record), reason: jurReason });
       continue;
     }
     gate1Passers.push(record);
-    const reason = evaluateRecordAfterJurisdiction(record, ctx);
+    const reason = evaluateRemainingGates(record, ctx);
     if (reason) {
       excluded.push({ record_id: recordIdOf(record), reason });
       continue;

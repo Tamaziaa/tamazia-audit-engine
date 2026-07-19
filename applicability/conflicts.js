@@ -25,7 +25,7 @@
 
 // familyKey(record) -> the deterministic family key for one record: the normalised citation.act
 // string, or the record id when act is absent. Normalisation is trim + lower-case + single-space
-// collapse, so "Data Protection Act 2018" and "data protection act  2018" are one family.
+// collapse, so two rows citing one statute under trivially different spacing or case are one family.
 function familyKey(record) {
   const act = record && record.citation && record.citation.act;
   if (typeof act === 'string' && act.trim() !== '') {
