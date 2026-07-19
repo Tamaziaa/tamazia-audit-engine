@@ -172,6 +172,13 @@ const CALIBRATIONS = [
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-adjudicator-invented-finding.js'],
   },
   {
+    name: 'required-disclosure-breach',
+    description:
+      'a required disclosure retyped presence (the New York "Attorney Advertising" label): propose.js must NOT breach a compliant page that SHOWS the disclosure (the false accusation is gone) and MUST breach a page that omits it (the real violation is caught); the old "absence" typing false-accuses the compliant page (caution.md C-046/C-048, CATALOGUE-VERIFICATION-2026-07-19.md, Rule 3); self-driving fixture drives breach/proposers/propose.js against the shipped NY_RPC_7_1 record',
+    fixtures: ['p3-required-disclosure-breach.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-required-disclosure-breach.js'],
+  },
+  {
     name: 'host-substring',
     description:
       'a URL/host compared by substring or token instead of a parsed host (GAPS.md host-substring; the Mills & Reeve nexus class, caution.md C-009)',
