@@ -311,6 +311,15 @@ const CALIBRATIONS = [
     fixtures: ['p6-corpus-language-gate-fires.js'],
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-corpus-language-gate-fires.js'],
   },
+
+  // ---- P6: the sector-classifier winner-margin fix (RETEST-2026-07-19 blocker #2, the #28 over-abstention) ----
+  {
+    name: 'p6-sector-winner-margin',
+    description:
+      'facts/sector.js\'s #28 multidisciplinary-conflict gate (`_rivalFamiliesAtFloor`) abstained whenever two rival sector families cleared the two-cue floor, IGNORING the winner\'s margin, so a content-rich real firm (londondoctorsclinic: healthcare 32 vs a stray hospitality 7) was refused the whole audit at the sector door - 8/11 replay + 2/3 fresh sites refused (EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md blocker #2). The fix makes the gate respect the winner\'s margin. Self-driving fixture drives facts/sector.js#_textWinner with the REAL empirical scores (POSITIVE: a dominant winner classifies despite 2+ rival families at floor) AND a genuine conglomerate 7/6/6 (NEGATIVE: comparable top-two still abstains, C-007), plus the real-vocabulary resolveSector end-to-end. Self-sufficient (pure _textWinner + facts/vocabulary.js), runs safely BEFORE the catalogue compile in CI.',
+    fixtures: ['p6-sector-winner-margin.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-sector-winner-margin.js'],
+  },
 ];
 
 function findChecker(candidates) {
