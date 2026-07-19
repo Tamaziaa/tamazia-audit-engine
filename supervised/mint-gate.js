@@ -11,11 +11,13 @@
 // (AGENT-CONTEXT-PACK-2026-07-19.md's own rule 5: "any test mint of a real site: persistence MUST be
 // stubbed").
 
+const crypto = require('crypto');
 const { verifyQuoteDetailed } = require('./verify-quote.js');
-const { latestSignature, shippedFindingIds } = require('./signature-store.js');
+const { latestSignature, shippedFindingIds, signedReportSha256 } = require('./signature-store.js');
 const { ManifestStore } = require('./manifest-store.js');
 const { MintRefusalError } = require('./errors.js');
 const { isFinding } = require('./finding.js');
+const { lintNoOrphanClaims } = require('./orphan-lint.js');
 
 const REFUSAL_CODES = Object.freeze({
   NO_SIGNATURE: 'no_signature',
@@ -30,7 +32,59 @@ const REFUSAL_CODES = Object.freeze({
   DUPLICATE_FINDING_ID: 'duplicate_finding_id',
   UNBRANDED_FINDING: 'unbranded_finding',
   NO_PERSIST_FN: 'no_persist_fn',
+  REPORT_TAMPERED: 'report_tampered',
+  REPORT_MISSING: 'report_missing',
+  REPORT_UNSIGNED: 'report_unsigned',
+  ORPHAN_CLAIM: 'orphan_claim',
 });
+
+// artifactIdsOf(captureIndex) -> every real artifact id for the run (evidence_id AND sha256 of each
+// captured artifact), the set orphan-lint accepts as a valid citation target alongside finding ids (the
+// O3 wiring, reused here so the in-gate lint honours artifact citations exactly as the packet lint does).
+function artifactIdsOf(captureIndex) {
+  if (!captureIndex || typeof captureIndex.list !== 'function') return [];
+  return captureIndex.list().flatMap((a) => [a.evidence_id, a.sha256]).filter(Boolean);
+}
+
+// reportSha256(report) -> the lowercase-hex sha256 of the report's UTF-8 bytes (the SAME commitment
+// bin/engine.js's sign command computes over the report file it is handed).
+function reportSha256(report) {
+  return crypto.createHash('sha256').update(report, 'utf8').digest('hex');
+}
+
+// checkReportBinding(signedHash, report) -> { ok, reasonCode?, detail?, lint? }. The report-binding leg of
+// Kimi K3 finding HIGH-E3: a signature commits to the exact linted report bytes via report_sha256, so an
+// edit after the founder signed is detectable here. `lint` (true only when a signed report is present and
+// its hash matched) tells checkReport() whether to then run the in-gate orphan-lint.
+function checkReportBinding(signedHash, report) {
+  if (signedHash) {
+    if (typeof report !== 'string') return { ok: false, reasonCode: REFUSAL_CODES.REPORT_MISSING, detail: 'the signature committed to a report (report_sha256 present) but no report was supplied to the mint gate' };
+    if (reportSha256(report) !== signedHash) return { ok: false, reasonCode: REFUSAL_CODES.REPORT_TAMPERED, detail: 'the report being minted does not match the report_sha256 the founder signed (it was edited after signing)' };
+    return { ok: true, lint: true };
+  }
+  if (typeof report === 'string') return { ok: false, reasonCode: REFUSAL_CODES.REPORT_UNSIGNED, detail: 'a report was supplied to the mint gate but the signature never committed to one (no report_sha256); an unsigned report is never minted' };
+  return { ok: true, lint: false };
+}
+
+// checkReport(signature, i) -> { ok, reasonCode?, detail? }. THE report integrity check (Kimi K3 finding
+// HIGH-E3), both halves as hard refusals:
+//   1. BINDING: re-hash the report actually being minted and refuse on any mismatch with the founder's
+//      signed report_sha256 (REPORT_TAMPERED / REPORT_MISSING / REPORT_UNSIGNED per checkReportBinding).
+//   2. LINT AS A GATE: run lintNoOrphanClaims INSIDE the gate over the final report + the run's finding ids
+//      + artifact ids, and treat ok:false as a HARD refusal (ORPHAN_CLAIM), never advisory - a signature
+//      does not license an orphaned accusation. A findings-only mint (no report signed, none supplied) is
+//      unaffected: checkReportBinding returns lint:false and this returns ok immediately.
+function checkReport(signature, i) {
+  const binding = checkReportBinding(signedReportSha256(signature), i.report);
+  if (!binding.ok) return binding;
+  if (!binding.lint) return { ok: true };
+  const lint = lintNoOrphanClaims(i.report, i.findings || [], artifactIdsOf(i.captureIndex));
+  if (!lint.ok) {
+    const first = lint.violations[0];
+    return { ok: false, reasonCode: REFUSAL_CODES.ORPHAN_CLAIM, detail: 'the signed report failed the no-orphan-claims lint (' + lint.violations.length + ' violation(s)); first: [' + first.type + '] ' + JSON.stringify(first.sentence) };
+  }
+  return { ok: true };
+}
 
 // firstUnbrandedFinding(findings) -> the first finding that is NOT a real, createFinding()-produced Finding
 // (Kimi K3 finding E4, live audit 2026-07-20): finding.js brands every value it actually returns in a
@@ -254,6 +308,11 @@ function evaluateMintGate(input) {
   if (!cat.ok) return cat;
   const quotes = checkQuotes(i.captureIndex, findings);
   if (!quotes.ok) return quotes;
+  // Report binding + in-gate orphan-lint (Kimi K3 finding HIGH-E3) - runs AFTER checkSignature so the
+  // founder's signed report_sha256 is known, and after the findings/quotes are proven so the lint runs
+  // over the real, verified finding-id set.
+  const report = checkReport(sig.signature, i);
+  if (!report.ok) return report;
   return { ok: true, signature: sig.signature };
 }
 
@@ -358,4 +417,4 @@ async function mintGate(input) {
   return { proceeded: true, mode: 'live', persisted, signature: decision.signature, findingsShipped };
 }
 
-module.exports = { mintGate, evaluateMintGate, checkSignature, checkQuotes, checkCatalogue, checkCoverageManifest, REFUSAL_CODES, ManifestStore };
+module.exports = { mintGate, evaluateMintGate, checkSignature, checkQuotes, checkCatalogue, checkCoverageManifest, checkReport, REFUSAL_CODES, ManifestStore };

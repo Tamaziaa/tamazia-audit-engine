@@ -4,6 +4,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { ManifestStore } = require('./manifest-store.js');
 const { recordSignature } = require('./signature-store.js');
 const { buildCaptureIndex } = require('./capture-index.js');
@@ -332,6 +333,106 @@ test('O4: a persistFn that IGNORES the abort signal and settles AFTER the timeou
   assert.strictEqual(caughtErr.ambiguousOutcomes[0].outcome, 'settled_after_timeout');
   assert.strictEqual(caughtErr.ambiguousOutcomes[0].ok, true);
   assert.deepStrictEqual(caughtErr.ambiguousOutcomes[0].value, { neonRowId: 7 });
+});
+
+// ── Kimi K3 finding HIGH-E3 (live audit 2026-07-20): the report was outside the mint gate's integrity ──
+// scope. The drafted report was not an input to evaluateMintGate, so any edit AFTER the founder signed was
+// undetectable, and lintNoOrphanClaims was advisory (nothing hard-failed on ok:false). The fix binds the
+// report bytes into the signature (report_sha256) AND runs the orphan-lint INSIDE the gate as a hard
+// refusal. sha256Hex() here mirrors what the gate itself computes over the report bytes.
+function sha256Hex(s) {
+  return crypto.createHash('sha256').update(s, 'utf8').digest('hex');
+}
+// reportCiting(finding) -> a report whose one factual sentence cites `finding` (so the orphan-lint passes).
+function reportCiting(finding) {
+  return 'The site does not display a cookie banner (Finding ' + finding.finding_id + ').';
+}
+
+test('E3 (happy path): a signed, UNEDITED report whose every claim is cited still mints', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  const report = reportCiting(finding);
+  recordSignature(s, 'run-e3-ok', { overall: 'SIGN', report_sha256: sha256Hex(report), findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const outcome = await mintGate({
+    store: s, runId: 'run-e3-ok', findings: [finding], captureIndex,
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+    report,
+  });
+  assert.strictEqual(outcome.proceeded, true);
+});
+
+test('E3 (a - THE POST-SIGN EDIT PROOF): sign a report, edit ONE byte, attempt mint -> refused on report_sha256 mismatch', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  const signedReport = reportCiting(finding);
+  recordSignature(s, 'run-e3-edit', { overall: 'SIGN', report_sha256: sha256Hex(signedReport), findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const editedReport = signedReport + ' '; // one appended byte the founder never signed
+  await assert.rejects(
+    () => mintGate({
+      store: s, runId: 'run-e3-edit', findings: [finding], captureIndex,
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      report: editedReport,
+    }),
+    (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.REPORT_TAMPERED); return true; }
+  );
+});
+
+test('E3 (b - LINT IS A HARD GATE): a signed report containing an UNCITED factual sentence is refused with the orphan-claim code', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  // The founder signed THIS exact report (hash matches), but it carries an uncited accusation - the lint,
+  // running INSIDE the gate now, must still refuse it (defence in depth: a signature does not license an
+  // orphaned claim).
+  const orphanReport = 'The site breaches the Equality Act 2010.';
+  recordSignature(s, 'run-e3-orphan', { overall: 'SIGN', report_sha256: sha256Hex(orphanReport), findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  await assert.rejects(
+    () => mintGate({
+      store: s, runId: 'run-e3-orphan', findings: [finding], captureIndex,
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      report: orphanReport,
+    }),
+    (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.ORPHAN_CLAIM); return true; }
+  );
+});
+
+test('E3: a signature that COMMITTED to a report but no report is supplied at mint time is refused (the signer covered a report; minting without it is a gap)', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  const report = reportCiting(finding);
+  recordSignature(s, 'run-e3-missing', { overall: 'SIGN', report_sha256: sha256Hex(report), findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  await assert.rejects(
+    () => mintGate({
+      store: s, runId: 'run-e3-missing', findings: [finding], captureIndex,
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      // report intentionally omitted
+    }),
+    (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.REPORT_MISSING); return true; }
+  );
+});
+
+test('E3: a report supplied at mint time that the signature NEVER committed to (no report_sha256 on the signature) is refused as unsigned', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  recordSignature(s, 'run-e3-unsigned', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] }); // NO report_sha256
+  await assert.rejects(
+    () => mintGate({
+      store: s, runId: 'run-e3-unsigned', findings: [finding], captureIndex,
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      report: reportCiting(finding), // a report the founder never signed
+    }),
+    (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.REPORT_UNSIGNED); return true; }
+  );
+});
+
+test('E3: a findings-only mint (no report signed, none supplied) still proceeds - the binding applies only when a report is in play', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  recordSignature(s, 'run-e3-none', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const outcome = await mintGate({
+    store: s, runId: 'run-e3-none', findings: [finding], captureIndex,
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+  });
+  assert.strictEqual(outcome.proceeded, true);
 });
 
 test('REFUSAL: a shipped finding was never explicitly decided in the signature (fail closed, never assume ship)', async () => {

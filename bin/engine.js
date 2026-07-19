@@ -191,6 +191,19 @@ async function cmdPacket(args) {
   return 0;
 }
 
+// reportSha256From(args, body) -> the founder's commitment to the report bytes they signed (Kimi K3
+// finding HIGH-E3). Preference order: an explicit report_sha256 in the decisions JSON (already a hash), or
+// the sha256 computed HERE over the exact --report-text file bytes, or null (a findings-only signature that
+// covers no drafted report). Computing it from the file the founder reviewed is the honest binding: the
+// signature commits to the precise bytes, and mint-gate.js refuses any later edit.
+function reportSha256From(args, body) {
+  if (typeof body.report_sha256 === 'string' && body.report_sha256) return body.report_sha256;
+  if (args['report-text'] && fs.existsSync(args['report-text'])) {
+    return require('crypto').createHash('sha256').update(fs.readFileSync(args['report-text'], 'utf8'), 'utf8').digest('hex');
+  }
+  return undefined;
+}
+
 function cmdSign(args) {
   if (!args['run-id']) throw new Error('engine sign: --run-id <id> is required');
   if (!args.decisions) throw new Error('engine sign: --decisions <path.json> is required');
@@ -201,6 +214,7 @@ function cmdSign(args) {
     overall: args.overall || body.overall,
     findingDecisions: body.findingDecisions || [],
     note: body.note,
+    report_sha256: reportSha256From(args, body),
   });
   process.stdout.write(JSON.stringify(entry, null, 2) + '\n');
   return 0;
@@ -237,10 +251,16 @@ function resolvedCatalogue(catalogue) {
 // propagate as an uncaught CLI crash, since a refusal is an expected, reportable outcome here, not a bug.
 async function attemptMint(manifestStore, args, result, catalogue) {
   try {
+    // The drafted report (--report-text) is passed to the gate so it can BIND it to the founder's signed
+    // report_sha256 and run the no-orphan-lint as a hard refusal (Kimi K3 finding HIGH-E3). Passing '' when
+    // no file is given would look like an (unsigned) empty report and be refused; instead pass undefined so
+    // a findings-only mint (no report in play) still proceeds.
+    const reportText = reportTextFrom(args) || undefined;
     const outcome = await mintGate({
       store: manifestStore, runId: args['run-id'], findings: result.candidateFindings,
       captureIndex: result.captureIndex, catalogue: resolvedCatalogue(catalogue),
       coverageManifest: result.coverageManifest, stubPersist: args['stub-persist'] !== 'false',
+      report: reportText,
     });
     return { code: 0, output: outcome };
   } catch (e) {
