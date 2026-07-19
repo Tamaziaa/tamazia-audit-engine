@@ -57,6 +57,7 @@ const citationCompleteness = require('./linters/citation-completeness.js');
 const polarity = require('./linters/polarity.js');
 const regexHealth = require('./linters/regex-health.js');
 const thresholdGuard = require('./linters/threshold-guard.js');
+const subSectorBinding = require('./linters/sub-sector-binding.js');
 const safePath = require('../tools/lib/safe-path.js');
 const qaApproval = require('./qa-approval.js');
 const { sha256Hex, computePackSha, QA_APPROVAL_RX, parseQaApprovalHeader } = qaApproval;
@@ -76,6 +77,9 @@ const LINTER_FLEET = [
   { name: 'polarity', mod: polarity },
   { name: 'regex-health', mod: regexHealth },
   { name: 'threshold-guard', mod: thresholdGuard },
+  // P6 connection-integrity: every compiled record's sub_sector[] must be bindable by a classifiable
+  // firm (fail-closed), so no sector/sub_sector connection can silently break (empirical-healthcare D4).
+  { name: 'sub-sector-binding', mod: subSectorBinding },
 ];
 
 // CompileError: the ONE thrown shape this file uses to signal "refuse to compile". Deliberately a

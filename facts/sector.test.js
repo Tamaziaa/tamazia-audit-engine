@@ -545,3 +545,96 @@ test('domain self-identity FLOOR: a legal domain token with under two law body c
   assert.equal(r.value, null, 'one law cue is below the two-cue floor even with a self-identifying domain');
   assert.equal(r.confidence, 'abstain');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P6 connection-integrity (uk-tech-media-industrial wave): the new detection leaves added for
+// digital-agencies/media-platform/fitness/automotive/energy/manufacturing/construction sub-sectors.
+// Runs against the REAL vocabulary (skips loudly when absent). Two directions of proof:
+//  1. A genuine sample of each new firm type classifies into the correct sector and sub-sector.
+//  2. A healthcare, a legal and a real-estate sample - each carrying an adversarial phrase deliberately
+//     chosen to brush against a new leaf's vocabulary (PPE, clinical waste, a studio apartment, a
+//     residents' gym) - never misclassifies sector or sub-sector into a new leaf. This is the C-059
+//     anti-misclassification proof the P6 gate requires.
+// ---------------------------------------------------------------------------------------------
+
+test('P6: a genuine gym resolves fitness/gyms (UK_CCR_FITNESS_DISTANCE / UK_CRA_UNFAIR_TERMS_FITNESS target)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('ironclad-gym.co.uk',
+    'Join Ironclad Gym today. Our gym membership includes access to a fitness studio for spin studio '
+    + 'classes, plus a sports club social area. Sign up online for a rolling monthly membership.'));
+  assert.equal(r.value && r.value.sector, 'fitness');
+  assert.equal(r.value && r.value.sub_sector, 'gyms');
+});
+
+test('P6: a genuine VOD/streaming service resolves media/vod (UK_ODPS_NOTIFICATION target)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('streambox.example',
+    'Watch on StreamBox: a video on demand service with thousands of shows and movies. Our streaming '
+    + 'service lets you stream TV and movies on any device, plus catch-up TV on our catchup service so '
+    + 'you never miss a programme.'));
+  assert.equal(r.value && r.value.sector, 'media');
+  assert.equal(r.value && r.value.sub_sector, 'vod');
+});
+
+test('P6: a genuine car dealer resolves automotive/car-dealers (UK_FCA_MOTOR_FINANCE_PROMOTIONS target)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('thornfield-motors.co.uk',
+    'Browse our used cars for sale at Thornfield Motors, a main dealer for three leading brands. We '
+    + 'also offer vehicle leasing and van sales for business customers, plus PCP finance from GBP 199 a '
+    + 'month.'));
+  assert.equal(r.value && r.value.sector, 'automotive');
+  assert.equal(r.value && r.value.sub_sector, 'car-dealers');
+});
+
+test('P6: a genuine ATOL travel agent resolves hospitality/travel (UK_ATOL_LICENSING / UK_PACKAGE_TRAVEL_2018 target, after the sector-tag fix)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('suntrail-travel.co.uk',
+    'Book your next holiday with SunTrail Travel, an ATOL-protected tour operator and travel agent. We '
+    + 'are ABTA members offering package holiday deals across Europe.'));
+  assert.equal(r.value && r.value.sector, 'hospitality');
+  assert.equal(r.value && r.value.sub_sector, 'travel');
+});
+
+test('P6: a genuine barristers chambers resolves barristers/general (UK_BSB_HANDBOOK_PUBLICITY / UK_BSB_TRANSPARENCY target, after the sector-tag fix)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('ashford-chambers.co.uk',
+    'Ashford Chambers offers direct access to our barristers for individuals and businesses. We accept '
+    + 'public access instructions and offer instructing counsel services without delay.'));
+  assert.equal(r.value && r.value.sector, 'barristers');
+});
+
+test('P6 anti-misclassification: a healthcare sample mentioning PPE and clinical waste stays healthcare, never manufacturing/construction', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('meadowbrook-medical.co.uk',
+    'Welcome to Meadowbrook Medical Centre, a private hospital and medical centre offering GP '
+    + 'appointments and cancer care. The clinic is CQC registered. All staff wear appropriate personal '
+    + 'protective equipment and our clinical waste removal is handled by a licensed contractor.'));
+  assert.equal(r.value && r.value.sector, 'healthcare',
+    'a hospital mentioning PPE/clinical waste in passing must never be pulled into manufacturing/construction');
+  assert.ok(!['electronics', 'machinery', 'toys', 'ppe', 'consumer-products', 'appliances', 'lighting', 'hvac', 'electronics-retail']
+    .includes(r.value && r.value.sub_sector));
+  assert.ok(!['skip-hire', 'waste-removal', 'demolition', 'house-clearance'].includes(r.value && r.value.sub_sector));
+});
+
+test('P6 anti-misclassification: a solicitors sample stays law-firms, never barristers or any new marketing leaf', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('harrington-reeves.co.uk',
+    'Harrington and Reeves Solicitors provide expert conveyancing and probate services. Our law firm '
+    + 'offers legal advice to individuals and businesses across the South East. We are authorised and '
+    + 'regulated by the Solicitors Regulation Authority. Read our client testimonials and case studies.'));
+  assert.equal(r.value && r.value.sector, 'law-firms');
+  assert.notEqual(r.value && r.value.sub_sector, 'digital-agencies');
+});
+
+test('P6 anti-misclassification: a real-estate sample with a "studio apartment" and a "residents\' gym" amenity mention stays real-estate, never fitness', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  const r = sector.resolveSector(realBundle('bellview-estates.co.uk',
+    "Bellview Estates is a leading estate agent with properties for sale and homes for sale across the "
+    + "city. Our current listings include a stunning studio apartment with access to the building's "
+    + 'residents\' gym, and a two-bedroom home to let for tenants seeking a long-term tenancy.'));
+  assert.equal(r.value && r.value.sector, 'real-estate',
+    'a studio-apartment listing and one incidental gym amenity mention must never tip the site into fitness');
+  assert.notEqual(r.value && r.value.sub_sector, 'studios',
+    'the fitness "studios" leaf must never fire on a real-estate "studio apartment"');
+  assert.notEqual(r.value && r.value.sub_sector, 'gyms');
+});

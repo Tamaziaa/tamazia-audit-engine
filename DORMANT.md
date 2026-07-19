@@ -68,6 +68,7 @@ walk stays honest (C-249/C-250).
 | `catalogue/linters/polarity.js` | catalogue-lint: obligation polarity (presence vs prohibition) sanity, build-time only | Aman | same as above |
 | `catalogue/linters/regex-health.js` | catalogue-lint: detection-pattern ReDoS/health check, build-time only | Aman | same as above |
 | `catalogue/linters/threshold-guard.js` | catalogue-lint: penalty/threshold sanity guard, build-time only | Aman | same as above |
+| `catalogue/linters/sub-sector-binding.js` | catalogue-lint (P6 connection-integrity): every compiled record's `sub_sector[]` must bind a classifiable firm through the ancestor/sector/synonym gate-4, build-time only | Aman | same as above |
 | `catalogue/linters/lib.js` | shared helpers for the catalogue linters, consumed only by the linters above | Aman | same as above |
 | `catalogue/linters/test-helpers.js` | shared test fixtures/helpers for the catalogue-linter suites, consumed only by their `.test.js` files | Aman | never from `mint/`; a test-support module |
 

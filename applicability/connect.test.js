@@ -205,6 +205,54 @@ test('gate 4: a restricted sub_sector matches when the firm sub_sector is a memb
   assert.deepEqual(connect(firm, catalogue).applicable.map((r) => r.id), ['SUB']);
 });
 
+// ── GATE 4 sub-sector: ancestor/sector/synonym-aware binding (P6 connection-integrity, D4) ─────────────
+// The classifier only ever emits a detection-tree LEAF sub-sector; the catalogue restricts records with
+// the coarse PARENT label, a SYNONYM, or the leaf. Exact string membership stranded 9 of 12 uk-healthcare
+// tags and every us-legal record. These prove the ancestor-aware bind and, crucially, that it does not
+// over-bind across sectors.
+
+test('gate 4 sub-sector (D4 Site 1): a Botox clinic (leaf injectables) binds a record restricted to the PARENT label aesthetics', () => {
+  const botox = [rec({ id: 'MHRA', sector: ['healthcare'], sub_sector: ['aesthetics', 'gp-clinic', 'pharmacy'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), sector: sectorFact('aesthetics', 'injectables') });
+  assert.deepEqual(connect(firm, botox).applicable.map((r) => r.id), ['MHRA'],
+    'an injectables leaf binds the coarse aesthetics parent label (the Botox/injectables miss, now fixed)');
+});
+
+test('gate 4 sub-sector (D4 Site 2): a GP clinic (leaf general-practice) binds a record restricted to the SYNONYM gp-clinic', () => {
+  const cqc = [rec({ id: 'CQC20A', sector: ['healthcare'], sub_sector: ['gp-clinic', 'dental', 'hospital'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'general-practice') });
+  assert.deepEqual(connect(firm, cqc).applicable.map((r) => r.id), ['CQC20A'],
+    'the CQC rating record binds a GP lead via the gp-clinic->general-practice synonym');
+});
+
+test('gate 4 sub-sector: a US law firm (leaf solicitors) binds records restricted to the SYNONYMS law-firm/attorney (us-legal was 100% dead)', () => {
+  const aba = [rec({ id: 'ABA', jurisdiction: 'US', sector: ['legal'], sub_sector: ['law-firm', 'attorney'] })];
+  const firm = { jurisdiction: { bound: [{ jurisdiction: 'US', tier_evidence: [{ tier: 'A', kind: 'register' }] }], serves: [], sub_jurisdictions: [], abstained: false },
+    sector: sectorFact('law-firms', 'solicitors'), capabilities: null };
+  assert.deepEqual(connect(firm, aba).applicable.map((r) => r.id), ['ABA']);
+});
+
+test('gate 4 sub-sector: newly-reachable opticians and vets bind their previously-DEAD records', () => {
+  const optician = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'optometry') });
+  assert.deepEqual(connect(optician, [rec({ id: 'GOC', sector: ['healthcare'], sub_sector: ['optometry'] })]).applicable.map((r) => r.id), ['GOC']);
+  const vet = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'veterinary') });
+  assert.deepEqual(connect(vet, [rec({ id: 'RCVS', sector: ['healthcare'], sub_sector: ['veterinary'] })]).applicable.map((r) => r.id), ['RCVS']);
+});
+
+test('gate 4 sub-sector: ancestor-aware binding does NOT over-bind across siblings (a dental firm never gets the aesthetics-only record)', () => {
+  const dentalFirm = factsFor({ jurisdiction: boundUK(), sector: sectorFact('dental', 'general-dental') });
+  const aestheticsOnly = [rec({ id: 'BOTOX_U18', sector: ['healthcare'], sub_sector: ['aesthetics'] })];
+  const { applicable, excluded } = connect(dentalFirm, aestheticsOnly);
+  assert.equal(applicable.length, 0, 'a dental firm must not inherit an aesthetics-only injectables rule');
+  assert.match(excluded[0].reason, /gate-4 sub-sector/);
+});
+
+test('gate 4 sub-sector: a general healthcare firm (general-practice) does NOT bind an aesthetics-only record', () => {
+  const gp = factsFor({ jurisdiction: boundUK(), sector: sectorFact('healthcare', 'general-practice') });
+  const aestheticsOnly = [rec({ id: 'BOTOX_U18', sector: ['healthcare'], sub_sector: ['aesthetics'] })];
+  assert.equal(connect(gp, aestheticsOnly).applicable.length, 0);
+});
+
 // ── GATE 5: activity tags ────────────────────────────────────────────────────────────────────────────
 
 test('gate 5: a record whose EVERY activity tag is present:false is excluded (basis disproven)', () => {
@@ -419,4 +467,97 @@ test('integration: reference firms - no jurisdiction leak, russell-cooke usefuln
   const rc = run('russell-cooke.co.uk.json');
   const ukApplicable = rc.result.applicable.filter((r) => r.jurisdiction === 'UK');
   assert.ok(ukApplicable.length > 0, 'russell-cooke keeps at least one applicable UK record (the filter is not vacuously empty)');
+});
+
+// ── INTEGRATION: P6 connection-integrity (uk-tech-media-industrial wave) ────────────────────────────
+// End-to-end proof that the vocabulary leaves added for the tmi dead-record class, and the
+// ATOL/package-travel + barrister sector-tag retags, actually bind through the REAL compiled
+// catalogue - not just that facts/vocabulary.js's own reachability predicate is satisfied. Uses the
+// REAL facts/sector.js resolveSector() (no injected vocabulary) over a synthetic firm bundle, and a
+// synthetic Tier A UK-established jurisdiction envelope (the jurisdiction door itself is out of scope
+// for this probe; only the sector/sub-sector binding this PR touches is under test). Skips loudly
+// when the compiled catalogue is absent, matching the pattern above.
+
+const realSector = require('../facts/sector.js');
+
+function realBundleFor(domain, text) {
+  return { domain, corpus: { pages: [{ url: 'https://' + domain + '/', title: 'x', text, jsonLd: [] }] }, registers: {} };
+}
+
+// ukEstablishedFacts(text) -> the { jurisdiction, sector, capabilities } envelope connect() reads, built
+// from a Tier A UK-established jurisdiction (satisfies every required_nexus alternative these records
+// use) and the REAL sector door's resolution of a synthetic firm's page text.
+function ukEstablishedFacts(domain, text) {
+  return {
+    jurisdiction: boundUK({ tierA: true }),
+    sector: realSector.resolveSector(realBundleFor(domain, text)),
+    capabilities: null,
+  };
+}
+
+test('P6 wave: genuine samples bind the exact records they target, through the real compiled catalogue', { skip: distExists ? false : 'compiled catalogue absent at catalogue/dist/catalogue.v1.json - run `npm run catalogue` first' }, () => {
+  const records = catalogueRecordsLib.loadCatalogueRecords();
+  assert.ok(records.length > 0, 'the loader returned records (dist present)');
+
+  function applicableIds(domain, text) {
+    const facts = ukEstablishedFacts(domain, text);
+    return connect(facts, records).applicable.map((r) => r.id);
+  }
+
+  const gymIds = applicableIds('ironclad-gym.co.uk',
+    'Join Ironclad Gym today. Our gym membership includes access to a fitness studio for spin studio '
+    + 'classes, plus a sports club social area. Sign up online for a rolling monthly membership.');
+  assert.ok(gymIds.includes('UK_CCR_FITNESS_DISTANCE'), 'a genuine gym binds UK_CCR_FITNESS_DISTANCE');
+  assert.ok(gymIds.includes('UK_CRA_UNFAIR_TERMS_FITNESS'), 'a genuine gym binds UK_CRA_UNFAIR_TERMS_FITNESS');
+
+  const vodIds = applicableIds('streambox.example',
+    'Watch on StreamBox: a video on demand service with thousands of shows and movies. Our streaming '
+    + 'service lets you stream TV and movies on any device, plus catch-up TV on our catchup service so '
+    + 'you never miss a programme.');
+  assert.ok(vodIds.includes('UK_ODPS_NOTIFICATION'), 'a genuine VOD service binds UK_ODPS_NOTIFICATION');
+
+  const carDealerIds = applicableIds('thornfield-motors.co.uk',
+    'Browse our used cars for sale at Thornfield Motors, a main dealer for three leading brands. We '
+    + 'also offer vehicle leasing and van sales for business customers, plus PCP finance from GBP 199 a '
+    + 'month.');
+  assert.ok(carDealerIds.includes('UK_FCA_MOTOR_FINANCE_PROMOTIONS'), 'a genuine car dealer binds UK_FCA_MOTOR_FINANCE_PROMOTIONS');
+
+  // The sector-tag fix: was sector:["transport"] (never bindable by a travel firm), now
+  // sector:["hospitality"] (the sector a real ATOL travel agent actually resolves to).
+  const atolIds = applicableIds('suntrail-travel.co.uk',
+    'Book your next holiday with SunTrail Travel, an ATOL-protected tour operator and travel agent. We '
+    + 'are ABTA members offering package holiday deals across Europe.');
+  assert.ok(atolIds.includes('UK_ATOL_LICENSING'), 'a genuine ATOL travel agent binds UK_ATOL_LICENSING (post sector-tag fix)');
+  assert.ok(atolIds.includes('UK_PACKAGE_TRAVEL_2018'), 'a genuine ATOL travel agent binds UK_PACKAGE_TRAVEL_2018 (post sector-tag fix)');
+
+  // The barrister sector-tag fix (uk-legal.json): was sector:["legal"] (folds to law-firms, never
+  // bindable by a barrister), now sector:["barristers"] (the sector a real chambers firm resolves to).
+  const barristerIds = applicableIds('ashford-chambers.co.uk',
+    'Ashford Chambers offers direct access to our barristers for individuals and businesses. We accept '
+    + 'public access instructions and offer instructing counsel services without delay.');
+  assert.ok(barristerIds.includes('UK_BSB_HANDBOOK_PUBLICITY'), 'a genuine barristers chambers binds UK_BSB_HANDBOOK_PUBLICITY (post sector-tag fix)');
+  assert.ok(barristerIds.includes('UK_BSB_TRANSPARENCY'), 'a genuine barristers chambers binds UK_BSB_TRANSPARENCY (post sector-tag fix)');
+
+  // Anti-misclassification, end to end: the same three adversarial samples from facts/sector.test.js
+  // must not pick up ANY tmi-pack record through the new leaves (proves the vocabulary hardening holds
+  // all the way through connect(), not just at the resolveSector layer).
+  const healthcareIds = applicableIds('meadowbrook-medical.co.uk',
+    'Welcome to Meadowbrook Medical Centre, a private hospital and medical centre offering GP '
+    + 'appointments and cancer care. The clinic is CQC registered. All staff wear appropriate personal '
+    + 'protective equipment and our clinical waste removal is handled by a licensed contractor.');
+  const tmiIds = new Set(['UK_GDPR_SAAS', 'UK_NIS_RDSP', 'UK_DMCC_SUBS_UCP', 'UK_CAP_AI_CLAIMS', 'UK_PECR_EMARKETING',
+    'UK_INFLUENCER_AD_DISCLOSURE', 'UK_OSA_UGC', 'UK_ODPS_NOTIFICATION', 'UK_PRESS_REGULATOR_MEMBERSHIP',
+    'UK_CCR_FITNESS_DISTANCE', 'UK_CRA_UNFAIR_TERMS_FITNESS', 'UK_CAP_HEALTH_FITNESS_CLAIMS',
+    'UK_FCA_MOTOR_FINANCE_PROMOTIONS', 'UK_OFGEM_SUPPLY_LICENCE', 'UK_ATOL_LICENSING', 'UK_PACKAGE_TRAVEL_2018',
+    'UK_UKCA_CE_MARKING_CLAIMS', 'UK_CPR305_DOP', 'UK_ENERGY_LABELLING_ONLINE', 'UK_GAS_SAFE_REGISTRATION',
+    'UK_BSA_BUILDING_CONTROL_REGISTRATION', 'UK_WASTE_CARRIER_REGISTRATION']);
+  assert.deepEqual(healthcareIds.filter((id) => tmiIds.has(id)), [],
+    'a hospital mentioning PPE/clinical waste must never bind any tmi-pack sector-restricted record');
+
+  const realEstateIds = applicableIds('bellview-estates.co.uk',
+    "Bellview Estates is a leading estate agent with properties for sale and homes for sale across the "
+    + "city. Our current listings include a stunning studio apartment with access to the building's "
+    + 'residents\' gym, and a two-bedroom home to let for tenants seeking a long-term tenancy.');
+  assert.deepEqual(realEstateIds.filter((id) => tmiIds.has(id)), [],
+    'a real-estate listing with a studio apartment and a residents-gym amenity must never bind a fitness record');
 });

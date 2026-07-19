@@ -107,6 +107,20 @@ const SECTORS = {
   'law-firms': {
     label: 'Solicitors & law firms',
     sub: {
+      // P6: licensed conveyancers (CLC-regulated) and chartered legal executives (CILEX) are distinct
+      // regulated legal professions the catalogue restricts UK_CLC_TRANSPARENCY / UK_CILEX_TRANSPARENCY
+      // to; the classifier could previously only emit 'solicitors', so those records were unbindable.
+      // Listed BEFORE solicitors so a firm that self-identifies as a licensed conveyancer / legal
+      // executive resolves to the specific leaf; a normal solicitors firm never matches these
+      // (their cues do not appear on a solicitors site) and falls through to solicitors unchanged.
+      'licensed-conveyancers': {
+        detect: /\blicensed conveyancers?\b|\bclc regulated\b|\bcouncil for licensed conveyancers\b/i,
+        sample: 'we are licensed conveyancers, CLC regulated by the Council for Licensed Conveyancers',
+      },
+      'legal-executives': {
+        detect: /\bchartered legal executives?\b|\blegal executives?\b|\bcilex\b|\bchartered institute of legal executives\b/i,
+        sample: 'our chartered legal executives are CILEX members of the Chartered Institute of Legal Executives',
+      },
       solicitors: {
         detect: /\bsolicitors?\b|\bconveyancing\b|\bprobate\b|\blaw firm\b|\blegal advice\b/i,
         sample: 'our solicitors provide conveyancing and probate; ask our law firm for legal advice',
@@ -148,6 +162,45 @@ const SECTORS = {
       pharmacy: {
         detect: /\bpharmac(?:y|ist|ies)\b|\bchemist\b|\bdispensing\b/i,
         sample: 'our pharmacy and dispensing chemist',
+      },
+      // P6 connection-integrity: leaves the catalogue already restricts records to (care-home,
+      // optometry, physiotherapy, veterinary) but which the detection tree could not previously emit,
+      // so UK_CARE_HOME_FEES / UK_GOC_OPTICIANS / UK_VMD_POMV_AD / UK_RCVS_ADVERTISING were permanently
+      // unbindable (empirical-healthcare D4). Each ships a known-positive sample; every alternation
+      // branch is \b-anchored (C-059) and avoids the hospital-care 'clinic'/'hospital' cues so a real
+      // firm resolves to the specific leaf, not the generic one.
+      'care-home': {
+        // 'care provider' was dropped (CodeRabbit review PR #24): it is a generic phrase ordinary GP /
+        // primary-care sites use, so it over-matched. The remaining branches are care-home-specific.
+        detect: /\bcare home\b|\bnursing home\b|\bresidential care\b|\bdomiciliary care\b/i,
+        sample: 'our residential care home and nursing home provide domiciliary care',
+      },
+      optometry: {
+        detect: /\boptometr(?:y|ist|ists)\b|\bopticians?\b|\beye (?:test|tests|examination|exam)\b|\bspectacles\b|\bcontact lenses\b/i,
+        sample: 'our opticians provide an eye test, spectacles and contact lenses from a registered optometrist',
+      },
+      physiotherapy: {
+        detect: /\bphysiotherap(?:y|ist|ists)\b|\bphysio\b|\bmanual therapy\b|\bmusculoskeletal\b|\bsports (?:injury|therapy) clinic\b/i,
+        sample: 'our physiotherapy service offers physio, manual therapy and musculoskeletal rehabilitation for sports injury',
+      },
+      veterinary: {
+        detect: /\bveterinar(?:y|ian|ians|ies)\b|\bvets?\b|\banimal hospital\b|\bpet clinic\b/i,
+        sample: 'our veterinary practice and vets care for your pet; a qualified veterinarian',
+      },
+      // US-healthcare product firms the catalogue restricts records to (pharmaceutical, medical-devices,
+      // supplements). Distinct from the pharmacy leaf (dispensing chemist); FDA/FTC records target the
+      // maker/seller, not a dispensing pharmacy.
+      pharmaceutical: {
+        detect: /\bpharmaceuticals?\b|\bdrug manufactur(?:er|ing|ers)\b|\bmedicines? manufactur(?:er|ing|ers)\b/i,
+        sample: 'a pharmaceutical manufacturer; our pharmaceuticals and medicines manufacturing',
+      },
+      'medical-devices': {
+        detect: /\bmedical devices?\b|\bimplantable devices?\b|\bin vitro diagnostics?\b|\bmedical equipment manufactur(?:er|ing)\b/i,
+        sample: 'a medical devices manufacturer of implantable devices and in vitro diagnostics',
+      },
+      supplements: {
+        detect: /\bfood supplements?\b|\bdietary supplements?\b|\bnutritional supplements?\b|\bnutraceuticals?\b|\bvitamin supplements?\b/i,
+        sample: 'we sell dietary supplements, food supplements and nutraceuticals',
       },
     },
   },
@@ -289,6 +342,18 @@ const SECTORS = {
   energy: {
     label: 'Energy & utilities',
     sub: {
+      // P6 connection-integrity: UK_OFGEM_SUPPLY_LICENCE restricts itself to these two leaves, which
+      // the detection tree could not previously emit as distinct leaves (only the coarse 'general'
+      // energy leaf existed). Listed BEFORE general so a licensed supplier/broker resolves to the
+      // specific leaf the record targets.
+      'energy-suppliers': {
+        detect: /\benergy suppl(?:y|ier|iers)\b|\belectricity suppl(?:y|ier|iers)\b|\bgas suppl(?:y|ier|iers)\b/i,
+        sample: 'a licensed energy supplier for gas supply and electricity supply',
+      },
+      'energy-brokers': {
+        detect: /\benergy brokers?\b|\bbusiness energy broker\b|\benergy switching service\b/i,
+        sample: 'an energy broker offering a business energy broker and energy switching service',
+      },
       general: {
         detect: /\benergy supplier\b|\butility\b|\belectricity supplier\b|\brenewable energy\b|\bsolar (?:panel|energy)\b|\bofgem\b/i,
         sample: 'an energy supplier offering renewable energy and solar panels',
@@ -316,6 +381,56 @@ const SECTORS = {
   media: {
     label: 'Media & broadcasting',
     sub: {
+      // P6 connection-integrity: the catalogue restricts UK_OSA_UGC, UK_ODPS_NOTIFICATION and
+      // UK_PRESS_REGULATOR_MEMBERSHIP to these specific content/platform leaves, which the detection
+      // tree could not previously emit (only the coarse 'general' broadcaster/publisher leaf
+      // existed), so those records were unbindable. Listed BEFORE general so a firm that specifically
+      // self-identifies with one of these platform types resolves to the specific leaf; general
+      // remains the fallback for a plain broadcaster/publishing house/media company.
+      'content-studios': {
+        detect: /\bcontent studio\b|\bcreative content studio\b|\bvideo production studio\b/i,
+        sample: 'our content studio and video production studio create branded content',
+      },
+      'ugc-platforms': {
+        detect: /\buser[- ]generated content\b|\bugc platform\b/i,
+        sample: 'a UGC platform hosting user-generated content from our members',
+      },
+      forums: {
+        detect: /\bdiscussion forums?\b|\bmessage boards?\b|\bcommunity forums?\b/i,
+        sample: 'join our discussion forums and community message boards',
+      },
+      communities: {
+        detect: /\bonline communit(?:y|ies)\b|\bmember communit(?:y|ies)\b/i,
+        sample: 'our online community and member community connect users worldwide',
+      },
+      'video-sharing': {
+        detect: /\bvideo[- ]sharing (?:platform|site|service)\b|\bupload and share videos?\b/i,
+        sample: 'a video-sharing platform where you can upload and share videos',
+      },
+      vod: {
+        detect: /\bvideo on demand\b|\bvod service\b|\bvod platform\b/i,
+        sample: 'our video on demand service (VOD platform) streams shows on demand',
+      },
+      streaming: {
+        detect: /\bstreaming service\b|\bstream (?:tv|movies|shows)\b|\blive streaming platform\b/i,
+        sample: 'a streaming service to stream TV and movies on our live streaming platform',
+      },
+      'broadcast-catchup': {
+        detect: /\bcatch[- ]up tv\b|\bcatchup service\b|\bmissed (?:a )?programme\b/i,
+        sample: 'watch catch-up TV on our catchup service if you missed a programme',
+      },
+      'news-publishers': {
+        detect: /\bnews publisher\b|\bnews website\b|\bbreaking news\b/i,
+        sample: 'a news publisher running a news website with breaking news coverage',
+      },
+      magazines: {
+        detect: /\bmagazine publisher\b|\bonline magazine\b|\bprint magazine\b/i,
+        sample: 'a magazine publisher producing an online magazine and print magazine',
+      },
+      'local-news': {
+        detect: /\blocal news\b|\bregional news\b|\bcommunity newspaper\b/i,
+        sample: 'your local news and regional news, serving the community newspaper readership',
+      },
       general: {
         detect: /\bbroadcast(?:er|ing)?\b|\bpublishing house\b|\bnewspaper\b|\bmagazine\b|\bmedia (?:company|agency|group)\b/i,
         sample: 'a broadcasting and publishing house running a newspaper and magazine',
@@ -325,6 +440,28 @@ const SECTORS = {
   marketing: {
     label: 'Marketing & advertising',
     sub: {
+      // P6 connection-integrity (uk-tech-media-industrial wave): the catalogue restricts
+      // UK_PECR_EMARKETING and UK_INFLUENCER_AD_DISCLOSURE to these specific agency-activity leaves,
+      // which the detection tree could not previously emit (only the coarse 'general' marketing leaf
+      // existed), so those records were unbindable. Listed BEFORE general so a firm that specifically
+      // self-identifies with one of these activities resolves to the specific leaf; general remains
+      // the fallback for a plain marketing/advertising/SEO/branding agency.
+      'digital-agencies': {
+        detect: /\bdigital agency\b|\bdigital marketing agency\b|\bcreative digital agency\b/i,
+        sample: 'we are a digital marketing agency and creative digital agency',
+      },
+      'lead-generation': {
+        detect: /\blead generation\b|\blead gen agency\b|\bpay[- ]per[- ]lead\b/i,
+        sample: 'our lead generation agency runs pay-per-lead campaigns',
+      },
+      'email-marketing': {
+        detect: /\bemail marketing\b|\bemail campaigns?\b|\be-?shots?\b/i,
+        sample: 'email marketing and email campaigns, including e-shots, for your business',
+      },
+      'influencer-marketing': {
+        detect: /\binfluencer marketing\b|\binfluencer campaigns?\b|\bcreator partnerships?\b/i,
+        sample: 'influencer marketing and influencer campaigns built on creator partnerships',
+      },
       general: {
         detect: /\bmarketing agency\b|\badvertising agency\b|\bseo agency\b|\bdigital marketing\b|\bbranding agency\b/i,
         sample: 'a digital marketing agency and advertising agency, a specialist SEO agency',
@@ -334,6 +471,50 @@ const SECTORS = {
   manufacturing: {
     label: 'Manufacturing',
     sub: {
+      // P6 connection-integrity: UK_UKCA_CE_MARKING_CLAIMS, UK_ENERGY_LABELLING_ONLINE and
+      // UK_CPR305_DOP (manufacturing half of its dual sector) restrict themselves to these
+      // product-category leaves, which the detection tree could not previously emit. Listed BEFORE
+      // general so a firm making/selling a regulated product category resolves to the specific leaf.
+      // 'ppe' is deliberately scoped to a manufacturer/supplier phrasing, never a bare 'PPE' or
+      // 'personal protective equipment' alone, so a hospital or clinic's own infection-control page
+      // ("staff must wear appropriate PPE") can never fire it (the anti-misclassification discipline,
+      // C-059) - the record targets the maker/seller of PPE, not a wearer of it.
+      electronics: {
+        detect: /\belectronics manufactur(?:er|ing)\b|\bconsumer electronics\b|\belectronic goods\b/i,
+        sample: 'an electronics manufacturer making consumer electronics and electronic goods',
+      },
+      machinery: {
+        detect: /\bmachinery manufactur(?:er|ing)\b|\bindustrial machinery\b|\bheavy machinery\b/i,
+        sample: 'a machinery manufacturer producing industrial machinery and heavy machinery',
+      },
+      toys: {
+        detect: /\btoy manufactur(?:er|ing)\b|\btoys? importer\b|\btoy safety\b/i,
+        sample: 'a toy manufacturer and toys importer meeting toy safety standards',
+      },
+      ppe: {
+        detect: /\bppe manufactur(?:er|ing|ers)\b|\bppe suppl(?:y|ier|iers)\b|\bpersonal protective equipment (?:manufactur(?:er|ing)|suppl(?:y|ier|iers))\b/i,
+        sample: 'a PPE manufacturer and personal protective equipment supplier',
+      },
+      'consumer-products': {
+        detect: /\bconsumer products? manufactur(?:er|ing)\b|\bconsumer goods manufactur(?:er|ing)\b/i,
+        sample: 'a consumer products manufacturer and consumer goods manufacturer',
+      },
+      appliances: {
+        detect: /\bhousehold appliances?\b|\bwhite goods\b|\bappliance manufactur(?:er|ing)\b/i,
+        sample: 'household appliances and white goods from our appliance manufacturer',
+      },
+      lighting: {
+        detect: /\blighting (?:products?|manufactur(?:er|ing)|showroom)\b|\bled lighting (?:products?|range)\b/i,
+        sample: 'lighting products from our lighting showroom, including an LED lighting range',
+      },
+      hvac: {
+        detect: /\bhvac\b|\bheating, ventilation and air conditioning\b|\bair conditioning installation\b/i,
+        sample: 'HVAC systems: heating, ventilation and air conditioning, plus air conditioning installation',
+      },
+      'electronics-retail': {
+        detect: /\belectronics retailer\b|\belectrical retailer\b|\bconsumer electronics retailer\b/i,
+        sample: 'an electronics retailer and electrical retailer selling consumer electronics',
+      },
       general: {
         detect: /\bmanufactur(?:e|ing|er)\b|\bfactory\b|\bproduction plant\b|\bindustrial equipment\b|\bfabrication\b/i,
         sample: 'a manufacturer running a factory and production plant for fabrication',
@@ -343,6 +524,66 @@ const SECTORS = {
   construction: {
     label: 'Construction',
     sub: {
+      // P6 connection-integrity: UK_CPR305_DOP (construction half), UK_GAS_SAFE_REGISTRATION,
+      // UK_BSA_BUILDING_CONTROL_REGISTRATION and UK_WASTE_CARRIER_REGISTRATION restrict themselves to
+      // these trade-specific leaves, which the detection tree could not previously emit (only the
+      // coarse 'general' contractor leaf existed). Listed BEFORE general so a firm in one of these
+      // specific trades resolves to its own leaf; general remains the fallback for a plain
+      // construction company/building contractor (and is also where the canonical sub_sector tag
+      // 'builders' binds via SUB_SECTOR_SYNONYMS below - general's own detect already matches
+      // 'builders', so a dedicated 'builders' leaf would only duplicate it).
+      // 'waste-removal' is deliberately scoped to domestic/commercial waste phrasing ('rubbish
+      // removal', 'junk removal', 'general waste removal', 'waste clearance company'), never a bare
+      // 'waste removal', so a dental or medical practice's own clinical-waste compliance page can
+      // never fire it (the anti-misclassification discipline, C-059).
+      'construction-products': {
+        detect: /\bconstruction products?\b|\bbuilding products? manufactur(?:er|ing)\b/i,
+        sample: 'construction products from our building products manufacturer',
+      },
+      'building-materials': {
+        detect: /\bbuilding materials?\b|\bconstruction materials?\b|\bbuilders?['’]? merchants?\b/i,
+        sample: 'building materials and construction materials sold through our builders merchants',
+      },
+      'heating-engineers': {
+        detect: /\bheating engineers?\b|\bgas engineers?\b|\bcentral heating installation\b/i,
+        sample: 'our heating engineers and gas engineers handle central heating installation',
+      },
+      plumbers: {
+        detect: /\bplumbers?\b|\bplumbing services?\b|\bemergency plumber\b/i,
+        sample: 'local plumbers offering plumbing services and an emergency plumber callout',
+      },
+      'boiler-installers': {
+        detect: /\bboiler install(?:ation|ers?)\b|\bnew boiler fitted\b/i,
+        sample: 'boiler installation from our boiler installers; get a new boiler fitted',
+      },
+      'building-control': {
+        detect: /\bbuilding control (?:approver|body|services?)\b/i,
+        sample: 'a building control approver offering building control services',
+      },
+      'approved-inspectors': {
+        detect: /\bapproved inspectors?\b|\bregistered building inspector\b/i,
+        sample: 'our approved inspectors work as a registered building inspector',
+      },
+      'fire-consultants': {
+        detect: /\bfire consultants?\b|\bfire safety consultants?\b|\bfire engineering consultants?\b/i,
+        sample: 'our fire consultants provide fire safety consultants and fire engineering consultants services',
+      },
+      'skip-hire': {
+        detect: /\bskip hire\b|\bskips? for hire\b/i,
+        sample: 'skip hire in your area; skips for hire from 4 to 12 yards',
+      },
+      'waste-removal': {
+        detect: /\brubbish removal\b|\bjunk removal\b|\bgeneral waste removal\b|\bwaste clearance company\b/i,
+        sample: 'rubbish removal, junk removal and general waste removal from our waste clearance company',
+      },
+      demolition: {
+        detect: /\bdemolition\b|\bdemolition contractors?\b/i,
+        sample: 'a demolition specialist; our demolition contractors handle full and partial demolition',
+      },
+      'house-clearance': {
+        detect: /\bhouse clearance\b|\bhome clearance\b/i,
+        sample: 'house clearance and home clearance services for the whole property',
+      },
       general: {
         detect: /\bconstruction (?:company|firm)\b|\bbuilding contractor\b|\bcivil engineering\b|\bgroundwork\b|\bbuilders?\b/i,
         sample: 'a construction company and building contractor doing civil engineering',
@@ -352,6 +593,38 @@ const SECTORS = {
   fitness: {
     label: 'Fitness & wellness',
     sub: {
+      // P6 connection-integrity: the catalogue restricts UK_CCR_FITNESS_DISTANCE and
+      // UK_CRA_UNFAIR_TERMS_FITNESS to these specific fitness-activity leaves, which the detection
+      // tree could not previously emit (only the coarse 'general' leaf existed), so those records
+      // were unbindable. Listed BEFORE general so a firm that specifically self-identifies with one
+      // of these activities resolves to the specific leaf; general remains the fallback. 'studios' is
+      // deliberately scoped to FITNESS-studio phrasing ('fitness studio', 'spin studio', 'cycling
+      // studio'), never a bare 'studio', so a real-estate listing for a 'studio apartment' or 'studio
+      // flat' can never fire it (the anti-misclassification discipline, C-059).
+      gyms: {
+        detect: /\bgyms?\b|\bgym membership\b/i,
+        sample: 'join our gym today; gym membership starts from £20 per month',
+      },
+      studios: {
+        detect: /\bfitness studio\b|\bboutique fitness studio\b|\bspin studio\b|\bcycling studio\b/i,
+        sample: 'our boutique fitness studio runs spin studio and cycling studio classes',
+      },
+      'online-coaching': {
+        detect: /\bonline fitness coaching\b|\bonline personal training\b|\bvirtual personal training\b/i,
+        sample: 'online fitness coaching and online personal training delivered virtually',
+      },
+      'fitness-apps': {
+        detect: /\bfitness app\b|\bworkout app\b|\btraining app\b/i,
+        sample: 'download our fitness app for workout and training plans',
+      },
+      'martial-arts': {
+        detect: /\bmartial arts\b|\bkickboxing\b|\bmuay thai\b|\bjiu[- ]jitsu\b|\bkarate\b|\btaekwondo\b/i,
+        sample: 'our martial arts classes include kickboxing, muay thai, jiu-jitsu, karate and taekwondo',
+      },
+      'leisure-clubs': {
+        detect: /\bleisure centre\b|\bleisure club\b|\bhealth club\b|\bsports club\b/i,
+        sample: 'our leisure centre and health club include a sports club for members',
+      },
       general: {
         detect: /\bgym\b|\bfitness (?:studio|centre|club)\b|\bpersonal train(?:er|ing)\b|\bpilates studio\b|\byoga studio\b/i,
         sample: 'a gym and fitness studio with personal training and a yoga studio',
@@ -397,6 +670,25 @@ const SECTORS = {
   automotive: {
     label: 'Automotive',
     sub: {
+      // P6 connection-integrity: UK_FCA_MOTOR_FINANCE_PROMOTIONS restricts itself to these specific
+      // vehicle-sales leaves, which the detection tree could not previously emit. Listed BEFORE
+      // general so a firm that specifically self-identifies resolves to the specific leaf.
+      'car-dealers': {
+        detect: /\bcar dealers?\b|\bused cars? for sale\b|\bmain dealer\b/i,
+        sample: 'a car dealer with used cars for sale as a main dealer',
+      },
+      'vehicle-leasing': {
+        detect: /\bvehicle leasing\b|\bcar leasing\b|\bcontract hire\b|\bpersonal contract purchase\b/i,
+        sample: 'vehicle leasing and car leasing through contract hire or personal contract purchase',
+      },
+      'motorbike-dealers': {
+        detect: /\bmotorbike dealers?\b|\bmotorcycle dealers?\b|\bmoped dealers?\b/i,
+        sample: 'a motorbike dealer and motorcycle dealer stocking new mopeds',
+      },
+      'van-sales': {
+        detect: /\bvan sales\b|\bcommercial vehicle sales\b|\bvans? for sale\b/i,
+        sample: 'van sales and commercial vehicle sales; vans for sale today',
+      },
       general: {
         detect: /\bcar dealership\b|\bautomotive\b|\bgarage\b|\bvehicle (?:repair|service)\b|\bauto repair\b/i,
         sample: 'a car dealership and automotive garage for vehicle repair',
@@ -549,6 +841,109 @@ const SUB_EXCLUSIVE = {
   barristers: { parent: 'barristers', sub: 'general' },
   solicitors: { parent: 'law-firms', sub: 'solicitors' },
 };
+
+// =================================================================================
+// 2d. SUB-SECTOR BINDING TAXONOMY (P6 connection-integrity, the one door for sub_sector attachment).
+//
+// The catalogue authors a RICHER sub_sector vocabulary (CANONICAL_SUB_SECTORS) than the detection tree
+// can emit. facts/sector.js#resolveSubSector only ever emits a detection-tree LEAF key (injectables,
+// general-practice, solicitors, ...). A catalogue record may instead be tagged with:
+//   - the exact leaf ('mental-health', 'solicitors'),
+//   - a coarse PARENT label that is a top-level SECTORS node key ('aesthetics', 'dental', 'law-firms',
+//     'barristers', 'professional-services') - the firm's own sector or family, or
+//   - a SYNONYM of a leaf ('gp-clinic' for 'general-practice', 'attorney' for 'solicitors').
+// Exact string-equality alone (the pre-P6 gate-4) stranded 9 of 12 uk-healthcare tags and 100% of the
+// us-legal records: a real Botox clinic resolves to leaf 'injectables' and could never match a record
+// restricted to the parent label 'aesthetics' (empirical-healthcare D4; hidden-defects D6 saw the SAME
+// tokens as schema-valid because CANONICAL_SUB_SECTORS carries both the parent labels and the leaves -
+// schema validity was never the same fact as runtime binding). This block is the ONE producer of the
+// binding relation (Rule 1): applicability/connect.js gate-4 reads subSectorBinds and never re-derives
+// it, and the catalogue compile gate reads recordSubSectorBindable so no future record can be tagged
+// with a sub_sector no classifiable firm could ever carry.
+
+// SUB_SECTOR_SYNONYMS: a catalogue sub_sector tag -> the detection-tree LEAF it denotes. These are
+// alternative NAMES for a leaf the classifier does emit (not a coarser category - those are covered by
+// the sector/family match in subSectorBinds). Every target MUST be a real detection-tree sub key.
+const SUB_SECTOR_SYNONYMS = {
+  'gp-clinic': 'general-practice',
+  hospital: 'hospital-care',
+  fertility: 'fertility-ivf',
+  telehealth: 'telemedicine',
+  chambers: 'general',       // the barristers detection leaf key
+  'law-firm': 'solicitors',  // US singular form
+  attorney: 'solicitors',    // US term for a solicitor-equivalent
+  // P6 connection-integrity (uk-tech-media-industrial wave): the catalogue names UK_ATOL_LICENSING /
+  // UK_PACKAGE_TRAVEL_2018's target population with these three tags, all of which denote the SAME
+  // firm the hospitality.travel detection leaf already catches (its own detect already fires on
+  // 'tour operator', 'travel agent', 'atol', 'abta', 'package holiday') - alternative names for the
+  // one leaf the classifier emits, not a coarser category, so they belong here rather than as new
+  // detection nodes (the same discipline as gp-clinic/hospital/attorney above).
+  'travel-agents': 'travel',
+  'tour-operators': 'travel',
+  'online-travel': 'travel',
+  // 'builders' denotes the same firm the construction.general leaf already catches (its own detect
+  // already fires on the bare word 'builders'); a dedicated 'builders' leaf would only duplicate it.
+  builders: 'general',
+};
+
+// CLASSIFIER_SUB_SECTORS: every sub key the classifier can actually emit (every SECTORS[x].sub key).
+const CLASSIFIER_SUB_SECTORS = [];
+for (const _cn of Object.values(SECTORS)) {
+  for (const _ck of Object.keys(_cn.sub || {})) {
+    if (CLASSIFIER_SUB_SECTORS.indexOf(_ck) === -1) CLASSIFIER_SUB_SECTORS.push(_ck);
+  }
+}
+const CLASSIFIER_SUB_SECTOR_SET = new Set(CLASSIFIER_SUB_SECTORS);
+
+// _toKeySet(value) -> a Set from a Set (as-is), an array, a truthy scalar (wrapped), or nullish (empty).
+// The one place firmSectorKeys is coerced, so subSectorBinds stays a flat one-liner.
+function _toKeySet(value) {
+  if (value instanceof Set) return value;
+  if (Array.isArray(value)) return new Set(value);
+  return new Set(value ? [value] : []);
+}
+
+// _tagBindsFirm(tag, firmSubSector, firmSectorSet) -> does ONE record sub_sector tag bind this firm:
+// (a) the firm's exact leaf, (b) a canonical sector/family the firm belongs to (the coarse parent
+// label), or (c) a synonym of the firm's leaf. The three-way disjunction lives here so subSectorBinds
+// is a single .some() (keeps both methods flat - the CodeScene Complex-Method class).
+function _tagBindsFirm(tag, firmSubSector, firmSectorSet) {
+  if (firmSectorSet.has(tag)) return true;                    // coarse parent = firm sector/family
+  if (!firmSubSector) return false;                           // remaining tests need a resolved leaf
+  return tag === firmSubSector || SUB_SECTOR_SYNONYMS[tag] === firmSubSector; // exact leaf | synonym
+}
+
+// subSectorBinds(recordSubSectors, firmSubSector, firmSectorKeys) -> true iff a firm resolved to leaf
+// `firmSubSector` (with canonical sector/family keys `firmSectorKeys`, the set gate-4 already builds via
+// canonicalSector + familyOf) is bound by a record whose sub_sector[] is `recordSubSectors`. See
+// _tagBindsFirm for the per-tag rule. Over-binding across sectors is prevented upstream: gate-4's sector
+// half runs first, so this is only asked for a firm whose sector already matched the record. Pure; no
+// default; an empty tag list never binds (gate-4 treats empty sub_sector as "no restriction" first).
+function subSectorBinds(recordSubSectors, firmSubSector, firmSectorKeys) {
+  const tags = Array.isArray(recordSubSectors) ? recordSubSectors : [];
+  const secSet = _toKeySet(firmSectorKeys);
+  return tags.some((tag) => _tagBindsFirm(tag, firmSubSector, secSet));
+}
+
+// isReachableSubSector(tag) -> true iff SOME classifiable firm can be bound by a record carrying `tag`:
+// it is a detection leaf, a canonical sector key (coarse parent label), or a synonym of a leaf.
+function isReachableSubSector(tag) {
+  const t = String(tag == null ? '' : tag);
+  if (!t) return false;
+  if (CLASSIFIER_SUB_SECTOR_SET.has(t)) return true;                              // a leaf a firm resolves to
+  if (CANONICAL_SECTOR_SET.has(t)) return true;                                   // a sector/family parent label
+  return Object.prototype.hasOwnProperty.call(SUB_SECTOR_SYNONYMS, t);            // a synonym of a leaf
+}
+
+// recordSubSectorBindable(subSectors) -> true when a record's sub_sector[] can bind at least one
+// classifiable firm. Empty binds every in-sector firm (never a sub-sector break); a non-empty list must
+// carry at least one reachable tag. The catalogue compile gate fails closed on any record for which this
+// is false (a silently dead record - the empirical-healthcare D4 defect made permanent-proof).
+function recordSubSectorBindable(subSectors) {
+  const arr = Array.isArray(subSectors) ? subSectors : [];
+  if (arr.length === 0) return true;
+  return arr.some((t) => isReachableSubSector(t));
+}
 
 // DOMAIN self-identity tokens (the C-013 high-precision own-identity self-ID, applied to the ONE
 // signal outside the visible body that names what a firm IS: its own registrable domain label).
@@ -838,6 +1233,12 @@ const EXPORTS = {
   CANONICAL_SECTORS,
   CANONICAL_SUB_SECTORS,
   SUB_EXCLUSIVE,
+  // sub-sector binding taxonomy (P6 connection-integrity; the one door for sub_sector attachment)
+  SUB_SECTOR_SYNONYMS,
+  CLASSIFIER_SUB_SECTORS,
+  subSectorBinds,
+  isReachableSubSector,
+  recordSubSectorBindable,
   DOMAIN_SELF_IDENTITY,
   sectorSelfIdFromDomain,
   // regex compilation door (facts/sector.js delegates every detect-pattern compilation here)

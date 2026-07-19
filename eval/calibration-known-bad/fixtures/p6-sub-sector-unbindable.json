@@ -1,0 +1,22 @@
+{
+  "_comment": "KNOWN-BAD calibration fixture (P6 connection-integrity, empirical-healthcare D4 class). This COM record is schema-clean in every OTHER respect but its sub_sector[] can never bind a firm: 'phantom-subsector' is not a facts/vocabulary.js CANONICAL_SUB_SECTORS node at all, and 'solo-practice' IS canonical yet UNREACHABLE (no classifier leaf resolves to it, it is neither a sector label nor a synonym of a leaf). Before P6, gate-4 was exact-string membership and a record like this shipped valid yet dead - the exact Botox/injectables miss. catalogue/linters/sub-sector-binding.js MUST flag this record (both the unknown-sub-sector and the dead-record rules) or it has not earned its zero (Constitution Rule 4).",
+  "id": "P6_CAL_UNBINDABLE_SUBSECTOR",
+  "name": "Calibration: a record whose sub_sector can bind no classifiable firm",
+  "jurisdiction": "UK",
+  "sub_jurisdiction": null,
+  "sector": ["healthcare"],
+  "sub_sector": ["phantom-subsector", "solo-practice"],
+  "activity_tags": [],
+  "required_nexus": ["serves_customers_in"],
+  "applies_when": ["a synthetic calibration record; not a real law"],
+  "excluded_when": [],
+  "citation": { "act": "Calibration fixture (not a real law)", "section": "n/a", "url": "https://example.com/not-a-real-law" },
+  "website_obligations": [{ "duty": "calibration only", "elements": ["placeholder"], "evidence_type": "presence" }],
+  "penalty": { "typical_low": null, "typical_high": null, "statutory_max": null, "currency": "GBP", "basis": "n/a", "max_is_rare": false },
+  "regulator": { "name": "n/a", "register_url": null },
+  "enforcement": [],
+  "intel": { "why_matters": "n/a", "regulator_asks_first": "n/a", "relevance_hook": "n/a" },
+  "provenance": { "sources": ["calibration fixture"], "seed_status": "fixture", "verified_date": "2026-07-19", "last_synced": "2026-07-19" },
+  "status": "candidate",
+  "client_useful": false
+}
