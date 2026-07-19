@@ -93,16 +93,33 @@ function extractOgMeta(html) {
   return out;
 }
 
-// sanitizeJsonControlChars(raw) -> raw with every unescaped control character (U+0000..U+001F) replaced
-// by a space. JSON forbids a raw control char INSIDE a string, yet real sites emit one (a raw newline/tab
-// in a review body), breaking strict JSON.parse and silently dropping the block's OWN structured address
-// (empirical legal-US Finding 4: avidlawyers.com's LegalService JSON-LD carried addressRegion FL /
-// postalCode 33605 but a control char in an unrelated reviewBody failed the parse). Replacing with a
-// space is STRUCTURE-PRESERVING (inter-token whitespace stays whitespace) and only ever neutralises a
-// byte that was already illegal; an escaped sequence ("\n" = backslash + n, two ordinary chars) is
-// untouched. This RECOVERS the site's own data, never fabricates: nothing is added.
+// sanitizeJsonControlChars(raw) -> raw with every unescaped control character (U+0000..U+001F) that sits
+// INSIDE a JSON string literal replaced by a space. JSON forbids a raw control char inside a string, yet
+// real sites emit one (a raw newline/tab in a review body), breaking strict JSON.parse and silently
+// dropping the block's OWN structured address (empirical legal-US Finding 4: avidlawyers.com's
+// LegalService JSON-LD carried addressRegion FL / postalCode 33605 but a control char in an unrelated
+// reviewBody failed the parse). Only string-interior control chars are touched, so this can REPAIR a
+// malformed string value but can NEVER rescue broken STRUCTURE (a control char between a key and its
+// colon is left alone, so that block still fails the reparse and yields nothing). An escaped sequence
+// ("\n" = backslash + n, two ordinary chars) is untouched. Recovers the site's own data, never fabricates.
 function sanitizeJsonControlChars(raw) {
-  return String(raw).replace(/[\u0000-\u001F]/g, ' ');
+  // Walk the text tracking string/escape state and neutralise a raw control char ONLY when it sits
+  // INSIDE a JSON string literal (where JSON forbids it). A control char OUTSIDE a string is left
+  // untouched, so this can only ever repair a malformed string VALUE, never rescue broken STRUCTURE
+  // (e.g. a control char between a key and its colon stays, so the block still fails the reparse and
+  // yields nothing). Escaped characters are respected so an escaped quote never mis-ends a string.
+  const input = String(raw);
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (const ch of input) {
+    if (!inString) { out += ch; if (ch === '"') inString = true; continue; }
+    if (escaped) { out += ch; escaped = false; continue; }
+    if (ch === '\\') { out += ch; escaped = true; continue; }
+    if (ch === '"') { out += ch; inString = false; continue; }
+    out += ch <= '\u001F' ? ' ' : ch;
+  }
+  return out;
 }
 
 function extractJsonLd(html) {

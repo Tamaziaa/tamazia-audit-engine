@@ -537,14 +537,37 @@ function analyseAuthorisation(sentence, source, state, contributed) {
 // kind connect.js gate-6 reads, plus a BOUND state hit (basis 'bar_authorisation'). Without a number it
 // is only a mention (Tier C, never binds), exactly like a UK authority claim with no number (C-014); the
 // existing "admitted to the New York bar" prose therefore still renders advisory, never bound.
+// _nearestPrecedingAuthState(auths, numStart) -> the state of the authority mention that most closely
+// PRECEDES a bar number (real usage puts the number right after its own authority: "State Bar of
+// California, Bar No. 245123"), or null. This is what stops a sentence naming two bars where only one
+// carries a number from binding BOTH (CodeRabbit review, PR #28).
+function _nearestPrecedingAuthState(auths, numStart) {
+  let best = null;
+  for (const a of auths) {
+    if (a.end <= numStart && (!best || a.start > best.start)) best = a;
+  }
+  return best ? best.state : null;
+}
+
 function analyseUsBarAuthorisation(sentence, source, state, contributed) {
-  const hasNumber = US_BAR_NUMBER_RX.test(sentence);
+  const auths = [];
   for (const tok of US_BAR_AUTHORITIES) {
-    if (!tok.rx.test(sentence)) continue;
-    if (hasNumber) {
+    const m = tok.rx.exec(sentence);
+    if (m) auths.push({ state: tok.state, start: m.index, end: m.index + m[0].length });
+  }
+  if (!auths.length) return;
+  // A bar number binds ONLY the nearest authority it follows; a state named without its own nearby
+  // number stays a Tier-C mention (C-014), never a bound bar_authorisation.
+  const numbered = new Set();
+  for (const nm of sentence.matchAll(new RegExp(US_BAR_NUMBER_RX.source, 'gi'))) {
+    const st = _nearestPrecedingAuthState(auths, nm.index);
+    if (st) numbered.add(st);
+  }
+  for (const a of auths) {
+    if (numbered.has(a.state)) {
       addEvidence(state, 'US', 'A', 'authorisation', source, sentence);
       contributed.add('US');
-      state.stateHits.push({ code: tok.state, basis: 'bar_authorisation', source, quote: clip(sentence) });
+      state.stateHits.push({ code: a.state, basis: 'bar_authorisation', source, quote: clip(sentence) });
     } else {
       addEvidence(state, 'US', 'C', 'authority_mention', source, sentence);
     }

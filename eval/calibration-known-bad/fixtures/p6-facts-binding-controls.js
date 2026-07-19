@@ -26,11 +26,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..', '..', '..');
-const { resolveJurisdiction } = require(path.join(ROOT, 'facts', 'jurisdiction.js'));
-const { resolveSector } = require(path.join(ROOT, 'facts', 'sector.js'));
-const { connect } = require(path.join(ROOT, 'applicability', 'connect.js'));
-const DIST_PATH = path.join(ROOT, 'catalogue', 'dist', 'catalogue.v1.json');
+// STRING-LITERAL REQUIRES ONLY (tools/one-door reachability discipline): a runtime-built require() path
+// is invisible to the reachability gate, which is how correct legal logic once sat dead in production.
+const { resolveJurisdiction } = require('../../../facts/jurisdiction.js');
+const { resolveSector } = require('../../../facts/sector.js');
+const { connect } = require('../../../applicability/connect.js');
+const DIST_PATH = path.resolve(__dirname, '..', '..', '..', 'catalogue', 'dist', 'catalogue.v1.json');
 
 function bundle(text, domain) {
   return { domain: domain || 'example.com', corpus: { pages: [{ url: 'https://x/', title: 'x', text, jsonLd: [] }], footerText: '' }, registers: {} };

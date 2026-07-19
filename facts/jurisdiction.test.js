@@ -528,6 +528,14 @@ test('DEFECT-8 negative: merely naming a state bar (no number) is a Tier-C menti
   assert.ok(!boundCodes(out).includes('US'));
 });
 
+test('DEFECT-8 negative: a sentence naming TWO state bars binds only the one whose bar number is nearby (no over-bind)', () => {
+  const out = resolveJurisdiction(pageBundle('Our attorneys are members of the Florida Bar and the State Bar of California, Bar No. 245123.'));
+  const ca = out.sub_jurisdictions.find((s) => s.code === 'CA');
+  const fl = out.sub_jurisdictions.find((s) => s.code === 'FL');
+  assert.ok(ca && ca.status === 'bound' && ca.basis === 'bar_authorisation', 'California (whose bar number follows it) is bound');
+  assert.ok(!(fl && fl.status === 'bound'), 'Florida (named without its own nearby bar number) must NOT be a bound bar_authorisation');
+});
+
 test('DEFECT-8 preserved: "admitted to the New York bar" (no number) still renders advisory, never bound', () => {
   const out = resolveJurisdiction(pageBundle('Incorporated in Delaware. Our partners are admitted to the New York bar.'));
   const ny = out.sub_jurisdictions.find((s) => s.code === 'NY');

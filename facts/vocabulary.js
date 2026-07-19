@@ -845,6 +845,14 @@ const CANONICAL_SUB_SECTORS = [
 ];
 const CANONICAL_SUB_SECTOR_SET = new Set(CANONICAL_SUB_SECTORS);
 
+// US attorney SELF-ID fragment (DEFECT-7): the subset of the solicitors leaf's US terms that names
+// what a firm IS (attorney / lawyer / law office), distinct from the practice-area cues (litigation /
+// personal injury) that a barristers chambers can also carry. Exported from THIS one vocabulary door so
+// facts/sector.js's barrister-vs-solicitor guard reads it here rather than hand-rolling the same terms
+// (Rule 1, one door for the legal-sector US vocabulary; the solicitors detect above is built to include
+// exactly these alternations, and vocabulary.test.js asserts the two never drift).
+const US_ATTORNEY_SELF_ID = /\battorneys?\b|\blawyers?\b|\blaw offices?\b/i;
+
 // Sub-sector-exclusive bindings (registry/sector.js SUB_EXCLUSIVE): a marker that a downstream
 // catalogue rule keyed to one sub-sector must never leak to a sibling. Data only, no law names.
 const SUB_EXCLUSIVE = {
@@ -1247,6 +1255,7 @@ const EXPORTS = {
   SUB_EXCLUSIVE,
   // sub-sector binding taxonomy (P6 connection-integrity; the one door for sub_sector attachment)
   SUB_SECTOR_SYNONYMS,
+  US_ATTORNEY_SELF_ID,
   CLASSIFIER_SUB_SECTORS,
   subSectorBinds,
   isReachableSubSector,

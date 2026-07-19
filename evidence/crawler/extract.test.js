@@ -115,6 +115,12 @@ test('DEFECT-3: extractJsonLd recovers a block whose ONLY defect is a raw contro
 test('DEFECT-3: sanitizeJsonControlChars is structure-preserving and does NOT rescue genuinely broken JSON', () => {
   // It leaves escaped sequences untouched (\n stays two chars) and only neutralises raw control bytes.
   assert.equal(ex.sanitizeJsonControlChars('a\\nb'), 'a\\nb', 'an escaped \\n (backslash + n) is untouched');
-  const broken = '<script type="application/ld+json">{"a": ,,,}</script>';
-  assert.equal(ex.extractJsonLd(broken).length, 0, 'a structurally-broken block still yields nothing (fail-open preserved, no guessing)');
+  assert.equal(ex.extractJsonLd('<script type="application/ld+json">{"a": ,,,}</script>').length, 0,
+    'a structurally-broken block still yields nothing (fail-open preserved, no guessing)');
+  // A control char OUTSIDE a string (between the key and its colon) must NOT be neutralised: the fix
+  // repairs a string VALUE only and can never rescue broken STRUCTURE (CodeRabbit review, PR #28).
+  const cc = String.fromCharCode(0x1f);
+  const structBroken = '<script type="application/ld+json">{"a"' + cc + ':1}</script>';
+  assert.equal(ex.extractJsonLd(structBroken).length, 0, 'a control char in a structural position never rescues the block');
+  assert.ok(ex.sanitizeJsonControlChars('{"a"' + cc + ':1}').includes(cc), 'a structural control char is left untouched by the sanitiser');
 });
