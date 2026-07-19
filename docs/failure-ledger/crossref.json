@@ -1,6 +1,6 @@
 {
   "_README": "The historical-failure crossref. Every distinct defect from the old estate mapped to a failure class, the caution.md pointer it distils, the gate in THIS repo that catches its class, and whether that gate is live (guarded) or planned (gap). Regenerate with: npm run history:build. Validated by: npm run history.",
-  "generated_at": "2026-07-18",
+  "generated_at": "2026-07-19",
   "sources": [
     "sweep-findings.json (421 raw -> 334 deduped -> 256 clusters, 6 ACT)",
     "docs/discovery/digest-findings-bible.md (§0 ACT, §12 domain gates, §13 dismissals)",
@@ -10,8 +10,8 @@
   "totals": {
     "defects": 267,
     "classes": 43,
-    "guarded_classes": 36,
-    "gap_classes": 7,
+    "guarded_classes": 37,
+    "gap_classes": 6,
     "act": 17
   },
   "classification_note": "Sweep defects are triaged category->class with a message-keyword refinement for the \"other\" bucket (see build-crossref.js). This is best-effort triage of tool output; the load-bearing contract is the class->gate mapping, enforced by check.js.",
@@ -418,10 +418,10 @@
     },
     {
       "class": "applicability-leak",
-      "description": "National law leaking via a supranational code or bare-token trigger; the single attachment authority (resolveLaws) was an orphan while a weaker connect() shipped.",
-      "catching_gate": "applicability/attach.js",
-      "status": "gap",
-      "phase": "P2",
+      "description": "National law leaking via a supranational code or bare-token trigger; the single attachment authority (resolveLaws) was an orphan while a weaker connect() shipped. Closed in P4 T0: applicability/connect.js is the ONE applicability door (pure set-membership over the fact envelopes; serves[] never attaches), calibrated by eval/calibration-known-bad/fixtures/p4-applicability-leak.js.",
+      "catching_gate": "applicability/connect.js",
+      "status": "guarded",
+      "phase": null,
       "past_severity": "P0",
       "shipped_to_client": true,
       "caution_pointers": [

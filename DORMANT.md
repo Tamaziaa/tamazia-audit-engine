@@ -72,6 +72,22 @@ lands (P4) and the reachability walk arms. The exit condition is owned by P4, no
 | `evidence/registers/lib/name-match.js` | the shared C-004 name-match algorithm, consumed by `lookup-runner.js` | Aman | same as above |
 | `evidence/registers/lib/notes.js` | the shared `notes[]` entry shape/logger, consumed by every register submodule | Aman | same as above |
 
+## applicability/ (the one applicability door, P4 T0)
+
+The applicability door runs between the facts doors and `breach/proposers/`: `connect(facts, catalogue)`
+filters the compiled catalogue to the records that bind THIS firm (pure set-membership over the fact
+envelopes; Constitution Rule 13). It is real, tested (`connect.test.js`, 42 tests including an integration
+leg over the real facts doors + compiled catalogue) and calibrated
+(`eval/calibration-known-bad/fixtures/p4-applicability-leak.js`, wired into
+`eval/calibration-known-bad/run.js`), but nothing under `mint/` assembles the fact envelopes and calls it
+yet. Declared here per Rule 5 + caution.md C-250 (a newly-landed unreached module is DORMANT-declared
+until the reachability walk arms in P4, never left as a silent green).
+
+| Module | Reason | Owner | Unblocks when |
+|---|---|---|---|
+| `applicability/connect.js` | the ONE applicability door (`connect(facts, catalogue) -> {applicable, excluded, counts}`); the six structural gates that close the applicability-leak class (Rule 13); tested and calibrated, but no `mint/` entry point assembles the `{jurisdiction, sector, capabilities}` envelopes and calls it yet | Aman | the P4 T1 mint wires the facts doors -> `applicability/connect.js` -> `breach/proposers/` + coverage (the applicable set is what propose evaluates and the counts feed the payload) |
+| `applicability/conflicts.js` | the C-073 family-dedupe door (`familyKey`/`dedupeFamilies`/`familyCount`); consumed by `connect.js`'s counts today and by a later render-grouping consumer, so it is a shared one door, not dead code; tested (`conflicts.test.js`) | Aman | same as above, plus the render layer's framework-grouping step (P4) reads the SAME door so counts and render can never drift |
+
 ## breach/verifiers/ and breach/adjudicator/ (P3 Wave-2, landed mid-pass)
 
 These modules were still `.gitkeep`-only scaffolding when this pass began and landed while it was in

@@ -224,9 +224,9 @@ const TAXONOMY = [
   // ── GAP: no live gate yet; the named file lands in the stated phase ───────────────────────────
   {
     class: 'applicability-leak',
-    description: 'National law leaking via a supranational code or bare-token trigger; the single attachment authority (resolveLaws) was an orphan while a weaker connect() shipped.',
-    catching_gate: 'applicability/attach.js',
-    status: 'gap', phase: 'P2', past_severity: 'P0', shipped: true,
+    description: 'National law leaking via a supranational code or bare-token trigger; the single attachment authority (resolveLaws) was an orphan while a weaker connect() shipped. Closed in P4 T0: applicability/connect.js is the ONE applicability door (pure set-membership over the fact envelopes; serves[] never attaches), calibrated by eval/calibration-known-bad/fixtures/p4-applicability-leak.js.',
+    catching_gate: 'applicability/connect.js',
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-051', 'C-053', 'C-054', 'C-061', 'C-062', 'C-063', 'C-064', 'C-076', 'C-077'],
   },
   {

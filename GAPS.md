@@ -122,16 +122,33 @@ must be structurally incapable of either). It catches its trap standalone and is
 supporting evidence for the two rows above rather than its own GAPS.md row (no row named `adjudicate.js`
 exists in the table below).
 
+## Closed this phase (P4 T0, 2026-07-19)
+
+One row flips from `gap` to `guarded` this pass, verified before flipping (file exists, exports the real
+logic, calibration + suite run by hand), never taken on faith:
+
+- **applicability-leak -> `applicability/connect.js`.** File exists and exports `connect(facts, catalogue)`,
+  the ONE applicability door: a pure, synchronous set-membership filter over the fact envelopes that
+  decides which catalogue records bind a firm. `serves[]` never attaches (Constitution Rule 13, the leak
+  killer); the six structural gates (jurisdiction, sub-jurisdiction, displacement, sector, activity tags,
+  required nexus) are each tested in `applicability/connect.test.js` (42 tests, including an integration
+  leg that drives the real facts doors + the compiled catalogue and proves ZERO jurisdiction leak on
+  `russell-cooke`/`lomond` plus `russell-cooke` usefulness). Its self-driving calibration fixture
+  `eval/calibration-known-bad/fixtures/p4-applicability-leak.js` catches the trap standalone (a US record
+  attaching to a UK-bound firm) on a MANDATORY embedded two-record catalogue that runs even before
+  `npm run catalogue`, and is wired into `eval/calibration-known-bad/run.js` as the `p4-applicability-leak`
+  entry; `--strict` run confirmed green with and without the dist artifact. Fully CI-repeatable.
+  `applicability/conflicts.js` (the C-073 family-dedupe door, shared by the counts) landed alongside it.
+
 ## Phase-owned gaps (rebuild the ranked list with `node tools/history-regression/check.js`)
 
-9 of the original 17 phase-owned gap classes remain; 8 closed this phase (4 from the explicit brief + 4
-discovered mid-run, as parallel wave-2 builders landed `llm/` and `breach/` while this pass was running).
+6 phase-owned gap classes remain, all P4. `applicability-leak` closed in P4 T0 (above). The P3 wave already
+closed `deadline-hang` and `module-scope-state` (their gates - `tools/domain-gates/deadline-audit.js` and
+`tools/no-module-state/check.js` - are live and marked `guarded` in the ledger), so they are no longer
+listed here; the checker confirms exactly the six below.
 
 | Phase | Class | Planned gate | Past severity |
 |---|---|---|---|
-| P2 | applicability-leak | applicability/attach.js | P0 |
-| P3 | deadline-hang | tools/domain-gates/deadline-audit.js | P0 |
-| P3 | module-scope-state | tools/no-module-state/check.js | P0 |
 | P4 | exposure-error | render-proof/truth-pack.spec.js | P0 |
 | P4 | consistency-error | render-proof/truth-pack.spec.js | P0 |
 | P4 | render-security-freshness | render-proof/truth-pack.spec.js | P0 |
@@ -142,16 +159,10 @@ discovered mid-run, as parallel wave-2 builders landed `llm/` and `breach/` whil
 This table is derived from the ledger; the checker is the source of truth. If a planned gate above
 now exists, the checker fails with `gap-gate-landed` until the class is flipped to `guarded`.
 
-**Open handoff (not this file's ownership):** `docs/failure-ledger/crossref.json` and
-`tools/history-regression/taxonomy.js` still mark all 8 closed classes above (`host-substring`,
+**Handoff resolved (P4 T0, 2026-07-19):** the eight P3-closed classes above (`host-substring`,
 `budget-floor`, `evidence-lane-silent`, `crawl-poverty`, `llm-unverified`, `breach-artifact`,
-`absence-vs-observation`, `adjudication-abstention`) as `status: "gap"`.
-`tools/history-regression/taxonomy.js` lives under `tools/`, out of scope for this pass, so it was not
-edited here. As a result `node tools/history-regression/check.js` currently exits 1 with 8
-`gap-gate-landed` violations, one per class closed above - this is expected and is the checker correctly
-doing its job (Rule 4: it will keep failing until the taxonomy is flipped and the crossref is rebuilt).
-It is not wired into `npm run sweep` or any CI workflow today (checked: no reference in `tools/sweep/`
-or `.github/workflows/`), so none of this currently blocks the sweep or CI. Whoever owns
-`tools/history-regression/taxonomy.js` should flip these 8 classes' `status` to `guarded` and run
-`node tools/history-regression/build-crossref.js --sweep <sweep-findings-path>` to rebuild
-`crossref.json` so the two ledgers agree again.
+`absence-vs-observation`, `adjudication-abstention`) and `applicability-leak` are all now
+`status: "guarded"` in `tools/history-regression/taxonomy.js`, and `docs/failure-ledger/crossref.json`
+was rebuilt with `node tools/history-regression/build-crossref.js` so the two ledgers agree.
+`node tools/history-regression/check.js` exits 0 (37 guarded classes, 6 gap classes, 0 integrity
+violations); the six remaining gaps are the P4 render/mint/version classes listed above.
