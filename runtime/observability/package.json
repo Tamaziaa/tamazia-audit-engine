@@ -1,0 +1,17 @@
+{
+  "name": "tamazia-runtime-observability",
+  "version": "0.1.0",
+  "private": true,
+  "description": "pino logger, Sentry hook, Healthchecks.io pings, OTel wiring stub for the Tamazia audit engine runtime. Staged. See ../../DEPLOY-RUNBOOK.md.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pino": "^9.5.0"
+  },
+  "optionalDependencies": {
+    "@sentry/node": "^8.42.0",
+    "@opentelemetry/sdk-node": "^0.55.0"
+  }
+}
