@@ -226,6 +226,15 @@ const CALIBRATIONS = [
     fixtures: ['p3-gate-module-state.js'],
     checkerCandidates: ['tools/no-module-state/check.js'],
   },
+
+  // ---- P4 T0 addition (applicability/connect.js, the one applicability door) ----
+  {
+    name: 'p4-applicability-leak',
+    description:
+      'the applicability-leak class (Constitution Rule 13; caution.md C-051/C-053/C-054/C-061..C-064): us-legal records firing on a UK firm. applicability/connect.js must attach ZERO US records to a UK-bound firm, EXCLUDE the US record with a jurisdiction reason (the gate visibly fired), still attach a UK universal record (usefulness control, C-236 - the filter is not vacuously safe), and attach nothing on an abstained envelope. Self-driving fixture drives applicability/connect.js against a synthetic UK-bound-that-also-serves-US firm; its MANDATORY embedded two-record catalogue runs even with NO compiled dist artifact (this calibration runs before `npm run catalogue` in ci.yml), the real compiled catalogue is an optional supplementary leg',
+    fixtures: ['p4-applicability-leak.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-applicability-leak.js'],
+  },
 ];
 
 function findChecker(candidates) {
