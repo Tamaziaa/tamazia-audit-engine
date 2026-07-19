@@ -1,0 +1,10 @@
+{
+  "name": "tamazia-runtime-browser-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Warm Playwright chromium pool control API for the Tamazia audit engine VM runtime. Staged.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "playwright": "1.49.0"
+  }
+}

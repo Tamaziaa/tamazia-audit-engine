@@ -1,0 +1,140 @@
+## runtime/vm/docker-compose.yml - the ONE VM stack (Kimi blueprint section D).
+#
+# STAGED. Ready for `docker compose up` on any fresh Hetzner CX32 or Oracle Always-Free ARM box.
+# Not run against any live host in this session - see ../../DEPLOY-RUNBOOK.md for the founder's
+# one required action (provision the VM, hand over SSH).
+#
+# Bulkheads: each lane is its own container with its own memory cap, so a dying browser container
+# cannot take the register/static lanes down with it (Kimi blueprint D: "docker resource limits per
+# lane"). Workers scale horizontally via `docker compose up --scale worker=3`.
+
+name: tamazia-runtime
+
+x-worker-env: &worker-env
+  # NEON_URL and other secrets are supplied via .env (git-ignored) or the host's secret store
+  # (SOPS+age / Doppler - see DEPLOY-RUNBOOK.md), never baked into this file or an image layer.
+  NEON_URL: ${NEON_URL}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+  R2_ENDPOINT: ${R2_ENDPOINT}
+  R2_BUCKET: ${R2_BUCKET}
+  BROWSER_SERVICE_URL: http://browser:3500
+  NLI_SERVICE_URL: http://nli:3600
+  HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+
+services:
+  worker:
+    build:
+      context: ./worker
+    init: true # dumb-init equivalent: reaps zombie processes from any child the step functions spawn
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 256M
+    environment: *worker-env
+    depends_on:
+      - browser
+      - nli
+    networks: [runtime]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  browser:
+    build:
+      context: ./browser
+    init: true # dumb-init: Chromium leaves zombie renderer processes without a PID 1 reaper
+    restart: unless-stopped
+    # Warm Playwright chromium pool, memory-capped per the blueprint. One browser container serves
+    # all worker replicas over its small HTTP control API (launch/goto/evaluate/close), so cold
+    # start only happens once per container lifetime, not once per audit.
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 512M
+    shm_size: "512mb" # Chromium needs /dev/shm headroom or it crashes under load
+    environment:
+      MAX_CONTEXTS: "4"
+      HAR_ROTATION_MB: "200"
+      HAR_DIR: /data/har
+    volumes:
+      - browser-har:/data/har
+    networks: [runtime]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  nli:
+    build:
+      context: ./nli
+    init: true
+    restart: unless-stopped
+    # ONNX DeBERTa entailment sidecar (placeholder model until the real weights are approved and
+    # vendored - see runtime/vm/nli/README.md). Replaces API-based adjudication per blueprint C/D.
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
+    networks: [runtime]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  cron:
+    build:
+      context: ./cron
+    init: true
+    restart: unless-stopped
+    environment: *worker-env
+    depends_on:
+      - worker
+    networks: [runtime]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - worker
+    networks: [runtime]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  runtime:
+    driver: bridge
+
+volumes:
+  browser-har:
+  caddy-data:
+  caddy-config:

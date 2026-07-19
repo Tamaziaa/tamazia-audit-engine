@@ -1,0 +1,87 @@
+{
+  "name": "ws-runtime-law-change-alert",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ws-runtime-law-change",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Law Change Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ws-runtime-law-change"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{$json.body.title}}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate-payload",
+      "name": "Validate payload has a title",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "note",
+              "value": "STAGED: no destination configured yet. Founder wires the real email/WhatsApp/Slack node here (see runtime/n8n/README.md). This node exists so the webhook -> validation -> fan-out shape is provable end to end today."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "no-destination-placeholder",
+      "name": "No destination configured yet",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 220]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "error", "value": "invalid_payload_missing_title" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "reject-invalid",
+      "name": "Reject invalid payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 380]
+    }
+  ],
+  "connections": {
+    "Law Change Webhook": {
+      "main": [[{ "node": "Validate payload has a title", "type": "main", "index": 0 }]]
+    },
+    "Validate payload has a title": {
+      "main": [
+        [{ "node": "No destination configured yet", "type": "main", "index": 0 }],
+        [{ "node": "Reject invalid payload", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
