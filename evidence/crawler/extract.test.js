@@ -53,6 +53,16 @@ test('extractHrefs keeps query strings (C-027) and is bounded', () => {
   assert.ok(hrefs.includes('/x#frag'));
 });
 
+// ── extractHtmlLang: the html-lang signal feeding evidence/crawler/language.js (C-022) ─────────────────
+test('extractHtmlLang: reads the <html lang> attribute; malformed/absent -> ""', () => {
+  assert.equal(ex.extractHtmlLang('<html lang="fr-FR"><body>x</body></html>'), 'fr-FR');
+  assert.equal(ex.extractHtmlLang("<html lang='en'><body>x</body></html>"), 'en');
+  assert.equal(ex.extractHtmlLang('<html class="no-js" lang="de"><body>x</body></html>'), 'de', 'lang need not be the first attribute');
+  assert.equal(ex.extractHtmlLang('<html><body>x</body></html>'), '', 'no lang attribute at all -> empty, never guessed');
+  assert.equal(ex.extractHtmlLang(''), '');
+  assert.equal(ex.extractHtmlLang(null), '');
+});
+
 test('extractOgMeta surfaces og:site_name as a corpus value; buildPage sets page.ogSiteName', () => {
   const html = '<html><head><meta property="og:site_name" content="Acme &amp; Co"><meta property="og:title" content="Home"></head><body><p>Some visible body text for the corpus here.</p></body></html>';
   const og = ex.extractOgMeta(html);

@@ -141,6 +141,39 @@ test('a reachable site returns a corpus with stripped text, the footer surface, 
   assert.ok(bundle.telemetry.content >= 2 && bundle.telemetry.pages_captured >= 2);
 });
 
+// ── corpus.language wired end-to-end at crawl.js's ONE producing door (C-022, hidden-defects.md RANK 6) ─
+// A synthetic French homepage (hand-written, not copied from any real site) with enough prose across a
+// couple of pages to clear language.js's sufficiency floor. POSITIVE CONTROL: the wiring itself (not
+// just the pure detectLanguage() unit already covered in language.test.js) produces a real non-English
+// corpus.language AND a loud telemetry note - proving the fact actually reaches the bundle
+// propose.js's isNonEnglishGated already reads, closing the "wired but never assigned" defect.
+test('POSITIVE CONTROL: a French site crawl resolves corpus.language to a non-English tag and records a loud note (C-022)', async () => {
+  const frenchProse = 'Nous nous engageons a proteger votre vie privee et vos donnees personnelles. Cette notice explique comment nous recueillons, utilisons et conservons les informations que vous nous fournissez, ainsi que les choix dont vous disposez quant a la maniere dont vos donnees sont traitees. Si vous avez des questions au sujet de cette notice, veuillez nous contacter en utilisant les coordonnees ci-dessous.';
+  const pages = {
+    'https://exemple-francais.example/': '<html lang="fr-FR"><head><title>Exemple</title></head><body><h1>Bienvenue</h1><p>' + frenchProse + '</p><footer>Exemple SARL.</footer></body></html>',
+    'https://exemple-francais.example/confidentialite': '<html lang="fr-FR"><head><title>Confidentialite</title></head><body><h1>Confidentialite</h1><p>' + frenchProse + '</p></body></html>',
+  };
+  const { fetchFn } = fetchFnFromPages(pages);
+  const bundle = await crawl('exemple-francais.example', crawlOpts(fetchFn));
+  assert.equal(bundle.unreachable, false);
+  assert.equal(bundle.corpus.language, 'fr', 'the wired producer must set corpus.language, not leave it undefined');
+  assert.ok(bundle.notes.some((n) => n.kind === 'non-english-corpus'), 'a confident non-English classification is a LOUD telemetry note, not a silent field (C-041 doctrine)');
+});
+
+// NEGATIVE CONTROL: an ordinary English site crawl resolves corpus.language to 'en' and records NO
+// non-english-corpus note - the wiring must not over-gate a normal English audit.
+test('NEGATIVE CONTROL: an English site crawl resolves corpus.language to "en" with no non-english note', async () => {
+  const englishProse = 'We are committed to protecting your privacy and your personal data. This notice explains how we collect, use and store the information you provide to us, and the choices you have about how your data is handled. If you have any questions about this notice, please contact us using the details below and we will respond to you as soon as we are able.';
+  const pages = {
+    'https://good.example/': '<html lang="en-GB"><head><title>Good Ltd</title></head><body><h1>Welcome</h1><p>' + englishProse + '</p><footer>Good Ltd, company number 07654321.</footer></body></html>',
+    'https://good.example/privacy': '<html lang="en-GB"><head><title>Privacy</title></head><body><h1>Privacy</h1><p>' + englishProse + '</p></body></html>',
+  };
+  const { fetchFn } = fetchFnFromPages(pages);
+  const bundle = await crawl('good.example', crawlOpts(fetchFn));
+  assert.equal(bundle.corpus.language, 'en');
+  assert.ok(!bundle.notes.some((n) => n.kind === 'non-english-corpus'), 'an English crawl must never be flagged as non-English');
+});
+
 test('crawl rejects an unfetchable domain and a missing fetchFn (fail loud, never a silent empty crawl)', async () => {
   const { fetchFn } = fetchFnFromPages({});
   await assert.rejects(crawl('not-a-domain', crawlOpts(fetchFn)), /fetchable domain/);

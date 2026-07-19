@@ -283,6 +283,34 @@ test('a non-English-gated bundle asserts nothing (C-022)', () => {
   assert.deepStrictEqual(propose(b, catalogue(), coverageFor(b)), []);
 });
 
+// ── hidden-defects.md RANK 6 / repetition-audit DG-04b: corpus.language is now a REAL producer output
+// (evidence/crawler/language.js, wired at the one crawl.js producing door) rather than a field nothing
+// ever assigned. isNonEnglishGated already read bundle.corpus.language; these prove the gate ACTUALLY
+// FIRES once that field carries a real value, with a positive control (non-English -> gated) and a
+// negative control (English -> the SAME violating content still fires normally, so the fix does not
+// over-gate every audit into silence).
+test('POSITIVE CONTROL: corpus.language set to a non-English tag gates the breach lane to zero candidates', () => {
+  const b = bundle();
+  // the exact prohibited phrase from the catalogue fixture below, present in the corpus - proves the
+  // gate suppresses REAL violating content, not merely an already-empty bundle.
+  b.corpus.pages[0].text = 'Achetez notre tonique miracle qui guerit tout des aujourd hui sans exception.';
+  b.corpus.language = 'fr';
+  assert.deepStrictEqual(propose(b, catalogue(), coverageFor(b)), [], 'a confidently non-English corpus.language must gate the whole breach lane, exactly like compliance_unassessed');
+});
+
+test('NEGATIVE CONTROL: corpus.language "en" (or absent) runs normally - the fix does not over-gate English audits', () => {
+  const offending = 'Buy our miracle tonic cures all today and feel amazing within a single week of trying it.';
+  const withLang = bundle();
+  withLang.corpus.pages[0].text = offending;
+  withLang.corpus.language = 'en';
+  const withoutLang = bundle();
+  withoutLang.corpus.pages[0].text = offending;
+  for (const b of [withLang, withoutLang]) {
+    const fired1 = fired(propose(b, catalogue(), coverageFor(b)), KIND.PRESENCE_BREACH);
+    assert.ok(fired1.length >= 1, 'an English (or unlabelled) corpus still detects a real violation - the gate is not vacuously suppressing everything');
+  }
+});
+
 // ── CALIBRATION: a screened rule never proposes (C-029) ─────────────────────────────────────────────
 test('CALIBRATION: the screened-never-proposes fixture yields NO fired candidate (C-029)', () => {
   const file = path.join(FIXTURES, 'p3-proposer-screened-never-proposes.json');
@@ -440,7 +468,7 @@ test('A3: the committed synthetic fixture proposes exactly 1 verified presence-b
 test('DEFECT-4(c): a genuine accessibility DOM node routes ONLY to accessibility duties, NEVER to a health-data record ("health" no longer matches "alt")', () => {
   // Real dom-assert predicates, so the nodes carry the tier the lane truly stamps (not a hand-typed one).
   const langNode = htmlNode({ selector: 'html', snippet: '<html>', lang: '' });                 // genuine html-has-lang violation
-  const labelNode = controlNode({ selector: 'input#q', snippet: '<input id="q">', controlType: 'text', hasLabelElement: false, hasAriaLabel: false, hasAriaLabelledby: false }); // genuine missing-label violation
+  const labelNode = controlNode({ selector: 'input#q', snippet: '<input id="q">', controlType: 'text' }); // no labelling route at all -> genuine missing-label violation (P6 descriptor shape)
   const b = bundle({ browser: { lane: { ran: true, reason: null }, observed: [], consentControl: { found: false, healthy: null, url: null },
     domLane: { ran: true, reason: null }, domNodes: [langNode, labelNode] } });
   // Two synthetic behavioural duties: one whose tokens include the WORD "health" (mirrors US_FTC_HBNR),
@@ -472,7 +500,16 @@ test('DEFECT-4(c): the REAL US_FTC_HBNR record no longer manufactures a violatio
 test('DEFECT-4(d): a correctly-labelled control emits NO missing-label violation, so it produces no candidate at all', () => {
   // A control WITH an associated <label for>/aria-label passes the dom-assert predicate (returns null): no
   // violation node, so the proposer has nothing to route - the "missing label" false positive is silent.
-  assert.strictEqual(controlNode({ selector: 'input#name', snippet: '<input id="name">', controlType: 'text', hasLabelElement: true, hasAriaLabel: false, hasAriaLabelledby: false }), null, 'a labelled control is not a violation node');
+  // (P6: dom-assert.js's label predicate descriptor shape - repetition-audit-2026-07-19.md class #3, the
+  // WPForms/duplicate-id false-positive fix; see evidence/browser/dom-assert.js and its own test suite for
+  // the full positive/negative-control coverage of every labelling route.)
+  const labelledDescriptor = {
+    selector: 'input#name', snippet: '<input id="name">', controlType: 'text',
+    labelElementText: 'Name', forIdLabelText: '', wrappingLabelText: '', ariaLabelText: '', ariaLabelledbyText: '', titleText: '',
+    hasLabelElementRef: true, hasForIdLabelRef: false, hasWrappingLabelRef: false,
+    hasAriaLabelAttr: false, hasAriaLabelledbyAttr: false, hasTitleAttr: false,
+  };
+  assert.strictEqual(controlNode(labelledDescriptor), null, 'a labelled control is not a violation node');
   const b = bundle({ browser: { lane: { ran: true, reason: null }, observed: [], consentControl: { found: false, healthy: null, url: null },
     domLane: { ran: true, reason: null }, domNodes: [] } }); // labelled control -> no node at all
   const cat = { records: [{ id: 'FAKE_ACCESS_2099', regulator: {}, citation: {}, website_obligations: [

@@ -76,6 +76,16 @@ function extractTitle(html) {
   return m ? decodeEntities(m[1]).replace(/\s+/g, ' ').trim() : '';
 }
 
+// extractHtmlLang(html) -> the raw <html lang="..."> attribute value, or '' when absent/malformed. A
+// lightweight regex read (this is a fetch-only lane, no DOM parser): only the FIRST <html ...> tag is
+// considered, matching how a browser resolves document.documentElement.lang. Feeds
+// evidence/crawler/language.js's detectLanguage() as one of its two signals (C-022); the raw string is
+// NOT trusted alone there, since a site can self-declare "en" while its prose reads as another language.
+function extractHtmlLang(html) {
+  const m = /<html\b[^>]*\blang\s*=\s*["']([^"']*)["']/i.exec(String(html || ''));
+  return m ? m[1].trim() : '';
+}
+
 // extractOgMeta(html) -> a map of Open Graph meta values keyed by the property SUFFIX (og.site_name,
 // og.title, ...). Generic on purpose: the identity-signal property name is never hardcoded here (the
 // og: prefix plus a captured suffix), so extract.js surfaces the raw corpus value while identity
@@ -223,6 +233,6 @@ function pageContentClass(status, html) {
 }
 
 module.exports = {
-  decodeEntities, stripHtml, extractTitle, extractOgMeta, extractJsonLd,
+  decodeEntities, stripHtml, extractTitle, extractHtmlLang, extractOgMeta, extractJsonLd,
   sanitizeJsonControlChars, extractFooterText, extractHrefs, buildPage, pageContentClass,
 };

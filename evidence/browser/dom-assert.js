@@ -1,5 +1,5 @@
 'use strict';
-/* global document, getComputedStyle */
+/* global document, getComputedStyle, CSS */
 // evidence/browser/dom-assert.js - the AXE-STYLE DOM ASSERTION lane (P4 T2a).
 //
 // WHAT THIS SEES THAT HTML-TEXT CANNOT: a failing DOM node (Constitution Rule 3's fourth artifact) is a
@@ -60,196 +60,13 @@ function normaliseOpts(opts) {
   return { deadlineMs: clampDeadline(o.deadlineMs), now: typeof o.now === 'function' ? o.now : Date.now };
 }
 
-// ── the risk-tier partition (W6, the ONE classification door) ─────────────────────────────────────────
-// DOM_RULE_TIER maps each dom-assert rule_id to its FINDING tier. This is the single frozen door that
-// decides whether a CONFIRMED node ships as a hard violation or must adjudicate to needs-review:
-//   'deterministic'  the DOM fact IS the breach with no legal judgement needed (a missing alt attribute
-//                     just IS a WCAG 1.1.1 failure). A confirmed node keeps the observed-fact bypass and
-//                     ships as `violation`.
-//   'risk'           the DOM fact is a real, deterministic OBSERVATION (the insecure form IS present) but
-//                     its LEGAL characterisation is risk-based, not deterministic: an https page whose form
-//                     posts to an http action is a transport-security RISK INDICATOR under UK GDPR Art 32
-//                     (a risk-based duty needing the controller's own assessment - the C-048 class), and a
-//                     pre-ticked consent box is a consent-law risk to review. A confirmed risk node is
-//                     evidence-backed (Rule 3) but must route to needs-review (Rule 6/Rule 10), NEVER a
-//                     hard accusation. See caution.md C-048 and catalogue/packs/uk-universal.QA.md.
-// The tier is a FINDING-STATE classifier only; it does NOT change DOM detection. A risk node is still
-// emitted with its true detection state ('violation' for a confirmed insecure form), so it is never
-// silently under-reported (dropping it to 'incomplete' would be the opposite error). The downstream
-// routing (breach/adjudicator/evidence-kind.js) reads this tier off the artifact.
-const DOM_RULE_TIER = Object.freeze({
-  'image-alt': 'deterministic',
-  'label': 'deterministic',
-  'html-has-lang': 'deterministic',
-  'link-name': 'deterministic',
-  'button-name': 'deterministic',
-  'color-contrast': 'deterministic',
-  'insecure-form': 'risk',
-  'pre-ticked-consent': 'risk',
-});
-// tierOf(rule_id) -> the finding tier for a rule_id. An unmapped rule_id defaults to 'risk' (fail-closed,
-// Rule 6): an unclassified DOM check is never auto-shipped as a hard violation. Every rule this lane
-// actually emits is explicitly mapped above, so the default is defensive only.
-function tierOf(rule_id) {
-  return Object.prototype.hasOwnProperty.call(DOM_RULE_TIER, rule_id) ? DOM_RULE_TIER[rule_id] : 'risk';
-}
-
-// ── the canonical node shape (Rule 1: one door for the dom_node artifact fields) ──────────────────────
-// nodeOf(...) -> { rule_id, selector, snippet, wcag_sc, state, tier } and NOTHING else. Every predicate
-// below returns exactly this shape (or null for a pass), so the verifier and the proposer read one stable
-// shape. `tier` is stamped from the one DOM_RULE_TIER door above so a node carries its finding tier from
-// the moment it is observed; the proposer spreads it onto the artifact and the adjudicator routes on it.
-function nodeOf(rule_id, selector, snippet, wcag_sc, state) {
-  return { rule_id, selector, snippet, wcag_sc, state, tier: tierOf(rule_id) };
-}
-
-// ── pure decision predicates (the honesty core; each is a pure function of ONE plain descriptor) ───────
-
-// image-alt (WCAG 1.1.1): a violation ONLY when the alt attribute is entirely absent. alt="" is a PASS
-// (the decorative-image marking), so hasAlt:true -> null even for an empty alt.
-function imgNode(d) {
-  return d.hasAlt ? null : nodeOf('image-alt', d.selector, d.snippet, '1.1.1', 'violation');
-}
-
-// label (WCAG 1.3.1): input/select/textarea with no label association. hidden/submit/button types are not
-// labellable controls and are skipped (null). A label element (via for= OR a wrapping label), an aria-label
-// or an aria-labelledby that resolves to text all satisfy the association.
-const EXCLUDED_CONTROL_TYPES = new Set(['hidden', 'submit', 'button']);
-function controlIsLabelled(d) {
-  return Boolean(d.hasLabelElement) || Boolean(d.hasAriaLabel) || Boolean(d.hasAriaLabelledby);
-}
-function controlNode(d) {
-  if (EXCLUDED_CONTROL_TYPES.has(d.controlType)) return null;
-  return controlIsLabelled(d) ? null : nodeOf('label', d.selector, d.snippet, '1.3.1', 'violation');
-}
-
-// html-has-lang (WCAG 3.1.1): the <html> lang attribute must be present and a well-formed language tag.
-const VALID_LANG = /^[a-z]{2}(-[A-Za-z0-9]+)*$/i;
-function htmlNode(d) {
-  const lang = typeof d.lang === 'string' ? d.lang.trim() : '';
-  if (lang !== '' && VALID_LANG.test(lang)) return null;
-  return nodeOf('html-has-lang', d.selector, d.snippet, '3.1.1', 'violation');
-}
-
-// link-name / button-name (WCAG 4.1.2): an empty accessible name. The name is the first non-empty of the
-// element's text, its aria-label, its resolved aria-labelledby text, or the alt of an <img> inside it.
-function firstNonEmpty(parts) {
-  for (const s of parts) {
-    const t = typeof s === 'string' ? s.trim() : '';
-    if (t) return t;
-  }
-  return '';
-}
-function accessibleNameEmpty(d) {
-  return firstNonEmpty([d.text, d.ariaLabel, d.ariaLabelledbyText, d.imgAltInside]) === '';
-}
-function linkNode(d) {
-  return accessibleNameEmpty(d) ? nodeOf('link-name', d.selector, d.snippet, '4.1.2', 'violation') : null;
-}
-function buttonNode(d) {
-  return accessibleNameEmpty(d) ? nodeOf('button-name', d.selector, d.snippet, '4.1.2', 'violation') : null;
-}
-
-// color-contrast (WCAG 1.4.3): parse two CSS colour strings. A ratio is only REAL when both are fully
-// opaque and the background carries no gradient/image; anything else is honestly unmeasurable -> incomplete
-// (needs-review), never a violation and never a silent pass (Rule 10).
-function parseColour(str) {
-  const s = String(str == null ? '' : str).trim();
-  const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/i.exec(s);
-  if (rgb) return { r: +rgb[1], g: +rgb[2], b: +rgb[3], a: alphaOf(rgb[4]) };
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
-  if (hex) return hexColour(hex[1]);
-  return null; // an unparseable colour (named, transparent keyword, gradient token) is not a flat measure.
-}
-function alphaOf(raw) {
-  if (raw == null) return 1;
-  const a = String(raw).endsWith('%') ? Number(String(raw).slice(0, -1)) / 100 : Number(raw);
-  return Number.isFinite(a) ? a : 1;
-}
-function hexColour(h) {
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
-  return { r: parseInt(full.slice(0, 2), 16), g: parseInt(full.slice(2, 4), 16), b: parseInt(full.slice(4, 6), 16), a: 1 };
-}
-function channelLuminance(c) {
-  const s = c / 255;
-  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-}
-function relativeLuminance(rgb) {
-  return 0.2126 * channelLuminance(rgb.r) + 0.7152 * channelLuminance(rgb.g) + 0.0722 * channelLuminance(rgb.b);
-}
-function contrastRatio(fg, bg) {
-  if (!fg || !bg) return 0;
-  const l1 = relativeLuminance(fg);
-  const l2 = relativeLuminance(bg);
-  const hi = Math.max(l1, l2);
-  const lo = Math.min(l1, l2);
-  return (hi + 0.05) / (lo + 0.05);
-}
-// isLargeText: >=24px, or >=18.66px when bold (the WCAG 1.4.3 large-text thresholds).
-function isLargeText(fontPx, bold) {
-  const px = Number(fontPx);
-  if (!Number.isFinite(px)) return false;
-  return px >= 24 || (px >= 18.66 && Boolean(bold));
-}
-// contrastIsFlat: both colours parse to a fully-opaque rgb AND the background carries no image/gradient.
-function contrastIsFlat(d) {
-  if (d.bgImage && d.bgImage !== 'none') return false;
-  const fg = parseColour(d.fg);
-  const bg = parseColour(d.bg);
-  return Boolean(fg) && Boolean(bg) && fg.a === 1 && bg.a === 1;
-}
-function contrastNode(d) {
-  if (!contrastIsFlat(d)) return nodeOf('color-contrast', d.selector, d.snippet, '1.4.3', 'incomplete');
-  const ratio = contrastRatio(parseColour(d.fg), parseColour(d.bg));
-  const threshold = isLargeText(d.fontPx, d.bold) ? 3.0 : 4.5;
-  if (ratio < threshold) return nodeOf('color-contrast', d.selector, d.snippet, '1.4.3', 'violation');
-  return null; // a real, measured, sufficient ratio -> a genuine pass (not a silent one).
-}
-
-// insecure-form: an https: page whose form posts to an http: action (wcag_sc null - a security duty, not a
-// WCAG success criterion).
-function formNode(d) {
-  const insecure = d.pageScheme === 'https:' && d.actionScheme === 'http:';
-  return insecure ? nodeOf('insecure-form', d.selector, d.snippet, null, 'violation') : null;
-}
-
-// pre-ticked-consent: a checkbox pre-checked (the checked ATTRIBUTE, the initial state) whose associated
-// label/name text names consent/marketing (wcag_sc null - a consent-law duty, not a WCAG criterion).
-const CONSENT_TOKENS = ['consent', 'marketing', 'newsletter', 'offers'];
-function namesConsent(text) {
-  const t = String(text == null ? '' : text).toLowerCase();
-  return CONSENT_TOKENS.some((tok) => t.includes(tok));
-}
-function checkboxNode(d) {
-  const preTicked = Boolean(d.checkedAttr) && namesConsent(d.labelText);
-  return preTicked ? nodeOf('pre-ticked-consent', d.selector, d.snippet, null, 'violation') : null;
-}
-
-// CHECK_PREDICATE: the one dispatch table from a descriptor's `check` tag to its pure predicate.
-const CHECK_PREDICATE = Object.freeze({
-  img: imgNode,
-  control: controlNode,
-  html: htmlNode,
-  link: linkNode,
-  button: buttonNode,
-  contrast: contrastNode,
-  form: formNode,
-  checkbox: checkboxNode,
-});
-
-// buildNodes(descriptors) -> nodes[]. Maps each in-page descriptor through its predicate and keeps the
-// non-null results. A descriptor with an unknown `check` tag is skipped (fail-closed: the lane never emits
-// a node it has no predicate for). Pure and synchronous over plain objects; exported for direct testing.
-function buildNodes(descriptors) {
-  const out = [];
-  for (const d of Array.isArray(descriptors) ? descriptors : []) {
-    const predicate = d && CHECK_PREDICATE[d.check];
-    if (!predicate) continue;
-    const node = predicate(d);
-    if (node) out.push(node);
-  }
-  return out;
-}
+// The pure, browser-free grading predicates (risk-tier partition, nodeOf, image-alt/label/html-has-lang/
+// link-name/button-name/color-contrast/insecure-form/pre-ticked-consent, buildNodes) live in
+// dom-assert-predicates.js (extracted P6 to keep this file under the single-purpose cap, C-193/C-194/
+// C-254): every one of them is re-exported below unchanged, so the public API of this module is
+// byte-identical to before the split.
+const predicates = require('./dom-assert-predicates');
+const { buildNodes } = predicates;
 
 // ── the in-page extraction pass (checksSource): DUMB harvesting only, one page.evaluate ───────────────
 // collectDescriptors runs in the BROWSER context (document/getComputedStyle). It is fully self-contained
@@ -304,6 +121,37 @@ function collectDescriptors() {
     if (labels) for (var i = 0; i < labels.length; i++) s += ' ' + (labels[i].textContent || '');
     return collapse(s);
   }
+  // cssEscape(id) -> a selector-safe id literal. Prefers the platform's own CSS.escape (handles every
+  // edge case, e.g. a leading digit); a manual escape of quote/backslash is the FAIL-OPEN fallback for a
+  // browser context where CSS.escape is unavailable, so an unusual id degrades to "no match found" rather
+  // than throwing the whole extraction pass.
+  function cssEscape(id) {
+    try { if (typeof CSS !== 'undefined' && CSS.escape) return CSS.escape(id); }
+    catch (e) { /* FAIL-OPEN: fall through to the manual escape below. */ }
+    return String(id).replace(/["\\]/g, '\\$&');
+  }
+  // forIdLabel(id) -> {found, text} for a document-wide `label[for="id"]` query, INDEPENDENT of the
+  // native `el.labels` id-resolution (the defence against the duplicate-id false-positive class,
+  // legal-uk.md Fix 2: `.labels` associates only the FIRST element with a given id, so a control that is
+  // NOT that first element gets nothing from `.labels` even though a real `for`/id-matching label
+  // exists). `found` and `text` are reported separately so an authored-but-EMPTY label (found:true,
+  // text:'') is distinguishable from no label at all (found:false) - the ambiguous-vs-unlabelled split.
+  function forIdLabel(id) {
+    if (!id) return { found: false, text: '' };
+    var lab;
+    try { lab = doc.querySelector('label[for="' + cssEscape(id) + '"]'); }
+    catch (e) { return { found: false, text: '' }; /* FAIL-OPEN: an id that breaks the selector yields no match, never a thrown lane. */ }
+    return { found: Boolean(lab), text: lab ? collapse(lab.textContent) : '' };
+  }
+  // wrappingLabel(el) -> {found, text} for an ancestor <label> found by an explicit closest() walk,
+  // independent of `.labels`'s own implicit-association resolution (a second, structural route to the
+  // same "wrapping label" fact so no single API is the sole gate to a hard violation).
+  function wrappingLabel(el) {
+    var lab = null;
+    try { lab = typeof el.closest === 'function' ? el.closest('label') : null; }
+    catch (e) { lab = null; /* FAIL-OPEN: an unsupported/throwing closest() yields no match, never a thrown lane. */ }
+    return { found: Boolean(lab), text: lab ? collapse(lab.textContent) : '' };
+  }
   function push(desc) { if (!capped()) out.push(desc); }
   function descOf(el, check, extra) {
     var base = { check: check, selector: cssPath(el), snippet: clip(el) };
@@ -330,11 +178,25 @@ function collectDescriptors() {
     tryEach('input, select, textarea', function (el) {
       var tag = el.tagName.toLowerCase();
       var controlType = tag === 'input' ? (el.getAttribute('type') || 'text').toLowerCase() : tag;
+      var id = el.getAttribute('id') || '';
+      var forId = forIdLabel(id);
+      var wrapping = wrappingLabel(el);
       push(descOf(el, 'control', {
         controlType: controlType,
-        hasLabelElement: Boolean(el.labels && el.labels.length),
-        hasAriaLabel: collapse(el.getAttribute('aria-label')) !== '',
-        hasAriaLabelledby: labelledbyText(el) !== '',
+        // every route resolved INDEPENDENTLY (the false-positive fix: no single API is the sole gate).
+        labelElementText: labelsText(el),
+        forIdLabelText: forId.text,
+        wrappingLabelText: wrapping.text,
+        ariaLabelText: collapse(el.getAttribute('aria-label')),
+        ariaLabelledbyText: labelledbyText(el),
+        titleText: collapse(el.getAttribute('title')),
+        // structural presence flags (a route can EXIST but resolve to empty text - the ambiguous case):
+        hasLabelElementRef: Boolean(el.labels && el.labels.length),
+        hasForIdLabelRef: forId.found,
+        hasWrappingLabelRef: wrapping.found,
+        hasAriaLabelAttr: el.hasAttribute('aria-label'),
+        hasAriaLabelledbyAttr: el.hasAttribute('aria-labelledby'),
+        hasTitleAttr: el.hasAttribute('title'),
       }));
     });
   }
@@ -342,7 +204,7 @@ function collectDescriptors() {
     tryEach('a[href]', function (el) {
       push(descOf(el, 'link', {
         text: collapse(el.textContent), ariaLabel: collapse(el.getAttribute('aria-label')),
-        ariaLabelledbyText: labelledbyText(el), imgAltInside: imgAltInside(el),
+        ariaLabelledbyText: labelledbyText(el), imgAltInside: imgAltInside(el), titleText: collapse(el.getAttribute('title')),
       }));
     });
   }
@@ -350,7 +212,7 @@ function collectDescriptors() {
     tryEach('button', function (el) {
       push(descOf(el, 'button', {
         text: collapse(el.textContent), ariaLabel: collapse(el.getAttribute('aria-label')),
-        ariaLabelledbyText: labelledbyText(el), imgAltInside: imgAltInside(el),
+        ariaLabelledbyText: labelledbyText(el), imgAltInside: imgAltInside(el), titleText: collapse(el.getAttribute('title')),
       }));
     });
   }
@@ -441,27 +303,14 @@ async function domAssert(page, opts) {
   }
 }
 
-module.exports = {
+module.exports = Object.assign({}, predicates, {
   domAssert,
   // the in-page evaluate payload, exported so the lane is testable/inspectable without a browser:
   checksSource: collectDescriptors,
-  // pure decision predicates + orchestration (exported for direct unit testing on plain descriptor objects):
-  buildNodes,
-  nodeOf,
-  imgNode,
-  controlNode,
-  htmlNode,
-  linkNode,
-  buttonNode,
-  contrastNode,
-  formNode,
-  checkboxNode,
-  parseColour,
-  contrastRatio,
-  isLargeText,
   normaliseOpts,
   DEFAULT_DEADLINE_MS,
-  // the risk-tier partition (W6), exported so the classification is testable and has one visible door:
-  DOM_RULE_TIER,
-  tierOf,
-};
+  // pure decision predicates + orchestration + the risk-tier partition (W6) all come from
+  // dom-assert-predicates.js via the spread above: buildNodes, nodeOf, imgNode, controlNode,
+  // labelTextOf, hasAnyLabelRoute, EXCLUDED_CONTROL_TYPES, htmlNode, linkNode, buttonNode, contrastNode,
+  // formNode, checkboxNode, parseColour, contrastRatio, isLargeText, DOM_RULE_TIER, tierOf.
+});

@@ -36,6 +36,8 @@ node tools/<checker> --calibrate
 | `rule-polarity-inverted.json` | prohibit rule whose pattern matches the compliant wording | catalogue polarity linter |
 | `fabricated-fine-literal.js` | fine/regulator/law literal authored in code | catalogue-only-literals domain gate |
 | `payload-missing-fields.json` | payload missing REQUIRED contract fields, dims != 10 | payload/contract validatePayload (internal, live now) |
+| `p6-domassert-label-no-false-accusation.js` | WCAG 1.3.1 label predicate false-accusing a correctly-labelled input (the WPForms duplicate-id class, legal-uk.md Fix 2) | self-driving: evidence/browser/dom-assert.js |
+| `p6-corpus-language-gate-fires.js` | the non-English honesty gate (C-022) never firing because corpus.language was never assigned (hidden-defects.md RANK 6) | self-driving: evidence/crawler/language.js + breach/proposers/propose.js |
 
 Every fixture file carries a header explaining what is wrong with it and which gate must
 fire. Fixtures are never imported by engine code.

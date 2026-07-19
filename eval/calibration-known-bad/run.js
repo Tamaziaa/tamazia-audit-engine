@@ -293,6 +293,24 @@ const CALIBRATIONS = [
     fixtures: ['p4-risk-domnode-never-hard-violation.js'],
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-risk-domnode-never-hard-violation.js'],
   },
+
+  // ---- P6: dom-assert label false-accusation fix (repetition-audit-2026-07-19.md class #3) ----
+  {
+    name: 'p6-domassert-label-no-false-accusation',
+    description:
+      'the WCAG 1.3.1 label predicate (evidence/browser/dom-assert.js) must never false-accuse a correctly-labelled input: legal-uk.md Fix 2 found 6/6 false "missing label" violations on a real WPForms form because the predicate trusted a single signal (native el.labels, which silently returns empty for a control whose id is duplicated elsewhere in the document). Self-driving fixture drives dom-assert.js\'s real controlNode() with a POSITIVE control (a genuinely unlabelled input still violates), six NEGATIVE controls (wrapping label, aria-label, aria-labelledby, explicit for/id, title, and hidden/submit/button/reset/image control types all pass), and the exact duplicate-id regression case (native .labels empty but an explicit for/id match exists - must not false-accuse). Self-sufficient (pure predicate, no browser/catalogue needed), runs safely BEFORE the catalogue compile in CI.',
+    fixtures: ['p6-domassert-label-no-false-accusation.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-domassert-label-no-false-accusation.js'],
+  },
+
+  // ---- P6: the dead non-English honesty gate, now wired (repetition-audit-2026-07-19.md class #4, C-022) ----
+  {
+    name: 'p6-corpus-language-gate-fires',
+    description:
+      'breach/proposers/propose.js\'s isNonEnglishGated() has always correctly read bundle.corpus.language, but nothing ever ASSIGNED that field (hidden-defects.md RANK 6), so a non-English site ran English patterns and rendered near-clean instead of honestly unassessed (caution.md C-022). evidence/crawler/language.js is now the producer, wired at crawl.js\'s one corpus-assembly door. Self-driving fixture drives the REAL end-to-end path: detectLanguage() feeding a bundle propose() actually evaluates. POSITIVE control: a confidently non-English corpus carrying a real violating phrase gates to ZERO candidates. NEGATIVE control: the identical phrase in a confidently English corpus still fires normally (the fix does not over-gate). Self-sufficient (a hand-built synthetic catalogue + bundle), runs safely BEFORE the catalogue compile in CI.',
+    fixtures: ['p6-corpus-language-gate-fires.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-corpus-language-gate-fires.js'],
+  },
 ];
 
 function findChecker(candidates) {
