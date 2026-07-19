@@ -383,7 +383,7 @@
     "serves_customers_in"
    ],
    "applies_when": [
-    "letting agent acts in connection with an assured shorthold tenancy, a licence to occupy or student accommodation of housing in England (Tenant Fees Act 2019 s.2 and s.28)",
+    "letting agent acts in connection with an assured tenancy (an assured shorthold tenancy before the Renters' Rights Act 2025 conversion of assured shortholds to assured tenancies in force from 1 May 2026), a licence to occupy or student accommodation of housing in England (Tenant Fees Act 2019 s.2 and s.28, as amended by the Renters' Rights Act 2025)",
     "the website advertises properties to let or sets out the payments a tenant will be asked to make"
    ],
    "excluded_when": [
@@ -592,9 +592,9 @@
     {
      "case": "HMRC public register of businesses that have not complied with the Money Laundering Regulations (2025 to 2026)",
      "date": "2026-02",
-     "amount": "GBP 835,842 across 170 estate agency penalties; individual estate-agency penalties from about GBP 1,500 to over GBP 50,000",
+     "amount": "Individual estate agency penalties into the tens of thousands of pounds (the highest in the period to 30 September 2025 about GBP 26,200); the register lists penalised businesses individually and states no sector total",
      "url": "https://www.gov.uk/government/publications/businesses-not-complying-with-money-laundering-regulations-in-2018-to-2019/businesses-that-have-not-complied-with-the-money-laundering-regulations-2025-to-2026",
-     "summary": "HMRC’s public non-compliance register added 170 estate agency penalties totalling GBP 835,842 for the six months to 30 September 2025, most for trading without registering on time."
+     "summary": "HMRC’s public non-compliance register lists estate agency businesses penalised under the Money Laundering Regulations in the period to 30 September 2025, most for failing to register on time; individual penalties run into the tens of thousands of pounds."
     }
    ],
    "intel": {

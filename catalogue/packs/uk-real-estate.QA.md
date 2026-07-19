@@ -1,4 +1,4 @@
-<!-- qa-approval pack_sha256=ee8a6859b435c9b2bdc91c57801c7345883f1830b934b77069ec56fcd80e6928 verdict=approved reviewed=2026-07-19 -->
+<!-- qa-approval pack_sha256=08cd536ea3ed60472f06b7b81dc4085348f2a0c14c87f68299861de5bcc67240 verdict=approved reviewed=2026-07-19 -->
 Integrity attestation and primary-source verification record (law-researcher, 2026-07-19). This attests that every record in this pack was authored from, and checked against, the official source named in its citation (legislation.gov.uk instrument pages fetched through the crawl-render service, since legislation.gov.uk bot-walls a plain fetch and its data endpoints answer 202 while generating, per caution.md C-129; GOV.UK and regulator pages fetched directly), and that the pack is unchanged since verification: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires an independent adversarial legal-QA pass, CI-green, and founder (Aman) phase sign-off at PR merge.
 
 # uk-real-estate law pack QA
@@ -67,3 +67,36 @@ Tightly scoped to what an England estate and lettings agency website is actually
 - em/en dashes: 0.
 - 8 records, schema-valid (0 violations), all currency GBP, all status `candidate`.
 - All four catalogue linters (citation-completeness, polarity, regex-health, threshold-guard): 0 violations each on this pack.
+
+---
+
+## Adversarial legal-QA pass (independent verifier, 2026-07-19)
+
+Verdict: GO-WITH-FIXES, fixes applied in place. checked 8 / confirmed 8 / corrected 2 / downgraded 0 / CRITICAL 0. Pack re-stamped (pack_sha256 above updated from ee8a6859... to 08cd536e... after the two corrections below).
+
+Citation truth (official-source spot-check, 6 of 8 records verified live; legislation.gov.uk bot-walls a plain fetch per C-129, so SI titles/numbers were verified via search-indexed legislation.gov.uk result titles and GOV.UK, and two PDFs/GOV.UK pages fetched directly):
+- SI 2008/1712 (Estate Agents (Redress Scheme) Order) and SI 2008/1713 (Penalty Charge Regs, GBP 1,000 fixed) confirmed.
+- SI 2014/2359 (Lettings/Property-Management Redress Order, art.8 max GBP 5,000) confirmed.
+- SI 2019/386 (CMP Schemes for Property Agents Regs; reg 4(1)(c) "publish a copy of the certificate on the agent's website"; reg 6 GBP 30,000 / reg 7 GBP 5,000) confirmed. The builder's self-caught 386-not-390 error stands: 2019/390 is the Air Quality Standards (Wales) (Amendment)(EU Exit) Regs.
+- CRA 2015 s.83 ("publish a list of the fees on the agent's website") and s.87 (max GBP 5,000) confirmed.
+- SI 2017/692 (MLR 2017; estate agents relevant persons; HMRC supervisor; reg 13 definitions; high-value lettings threshold EUR 10,000/month) confirmed, up to date to 12 July 2026.
+- DMCCA 2024 s.227 misleading omissions in force 6 April 2025 by SI 2025/272; s.240 penalty (up to 2 years / unlimited fine on indictment); CMA civil penalty up to GBP 300,000 or 10% global turnover confirmed.
+- SI 2012/3118 (EPB (England and Wales) Regs) confirmed.
+
+Enforcement reality (2 of 2 dated cases spot-verified on official host):
+- UK_LETTINGS_REDRESS_2014: Peoples Property Management Ltd v London Borough of Tower Hamlets, FTT ref LON/00BG/HLP/2025/0001, decided 6 Feb 2026, GBP 4,250 penalty under art.8 for the art.5 (property management) redress-membership breach. PDF re-extracted verbatim: "imposed a penalty on the Applicant in the sum of GBP 4,250"; "the amount of the monetary penalty may not exceed GBP 5,000". Fully confirmed.
+- UK_MLR_2017_ESTATE_AGENCY enforcement[0]: HMRC 11 Oct 2022 crackdown, GBP 519,645 across 68 businesses, director (Century House Estates) banned 2 years. Fully confirmed on gov.uk.
+
+Corrections applied (both safely verified; diff limited to pack + this sidecar):
+1. UK_TENANT_FEES_ACT_2019 applies_when[0]: "an assured shorthold tenancy" was stale. The Renters' Rights Act 2025 abolished assured shorthold tenancies and converted them to assured tenancies from 1 May 2026 (already in force at this QA date, 2026-07-19), amending the Tenant Fees Act (GOV.UK guidance "Tenant Fees Act amended by the Renters' Rights Act 2025"). Rewritten to "an assured tenancy ... as amended by the Renters' Rights Act 2025", historical AST reference retained. The GBP 5,000 / GBP 30,000 penalties and the deposit caps are unchanged.
+2. UK_MLR_2017_ESTATE_AGENCY enforcement[1] (amount + summary): the cited GOV.UK non-compliance register (period to 30 Sept 2025) does NOT support "GBP 835,842 across 170 estate agency penalties ... to over GBP 50,000". Two independent reads of the cited page: the highest single estate-agency penalty is about GBP 26,200 (none exceed GBP 50,000) and the page states NO sector total. Rewritten to page-supported language (individual penalties into the tens of thousands, highest about GBP 26,200, no stated total). enforcement[0] (2022) is untouched and remains the record's bulletproof case; penalty.basis's general historical "six figures" claim is left (historically defensible, e.g. Countrywide 2019).
+
+Polarity red-team (C-046/C-048): all 8 correct. presence=required disclosures (fire when missing); register=membership/registration facts; absence=the one true prohibition (UK_TENANT_FEES_ACT_2019, breach = a prohibited fee being present); behavioural=DMCCA misleading actions. No record would accuse a compliant firm that makes its disclosures. One DOWNSTREAM caution (not a record defect, for the P3 breach detector): the Tenant Fees 'absence' detector must carry a negation guard so a compliant "we do not charge admin/referencing fees" statement is not read as the banned fee being present (C-048/C-060 Botox-U18 class); the elements list banned-fee tokens, so a bare text-presence check is unsafe without the guard.
+
+Thresholds (C-071): UK_MLR_2017_ESTATE_AGENCY carve-out confirmed correct - a letting agency all of whose lettings are below EUR 10,000/month and which does no sales work is not a relevant person; estate agency (sales) is in scope at any value. No other record over-reaches a size/turnover threshold.
+
+Fines sanity (C-096/C-104/C-244): every non-null statutory_max verified (redress GBP 1,000; lettings redress GBP 5,000; CMP GBP 30,000; CRA GBP 5,000; Tenant Fees GBP 30,000 repeat-only, marked rare). Two honest all-null penalties confirmed correct: DMCCA (no fixed criminal ceiling + CMA turnover %) and EPC advertisement duty (reg 11 not among the penalty-charge breaches). No invented or headline-the-cap figures.
+
+Usefulness (C-236): all 8 have a concrete firing signal on a real agency site (redress-scheme footer line; lettings redress line; published CMP certificate; the tenant/landlord fee page with CMP+redress statements; banned fees/oversized holding deposit; missing Part A material info in listings; HMRC AML register row; missing EPC band). Two crawl-precondition caveats: EPC (engine cannot easily confirm a valid EPC exists, so absence of a band should route to observation/needs-review, consistent with the null penalty) and material-information (depends on reaching listing detail pages). None is dead weight.
+
+Open-question verdicts: (a) DMCCA currency - s.227 and SI 2025/272 confirmed in force; property-specific heads remain guidance-attributed pending CMA property guidance, correctly modelled. (b) Renters' Rights Act 2025 - highest staleness vector; the only cited item it touched (AST terminology) is now corrected; no cited figure was changed by it. (c) NTSELAT Bristol City Council host (bristol.gov.uk) - would be a legitimate official-host addition for prohibition-order/CMP grounding in a later pass; not required for merge.
