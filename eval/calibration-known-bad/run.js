@@ -244,6 +244,15 @@ const CALIBRATIONS = [
     fixtures: ['p4-applicability-leak.js'],
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-applicability-leak.js'],
   },
+
+  // ---- P4 one-door gate addition (tools/one-door/check.js, the C-207 consumer-call-site exemption) ----
+  {
+    name: 'p4-onedoor-second-producer',
+    description:
+      'the one-door gate (Constitution Rule 1; the multiple-producer class that shipped a P0 three times) must flag a SECOND producer smuggled into the mint path in BOTH shapes - a `function resolveSector(...)` definition and an `exports.resolveIdentity = ...` export - while NOT flagging a legitimate `sector.resolveSector(bundle)` consumer member-call (the C-207 exemption; an over-eager exemption that stopped catching the definition/export would be as dangerous as the original false positive, so this fixture guards both directions). Self-driving fixture drives one-door\'s own loadFacts()/scanContent() over in-memory synthetic content, so it needs NO compiled catalogue and runs safely BEFORE the catalogue compile in CI.',
+    fixtures: ['p4-onedoor-second-producer.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-onedoor-second-producer.js'],
+  },
 ];
 
 function findChecker(candidates) {
