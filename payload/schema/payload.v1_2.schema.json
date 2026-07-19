@@ -42,11 +42,12 @@
     },
     "quote": {
       "type": "object",
-      "required": ["evidence_id", "byte_start", "byte_end"],
+      "required": ["evidence_id", "byte_start", "byte_end", "span_sha256"],
       "properties": {
         "evidence_id": { "type": "string", "minLength": 1 },
         "byte_start": { "type": "integer", "minimum": 0 },
         "byte_end": { "type": "integer", "minimum": 0 },
+        "span_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "text": { "type": ["string", "null"] }
       }
     },

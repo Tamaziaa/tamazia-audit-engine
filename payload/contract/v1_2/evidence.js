@@ -84,16 +84,33 @@ function assertQuoteOffsets(s) {
   }
   if (s.byte_start > s.byte_end) throw new Error('Quote: byte_start must be <= byte_end (' + s.byte_start + ' > ' + s.byte_end + ')');
 }
+// SPAN_HASH_RE: span_sha256 must be a 64-char lowercase-hex commitment (the crypto.digest('hex') shape),
+// mirroring supervised/finding.js's proven pattern.
+const SPAN_HASH_RE = /^[0-9a-f]{64}$/;
+// assertQuoteSpanHash(s) -> THROWS unless span_sha256 is a 64-char lowercase-hex commitment. Without this,
+// an offset range with no declared text degenerates to "any in-bounds slice verifies" at verify-quote.js
+// (the choke point this constructor exists to close): span_sha256 is a one-way hash of the EXACT bytes at
+// [byte_start, byte_end), computed by the producer and re-checked by verify-quote.js, so a drifted or
+// hand-assembled span is refused (blueprint 2.2 / P0-2, the same commitment supervised/finding.js already
+// enforces on the other lane).
+function assertQuoteSpanHash(s) {
+  if (typeof s.span_sha256 !== 'string' || !SPAN_HASH_RE.test(s.span_sha256)) {
+    throw new Error('Quote: span_sha256 is required and must be a 64-char lowercase-hex commitment to the exact bytes at the offsets (a hash, never the words - so an offset range with no declared text cannot verify against arbitrary in-bounds bytes)');
+  }
+}
 // Quote(spec) -> a frozen, branded quote. NEVER a string: a fabricated quote has no resolvable triple. The
 // optional `text` is the render-facing string that verify_quote re-derives from the bytes and confirms.
+// span_sha256 is MANDATORY (fail-closed): the one-way commitment to the exact byte span that makes an
+// unanchored offset range unrepresentable as a Quote.
 function Quote(spec) {
   if (typeof spec === 'string') {
-    throw new Error('Quote: a quote is offsets into fetched evidence, NEVER a bare string. Build it as { evidence_id, byte_start, byte_end } so a fabricated quote has no resolvable triple (blueprint 2.2).');
+    throw new Error('Quote: a quote is offsets into fetched evidence, NEVER a bare string. Build it as { evidence_id, byte_start, byte_end, span_sha256 } so a fabricated quote has no resolvable triple (blueprint 2.2).');
   }
   const s = spec || {};
   reqString(s.evidence_id, 'evidence_id', 'Quote');
   assertQuoteOffsets(s);
-  return freeze({ evidence_id: s.evidence_id, byte_start: s.byte_start, byte_end: s.byte_end, text: s.text == null ? null : String(s.text) }, brands.quote);
+  assertQuoteSpanHash(s);
+  return freeze({ evidence_id: s.evidence_id, byte_start: s.byte_start, byte_end: s.byte_end, span_sha256: s.span_sha256, text: s.text == null ? null : String(s.text) }, brands.quote);
 }
 
 module.exports = {

@@ -27,7 +27,7 @@ function realEvidenceAndQuote(text) {
     id: 'ev1', lane: 'static', url_final: 'https://x.example/', fetched_at: '2026-07-20T00:00:00Z',
     bytes_sha256: v.sha256Hex(bytes), content_type: 'text/html', status: v.evidenceStatusOK(),
   });
-  const quote = v.Quote({ evidence_id: 'ev1', byte_start: start, byte_end: start + text.length, text });
+  const quote = v.Quote({ evidence_id: 'ev1', byte_start: start, byte_end: start + text.length, text, span_sha256: v.sha256Hex(Buffer.from(text, 'utf8')) });
   return { bytes, rec, quote };
 }
 function goodManifest() {
@@ -83,9 +83,15 @@ test('INVARIANT b: an absence breach WITHOUT a threshold-met multi-method certif
 
 test('a Quote cannot be built from a bare string (blueprint 2.2)', () => {
   assert.throws(() => v.Quote('Book your Botox'), /NEVER a bare string/);
-  assert.throws(() => v.Quote({ evidence_id: 'ev1', byte_start: 5, byte_end: 2 }), /byte_start must be <= byte_end/);
-  const q = v.Quote({ evidence_id: 'ev1', byte_start: 0, byte_end: 3 });
+  assert.throws(() => v.Quote({ evidence_id: 'ev1', byte_start: 5, byte_end: 2, span_sha256: 'a'.repeat(64) }), /byte_start must be <= byte_end/);
+  const q = v.Quote({ evidence_id: 'ev1', byte_start: 0, byte_end: 3, span_sha256: 'a'.repeat(64) });
   assert.ok(v.isQuote(q));
+});
+
+test('CRITICAL-1: a Quote cannot be built without a real span_sha256 commitment (fail-closed)', () => {
+  assert.throws(() => v.Quote({ evidence_id: 'ev1', byte_start: 0, byte_end: 3 }), /span_sha256 is required/);
+  assert.throws(() => v.Quote({ evidence_id: 'ev1', byte_start: 0, byte_end: 3, span_sha256: 'too-short' }), /span_sha256 is required/);
+  assert.throws(() => v.Quote({ evidence_id: 'ev1', byte_start: 0, byte_end: 3, span_sha256: 'F'.repeat(64) }), /span_sha256 is required/); // uppercase hex refused (lowercase-only)
 });
 
 test('a violation Breach requires a REAL Quote (a look-alike offsets object is refused)', () => {

@@ -25,10 +25,23 @@ const BREACH_KIND_SET = new Set(v1_2.BREACH_KINDS);
 const BREACH_CLASS_SET = new Set(v1_2.BREACH_CLASSES);
 const HEX64 = /^[0-9a-f]{64}$/;
 
-// payloadVersionOf(payload) -> '1.2' only when the payload explicitly carries payload_version '1.2';
-// anything else (absent, '1.1', legacy) is the v1.1 render-contract payload.
+// looksLikeV1_2Verdicts(payload) -> true when payload.verdicts is an array containing at least one element
+// shaped like a lattice verdict (carries a `kind` field). A payload can decline to declare payload_version
+// '1.2' while still carrying this shape - HIGH-4: shape-sniff, don't trust the label, because a payload
+// declaring no version (or a stale '1.1') otherwise falls through to the v1.1 render-contract validator,
+// which does not know Breach/Clean/Unknown verdicts at all and passes it straight through unchecked
+// (checkedQuotes:0, checkedRefs:0 - the mint never re-verifies a single quote, law or penalty in it).
+function looksLikeV1_2Verdicts(payload) {
+  if (!payload || !Array.isArray(payload.verdicts)) return false;
+  return payload.verdicts.some((vd) => vd && typeof vd === 'object' && typeof vd.kind === 'string');
+}
+// payloadVersionOf(payload) -> '1.2' when the payload explicitly carries payload_version '1.2' OR its
+// verdicts[] is lattice-shaped regardless of the declared version (HIGH-4); anything else (absent, '1.1',
+// legacy, no lattice-shaped verdicts) is the v1.1 render-contract payload.
 function payloadVersionOf(payload) {
-  return payload && payload.payload_version === V1_2 ? V1_2 : '1.1';
+  if (payload && payload.payload_version === V1_2) return V1_2;
+  if (looksLikeV1_2Verdicts(payload)) return V1_2;
+  return '1.1';
 }
 
 // ── v1.2 structural validation (pure, zero-dep) ─────────────────────────────────────────────────────────
@@ -80,12 +93,15 @@ function absenceCertProves(cert) {
   if (!Array.isArray(cert.discovery_methods)) return false;
   return new Set(cert.discovery_methods).size >= 2; // >= 2 DISTINCT methods (CodeRabbit PR #33)
 }
-// badQuoteShape(q) -> the quote is not a { evidence_id:string, byte_start:int, byte_end:int } shape,
-// matching the evidence.js Quote constructor and the schema. Catalogue RESOLUTION stays the mint-time
-// gate's job; here we only assert the SHAPE is present and typed (CodeRabbit PR #33).
+// badQuoteShape(q) -> the quote is not a { evidence_id:string, byte_start:int, byte_end:int,
+// span_sha256:64-hex } shape, matching the evidence.js Quote constructor and the schema. span_sha256 is
+// REQUIRED (CRITICAL-1): a quote with no span commitment is unverifiable by construction. Catalogue
+// RESOLUTION stays the mint-time gate's job; here we only assert the SHAPE is present and typed (CodeRabbit
+// PR #33).
 function badQuoteShape(q) {
   if (!q || typeof q.evidence_id !== 'string') return true;
-  return !Number.isInteger(q.byte_start) || !Number.isInteger(q.byte_end);
+  if (!Number.isInteger(q.byte_start) || !Number.isInteger(q.byte_end)) return true;
+  return badHex64(q.span_sha256);
 }
 // checkBreachProof(vd, ctx, errors): the per-kind proof requirement (absence -> certificate; else quote).
 function checkBreachProof(vd, ctx, errors) {
