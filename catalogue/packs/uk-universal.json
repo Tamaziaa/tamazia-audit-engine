@@ -1119,6 +1119,192 @@
     "verified_date": "2026-07-16",
     "last_synced": "2026-07-17"
    }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_GDPR_INTERNATIONAL_TRANSFER",
+   "name": "UK GDPR international data transfers (restricted transfers of personal data to a third country outside the UK)",
+   "citation": {
+    "act": "UK GDPR (assimilated Regulation (EU) 2016/679), Chapter V, as amended by the Data (Use and Access) Act 2025; Data Protection Act 2018 Part 2",
+    "section": "Arts 44A (general principles for transfers), 45A (transfers approved by adequacy regulations), 46 (appropriate safeguards, including the ICO International Data Transfer Agreement and the UK Addendum), 47A (standard data protection clauses) and 49 (derogations); higher-tier penalty under Art 83(5)(c). Chapter V substituted and amended by the Data (Use and Access) Act 2025 s.142 and Sch 7, in force 5 February 2026 (SI 2026/82)",
+    "url": "https://www.legislation.gov.uk/eur/2016/679/article/44A"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "cookies_present",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "processes_residents_of",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "personal data of UK residents reaches a receiver outside the UK (a third country or international organisation), including through overseas hosting, content-delivery, advertising, audience-measurement, tag-management or embedded-media services that receive IP addresses or other online identifiers",
+    "a processor, parent, affiliate or supplier located outside the UK stores or accesses UK personal data collected through the website"
+   ],
+   "excluded_when": [
+    "the receiver is covered by UK adequacy regulations under Art 45A (for example the EEA, or a US organisation self-certified to the UK Extension to the EU-US Data Privacy Framework under the Data Protection (Adequacy) (United States of America) Regulations 2023, in force 12 October 2023), so no additional safeguard is required and a third-country receiver alone does not prove an unlawful transfer",
+    "an appropriate safeguard under Art 46 is already in place (the ICO International Data Transfer Agreement, the UK Addendum to the EU standard contractual clauses, or standard data protection clauses under Art 47A) supported by a transfer risk assessment",
+    "an Art 49 derogation genuinely applies (for example the individual's explicit consent, or a transfer necessary for a contract with the individual)",
+    "processing and hosting are intra-UK only, with no personal data reaching any receiver outside the UK"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Where website personal data reaches a receiver outside the UK, rely on a valid Chapter V transfer route (adequacy regulations, an Art 46 appropriate safeguard such as the ICO International Data Transfer Agreement or Addendum, or an Art 49 derogation); an observed third-country receiver of personal data is a signal to review the transfer basis, not by itself proof of an unlawful transfer",
+     "elements": [
+      "each third-country receiver of personal data (overseas hosting, advertising, tag-management, content-delivery or embedded-media provider) mapped to a lawful transfer route",
+      "adequacy relied on only where Art 45A adequacy regulations actually cover the receiver, for example a US recipient self-certified to the UK Extension to the EU-US Data Privacy Framework",
+      "where no adequacy applies, an Art 46 safeguard (the ICO International Data Transfer Agreement or Addendum) in place with a transfer risk assessment recorded",
+      "the privacy notice names the international transfer and the specific mechanism relied on"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 250000,
+    "typical_high": 7552800,
+    "statutory_max": 17500000,
+    "currency": "GBP",
+    "basis": "Higher maximum of GBP 17,500,000 or 4% of total worldwide annual turnover, whichever is higher (UK GDPR Art 83(5)(c), covering transfers under Arts 44A to 49). The ICO has not issued a monetary penalty for a pure Chapter V transfer breach, so the modelled band reflects the ICO's cross-border and higher-tier practice (the GBP 7,552,800 Clearview AI fine, 2022) and the reprimand-first reality for transfer issues; the landmark restricted-transfer penalty is the EU/EDPB Meta decision (EUR 1.2bn, May 2023).",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Information Commissioner's Office (ICO)",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "ICO v Clearview AI Inc (Upper Tribunal judgment)",
+     "date": "2025-10",
+     "amount": "GBP 7,552,800",
+     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/10/uk-upper-tribunal-hands-down-judgment-on-clearview-ai-inc/",
+     "summary": "Illustrates ICO enforcement over the cross-border processing of UK residents' personal data by a US company: the ICO fined Clearview AI Inc GBP 7,552,800 in May 2022 for scraping UK residents' images into a global facial-recognition database. The fine rested on lawful basis and transparency rather than the Chapter V export-mechanism rules; after appeals, the Upper Tribunal (October 2025) upheld three of the ICO's four grounds. The archetypal restricted-transfer penalty remains the EU/EDPB Meta decision (EUR 1.2bn, 22 May 2023), an EU action noted for context, not UK enforcement."
+    }
+   ],
+   "intel": {
+    "why_matters": "Almost every website sends personal data abroad the moment it loads a US-hosted advertising, hosting or embedded-media tool, and since the Data (Use and Access) Act reforms (in force 5 February 2026) that transfer needs a lawful Chapter V route unless the receiver is covered by UK adequacy such as the UK Extension to the EU-US Data Privacy Framework.",
+    "regulator_asks_first": "Which of your website tools send personal data outside the UK, and for each one, is it adequacy-covered, on an Art 46 safeguard with a transfer risk assessment, or relying on an Art 49 derogation?",
+    "relevance_hook": "A US-hosted tracker or pixel receiving a visitor's IP address is a visible international-transfer signal to review; it is only lawful if the receiver is adequacy-certified (for example under the UK Extension to the EU-US Data Privacy Framework) or covered by an appropriate safeguard, which is why this needs review rather than an automatic breach."
+   },
+   "provenance": {
+    "sources": [
+     "legislation.gov.uk UK GDPR Art 44A (general principles for transfers), verified 2026-07-19 (Chapter V substituted by the Data (Use and Access) Act 2025 s.142 and Sch 7, in force 5 February 2026)",
+     "legislation.gov.uk UK GDPR Art 46 and Art 47A (appropriate safeguards; standard data protection clauses) and Art 49 (derogations), verified 2026-07-19",
+     "legislation.gov.uk UK GDPR Art 83(5)(c) higher-tier penalty (transfers under Arts 44A to 49; GBP 17,500,000 or 4%), verified 2026-07-19",
+     "GOV.UK UK-US data bridge factsheet and the Data Protection (Adequacy) (United States of America) Regulations 2023 (SI 2023/1028), in force 12 October 2023, verified 2026-07-19",
+     "ICO guidance: how the UK Extension to the EU-US Data Privacy Framework works; international transfers and the UK IDTA/Addendum, verified 2026-07-19",
+     "ICO Clearview AI Inc (Upper Tribunal judgment, October 2025) and the Clearview May 2022 fine, verified 2026-07-19",
+     "Comparative context (not UK enforcement): EU/EDPB Meta Platforms Ireland Chapter V transfer decision, EUR 1.2bn, 22 May 2023"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "id": "UK_DATA_SECURITY_TRANSPORT",
+   "name": "UK GDPR security of processing (encryption in transit and secure transport of personal data submitted through the website)",
+   "citation": {
+    "act": "UK GDPR (assimilated Regulation (EU) 2016/679); Data Protection Act 2018 Part 2",
+    "section": "Art 32 (security of processing, including the encryption of personal data) read with Art 5(1)(f) (integrity and confidentiality); standard-tier penalty under Art 83(4)",
+    "url": "https://www.legislation.gov.uk/eur/2016/679/article/32"
+   },
+   "sector": [
+    "universal"
+   ],
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c",
+    "ecommerce",
+    "payments"
+   ],
+   "required_nexus": [
+    "processes_residents_of",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "collects personal data from visitors through the website (contact, account, enquiry, checkout or login forms)",
+    "transmits personal data between the browser and the server, or on to a payment or back-end service"
+   ],
+   "excluded_when": [
+    "the website collects no personal data at all (no forms, accounts, logins or payment fields)",
+    "personal data is transmitted only over an encrypted connection with no insecure or mixed-content transport path, and the controller's own risk assessment shows the transport security is appropriate to the risk"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Transmit personal data over the website using appropriate transport security (an encrypted HTTPS/TLS connection) so it is not sent in plaintext; a form on a secure page that submits to an insecure http endpoint, or mixed insecure content on a data-collecting page, is a transport-security risk indicator to review against the controller's own Art 32 risk assessment, not an automatic breach",
+     "elements": [
+      "personal-data forms submit over an encrypted https connection, not to a plaintext http action",
+      "no insecure or mixed-content transport path carries personal data on a page that collects it",
+      "transport uses current secure protocols (TLS, not deprecated SSL) consistent with the ICO encryption-in-transit guidance",
+      "the level of transport security is matched to the risk of the personal data collected, as the controller's Art 32 assessment records"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 60000,
+    "typical_high": 4400000,
+    "statutory_max": 8700000,
+    "currency": "GBP",
+    "basis": "Standard maximum of GBP 8,700,000 or 2% of total worldwide annual turnover, whichever is higher (UK GDPR Art 83(4), covering the Art 32 security obligations). Typical band from ICO Art 32 and Art 5(1)(f) security penalties: GBP 60,000 (DPP Law, 2025), GBP 98,000 (Tuckers Solicitors, 2022), GBP 1,228,283 (LastPass UK, 2025), GBP 3.07m (Advanced, 2025) and GBP 4.4m (Interserve, 2022); large-scale breaches reach higher through the 2% turnover route (British Airways GBP 20m and Marriott GBP 18.4m, 2020).",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Information Commissioner's Office (ICO)",
+    "register_url": null
+   },
+   "enforcement": [
+    {
+     "case": "ICO v LastPass UK Ltd",
+     "date": "2025-11",
+     "amount": "GBP 1,228,283",
+     "url": "https://ico.org.uk/action-weve-taken/enforcement/2025/11/lastpass-uk-ltd/",
+     "summary": "Penalty of GBP 1,228,283 issued to password-management provider LastPass UK Ltd on 20 November 2025 for infringements of Art 5(1)(f) and Art 32(1)(f) UK GDPR: a failure to implement appropriate technical and organisational measures to keep personal data secure."
+    },
+    {
+     "case": "ICO v Advanced Computer Software Group Ltd",
+     "date": "2025-03",
+     "amount": "GBP 3,070,000",
+     "url": "https://ico.org.uk/action-weve-taken/enforcement/2025/03/advanced-computer-software-group-limited/",
+     "summary": "Fined GBP 3.07m on 27 March 2025 for security failings that put the personal data of 79,404 people at risk; a 2022 ransomware attack reached a subsidiary's systems through a customer account with no multi-factor authentication (inadequate Art 32 technical measures)."
+    },
+    {
+     "case": "ICO v DPP Law Ltd",
+     "date": "2025-04",
+     "amount": "GBP 60,000",
+     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/04/law-firm-fined-60-000-following-cyber-attack/",
+     "summary": "Merseyside law firm DPP Law Ltd fined GBP 60,000 (16 April 2025) after a cyber attack led to a breach of highly sensitive personal data, following a failure to keep personal data secure under the UK GDPR security duty."
+    }
+   ],
+   "intel": {
+    "why_matters": "Every form that collects a name, email or payment detail must be transmitted securely; a page that submits personal data over plaintext http, or mixes insecure content, exposes that data in transit and is one of the clearest technical-security failings the ICO can point to.",
+    "regulator_asks_first": "Is every form that collects personal data submitted over an encrypted connection, and where is your assessment that the transport security is appropriate to the risk?",
+    "relevance_hook": "A login or checkout form that posts to an insecure http endpoint, or mixed insecure content on a data page, is a visible transport-security risk anyone can observe in the browser; it needs review against the site's own security assessment rather than an automatic verdict."
+   },
+   "provenance": {
+    "sources": [
+     "legislation.gov.uk UK GDPR Art 32 (security of processing; the pseudonymisation and encryption of personal data), verified 2026-07-19",
+     "legislation.gov.uk UK GDPR Art 83(4) standard-tier penalty (Arts 25 to 39 including Art 32; GBP 8,700,000 or 2%), verified 2026-07-19",
+     "ICO guidance 'Encryption and data transfer' (encryption in transit; HTTPS/TLS, not SSL), verified 2026-07-19",
+     "ICO LastPass UK Ltd penalty (Art 5(1)(f) and Art 32(1)(f), 20 November 2025), Advanced (27 March 2025) and DPP Law (16 April 2025) enforcement pages, verified 2026-07-19",
+     "DPA 2018 s.57 checked and NOT cited: it is 'data protection by design and default' in Part 3 (law-enforcement processing), not the general-processing security provision; general-processing security is UK GDPR Art 32 given domestic effect by DPA 2018 Part 2"
+    ],
+    "seed_status": "gap_filled",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
   }
  ]
 }
