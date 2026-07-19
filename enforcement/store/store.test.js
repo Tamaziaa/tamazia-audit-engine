@@ -25,8 +25,14 @@ const GOOD_ROW = Object.freeze({
   summary: 'Test fixture row: fixed test data, not a real enforcement action.',
 });
 
+// tmpStorePath() -> a store path inside a freshly-created, exclusively-owned temp directory.
+// CodeQL js/insecure-temporary-file: fs.mkdtempSync is the platform-safe primitive (atomic,
+// cryptographically-random suffix) for a private scratch directory; a fixed filename written inside
+// a directory nothing else could have pre-created carries none of the symlink/guessable-name risk a
+// hand-built `${os.tmpdir()}/name-${pid}-${Date.now()}` path does.
 function tmpStorePath() {
-  return path.join(os.tmpdir(), `enforcement-store-test-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.ndjson`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'enforcement-store-test-'));
+  return path.join(dir, 'store.ndjson');
 }
 
 test('the committed seed store loads and every row validates', () => {
@@ -59,7 +65,7 @@ test('appendRow then loadStore round-trips a valid row', () => {
   const rows = loadStore(storePath);
   assert.equal(rows.length, 1);
   assert.deepEqual(rows[0], GOOD_ROW);
-  fs.unlinkSync(storePath);
+  fs.rmSync(path.dirname(storePath), { recursive: true, force: true });
 });
 
 test('appendRow rejects a duplicate id', () => {
@@ -67,7 +73,7 @@ test('appendRow rejects a duplicate id', () => {
   fs.writeFileSync(storePath, '');
   appendRow(GOOD_ROW, storePath);
   assert.throws(() => appendRow(GOOD_ROW, storePath), /already exists/);
-  fs.unlinkSync(storePath);
+  fs.rmSync(path.dirname(storePath), { recursive: true, force: true });
 });
 
 test('writeStore rejects an array containing a malformed row (KNOWN-BAD CALIBRATION FIXTURE)', () => {
@@ -81,7 +87,7 @@ test('loadStore throws on a store file containing an invalid row (KNOWN-BAD CALI
   const storePath = tmpStorePath();
   fs.writeFileSync(storePath, `${JSON.stringify(GOOD_ROW)}\n{"id":"broken","source":"ICO"}\n`);
   assert.throws(() => loadStore(storePath), /invalid EnforcementAction row/);
-  fs.unlinkSync(storePath);
+  fs.rmSync(path.dirname(storePath), { recursive: true, force: true });
 });
 
 test('isValidRow is a non-throwing boolean form of assertValidRow', () => {

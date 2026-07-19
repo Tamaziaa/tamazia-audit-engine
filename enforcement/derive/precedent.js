@@ -22,44 +22,68 @@ function median(sortedNumbers) {
   return n % 2 === 0 ? (sortedNumbers[mid - 1] + sortedNumbers[mid]) / 2 : sortedNumbers[mid];
 }
 
-// buildPrecedentRanges(rows) -> Map<law_id, PrecedentRange>. Only rows carrying a penalty_amount AND
-// a currency contribute; a row with no monetary penalty (e.g. an ASA "upheld, no fine" ruling) is
-// correctly excluded from a MONETARY precedent range rather than counted as a zero (which would
-// silently drag every median toward zero and misrepresent the true penalty distribution).
-//
-// Multi-currency law_ids are kept SEPARATE per currency (never summed/converted - a currency
-// conversion is itself a fact this module has no authority to invent) so a mixed UK/EU law_id
-// produces one PrecedentRange per currency observed.
-function buildPrecedentRanges(rows, generatedAt) {
-  const byKey = new Map(); // key = `${law_id}::${currency}`
+// hasMonetaryPenalty(row) -> boolean. Only rows carrying a penalty_amount AND a currency contribute
+// to a MONETARY precedent range; a row with no fine (e.g. an ASA "upheld, no fine" ruling) is
+// correctly excluded rather than counted as a zero (which would silently drag every median toward
+// zero and misrepresent the true penalty distribution).
+function hasMonetaryPenalty(row) {
+  if (typeof row.penalty_amount !== 'number') return false;
+  return Boolean(row.currency);
+}
+
+// bucketFor(byKey, lawId, currency) -> the amounts/sources/dates accumulator for one
+// `${law_id}::${currency}` key, creating it on first use.
+function bucketFor(byKey, lawId, currency) {
+  const key = `${lawId}::${currency}`;
+  if (!byKey.has(key)) byKey.set(key, { law_id: lawId, currency, amounts: [], sources: [], dates: [] });
+  return byKey.get(key);
+}
+
+// groupRowsByLawIdAndCurrency(rows) -> Map<`${law_id}::${currency}`, bucket>. Multi-currency
+// law_ids are kept SEPARATE per currency (never summed/converted - a currency conversion is itself a
+// fact this module has no authority to invent), so a mixed UK/EU law_id produces one bucket per
+// currency observed. Split out of buildPrecedentRanges so neither function nests a loop inside a
+// loop inside a conditional (CodeScene Bumpy Road Ahead).
+function groupRowsByLawIdAndCurrency(rows) {
+  const byKey = new Map();
   for (const row of rows) {
-    if (typeof row.penalty_amount !== 'number' || !row.currency) continue;
+    if (!hasMonetaryPenalty(row)) continue;
     for (const lawId of row.law_ids) {
-      const key = `${lawId}::${row.currency}`;
-      if (!byKey.has(key)) byKey.set(key, { law_id: lawId, currency: row.currency, amounts: [], sources: [], dates: [] });
-      const bucket = byKey.get(key);
+      const bucket = bucketFor(byKey, lawId, row.currency);
       bucket.amounts.push(row.penalty_amount);
       bucket.sources.push({ entity_name: row.entity_name, url: row.url, sha256: row.sha256, decision_date: row.decision_date, penalty_amount: row.penalty_amount });
       bucket.dates.push(row.decision_date);
     }
   }
+  return byKey;
+}
 
+// rangeFromBucket(bucket, generatedAt) -> one PrecedentRange, computed from a single
+// law_id/currency bucket's accumulated amounts and dates.
+function rangeFromBucket(bucket, generatedAt) {
+  const sorted = [...bucket.amounts].sort((a, b) => a - b);
+  const sortedDates = [...bucket.dates].sort();
+  return {
+    law_id: bucket.law_id,
+    currency: bucket.currency,
+    n: sorted.length,
+    min: sorted[0],
+    median: median(sorted),
+    max: sorted[sorted.length - 1],
+    date_range: { from: sortedDates[0], to: sortedDates[sortedDates.length - 1] },
+    low_confidence: sorted.length < LOW_CONFIDENCE_THRESHOLD,
+    sources: bucket.sources,
+    generated_at: generatedAt,
+  };
+}
+
+// buildPrecedentRanges(rows) -> Map<law_id, PrecedentRange>. See groupRowsByLawIdAndCurrency and
+// rangeFromBucket above for the two halves of this pure arithmetic pass.
+function buildPrecedentRanges(rows, generatedAt) {
+  const byKey = groupRowsByLawIdAndCurrency(rows);
   const ranges = new Map();
   for (const [key, bucket] of byKey) {
-    const sorted = [...bucket.amounts].sort((a, b) => a - b);
-    const sortedDates = [...bucket.dates].sort();
-    ranges.set(key, {
-      law_id: bucket.law_id,
-      currency: bucket.currency,
-      n: sorted.length,
-      min: sorted[0],
-      median: median(sorted),
-      max: sorted[sorted.length - 1],
-      date_range: { from: sortedDates[0], to: sortedDates[sortedDates.length - 1] },
-      low_confidence: sorted.length < LOW_CONFIDENCE_THRESHOLD,
-      sources: bucket.sources,
-      generated_at: generatedAt,
-    });
+    ranges.set(key, rangeFromBucket(bucket, generatedAt));
   }
   return ranges;
 }

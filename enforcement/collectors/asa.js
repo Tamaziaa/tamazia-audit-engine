@@ -10,7 +10,7 @@
 // breached, which is the highest-quality raw material for violation-lexicon phrases (POM
 // advertising, misleading price claims).
 
-const { stripHtmlToText, firstMatch, firstCurlyQuote } = require('./lib/text');
+const { stripHtmlToText, firstCurlyQuote } = require('./lib/text');
 const { collectFromSource } = require('./lib/framework');
 
 const SOURCE = 'ASA';

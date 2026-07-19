@@ -17,8 +17,11 @@
 function stripHtmlToText(html) {
   if (typeof html !== 'string') throw new TypeError('stripHtmlToText requires a string');
   let text = html;
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, ' ');
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  // CodeQL js/bad-tag-filter: the closing-tag half of these two regexes must tolerate the
+  // whitespace-before-`>` form (`</script  >`) real pages occasionally carry - a bare `<\/script>`
+  // does not match it, silently leaving that script's body content sitting in the extracted text.
+  text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ');
+  text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ');
   text = text.replace(/<!--[\s\S]*?-->/g, ' ');
   text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n');

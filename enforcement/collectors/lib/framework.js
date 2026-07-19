@@ -13,6 +13,44 @@
 const { fetchWithDeadline } = require('./fetcher');
 const { isValidRow, assertValidRow } = require('../../store/schema');
 
+// fetchErrorResult(fetched, source, url) -> the ok:false shape for a failed fetch. A failed fetch is
+// a typed, reported LaneError - never an empty rows[] masquerading as "no enforcement actions today"
+// (the same discipline evidence/registers/lib/lookup-runner.js uses).
+function fetchErrorResult(fetched, source, url) {
+  const detail = fetched.error ? String(fetched.error.message || fetched.error) : null;
+  return { ok: false, reason: fetched.reason, source, url, detail };
+}
+
+// parseCandidates(parse, fetched, source, url) -> Array | the ok:false parse_error shape (never
+// throws). Isolates the ONE try/catch this file needs so collectFromSource's own body stays a flat
+// sequence of guard clauses (CodeScene Complex Method).
+function parseCandidates(parse, fetched, source, url) {
+  try {
+    const candidates = parse(fetched.text, { url: fetched.url, sha256: fetched.sha256, fetchedAt: fetched.fetchedAt, source });
+    if (Array.isArray(candidates)) return candidates;
+    return { ok: false, reason: 'parse_error', source, url, detail: 'parser did not return an array' };
+  } catch (err) {
+    // FAIL-OPEN: a parser exception is a structural drift signal (the source's page/JSON shape
+    // changed). It is never rethrown or logged here because turning it into the typed
+    // {ok:false, reason:'parse_error', detail} result IS the record - the caller (and every test in
+    // this directory) reads that discriminated result, never swallowed into a silent empty array.
+    return { ok: false, reason: 'parse_error', source, url, detail: err.message };
+  }
+}
+
+// classifyCandidates(candidates) -> { rows, rejected }. Splits the parser's raw candidates into
+// schema-valid rows and rejected (row, error) pairs, one door for both the store writer and this
+// collection report to trust (Rule 1).
+function classifyCandidates(candidates) {
+  const rows = [];
+  const rejected = [];
+  for (const candidate of candidates) {
+    if (isValidRow(candidate)) rows.push(candidate);
+    else rejected.push({ row: candidate, error: describeInvalid(candidate) });
+  }
+  return { rows, rejected };
+}
+
 // collectFromSource({ source, url, deadlineMs, fetchImpl, parse, label })
 //   -> Promise<{ ok:true, rows: EnforcementAction[], rejected: {row, error}[], meta }
 //            | { ok:false, reason, source, url, detail }>
@@ -23,34 +61,12 @@ const { isValidRow, assertValidRow } = require('../../store/schema');
 async function collectFromSource({ source, url, deadlineMs, fetchImpl, parse, label }) {
   const doFetch = typeof fetchImpl === 'function' ? fetchImpl : fetchWithDeadline;
   const fetched = await doFetch(url, { deadlineMs, label: label || `${source}:${url}` });
+  if (!fetched.ok) return fetchErrorResult(fetched, source, url);
 
-  if (!fetched.ok) {
-    // A failed fetch is a typed, reported LaneError - never an empty rows[] masquerading as "no
-    // enforcement actions today" (the same discipline evidence/registers/lib/lookup-runner.js uses).
-    return { ok: false, reason: fetched.reason, source, url, detail: fetched.error ? String(fetched.error.message || fetched.error) : null };
-  }
+  const candidates = parseCandidates(parse, fetched, source, url);
+  if (!Array.isArray(candidates)) return candidates; // already the ok:false parse_error shape
 
-  let candidates;
-  try {
-    candidates = parse(fetched.text, { url: fetched.url, sha256: fetched.sha256, fetchedAt: fetched.fetchedAt, source });
-  } catch (err) {
-    // FAIL-OPEN: a parser exception is a structural drift signal (the source's page/JSON shape
-    // changed). It is never rethrown or logged here because turning it into the typed
-    // {ok:false, reason:'parse_error', detail} result IS the record - the caller (and every test in
-    // this directory) reads that discriminated result, never swallowed into a silent empty array.
-    return { ok: false, reason: 'parse_error', source, url, detail: err.message };
-  }
-  if (!Array.isArray(candidates)) {
-    return { ok: false, reason: 'parse_error', source, url, detail: 'parser did not return an array' };
-  }
-
-  const rows = [];
-  const rejected = [];
-  for (const candidate of candidates) {
-    if (isValidRow(candidate)) rows.push(candidate);
-    else rejected.push({ row: candidate, error: describeInvalid(candidate) });
-  }
-
+  const { rows, rejected } = classifyCandidates(candidates);
   return {
     ok: true,
     rows,

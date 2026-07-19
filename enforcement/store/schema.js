@@ -42,62 +42,148 @@ const SHA256_RX = /^[0-9a-f]{64}$/;
 // a general 3-uppercase-letter check so a future source's currency is not rejected by a closed enum.
 const CURRENCY_RX = /^[A-Z]{3}$/;
 
+// isPresent(value) -> boolean. The store's own "set" test: undefined and null both mean "not
+// supplied" for every optional field (offending_quote, penalty_amount, currency).
+function isPresent(value) {
+  if (value === undefined) return false;
+  return value !== null;
+}
+
+// isBlankString(value) -> boolean. True for anything that is not a non-empty, non-whitespace-only
+// string - the one shared test every string-shaped field below is validated against.
+function isBlankString(value) {
+  if (typeof value !== 'string') return true;
+  return value.trim().length === 0;
+}
+
+// --- one small assertion per field group, each a single guard clause (CodeScene Complex
+// Method/Complex Conditional/Bumpy Road Ahead: assertValidRow used to carry all of this in one
+// 44-branch function; every helper below is independently readable, independently testable, and
+// none chains more than one boolean operator in a single conditional). assertValidRow (below) is
+// unchanged in the field order it checks and the exact message each field throws.
+
+function assertPlainObjectRow(row) {
+  if (row === null) throw new TypeError('EnforcementAction row must be a plain object');
+  if (typeof row !== 'object') throw new TypeError('EnforcementAction row must be a plain object');
+  if (Array.isArray(row)) throw new TypeError('EnforcementAction row must be a plain object');
+}
+
+function assertRequiredStringFieldsPresent(row) {
+  for (const field of REQUIRED_STRING_FIELDS) {
+    if (!isBlankString(row[field])) continue;
+    throw new TypeError(`EnforcementAction.${field} must be a non-empty string`);
+  }
+}
+
+function assertKnownSource(row) {
+  if (SOURCES.includes(row.source)) return;
+  throw new TypeError(`EnforcementAction.source must be one of ${SOURCES.join(', ')}, got "${row.source}"`);
+}
+
+function assertIsoDecisionDate(row) {
+  if (ISO_DATE_RX.test(row.decision_date)) return;
+  throw new TypeError(`EnforcementAction.decision_date must be YYYY-MM-DD, got "${row.decision_date}"`);
+}
+
+function assertSha256Digest(row) {
+  if (SHA256_RX.test(row.sha256)) return;
+  throw new TypeError('EnforcementAction.sha256 must be a lowercase 64-hex-char sha256 digest');
+}
+
+// parseHttpUrl(value) -> URL. Throws the field-specific TypeError itself (rather than letting the
+// native URL constructor's TypeError escape) so every EnforcementAction validation failure carries
+// the same `EnforcementAction.<field>` message shape.
+function parseHttpUrl(value) {
+  try {
+    return new URL(value);
+  } catch (err) {
+    throw new TypeError(`EnforcementAction.url must be a valid absolute URL: ${err.message}`);
+  }
+}
+
+function assertHttpProtocol(parsedUrl) {
+  if (parsedUrl.protocol === 'https:') return;
+  if (parsedUrl.protocol === 'http:') return;
+  throw new TypeError('EnforcementAction.url must be http(s)');
+}
+
+function assertValidUrl(row) {
+  assertHttpProtocol(parseHttpUrl(row.url));
+}
+
+function assertLawIdsPresent(row) {
+  if (Array.isArray(row.law_ids) && row.law_ids.length > 0) return;
+  throw new TypeError('EnforcementAction.law_ids must be a non-empty array of strings');
+}
+
+function assertLawIdEntriesValid(row) {
+  for (const lawId of row.law_ids) {
+    if (!isBlankString(lawId)) continue;
+    throw new TypeError('EnforcementAction.law_ids entries must be non-empty strings');
+  }
+}
+
+function assertLawIds(row) {
+  assertLawIdsPresent(row);
+  assertLawIdEntriesValid(row);
+}
+
+function assertOffendingQuote(row) {
+  if (!isPresent(row.offending_quote)) return;
+  if (!isBlankString(row.offending_quote)) return;
+  throw new TypeError('EnforcementAction.offending_quote, if present, must be a non-empty string');
+}
+
+function isValidPenaltyAmount(value) {
+  if (typeof value !== 'number') return false;
+  if (!Number.isFinite(value)) return false;
+  return value >= 0;
+}
+
+function isValidCurrencyCode(value) {
+  if (typeof value !== 'string') return false;
+  return CURRENCY_RX.test(value);
+}
+
+function assertPenaltyAmountShape(row) {
+  if (isValidPenaltyAmount(row.penalty_amount)) return;
+  throw new TypeError('EnforcementAction.penalty_amount, if present, must be a non-negative finite number');
+}
+
+function assertCurrencyRequiredByPenalty(row) {
+  if (isValidCurrencyCode(row.currency)) return;
+  throw new TypeError('EnforcementAction.currency must be a 3-letter ISO code when penalty_amount is present');
+}
+
+// A currency without an amount is meaningless data drift, not a fact. Fail closed rather than
+// silently accepting a half-filled pair.
+function assertNoCurrencyWithoutPenalty(row) {
+  if (!isPresent(row.currency)) return;
+  throw new TypeError('EnforcementAction.currency must not be set without penalty_amount');
+}
+
+function assertPenaltyAndCurrency(row) {
+  if (!isPresent(row.penalty_amount)) {
+    assertNoCurrencyWithoutPenalty(row);
+    return;
+  }
+  assertPenaltyAmountShape(row);
+  assertCurrencyRequiredByPenalty(row);
+}
+
 // assertValidRow(row) -> void | throws TypeError with a field-specific message. The ONE validator
 // every writer (enforcement/store/store.js appendRow, the seed loader) must call before a row is
 // considered part of the store.
 function assertValidRow(row) {
-  if (row === null || typeof row !== 'object' || Array.isArray(row)) {
-    throw new TypeError('EnforcementAction row must be a plain object');
-  }
-  for (const field of REQUIRED_STRING_FIELDS) {
-    const value = row[field];
-    if (typeof value !== 'string' || value.trim().length === 0) {
-      throw new TypeError(`EnforcementAction.${field} must be a non-empty string`);
-    }
-  }
-  if (!SOURCES.includes(row.source)) {
-    throw new TypeError(`EnforcementAction.source must be one of ${SOURCES.join(', ')}, got "${row.source}"`);
-  }
-  if (!ISO_DATE_RX.test(row.decision_date)) {
-    throw new TypeError(`EnforcementAction.decision_date must be YYYY-MM-DD, got "${row.decision_date}"`);
-  }
-  if (!SHA256_RX.test(row.sha256)) {
-    throw new TypeError('EnforcementAction.sha256 must be a lowercase 64-hex-char sha256 digest');
-  }
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(row.url);
-  } catch (err) {
-    throw new TypeError(`EnforcementAction.url must be a valid absolute URL: ${err.message}`);
-  }
-  if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-    throw new TypeError('EnforcementAction.url must be http(s)');
-  }
-  if (!Array.isArray(row.law_ids) || row.law_ids.length === 0) {
-    throw new TypeError('EnforcementAction.law_ids must be a non-empty array of strings');
-  }
-  for (const lawId of row.law_ids) {
-    if (typeof lawId !== 'string' || lawId.trim().length === 0) {
-      throw new TypeError('EnforcementAction.law_ids entries must be non-empty strings');
-    }
-  }
-  if (row.offending_quote !== undefined && row.offending_quote !== null) {
-    if (typeof row.offending_quote !== 'string' || row.offending_quote.trim().length === 0) {
-      throw new TypeError('EnforcementAction.offending_quote, if present, must be a non-empty string');
-    }
-  }
-  if (row.penalty_amount !== undefined && row.penalty_amount !== null) {
-    if (typeof row.penalty_amount !== 'number' || !Number.isFinite(row.penalty_amount) || row.penalty_amount < 0) {
-      throw new TypeError('EnforcementAction.penalty_amount, if present, must be a non-negative finite number');
-    }
-    if (typeof row.currency !== 'string' || !CURRENCY_RX.test(row.currency)) {
-      throw new TypeError('EnforcementAction.currency must be a 3-letter ISO code when penalty_amount is present');
-    }
-  } else if (row.currency !== undefined && row.currency !== null) {
-    // A currency without an amount is meaningless data drift, not a fact. Fail closed rather than
-    // silently accepting a half-filled pair.
-    throw new TypeError('EnforcementAction.currency must not be set without penalty_amount');
-  }
+  assertPlainObjectRow(row);
+  assertRequiredStringFieldsPresent(row);
+  assertKnownSource(row);
+  assertIsoDecisionDate(row);
+  assertSha256Digest(row);
+  assertValidUrl(row);
+  assertLawIds(row);
+  assertOffendingQuote(row);
+  assertPenaltyAndCurrency(row);
 }
 
 // isValidRow(row) -> boolean. Non-throwing convenience wrapper for filter/scan call sites that must

@@ -48,12 +48,21 @@ function entityOf(text) {
   return titleMatch ? titleMatch[1].trim() : null;
 }
 
+// missingRequiredFtcSignals(amount, dateMatch, entity) -> boolean. True when any one of the three
+// independently-verifiable signals this collector's module doc describes is absent - a page missing
+// any one of them fails closed to zero rows rather than a partially-guessed row.
+function missingRequiredFtcSignals(amount, dateMatch, entity) {
+  if (amount === null) return true;
+  if (!dateMatch) return true;
+  return !entity;
+}
+
 function parse(html, ctx) {
   const text = stripHtmlToText(html);
   const amount = amountOf(AMOUNT_RX.exec(text));
   const dateMatch = DATE_BEFORE_TAGS_RX.exec(text);
   const entity = entityOf(text);
-  if (amount === null || !dateMatch || !entity) return [];
+  if (missingRequiredFtcSignals(amount, dateMatch, entity)) return [];
 
   const decisionDate = isoDateOf(dateMatch[1]);
   const row = {

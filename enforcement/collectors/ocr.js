@@ -36,12 +36,21 @@ function isoDateOf(month, day, year) {
   return `${year}-${mm}-${String(Number(day)).padStart(2, '0')}`;
 }
 
+// missingRequiredOcrSignals(amountMatch, entityMatch, dateMatch) -> boolean. True when any one of
+// the three signals OCR's press-release template always carries is absent - a page missing any one
+// of them fails closed to zero rows rather than a partially-guessed row.
+function missingRequiredOcrSignals(amountMatch, entityMatch, dateMatch) {
+  if (!amountMatch) return true;
+  if (!entityMatch) return true;
+  return !dateMatch;
+}
+
 function parse(html, ctx) {
   const text = stripHtmlToText(html);
   const amountMatch = AMOUNT_RX.exec(text);
   const entityMatch = TITLE_ENTITY_RX.exec(text);
   const dateMatch = DATE_RX.exec(text);
-  if (!amountMatch || !entityMatch || !dateMatch) return [];
+  if (missingRequiredOcrSignals(amountMatch, entityMatch, dateMatch)) return [];
 
   const amount = Number(amountMatch[1].replace(/,/g, ''));
   if (!Number.isFinite(amount)) return [];

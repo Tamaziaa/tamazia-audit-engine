@@ -26,6 +26,46 @@ const { loadStore } = require('../store/store');
 
 const DEFAULT_OUTPUT_DIR = path.join(__dirname, 'out', 'lexicon-proposals');
 
+// phraseCandidateOf(row) -> the one phrase-candidate shape pushed onto every law_id bucket a row
+// contributes to.
+function phraseCandidateOf(row) {
+  return {
+    phrase: row.offending_quote,
+    source: row.source,
+    entity_name: row.entity_name,
+    decision_date: row.decision_date,
+    url: row.url,
+    sha256: row.sha256,
+  };
+}
+
+// groupPhrasesByLawId(rows) -> Map<law_id, phraseCandidate[]>. Rows with no verbatim quote
+// contribute nothing (there is no phrase to propose); every law_id a quoted row carries gets its own
+// bucket. Split out of buildLexiconProposals so neither function nests a loop inside a loop inside a
+// conditional (CodeScene Bumpy Road Ahead).
+function groupPhrasesByLawId(rows) {
+  const byLawId = new Map();
+  for (const row of rows) {
+    if (!row.offending_quote) continue; // no verbatim quote on this row: nothing to propose
+    for (const lawId of row.law_ids) {
+      if (!byLawId.has(lawId)) byLawId.set(lawId, []);
+      byLawId.get(lawId).push(phraseCandidateOf(row));
+    }
+  }
+  return byLawId;
+}
+
+// toSortedProposals(byLawId, generatedAt) -> Map<law_id, LexiconProposal>, each bucket's phrases
+// ordered most-recent-decision-first so a human reviewer sees the freshest evidence first.
+function toSortedProposals(byLawId, generatedAt) {
+  const proposals = new Map();
+  for (const [lawId, phrases] of byLawId) {
+    const sorted = [...phrases].sort((a, b) => (a.decision_date < b.decision_date ? 1 : -1));
+    proposals.set(lawId, { law_id: lawId, phrases: sorted, generated_at: generatedAt });
+  }
+  return proposals;
+}
+
 // buildLexiconProposals(rows) -> Map<law_id, LexiconProposal>. Pure function over already-loaded,
 // already-validated rows (Rule 1: this module does not re-open the store file itself when called as
 // a library; the CLI entry point at the bottom does that once).
@@ -33,28 +73,7 @@ const DEFAULT_OUTPUT_DIR = path.join(__dirname, 'out', 'lexicon-proposals');
 // LexiconProposal = { law_id, phrases: [{ phrase, source, entity_name, decision_date, url, sha256 }],
 //                      generated_at }
 function buildLexiconProposals(rows, generatedAt) {
-  const byLawId = new Map();
-  for (const row of rows) {
-    if (!row.offending_quote) continue; // no verbatim quote on this row: nothing to propose
-    for (const lawId of row.law_ids) {
-      if (!byLawId.has(lawId)) byLawId.set(lawId, []);
-      byLawId.get(lawId).push({
-        phrase: row.offending_quote,
-        source: row.source,
-        entity_name: row.entity_name,
-        decision_date: row.decision_date,
-        url: row.url,
-        sha256: row.sha256,
-      });
-    }
-  }
-  const proposals = new Map();
-  for (const [lawId, phrases] of byLawId) {
-    // stable order: most recent decision first, so a human reviewer sees the freshest evidence first
-    const sorted = [...phrases].sort((a, b) => (a.decision_date < b.decision_date ? 1 : -1));
-    proposals.set(lawId, { law_id: lawId, phrases: sorted, generated_at: generatedAt });
-  }
-  return proposals;
+  return toSortedProposals(groupPhrasesByLawId(rows), generatedAt);
 }
 
 // writeLexiconProposals(proposals, outDir = DEFAULT_OUTPUT_DIR) -> string[] of written file paths.

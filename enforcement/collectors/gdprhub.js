@@ -46,6 +46,17 @@ function lawIdsOf(text) {
   return found.size > 0 ? [...found] : ['EU_GDPR_ART_5'];
 }
 
+// missingRequiredGdprhubFields(fields) -> boolean. True when any one of the five infobox fields the
+// synthetic-decision template carries (DPA, country, fine, date, party) failed to match - a page
+// missing any one of them fails closed to zero rows.
+function missingRequiredGdprhubFields(fields) {
+  if (!fields.dpaMatch) return true;
+  if (!fields.countryMatch) return true;
+  if (!fields.fineMatch) return true;
+  if (!fields.dateMatch) return true;
+  return !fields.partyMatch;
+}
+
 function parse(html, ctx) {
   const text = stripHtmlToText(html);
   const dpaMatch = DPA_RX.exec(text);
@@ -53,7 +64,7 @@ function parse(html, ctx) {
   const fineMatch = FINE_RX.exec(text);
   const dateMatch = DATE_RX.exec(text);
   const partyMatch = PARTY_RX.exec(text);
-  if (!dpaMatch || !countryMatch || !fineMatch || !dateMatch || !partyMatch) return [];
+  if (missingRequiredGdprhubFields({ dpaMatch, countryMatch, fineMatch, dateMatch, partyMatch })) return [];
 
   const amount = Number(fineMatch[1].replace(/,/g, ''));
   if (!Number.isFinite(amount)) return [];

@@ -10,36 +10,49 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const { assertValidRow } = require('./schema');
 
 const DEFAULT_STORE_PATH = path.join(__dirname, '..', 'data', 'enforcement-actions.ndjson');
 
+// readStoreFile(storePath) -> string | null. null means "no file yet" (a legitimate empty store),
+// any other read failure rethrows. Split out of loadStore so the only try/catch in the read path is
+// this one, narrowly-scoped, ENOENT check (CodeScene Complex Method: keeps loadStore itself flat).
+function readStoreFile(storePath) {
+  try {
+    return fs.readFileSync(storePath, 'utf8');
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+// parseStoreLine(line, index, storePath) -> EnforcementAction. Throws SyntaxError on unparseable
+// JSON, TypeError (via assertValidRow) on a row that parses but fails the schema - both errors carry
+// the 1-based line number so a hand-edited store file's exact bad line is immediately findable.
+function parseStoreLine(line, index, storePath) {
+  let row;
+  try {
+    row = JSON.parse(line);
+  } catch (err) {
+    throw new SyntaxError(`${storePath}:${index + 1}: invalid JSON (${err.message})`);
+  }
+  try {
+    assertValidRow(row);
+  } catch (err) {
+    throw new TypeError(`${storePath}:${index + 1}: invalid EnforcementAction row (${err.message})`);
+  }
+  return row;
+}
+
 // loadStore(storePath = DEFAULT_STORE_PATH) -> EnforcementAction[]. Throws on a missing file, an
 // unparseable line, or a row that fails assertValidRow - never returns a partial list silently.
 function loadStore(storePath = DEFAULT_STORE_PATH) {
-  let raw;
-  try {
-    raw = fs.readFileSync(storePath, 'utf8');
-  } catch (err) {
-    if (err && err.code === 'ENOENT') return [];
-    throw err;
-  }
+  const raw = readStoreFile(storePath);
+  if (raw === null) return [];
   const lines = raw.split('\n').filter((line) => line.trim().length > 0);
-  const rows = lines.map((line, index) => {
-    let row;
-    try {
-      row = JSON.parse(line);
-    } catch (err) {
-      throw new SyntaxError(`${storePath}:${index + 1}: invalid JSON (${err.message})`);
-    }
-    try {
-      assertValidRow(row);
-    } catch (err) {
-      throw new TypeError(`${storePath}:${index + 1}: invalid EnforcementAction row (${err.message})`);
-    }
-    return row;
-  });
+  const rows = lines.map((line, index) => parseStoreLine(line, index, storePath));
   assertNoDuplicateIds(rows, storePath);
   return rows;
 }
@@ -75,8 +88,11 @@ function writeStore(rows, storePath = DEFAULT_STORE_PATH) {
   for (const row of rows) assertValidRow(row);
   assertNoDuplicateIds(rows, storePath);
   const body = rows.map((row) => JSON.stringify(row)).join('\n') + (rows.length ? '\n' : '');
-  const tmpPath = `${storePath}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmpPath, body, 'utf8');
+  // CodeQL js/insecure-temporary-file: pid+timestamp alone is a guessable name (symlink-preplant
+  // risk); add a crypto-random suffix AND open with the exclusive 'wx' flag so the write refuses to
+  // follow a pre-existing path (attacker-planted or otherwise) instead of silently overwriting it.
+  const tmpPath = `${storePath}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+  fs.writeFileSync(tmpPath, body, { encoding: 'utf8', flag: 'wx' });
   fs.renameSync(tmpPath, storePath);
 }
 
