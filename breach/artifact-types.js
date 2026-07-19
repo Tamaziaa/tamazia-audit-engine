@@ -16,6 +16,7 @@
  *   quote             a verbatim quote string-matched to the crawled corpus (breach/verifiers/quote-match.js)
  *   network_event     a captured browser network/observation event (breach/verifiers/network-event.js)
  *   register_row      an EXACT public-register row the candidate cites as PRESENT (breach/verifiers/register-row.js)
+ *   dom_node          a failing DOM node the axe-style assertion lane deterministically OBSERVED (breach/verifiers/dom-node.js)
  *   register_absence  a definitive register NO-MATCH: the lookup RAN and returned no row (breach/verifiers/register-absence.js)
  *   coverage_proof    proof the surface behind an ABSENCE claim was actually, sufficiently crawled (breach/verifiers/coverage-proof.js)
  *
@@ -29,6 +30,12 @@ const ARTIFACT_TYPES = Object.freeze({
   QUOTE: 'quote',
   NETWORK_EVENT: 'network_event',
   REGISTER_ROW: 'register_row',
+  // DOM_NODE: the fourth Rule-3 core artifact (a failing DOM node the axe-style dom-assert lane
+  // deterministically observed). 'dom_node' was already carried as a PORT ALIAS in the adjudicator's
+  // evidence-kind classifier (OBSERVED_ARTIFACT_TYPES); promoting it here makes it the canonical one
+  // door the proposer emits, the verifier dispatches on, and the classifier bypasses - the same string,
+  // now with a single owner instead of a bare literal (Rule 1).
+  DOM_NODE: 'dom_node',
   REGISTER_ABSENCE: 'register_absence',
   COVERAGE_PROOF: 'coverage_proof',
 });
