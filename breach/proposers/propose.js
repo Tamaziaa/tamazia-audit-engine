@@ -206,18 +206,59 @@ function matchUrlPath(value, pages) {
 function patternMatchesText(pattern, text) {
   return spec.matchesText(pattern, text);
 }
-// patternSatisfiesPresence(pattern, surfaceText, pages) -> does this ONE pattern count as "present": a
-// url-path pattern checks page paths, every other kind checks the surface text. Split out so the loop
-// below is a plain existence check, not a nested if-with-continue (the health-gate Deep Nesting cap).
-function patternSatisfiesPresence(pattern, surfaceText, pages) {
-  if (pattern.kind === 'url-path') return matchUrlPath(pattern.value, pages);
-  return patternMatchesText(pattern, surfaceText);
+// textPatternsOf / urlPatternsOf(detectionSpec) -> the spec's text (anchored-regex/token-set) and
+// url-path patterns respectively. Split out for the presence assessment below.
+function textPatternsOf(detectionSpec) {
+  return detectionSpec.patterns.filter((p) => p && p.kind !== 'url-path');
 }
-// requiredContentPresent(detectionSpec, surfaceText, pages) -> is ANY pattern satisfied (the lenient
-// "present" check for a REQUIRED disclosure: a partial or differently-worded disclosure still counts as
-// present, so the absence-breach fires only on total silence - the C-024 false-missing guard).
+function urlPatternsOf(detectionSpec) {
+  return detectionSpec.patterns.filter((p) => p && p.kind === 'url-path');
+}
+// anyTextPatternMatches(detectionSpec, surfaceText) -> lenient text presence: ANY text pattern matches
+// the covered surface (body OR footer, C-034). A partial or differently-worded disclosure still counts
+// as present, so the absence-breach fires only on total silence - the C-024 false-missing guard.
+function anyTextPatternMatches(detectionSpec, surfaceText) {
+  return textPatternsOf(detectionSpec).some((p) => patternMatchesText(p, surfaceText));
+}
+// pagesMatchingUrlPattern(value, pages) -> the crawled pages whose path carries the url-path segment.
+function pagesMatchingUrlPattern(value, pages) {
+  return pages.filter((p) => p && typeof p.url === 'string' && pathHasSegment(p.url, value));
+}
+// MEDIUM-12: a url-path match used to credit FULL presence on its own, so a bare `/privacy` page saying
+// "Coming soon" counted the statutory disclosure as present (a real absence, silently missed). A url-path
+// now credits presence ONLY when it is CORROBORATED by a text pattern of the same spec ON THAT PAGE (the
+// disclosure page actually carries the required wording). When the spec has NO text pattern to corroborate
+// with, the bare page is the best available signal, so it still credits (nothing better exists).
+function urlPresenceCorroborated(detectionSpec, pages) {
+  const textPatterns = textPatternsOf(detectionSpec);
+  for (const up of urlPatternsOf(detectionSpec)) {
+    const hitPages = pagesMatchingUrlPattern(up.value, pages);
+    if (!hitPages.length) continue;
+    if (!textPatterns.length) return true; // no corroborating text available; the page is the best signal
+    if (hitPages.some((p) => textPatterns.some((tp) => patternMatchesText(tp, p.text || '')))) return true;
+  }
+  return false;
+}
+// urlPageExists(detectionSpec, pages) -> does a page matching ANY of the spec's url-path segments exist
+// at all (corroborated or not). A page that exists but is not corroborated is the "bare disclosure page"
+// PARTIAL state (MEDIUM-12): commonest real-world case, routed to needs-review, never a hard breach.
+function urlPageExists(detectionSpec, pages) {
+  return urlPatternsOf(detectionSpec).some((up) => pagesMatchingUrlPattern(up.value, pages).length > 0);
+}
+// presenceState(detectionSpec, surfaceText, pages) -> 'present' | 'partial' | 'absent'. present: a text
+// disclosure matched, or a url-path page corroborated by its disclosure text. partial: a url-path
+// disclosure page EXISTS but is not corroborated (bare/"coming soon" page) - a needs-review signal, never
+// a hard absence accusation. absent: nothing at all matched and no disclosure page exists (total silence).
+function presenceState(detectionSpec, surfaceText, pages) {
+  if (anyTextPatternMatches(detectionSpec, surfaceText)) return 'present';
+  if (urlPresenceCorroborated(detectionSpec, pages)) return 'present';
+  if (urlPageExists(detectionSpec, pages)) return 'partial';
+  return 'absent';
+}
+// requiredContentPresent(detectionSpec, surfaceText, pages) -> BACK-COMPAT boolean wrapper (exported for
+// tests/reuse): true iff presenceState is 'present'. The three-state presenceState is the real producer.
 function requiredContentPresent(detectionSpec, surfaceText, pages) {
-  return detectionSpec.patterns.some((pattern) => patternSatisfiesPresence(pattern, surfaceText, pages));
+  return presenceState(detectionSpec, surfaceText, pages) === 'present';
 }
 // prohibitedHitInSentence(detectionSpec, sentence) -> the first pattern that matches WHOLLY within one
 // sentence (a scattered token-set across the page is not a single prohibited claim), or null.
@@ -276,21 +317,72 @@ function sentenceVerdict(detectionSpec, sentence) {
   if (!hit.prose_exempt && !spec.isProse(sentence)) return 'nonprose';
   return 'hit';
 }
+// ── MEDIUM-13: cross-sentence token-set co-occurrence (a sliding 2-3 sentence window) ────────────────
+// prohibitedHitInSentence requires the whole token-set INSIDE one sentence, so "Results? Guaranteed."
+// (the tokens split across two sentences) never co-occurred and a real prohibited claim was invisible.
+// A sliding window over 2-3 consecutive sentences catches it - but ONLY for token-set patterns, and the
+// negation/review guard + prose gate are applied to the WHOLE WINDOW so a window that spans a disclaimer
+// clause or non-prose can never fire a false accusation. Anchored-regex/url-path patterns KEEP the strict
+// single-sentence rule (an anchored phrase joins its words with \W+, which already tolerates the '. '
+// between sentences, so windowing them would let a phrase match across a sentence boundary - exactly the
+// false-positive this must not introduce). NOTE: no compiled 'absence' spec carries a token-set today
+// (detection-spec.js derives prohibition patterns as anchored-regex only), so this pass is a dormant,
+// zero-regression capability that activates the moment a curated token-set prohibition concept exists.
+const WINDOW_SIZES = Object.freeze([2, 3]);
+function tokenSetPatternsOf(detectionSpec) {
+  return detectionSpec.patterns.filter((p) => p && p.kind === 'token-set');
+}
+// windowTokenSetHit(detectionSpec, windowText) -> the first token-set pattern whose full token-set
+// co-occurs anywhere in the joined window, or null. Only token-sets (never anchored-regex/url-path).
+function windowTokenSetHit(detectionSpec, windowText) {
+  for (const pattern of tokenSetPatternsOf(detectionSpec)) {
+    if (patternMatchesText(pattern, windowText)) return pattern;
+  }
+  return null;
+}
+// findWindowedTokenSetQuote(detectionSpec, sentences) -> { quote, guarded, sawNonProse } for a token-set
+// that co-occurs across a 2-3 sentence window. The window text is the artifact; the guards (negation,
+// review, prose) apply to the WHOLE window so a disclaimer/non-prose window abstains, recorded, never
+// silently fires. Returns quote:null when no token-set pattern spans any window.
+function findWindowedTokenSetQuote(detectionSpec, sentences) {
+  if (!tokenSetPatternsOf(detectionSpec).length) return { quote: null, guarded: false, sawNonProse: false };
+  let guarded = false;
+  let sawNonProse = false;
+  for (const size of WINDOW_SIZES) {
+    for (let i = 0; i + size <= sentences.length; i++) {
+      const windowText = sentences.slice(i, i + size).join(' ');
+      const hit = windowTokenSetHit(detectionSpec, windowText);
+      if (!hit) continue;
+      if (spec.isNegated(windowText) || spec.looksLikeReview(windowText)) { guarded = true; continue; }
+      if (!hit.prose_exempt && !spec.isProse(windowText)) { sawNonProse = true; continue; }
+      return { quote: windowText, guarded: false, sawNonProse: false };
+    }
+  }
+  return { quote: null, guarded, sawNonProse };
+}
 // findProhibitedQuoteOnPage(detectionSpec, page) -> { quote, guarded, needsHuman, sawNonProse } for ONE
-// page: the first confidently-hitting sentence (guarded:false, needsHuman:false) wins outright; absent
-// that, the first needs_human sentence (a cross-clause guard) is kept as a fallback FIRED quote at
-// reduced confidence; guarded/nonprose are recorded as flags for the caller's suppression reasons.
+// page: the first confidently-hitting SENTENCE (guarded:false, needsHuman:false) wins outright; absent
+// that, a token-set spanning a 2-3 sentence WINDOW (MEDIUM-13) is the next candidate; absent that, the
+// first needs_human sentence (a cross-clause guard) is kept as a fallback FIRED quote at reduced
+// confidence; guarded/nonprose are recorded as flags for the caller's suppression reasons.
 function findProhibitedQuoteOnPage(detectionSpec, page) {
   let guarded = false;
   let sawNonProse = false;
   let needsHuman = null;
-  for (const sentence of spec.splitSentences(page.text)) {
+  const sentences = spec.splitSentences(page.text);
+  for (const sentence of sentences) {
     const verdict = sentenceVerdict(detectionSpec, sentence);
     if (verdict === 'hit') return { quote: sentence, guarded: false, needsHuman: false, sawNonProse: false };
     if (verdict === 'guarded') guarded = true;
     else if (verdict === 'nonprose') sawNonProse = true;
     else if (verdict === 'needs_human' && !needsHuman) needsHuman = sentence;
   }
+  // MEDIUM-13: no single sentence was a clean hit; try a cross-sentence token-set window (guarded to the
+  // whole window). A window hit is a confident quote (its own guards already passed).
+  const windowed = findWindowedTokenSetQuote(detectionSpec, sentences);
+  if (windowed.quote) return { quote: windowed.quote, guarded: false, needsHuman: false, sawNonProse: false };
+  if (windowed.guarded) guarded = true;
+  if (windowed.sawNonProse) sawNonProse = true;
   if (needsHuman) return { quote: needsHuman, guarded: false, needsHuman: true, sawNonProse: false };
   return { quote: null, guarded, needsHuman: false, sawNonProse };
 }
@@ -390,34 +482,49 @@ function absenceInterlock(detectionSpec, bundle, coverageState) {
   return null;
 }
 
-// evalAbsenceBreach: a 'presence' obligation (REQUIRED content). If the content is present -> clean pass.
-// If absent, the interlock decides: satisfied -> an absence-breach with a coverage_proof artifact
-// (confidence moderate); unsatisfied -> a recorded suppression.
+// coverageProofArtifact(detectionSpec, coveredPages) -> the coverage_proof artifact shared by the hard
+// (absent) and the needs-review (partial) absence paths. tier1_fetched + truncated ride the artifact at
+// emit (D2, ledger decision 2): the coverage_proof verifier re-checks them independently (defence in
+// depth, Rule 3/4). tier1_fetched is TRUE because both callers only reach here when coverageState===
+// 'covered' (the crawler's proof the needed page-class was fetched before any cap, C-026); truncated is
+// FALSE because the interlock demotes a truncated/unknown corpus before either emit (C-024).
+function coverageProofArtifact(detectionSpec, coveredPages) {
+  return {
+    type: ARTIFACT_TYPES.COVERAGE_PROOF,
+    page_class: detectionSpec.page_class,
+    surface: detectionSpec.surface,
+    pages_checked: coveredPages,
+    searched_patterns: detectionSpec.patterns.map(patternSummary),
+    tier1_fetched: true,
+    truncated: false,
+  };
+}
+// evalAbsenceBreach: a 'presence' obligation (REQUIRED content). presenceState decides:
+//   present -> clean pass (null).
+//   partial (MEDIUM-12: a disclosure PAGE exists but is not corroborated by the required text on it - the
+//     "bare /privacy" case, or only a strict subset of a multi-element disclosure) -> a NEEDS-REVIEW
+//     coverage_proof candidate at 'weak' confidence, NEVER a hard "missing X" accusation. Partial
+//     disclosure is the commonest real-world state; it must not auto-fire as a breach (Rule 6/Rule 10).
+//   absent (total silence: no disclosure text AND no disclosure page) -> the interlock decides a hard
+//     absence-breach (confidence moderate) or a recorded suppression.
+// Both the partial and the absent emit paths still pass the coverage/floor/truncation interlock first, so
+// the C-024/C-025/C-026 safety floors gate a needs-review just as they gate a hard breach.
 function evalAbsenceBreach(detectionSpec, bundle, coverageState) {
   // MEDIUM-14 FIX: see evalPresenceBreach's identical fix - a zero-pattern spec is now a recorded
   // suppression, never a clean pass indistinguishable from real compliance.
   if (!detectionSpec.patterns.length) return suppressed(detectionSpec, KIND.ABSENCE_BREACH, 'no detection patterns compiled for this obligation');
   const pages = pagesOf(bundle);
   const surface = surfaceTextForPresence(detectionSpec, pages, footerOf(bundle));
-  if (requiredContentPresent(detectionSpec, surface.text, pages)) return null; // present -> no breach
+  const state = presenceState(detectionSpec, surface.text, pages);
+  if (state === 'present') return null; // present -> no breach
   const block = absenceInterlock(detectionSpec, bundle, coverageState);
   if (block) return suppressed(detectionSpec, KIND.ABSENCE_BREACH, block);
-  // tier1_fetched + truncated ride the artifact at emit (D2, ledger decision 2): the coverage_proof
-  // verifier re-checks them independently (defence in depth, Rule 3/4). tier1_fetched is TRUE here
-  // because absenceInterlock only reaches this point when coverageState==='covered' - the crawler's
-  // proof the needed page-class was fetched before any cap (C-026); truncated is read straight off the
-  // bundle and is FALSE here because the interlock demotes a truncated corpus above (C-024).
-  const artifact = {
-    type: ARTIFACT_TYPES.COVERAGE_PROOF,
-    page_class: detectionSpec.page_class,
-    surface: detectionSpec.surface,
-    pages_checked: surface.coveredPages,
-    searched_patterns: detectionSpec.patterns.map(patternSummary),
-    tier1_fetched: true,
-    // Always false here by construction: absenceInterlock above demotes on both a truncated (true) AND an
-    // unknown (null) corpus, so this emit is only ever reached with a proven-complete corpus (C-024).
-    truncated: false,
-  };
+  const artifact = coverageProofArtifact(detectionSpec, surface.coveredPages);
+  if (state === 'partial') {
+    // MEDIUM-12: a disclosure page exists but its required text is not corroborated on it. Emit a
+    // needs-review candidate at 'weak' confidence carrying the same coverage_proof, never a hard breach.
+    return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: null, confidence: 'weak' });
+  }
   return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: null, confidence: 'moderate' });
 }
 function patternSummary(pattern) {
@@ -776,4 +883,7 @@ module.exports = {
   singularise,
   tokenMatchesConcept,
   sentenceVerdict,
+  // MEDIUM-12 / MEDIUM-13 (2026-07-20)
+  presenceState,
+  findWindowedTokenSetQuote,
 };

@@ -7,6 +7,7 @@ const fs = require('fs');
 const {
   propose, evaluateSpec, KIND, MIN_PAGES_FOR_ABSENCE, isNonEnglishGated, pathHasSegment, matchUrlPath,
   isMatchedRegisterRow, singularise, tokenMatchesConcept, registerTargetFor, sentenceVerdict, obligationConcerns,
+  presenceState, findWindowedTokenSetQuote,
 } = require('./propose.js');
 const ds = require('./detection-spec.js');
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
@@ -763,4 +764,112 @@ test('O5: singularise still performs the LEGITIMATE plural match a real concept 
   assert.strictEqual(singularise('trackers'), 'tracker', '"trackers" -> "tracker" is a known OBSERVATION_CONCEPTS word');
   assert.strictEqual(tokenMatchesConcept('readers', 'reader'), true);
   assert.strictEqual(tokenMatchesConcept('cookies', 'cookie'), true);
+});
+
+// ═══ MEDIUM-12: presence-by-URL must not over-credit a bare disclosure page; a url-path match now needs
+// corroborating disclosure TEXT on that page, and an uncorroborated page routes to needs-review (weak),
+// never a hard "missing X" accusation ════════════════════════════════════════════════════════════════
+function complaintsCatalogue() {
+  return { records: [{ id: 'FAKE_ACT_2099_COMPLAINTS', regulator: {}, citation: {}, website_obligations: [
+    { duty: 'The complaints procedure must be findable on the website',
+      elements: ['complaints procedure page available on the website', 'ombudsman referral details shown'], evidence_type: 'presence' },
+  ] }] };
+}
+function complaintsBundle(extraPages) {
+  const base = [
+    { url: 'https://x.example/', title: 'Home', text: 'Welcome to our clinic serving the whole community every single day of the week here.', jsonLd: [] },
+    { url: 'https://x.example/about', title: 'About', text: 'About our friendly team of experienced people who have worked here for many happy years now.', jsonLd: [] },
+  ];
+  const pages = base.concat(extraPages);
+  return { domain: 'x.example', corpus: { pages, footerText: '', truncated: false }, registers: { notes: [] },
+    browser: { observed: [], consentControl: { found: false, healthy: null, url: null }, lane: { ran: false, reason: 'x' } } };
+}
+
+test('MEDIUM-12(a): a BARE /complaints page (no complaints-procedure text) does NOT credit presence and routes to NEEDS-REVIEW (weak), never a hard absence breach', () => {
+  const cat = complaintsCatalogue();
+  const b = complaintsBundle([{ url: 'https://x.example/complaints', title: 'Complaints', text: 'Coming soon. This page is under construction and will be available shortly for all of our visitors here.', jsonLd: [] }]);
+  const cov = coverageContract.coverageFor(cat.records, b.corpus.pages, { truncated: false });
+  const forRecord = propose(b, cat, cov).filter((c) => c.record_id === 'FAKE_ACT_2099_COMPLAINTS');
+  const firedOnes = fired(forRecord, KIND.ABSENCE_BREACH);
+  assert.strictEqual(firedOnes.length, 1, 'the uncorroborated disclosure page surfaces exactly one candidate (real absence is no longer masked by a bare page)');
+  assert.strictEqual(firedOnes[0].confidence_hint, 'weak', 'a bare/partial disclosure page is NEEDS-REVIEW (weak), never a hard "missing X" accusation (MEDIUM-12)');
+  assert.strictEqual(firedOnes[0].artifact.type, 'coverage_proof');
+});
+
+test('MEDIUM-12(b): a GENUINE full disclosure on the /complaints page counts present and fires NOTHING', () => {
+  const cat = complaintsCatalogue();
+  const b = complaintsBundle([{ url: 'https://x.example/complaints', title: 'Complaints', text: 'Our complaints procedure is set out in full here for you. Contact our ombudsman referral service for an independent review.', jsonLd: [] }]);
+  const cov = coverageContract.coverageFor(cat.records, b.corpus.pages, { truncated: false });
+  const forRecord = propose(b, cat, cov).filter((c) => c.record_id === 'FAKE_ACT_2099_COMPLAINTS');
+  assert.strictEqual(fired(forRecord, KIND.ABSENCE_BREACH).length, 0, 'a corroborated disclosure page is present -> no breach and no needs-review');
+});
+
+test('MEDIUM-12(c): total silence (no disclosure page at all) is STILL a hard moderate absence breach, not downgraded', () => {
+  const cat = complaintsCatalogue();
+  // an ombudsman-CLASS page exists (so coverage is "covered") but carries no complaints-procedure text and
+  // is NOT at the /complaints url-path, so there is no disclosure page: genuine total silence.
+  const b = complaintsBundle([{ url: 'https://x.example/ombudsman', title: 'Ombudsman', text: 'Placeholder page that does not yet contain the information visitors may be looking for here today.', jsonLd: [] }]);
+  const cov = coverageContract.coverageFor(cat.records, b.corpus.pages, { truncated: false });
+  assert.strictEqual(cov.rules.find((r) => r.id === 'FAKE_ACT_2099_COMPLAINTS').state, 'covered');
+  const firedOnes = fired(propose(b, cat, cov).filter((c) => c.record_id === 'FAKE_ACT_2099_COMPLAINTS'), KIND.ABSENCE_BREACH);
+  assert.strictEqual(firedOnes.length, 1);
+  assert.strictEqual(firedOnes[0].confidence_hint, 'moderate', 'total silence remains a hard moderate breach - the fix only softens the PARTIAL (bare page) case, never the absent case');
+});
+
+test('MEDIUM-12: presenceState unit-level - present / partial / absent are correctly distinguished', () => {
+  const ds2 = require('./detection-spec.js');
+  const spec = ds2.compileRecordSpecs(complaintsCatalogue().records[0])[0];
+  const bareCorroPage = [{ url: 'https://x.example/complaints', text: 'Coming soon.' }];
+  const fullPage = [{ url: 'https://x.example/complaints', text: 'Our complaints procedure is here; ombudsman referral available.' }];
+  assert.strictEqual(presenceState(spec, 'Our complaints procedure is documented here in full.', fullPage), 'present', 'text corroboration -> present');
+  assert.strictEqual(presenceState(spec, 'nothing relevant on any page at all here today', bareCorroPage), 'partial', 'a bare disclosure page with no corroborating text -> partial');
+  assert.strictEqual(presenceState(spec, 'nothing relevant on any page at all here today', [{ url: 'https://x.example/about', text: 'about us' }]), 'absent', 'no disclosure page and no text -> absent');
+});
+
+test('MEDIUM-12(c-regression): NO existing compliant-site test yields a false absence breach - the multi-element "present in body or footer" case still fires nothing', () => {
+  // the existing FAKE_ACT_2099_MAIN presence obligation, disclosure present in the body (matches a strict
+  // SUBSET of the alternative patterns) - must remain a clean pass, never a partial/needs-review candidate.
+  const b = bundle();
+  b.corpus.pages[1].text = 'We are an authorised widget provider and our widget reference number is 55 shown here clearly.';
+  assert.strictEqual(fired(propose(b, catalogue(), coverageFor(b)), KIND.ABSENCE_BREACH).length, 0, 'a lenient text-present multi-element disclosure never downgrades to a false needs-review (alternatives are not treated as a strict subset)');
+});
+
+// ═══ MEDIUM-13: a prohibited token-set that co-occurs across a 2-3 SENTENCE window now produces a
+// candidate (the "Results? Guaranteed." split-across-sentences class), while the negation/prose guard is
+// applied to the WHOLE WINDOW so a window spanning a disclaimer never fires a false accusation ═══════════
+function windowSpec() {
+  return { record_id: 'FAKE_WINDOW_2099', duty_idx: 0, evidence_type: 'absence', page_class: null, surface: 'visible_text',
+    patterns: [{ kind: 'token-set', value: { tokens: ['guaranteed', 'results'], mode: 'all' }, negation_guarded: true, prose_exempt: true }] };
+}
+function windowBundle(text) {
+  return { domain: 'x.example', corpus: { pages: [{ url: 'https://x.example/', text }], truncated: false }, registers: { notes: [] }, browser: {} };
+}
+
+test('MEDIUM-13(a): "Results? Guaranteed." (tokens split across two sentences) now PRODUCES a candidate, artifact = the window text', () => {
+  const out = evaluateSpec(windowSpec(), windowBundle('Wondering about our track record? Results? Guaranteed. Contact us today for more information here.'), { rules: [] }, {});
+  const firedOnes = out.filter((c) => !c.suppressed_reason);
+  assert.strictEqual(firedOnes.length, 1, 'the cross-sentence token co-occurrence now fires (single-sentence rule previously missed it)');
+  assert.strictEqual(firedOnes[0].artifact.type, 'quote');
+  assert.ok(/Results\? Guaranteed\./.test(firedOnes[0].artifact.text), 'the artifact is the 2-sentence window that carries both tokens');
+});
+
+test('MEDIUM-13(b): a window whose tokens are split across a NEGATED/disclaimer sentence does NOT fire (guard applies to the whole window)', () => {
+  const out = evaluateSpec(windowSpec(), windowBundle('We never offer guaranteed outcomes of any kind. Results always vary between our individual clients here.'), { rules: [] }, {});
+  assert.strictEqual(out.filter((c) => !c.suppressed_reason).length, 0, 'a window spanning a negation clause is guarded, never a false accusation');
+  assert.ok(out.some((c) => c.suppressed_reason && /negated|review|self-declaration|C-048/i.test(c.suppressed_reason)), 'the guarded window is recorded, not silent (C-037)');
+});
+
+test('MEDIUM-13(c): anchored-regex phrase patterns KEEP the single-sentence rule (windowing does not span an anchored phrase across a sentence boundary)', () => {
+  // an anchored-regex whose words fall in DIFFERENT sentences must NOT match via a window (only token-sets
+  // window). This locks that the fix did not loosen anchored-phrase matching into a cross-sentence match.
+  const anchoredSpec = { record_id: 'FAKE_ANCH_2099', duty_idx: 0, evidence_type: 'absence', page_class: null, surface: 'visible_text',
+    patterns: [{ kind: 'anchored-regex', value: '\\bguaranteed\\W+results\\b', negation_guarded: true, prose_exempt: true }] };
+  const out = evaluateSpec(anchoredSpec, windowBundle('Everything is guaranteed. Results speak for themselves in every single case we take on here.'), { rules: [] }, {});
+  assert.strictEqual(out.filter((c) => !c.suppressed_reason).length, 0, 'an anchored phrase split across a sentence boundary does NOT fire (single-sentence rule preserved for anchored-regex)');
+});
+
+test('MEDIUM-13(c-regression): findWindowedTokenSetQuote is a no-op for a spec with NO token-set pattern (the real compiled prohibition shape) - zero production regression', () => {
+  const anchoredOnly = { record_id: 'X', duty_idx: 0, evidence_type: 'absence', patterns: [{ kind: 'anchored-regex', value: '\\bbotox\\b', prose_exempt: true }] };
+  const r = findWindowedTokenSetQuote(anchoredOnly, ['Book your', 'Botox treatment']);
+  assert.deepStrictEqual(r, { quote: null, guarded: false, sawNonProse: false }, 'no token-set pattern -> the window pass never engages');
 });
