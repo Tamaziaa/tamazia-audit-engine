@@ -230,6 +230,7 @@ function aggregate(rows) {
     sites_total: rows.length,
     sites_ran: ran.length,
     sites_skipped_no_snapshot: skipped.length,
+    sites_skipped_slugs: skipped.map((r) => r.slug),
     sites_errored: errored.length,
     sector: {
       correct: sectorCorrect, abstain: sectorAbstain, wrong: sectorWrong, labelled: sectorLabelled,
@@ -278,7 +279,11 @@ function loadBudgets(budgetsPath) {
 // vacuousGreenFailures(summary) -> failure strings for a run with no real signal behind it (CodeRabbit
 // PR #32): with zero ran sites every avg/recall metric is `null` and every budget check against a
 // `null` is skipped, which would otherwise let a fully broken run (fixtures directory missing, every
-// site erroring) report PASS.
+// site erroring) report PASS. A skipped-no-snapshot site is a DIFFERENT case (README section 6's
+// documented incremental authoring flow deliberately allows a YAML label to exist before its fixture
+// does, and `--lint` allows this) - but the FULL scorecard removing it from every denominator can still
+// report PASS while a newly-labelled site has never actually been evaluated, so the full run (not
+// --lint) fails closed here, naming the skipped slugs so the gap is never silent.
 function vacuousGreenFailures(summary) {
   const failures = [];
   if (summary.sites_ran === 0) {
@@ -287,6 +292,11 @@ function vacuousGreenFailures(summary) {
   if (summary.sites_errored > 0) {
     failures.push('sites_errored ' + summary.sites_errored + ' > 0 - an errored site is a harness/engine defect, not data, '
       + 'and must not be silently excluded from the other metrics\' denominators (see each row\'s own "error" detail)');
+  }
+  if (summary.sites_skipped_no_snapshot > 0) {
+    failures.push('sites_skipped_no_snapshot ' + summary.sites_skipped_no_snapshot + ' > 0 (' + (summary.sites_skipped_slugs || []).join(', ')
+      + ') - a labelled corpus site with no captured fixture is never scored, which is an incomplete-input '
+      + 'green if left silent; capture its fixture (README section 6) or remove the site before the full scorecard runs');
   }
   return failures;
 }
@@ -415,6 +425,22 @@ function printHumanScorecard(sites, rows, summary, verdict) {
   for (const f of verdict.failures) console.log('  - ' + f);
 }
 
+// enforceCorpusFormatOrExit(sites) -> exits 2 if any site fails lintSite(). Defence in depth
+// (CodeRabbit PR #32): the CI workflow happens to run `--lint` as its own, separate, earlier step, but
+// a direct/local `node eval/reality-corpus/run.js` (or `--json`) invocation must not be able to skip
+// that check and silently score against an unverified corpus file (e.g. a labelled_breaches entry with
+// no quote_substring, which metrics.js's null-tolerant quoteMatches() would otherwise treat as
+// automatically "reproduced" for any violation).
+function enforceCorpusFormatOrExit(sites) {
+  for (const site of sites) {
+    const errors = lintSite(site);
+    if (errors.length === 0) continue;
+    console.error('eval/reality-corpus/run.js: ' + site.slug + ' failed corpus validation:');
+    for (const e of errors) console.error('  - ' + e);
+    process.exit(2);
+  }
+}
+
 async function main(argv) {
   const { jsonOut, lintOnly, onlySlug } = parseArgs(argv);
   const sites = loadRequestedSites(onlySlug);
@@ -424,6 +450,7 @@ async function main(argv) {
     return;
   }
 
+  enforceCorpusFormatOrExit(sites);
   const { catalogueRecords, catalogueIds } = loadCatalogueOrExit();
   const rows = await runAllSites(sites, catalogueRecords, catalogueIds);
   const summary = aggregate(rows);

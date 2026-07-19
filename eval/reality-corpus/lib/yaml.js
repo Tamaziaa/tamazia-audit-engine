@@ -104,6 +104,15 @@ function parseQuotedOrNumericScalar(s) {
   return NO_MATCH;
 }
 
+// looksQuoted(s) -> true if s STARTS with a quote character - used only to fail closed on an
+// unterminated quoted scalar (CodeRabbit PR #32): "note: \"unterminated" starts a double-quoted span
+// that never closes, matches none of parseQuotedOrNumericScalar()'s regexes, and must not silently fall
+// through to being treated as the bare string `"unterminated` (a stray leading quote kept verbatim).
+function looksQuoted(s) {
+  if (s.startsWith('"')) return true;
+  return s.startsWith("'");
+}
+
 function parseScalar(raw) {
   const s = raw.trim();
   const keyword = parseKeywordScalar(s);
@@ -112,6 +121,9 @@ function parseScalar(raw) {
   if (flow.matched) return flow.value;
   const quotedOrNumeric = parseQuotedOrNumericScalar(s);
   if (quotedOrNumeric.matched) return quotedOrNumeric.value;
+  if (looksQuoted(s)) {
+    throw new Error('eval/reality-corpus/lib/yaml.js: unterminated or malformed quoted scalar: "' + s + '"');
+  }
   return s;
 }
 

@@ -117,3 +117,11 @@ test('CodeRabbit PR #32: fails closed on a sequence item indented less than its 
     '- UK_PECR_COOKIES_MARKETING',
   ].join('\n')), /unconsumed\/malformed content/);
 });
+
+test('CodeRabbit PR #32: fails closed on an unterminated double-quoted scalar (does not silently keep the stray leading quote)', () => {
+  assert.throws(() => parse('note: "unterminated'), /unterminated or malformed quoted scalar/);
+});
+
+test('CodeRabbit PR #32: fails closed on an unterminated single-quoted scalar', () => {
+  assert.throws(() => parse("note: 'unterminated"), /unterminated or malformed quoted scalar/);
+});

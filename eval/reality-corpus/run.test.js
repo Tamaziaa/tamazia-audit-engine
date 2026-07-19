@@ -108,6 +108,15 @@ test('evaluateBudgets: any errored site is a hard fail, never silently excluded 
   assert.ok(verdict.failures.some((f) => f.includes('sites_errored')));
 });
 
+test('evaluateBudgets: a skipped-no-snapshot site fails the FULL scorecard and names the slug (CodeRabbit PR #32)', () => {
+  // README section 6's incremental authoring flow lets --lint pass on a YAML with no fixture yet, but
+  // the full scorecard must not silently score PASS while that labelled site is never evaluated.
+  const summary = minimalSummary({ sites_skipped_no_snapshot: 1, sites_skipped_slugs: ['newsite'] });
+  const verdict = evaluateBudgets(summary, PERMISSIVE_BUDGETS);
+  assert.equal(verdict.pass, false);
+  assert.ok(verdict.failures.some((f) => f.includes('sites_skipped_no_snapshot') && f.includes('newsite')));
+});
+
 test('loadBudgets: the real committed budgets.json passes its own schema validation', () => {
   // Not a fixture - the actual file the CI gate reads. If this throws, the gate cannot run at all.
   const budgets = loadBudgets();
