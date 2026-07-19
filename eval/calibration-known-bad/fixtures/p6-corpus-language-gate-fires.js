@@ -96,11 +96,21 @@ function runTrials() {
     return misses;
   }
 
-  // POSITIVE CONTROL: the gate fires end-to-end and suppresses a REAL violating phrase.
+  // POSITIVE CONTROL: the gate fires end-to-end and suppresses a REAL violating phrase. HIGH-9 (2026-07-20):
+  // the gate no longer returns a bare [] - it returns a VISIBLE suppression per compiled spec, so the
+  // abstention itself is recorded (suppression is first-class, never silent). The invariant this trap
+  // actually protects is unchanged: NOTHING may ever FIRE (no artifact-bearing candidate) on a confidently
+  // non-English corpus, however real the violating phrase.
   const frBundle = bundle(FRENCH_PROSE, frLanguage);
   const frCandidates = propose(frBundle, catalogue(), coverageFor(frBundle));
-  if (frCandidates.length !== 0) {
-    misses.push('CRITICAL (C-022): a confidently non-English corpus did NOT gate the breach lane - propose() returned ' + frCandidates.length + ' candidate(s) instead of []');
+  const frFired = frCandidates.filter((c) => !c.suppressed_reason);
+  if (frFired.length !== 0) {
+    misses.push('CRITICAL (C-022): a confidently non-English corpus did NOT gate the breach lane - propose() FIRED ' + frFired.length + ' candidate(s) instead of zero');
+  }
+  if (frCandidates.length === 0) {
+    misses.push('HIGH-9 REGRESSION: the non-English gate returned a bare [] with no recorded suppression - the abstention must be VISIBLE (suppression is first-class, C-022/HIGH-9)');
+  } else if (!frCandidates.every((c) => c.suppressed_reason && /C-022/.test(c.suppressed_reason))) {
+    misses.push('HIGH-9 REGRESSION: not every candidate on the non-English corpus is a C-022-cited suppression: ' + JSON.stringify(frCandidates));
   }
 
   // NEGATIVE CONTROL: the SAME violating phrase in an English corpus still fires - the fix does not
