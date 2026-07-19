@@ -151,67 +151,113 @@ function classifyCandidates(verified, catalogue, captureIndex, facts) {
   return { findings, rejected, nonQuote };
 }
 
-// runSupervised(site, opts) -> Promise<RunResult>. opts: everything mint/compose-bundle.js accepts
-// (fetchFn/launchBrowser/registersFetchFn - the SAME injection seam, no second one), plus `catalogue`,
-// `runId`, `now`, `manifestStore` (an existing ManifestStore instance, or a fresh default one).
-async function runSupervised(site, opts) {
+// runContextFrom(site, opts) -> { o, now, manifestStore, runId, catalogue }. Resolves every injectable
+// (clock, manifest store, run id, catalogue) exactly once, at the top of the run, from the SAME opts
+// object every stage below reads through - never re-resolved mid-run.
+function runContextFrom(site, opts) {
   const o = opts || {};
   const now = typeof o.now === 'function' ? o.now : Date.now;
   const manifestStore = o.manifestStore instanceof ManifestStore ? o.manifestStore : new ManifestStore({ now, baseDir: o.manifestBaseDir });
   const runId = o.runId || newRunId(site, now);
   const catalogue = o.catalogue || loadCatalogue();
+  return { o, now, manifestStore, runId, catalogue };
+}
 
-  manifestStore.append(runId, 'run_start', { site, engine_version: ENGINE_VERSION, catalogue_hash: catalogue.content_hash, mode: 'supervised' });
+// captureStage(site, ctx) -> { bundle, stageManifest, captureIndex }. Stage 1: fetch + hash-chain every
+// captured page, logging both the raw crawl manifest and the capture index's own hash-only projection.
+async function captureStage(site, ctx) {
+  ctx.manifestStore.append(ctx.runId, 'run_start', { site, engine_version: ENGINE_VERSION, catalogue_hash: ctx.catalogue.content_hash, mode: 'supervised' });
+  const { bundle, stageManifest } = await composeBundle(site, ctx.o);
+  ctx.manifestStore.append(ctx.runId, 'capture', { stageManifest });
+  const captureIndex = buildCaptureIndex(bundle, { now: ctx.now, stageManifest });
+  ctx.manifestStore.append(ctx.runId, 'capture_index', captureIndex.toJSON());
+  return { bundle, stageManifest, captureIndex };
+}
 
-  const { bundle, stageManifest } = await composeBundle(site, o);
-  manifestStore.append(runId, 'capture', { stageManifest });
-
-  const captureIndex = buildCaptureIndex(bundle, { now, stageManifest });
-  manifestStore.append(runId, 'capture_index', captureIndex.toJSON());
-
-  const facts = runFactsDoors(bundle);
-  manifestStore.append(runId, 'facts', {
+// factsSummaryFor(facts) -> the compact projection of the facts envelope the manifest records (never the
+// full envelope - the manifest is provenance, not a second copy of every fact door's raw output).
+function factsSummaryFor(facts) {
+  return {
     identity: { display_name: facts.identity && facts.identity.display_name, legal_name: facts.identity && facts.identity.legal_name },
     jurisdiction: { bound: facts.jurisdiction && facts.jurisdiction.bound },
     sector: { value: facts.sector && facts.sector.value, conflict_flag: facts.sector && facts.sector.conflict_flag },
-  });
+  };
+}
 
+// identityStage(bundle, ctx) -> { facts, cell, entityCard }. Stage 2: run the facts doors, the ICP sector
+// gate, and project the orchestrator-facing entity card - all read-only over the SAME facts envelope.
+function identityStage(bundle, ctx) {
+  const facts = runFactsDoors(bundle);
+  ctx.manifestStore.append(ctx.runId, 'facts', factsSummaryFor(facts));
   const cell = icpGate(facts);
-  manifestStore.append(runId, 'sector_gate', { auditable: cell.auditable, reason: cell.reason || null });
+  ctx.manifestStore.append(ctx.runId, 'sector_gate', { auditable: cell.auditable, reason: cell.reason || null });
+  return { facts, cell, entityCard: buildEntityCard(facts) };
+}
 
-  const entityCard = buildEntityCard(facts);
+// applicabilityStage(facts, ctx) -> { app, applicabilityLedger }. Stage 3: connect() decides which
+// catalogue records bind; this stage only logs and projects that decision, never re-decides it.
+function applicabilityStage(facts, ctx) {
+  const app = connect(facts, ctx.catalogue);
+  ctx.manifestStore.append(ctx.runId, 'applicability', { counts: app.counts, applicable: app.applicable.map((r) => r.id), excludedCount: app.excluded.length });
+  return { app, applicabilityLedger: buildApplicabilityLedger(app) };
+}
 
-  const app = connect(facts, catalogue);
-  manifestStore.append(runId, 'applicability', { counts: app.counts, applicable: app.applicable.map((r) => r.id), excludedCount: app.excluded.length });
-  const applicabilityLedger = buildApplicabilityLedger(app);
-
+// detectionStage(bundle, app, facts, captureIndex, ctx) -> { classified }. Stages 4-5: propose candidates
+// over the applicable records' coverage, auto-verify them against the live corpus, then classify the
+// survivors into typed Findings / rejections / non-quote candidates (never silently dropped).
+function detectionStage(bundle, app, facts, captureIndex, ctx) {
   const pages = pagesOf(bundle);
   const perRule = coverageContract.coverageFor(app.applicable, pages, {});
   const candidates = propose(bundle, app.applicable, perRule);
-  manifestStore.append(runId, 'propose', { candidateCount: candidates.length });
+  ctx.manifestStore.append(ctx.runId, 'propose', { candidateCount: candidates.length });
 
   const verifyResult = verifyAll(candidates, bundle);
-  manifestStore.append(runId, 'verify', { verifiedCount: verifyResult.verified.length, rejectedCount: verifyResult.rejected.length });
+  ctx.manifestStore.append(ctx.runId, 'verify', { verifiedCount: verifyResult.verified.length, rejectedCount: verifyResult.rejected.length });
 
-  const classified = classifyCandidates(verifyResult.verified, catalogue, captureIndex, facts);
-  manifestStore.append(runId, 'candidate_findings', {
+  const classified = classifyCandidates(verifyResult.verified, ctx.catalogue, captureIndex, facts);
+  ctx.manifestStore.append(ctx.runId, 'candidate_findings', {
     findingCount: classified.findings.length,
     findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, quote: f.quote })),
     rejected: classified.rejected,
     nonQuoteCandidateCount: classified.nonQuote.length,
   });
+  return classified;
+}
 
+// finalizeStage(app, captureIndex, classified, ctx) -> { excerpts, coverageManifest }. Builds the
+// orchestrator's targeted excerpts and the run's coverage manifest, and logs the latter.
+function finalizeStage(app, captureIndex, classified, ctx) {
   const excerpts = buildExcerpts(captureIndex, classified.findings);
-  const coverageManifest = buildCoverageManifest(app, catalogue.content_hash);
-  manifestStore.append(runId, 'coverage_manifest', coverageManifest);
+  const coverageManifest = buildCoverageManifest(app, ctx.catalogue.content_hash);
+  ctx.manifestStore.append(ctx.runId, 'coverage_manifest', coverageManifest);
+  return { excerpts, coverageManifest };
+}
+
+// refusalOf(cell) -> the ICP gate's refusal reason string, or null when the cell is auditable.
+function refusalOf(cell) {
+  return cell.auditable ? null : (cell.reason || 'sector_not_auditable');
+}
+
+// runSupervised(site, opts) -> Promise<RunResult>. opts: everything mint/compose-bundle.js accepts
+// (fetchFn/launchBrowser/registersFetchFn - the SAME injection seam, no second one), plus `catalogue`,
+// `runId`, `now`, `manifestStore` (an existing ManifestStore instance, or a fresh default one). Each
+// pipeline stage (1: capture, 2: identity/applicability, 3: sector gate, 4-5: detectors/auto-verify) is
+// its own named function above; this orchestrator just threads their outputs through in order.
+async function runSupervised(site, opts) {
+  const ctx = runContextFrom(site, opts);
+  const { bundle, stageManifest, captureIndex } = await captureStage(site, ctx);
+  const { facts, cell, entityCard } = identityStage(bundle, ctx);
+  const { app, applicabilityLedger } = applicabilityStage(facts, ctx);
+  const classified = detectionStage(bundle, app, facts, captureIndex, ctx);
+  const { excerpts, coverageManifest } = finalizeStage(app, captureIndex, classified, ctx);
 
   return {
-    runId, site, refusal: cell.auditable ? null : (cell.reason || 'sector_not_auditable'),
+    runId: ctx.runId, site, refusal: refusalOf(cell),
     entityCard, applicabilityLedger,
     candidateFindings: classified.findings, rejectedCandidates: classified.rejected, nonQuoteCandidates: classified.nonQuote,
     excerpts, captureIndex, coverageManifest,
-    catalogueHash: catalogue.content_hash, engineVersion: ENGINE_VERSION, stageManifest,
-    manifestStore,
+    catalogueHash: ctx.catalogue.content_hash, engineVersion: ENGINE_VERSION, stageManifest,
+    manifestStore: ctx.manifestStore,
   };
 }
 

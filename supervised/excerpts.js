@@ -6,13 +6,22 @@
 
 const EXCERPT_PAD_BYTES = 240; // a CAP (Rule 8): the window either side of the quote, never grown by a caller.
 
+// isReadableStore(store, quote) -> true when there is a quote to look up AND a store capable of a get().
+function isReadableStore(store, quote) {
+  if (!quote || !store) return false;
+  return typeof store.get === 'function';
+}
+// isReadableArtifact(artifact) -> true when the artifact exists and carries real bytes to slice.
+function isReadableArtifact(artifact) {
+  if (!artifact) return false;
+  return Buffer.isBuffer(artifact.bytes);
+}
 // artifactForExcerpt(store, quote) -> the artifact a quote's excerpt would read, or null when the quote,
 // store, or the artifact's own bytes are not available (never fabricates a window from nothing).
 function artifactForExcerpt(store, quote) {
-  if (!quote || !store || typeof store.get !== 'function') return null;
+  if (!isReadableStore(store, quote)) return null;
   const artifact = store.get(quote.evidence_id);
-  if (!artifact || !Buffer.isBuffer(artifact.bytes)) return null;
-  return artifact;
+  return isReadableArtifact(artifact) ? artifact : null;
 }
 
 // sliceExcerptWindow(artifact, quote) -> { evidence_id, url, before, quote_text, after }, a bounded

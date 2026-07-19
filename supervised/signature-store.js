@@ -29,11 +29,14 @@ function assertValidOverall(overall) {
     throw new Error('signature-store: overall must be "SIGN" or "HOLD", got ' + JSON.stringify(overall));
   }
 }
+// hasFindingId(d) -> true when d is an object carrying a non-empty string finding_id.
+function hasFindingId(d) {
+  if (!d) return false;
+  return typeof d.finding_id === 'string' && d.finding_id !== '';
+}
 // assertOneDecision(d) -> throws unless d carries a real finding_id and a valid ship/drop decision.
 function assertOneDecision(d) {
-  if (!d || typeof d.finding_id !== 'string' || !d.finding_id) {
-    throw new Error('signature-store: every finding decision needs a finding_id');
-  }
+  if (!hasFindingId(d)) throw new Error('signature-store: every finding decision needs a finding_id');
   if (!isValidDecision(d.decision)) {
     throw new Error('signature-store: finding ' + d.finding_id + ' decision must be "ship" or "drop", got ' + JSON.stringify(d.decision));
   }

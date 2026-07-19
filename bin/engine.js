@@ -200,25 +200,42 @@ async function cmdReplay(args) {
   return report.ok ? 0 : 1;
 }
 
-async function cmdMint(args) {
+// assertMintArgs(args) -> throws unless both --run-id and --site were given.
+function assertMintArgs(args) {
   if (!args['run-id']) throw new Error('engine mint: --run-id <id> is required');
   if (!args.site) throw new Error('engine mint: --site <url> is required');
+}
+
+// resolvedCatalogue(catalogue) -> the caller-supplied catalogue, or the engine's own loaded default
+// (mint-gate.js must always be handed a real catalogue, never undefined).
+function resolvedCatalogue(catalogue) {
+  return catalogue || require('../mint/index.js').loadCatalogue();
+}
+
+// attemptMint(manifestStore, args, result, catalogue) -> { code, output }. Runs the mint gate and
+// reports either the outcome (code 0) or the typed refusal (code 1) - never lets a MintRefusalError
+// propagate as an uncaught CLI crash, since a refusal is an expected, reportable outcome here, not a bug.
+async function attemptMint(manifestStore, args, result, catalogue) {
+  try {
+    const outcome = await mintGate({
+      store: manifestStore, runId: args['run-id'], findings: result.candidateFindings,
+      captureIndex: result.captureIndex, catalogue: resolvedCatalogue(catalogue),
+      coverageManifest: result.coverageManifest, stubPersist: args['stub-persist'] !== 'false',
+    });
+    return { code: 0, output: outcome };
+  } catch (e) {
+    return { code: 1, output: { proceeded: false, reasonCode: e.reasonCode || 'error', detail: e.detail || e.message } };
+  }
+}
+
+async function cmdMint(args) {
+  assertMintArgs(args);
   const manifestStore = storeFrom(args);
   const catalogue = loadCatalogueFrom(args);
   const result = await runSupervised(args.site, Object.assign({ runId: args['run-id'], manifestStore, catalogue }, captureOptsFrom(args)));
-  const signedFindings = result.candidateFindings; // the caller's signature file governs which of these actually ship
-  try {
-    const outcome = await mintGate({
-      store: manifestStore, runId: args['run-id'], findings: signedFindings,
-      captureIndex: result.captureIndex, catalogue: catalogue || require('../mint/index.js').loadCatalogue(),
-      coverageManifest: result.coverageManifest, stubPersist: args['stub-persist'] !== 'false',
-    });
-    process.stdout.write(JSON.stringify(outcome, null, 2) + '\n');
-    return 0;
-  } catch (e) {
-    process.stdout.write(JSON.stringify({ proceeded: false, reasonCode: e.reasonCode || 'error', detail: e.detail || e.message }, null, 2) + '\n');
-    return 1;
-  }
+  const attempt = await attemptMint(manifestStore, args, result, catalogue);
+  process.stdout.write(JSON.stringify(attempt.output, null, 2) + '\n');
+  return attempt.code;
 }
 
 async function main(argv) {

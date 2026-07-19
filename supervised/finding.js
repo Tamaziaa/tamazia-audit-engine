@@ -139,41 +139,72 @@ function deriveFindingId(ruleId, quote) {
   return crypto.createHash('sha256').update(basis, 'utf8').digest('hex').slice(0, 16);
 }
 
-// createFinding(fields) -> Object.freeze()'d Finding. THE one door (Rule 1); throws
-// FindingConstructionError on any structural defect, so a malformed/fabricated finding cannot exist as a
-// value - fabrication becomes a type error at construction, mirroring the blueprint's Quote/Verdict design
-// (KIMI-K3-DEEP-BLUEPRINT-2026-07-20.md section 2.2).
-function createFinding(fields) {
-  const f = fields || {};
+// assertRuleId(f) / assertCatalogueHash(f) / assertJurisdiction(f) / assertFindingClass(f) /
+// assertMitigationLogShape(f) -> each owns exactly ONE top-level Finding field's structural rule (the
+// same single-purpose-function discipline as finding.js's own assertQuoteXxx() helpers above).
+function assertRuleId(f) {
   if (!isNonEmptyString(f.rule_id)) {
     throw new FindingConstructionError('rule_id', 'rule_id is required and must be a non-empty string (the catalogue record id this finding proposes evidence against)');
   }
+}
+function assertCatalogueHash(f) {
   if (!isNonEmptyString(f.catalogue_hash)) {
     throw new FindingConstructionError('catalogue_hash', 'catalogue_hash is required and must be a non-empty string (copied verbatim from the loaded compiled catalogue, never invented)');
   }
-  validateQuote(f.quote);
+}
+function assertJurisdiction(f) {
   if (!isNonEmptyString(f.jurisdiction)) {
     throw new FindingConstructionError('jurisdiction', 'jurisdiction is required and must be a non-empty string (copied from the catalogue record, never invented)');
   }
+}
+function assertFindingClass(f) {
   if (!FINDING_CLASS_SET.has(f.class)) {
     throw new FindingConstructionError('class', 'class must be one of ' + Array.from(FINDING_CLASS_SET).join('|') + ', got ' + JSON.stringify(f.class));
   }
+}
+function assertMitigationLogShape(f) {
   if (f.mitigation_log !== undefined && !Array.isArray(f.mitigation_log)) {
     throw new FindingConstructionError('mitigation_log', 'mitigation_log must be an array when supplied');
   }
-  const quote = canonicalQuote(f.quote);
-  const engineVersion = isNonEmptyString(f.engine_version) ? f.engine_version : require('../mint/version.js').ENGINE_VERSION;
-  const finding = {
+}
+// assertFindingFields(f) -> runs every top-level structural rule in order, throwing on the first defect.
+function assertFindingFields(f) {
+  assertRuleId(f);
+  assertCatalogueHash(f);
+  validateQuote(f.quote);
+  assertJurisdiction(f);
+  assertFindingClass(f);
+  assertMitigationLogShape(f);
+}
+
+// resolvedEngineVersion(f) -> f.engine_version when supplied, else mint/version.js's own ENGINE_VERSION.
+function resolvedEngineVersion(f) {
+  return isNonEmptyString(f.engine_version) ? f.engine_version : require('../mint/version.js').ENGINE_VERSION;
+}
+
+// buildFindingObject(f, quote) -> the plain (not yet frozen) Finding fields, all read straight off the
+// already-validated `f` and the canonicalised `quote`.
+function buildFindingObject(f, quote) {
+  return {
     finding_id: deriveFindingId(f.rule_id, quote),
     rule_id: f.rule_id,
     catalogue_hash: f.catalogue_hash,
     quote,
     jurisdiction: f.jurisdiction,
     class: f.class,
-    engine_version: engineVersion,
+    engine_version: resolvedEngineVersion(f),
     mitigation_log: Array.isArray(f.mitigation_log) ? f.mitigation_log.slice() : [],
   };
-  return Object.freeze(finding);
+}
+
+// createFinding(fields) -> Object.freeze()'d Finding. THE one door (Rule 1); throws
+// FindingConstructionError on any structural defect, so a malformed/fabricated finding cannot exist as a
+// value - fabrication becomes a type error at construction, mirroring the blueprint's Quote/Verdict design
+// (KIMI-K3-DEEP-BLUEPRINT-2026-07-20.md section 2.2).
+function createFinding(fields) {
+  const f = fields || {};
+  assertFindingFields(f);
+  return Object.freeze(buildFindingObject(f, canonicalQuote(f.quote)));
 }
 
 // withMitigation(finding, entry) -> a NEW frozen Finding with `entry` appended to mitigation_log (never

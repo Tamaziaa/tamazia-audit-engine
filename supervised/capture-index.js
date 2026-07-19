@@ -119,11 +119,16 @@ function unreachableSiteError(stageManifest) {
   return new LaneError('capture', 'site_unreachable', crawlStage.reason || 'the crawl lane recorded the domain as unreachable');
 }
 
-function buildCaptureIndex(bundle, opts) {
-  const o = opts || {};
-  const now = typeof o.now === 'function' ? o.now : Date.now;
-  const fetchedAt = new Date(now()).toISOString();
-  const pages = bundle && bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
+// pagesOfBundle(bundle) -> bundle.corpus.pages when present, else [] (a bundle with no readable corpus
+// yet is not an error here - it simply captures nothing, honestly).
+function pagesOfBundle(bundle) {
+  const corpus = bundle && bundle.corpus;
+  return corpus && Array.isArray(corpus.pages) ? corpus.pages : [];
+}
+
+// captureAllPages(pages, fetchedAt) -> { artifacts, errors }, one captureOnePage() outcome per page,
+// sorted into the two lists (never both for the same page - captureOnePage()'s own contract).
+function captureAllPages(pages, fetchedAt) {
   const artifacts = [];
   const errors = [];
   for (const page of pages) {
@@ -131,6 +136,14 @@ function buildCaptureIndex(bundle, opts) {
     if (captured.artifact) artifacts.push(captured.artifact);
     if (captured.error) errors.push(captured.error);
   }
+  return { artifacts, errors };
+}
+
+function buildCaptureIndex(bundle, opts) {
+  const o = opts || {};
+  const now = typeof o.now === 'function' ? o.now : Date.now;
+  const fetchedAt = new Date(now()).toISOString();
+  const { artifacts, errors } = captureAllPages(pagesOfBundle(bundle), fetchedAt);
   const unreachable = unreachableSiteError(o.stageManifest);
   if (unreachable) errors.push(unreachable);
   return new ArtifactStore(artifacts, errors);

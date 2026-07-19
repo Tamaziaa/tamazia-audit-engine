@@ -64,10 +64,21 @@ function checkShippedQuotes(shippedRecords, captureIndex) {
   return { incidents, checkedCount: shippedRecords.length, note: null };
 }
 
+// hasCatalogueContext(catalogue, runStart) -> true when there is enough information to even ask the
+// drift question (both a currently-loaded catalogue and a run_start entry that recorded one).
+function hasCatalogueContext(catalogue, runStart) {
+  if (!catalogue || !runStart) return false;
+  return Boolean(runStart.catalogue_hash);
+}
+// catalogueHasDrifted(catalogue, runStart) -> true only when both sides are known AND they disagree.
+function catalogueHasDrifted(catalogue, runStart) {
+  if (!hasCatalogueContext(catalogue, runStart)) return false;
+  return catalogue.content_hash !== runStart.catalogue_hash;
+}
 // catalogueDriftNote(catalogue, runStart) -> the 'catalogue_drift' note when the currently-loaded
 // catalogue's content_hash differs from the one this run was made against, else null.
 function catalogueDriftNote(catalogue, runStart) {
-  if (!catalogue || !runStart || !runStart.catalogue_hash || catalogue.content_hash === runStart.catalogue_hash) return null;
+  if (!catalogueHasDrifted(catalogue, runStart)) return null;
   return 'catalogue_drift: run was made against catalogue_hash ' + runStart.catalogue_hash + ', currently loaded catalogue is ' + catalogue.content_hash;
 }
 
