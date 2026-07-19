@@ -88,6 +88,24 @@ test('the truth-pack RAN but failed -> state "render_mismatch" (a rendered word 
   assert.strictEqual(r.state, 'render_mismatch');
 });
 
+test('CodeRabbit fix: a THROWING opts.truthPackFn degrades to a ran-but-FAILED leg, never an uncaught mint exception', async () => {
+  const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200, truthPackFn: async () => { throw new Error('stuck browser truth-pass'); } } });
+  assert.strictEqual(r.done, false);
+  assert.strictEqual(r.state, 'render_mismatch');
+  assert.strictEqual(r.checks.truthPack.ran, true, 'a broken render gate is a FAILED leg, never an honest not-run');
+  assert.strictEqual(r.checks.truthPack.ok, false);
+  assert.match(r.checks.truthPack.reason, /truthPackFn threw/);
+  assert.match(r.checks.truthPack.reason, /stuck browser truth-pass/);
+});
+
+test('CodeRabbit fix: a REJECTING opts.truthPackFn promise is caught the same way as a synchronous throw', async () => {
+  const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'https://tamazia.co.uk/audit/oakhurst-legal-example/deadbeef', opts: { sqlFn: okSql, liveFetch: ok200, truthPackFn: () => Promise.reject(new Error('network reset')) } });
+  assert.strictEqual(r.done, false);
+  assert.strictEqual(r.state, 'render_mismatch');
+  assert.strictEqual(r.checks.truthPack.ran, true);
+  assert.match(r.checks.truthPack.reason, /truthPackFn threw/);
+});
+
 test('an unsafe live URL is refused before any fetch (SSRF door), and stateFor prioritises the row leg', async () => {
   const r = await assertMinted({ row: ROW, payload: PAYLOAD, liveUrl: 'http://127.0.0.1/audit/x/y', opts: { sqlFn: okSql } });
   assert.strictEqual(r.checks.live200.ok, false);

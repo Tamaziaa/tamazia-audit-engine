@@ -31,7 +31,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { check, formatGBP, parseGBPAmounts, collectAllowedAmounts, CEILING_PROXIMITY_CHARS, VOICE_WINDOW } = require('./truth-pack.js');
+const { check, formatGBP, parseGBPAmounts, collectAllowedAmounts, containsNumberToken, CEILING_PROXIMITY_CHARS, VOICE_WINDOW } = require('./truth-pack.js');
 const { renderAuditText } = require('./fixtures/reference-render.js');
 const { validatePayload } = require('../payload/contract');
 
@@ -133,6 +133,20 @@ test('KNOWN-BAD counts-coherence: dropping the coverage line trips counts-cohere
   assert.ok(rulesFired(r).includes('counts-coherence'));
 });
 
+test('KNOWN-BAD counts-coherence (frameworksAssessed): a drifted assessed total not shown in the render trips counts-coherence, distinctly from frameworksBinding (C-117; CodeRabbit)', () => {
+  // The render is untouched (still the recorded golden .txt); only the PAYLOAD's frameworksAssessed drifts
+  // to a value nothing in the render could possibly contain. Before this fix checkCountsCoherence never
+  // read frameworksAssessed at all, so this exact drift would have silently passed (the gap CodeRabbit
+  // found: "reference-render.js's coverageLine renders ... frameworksAssessed drift ... would silently
+  // pass ok:true").
+  const badPayload = Object.assign({}, GOLDEN, { frameworksAssessed: 987654321 });
+  const r = check(badPayload, RENDERED, FRESH_OPTS());
+  assert.equal(r.ok, false);
+  assert.deepEqual(rulesFired(r), ['counts-coherence']);
+  assert.match(r.violations[0].detail, /frameworksAssessed/);
+  assert.ok(!/frameworksBinding|rulesChecked/.test(r.violations[0].detail), 'the drift is specific to frameworksAssessed only');
+});
+
 test('KNOWN-BAD render-security-freshness (stale): a generatedAt over the age cap trips freshness (C-122/C-123)', () => {
   const r = check(GOLDEN, RENDERED, { now: NOW, generatedAt: '2025-11-01' });
   assert.equal(r.ok, false);
@@ -178,6 +192,15 @@ test('formatGBP + parseGBPAmounts round-trip and collectAllowedAmounts reads the
   assert.deepEqual(parseGBPAmounts('a £5,000 and £20,000 here').map((x) => x.value), [5000, 20000]);
   const allowed = collectAllowedAmounts(GOLDEN);
   assert.ok(allowed.has(HEADLINE_VALUE) && allowed.has(CEILING_VALUE));
+});
+
+test('containsNumberToken finds a standalone number but never a fragment embedded in a bigger one (no dynamic RegExp, CodeRabbit/Semgrep)', () => {
+  assert.equal(containsNumberToken('2 frameworks bind you', 2), true);
+  assert.equal(containsNumberToken('screened in 2026, 2 bind you', 2), true, 'the year 2026 must not swallow the standalone 2');
+  assert.equal(containsNumberToken('£20,000 all in', 20), false, 'a comma-stripped bigger number must not "contain" its own prefix digits');
+  assert.equal(containsNumberToken('20 items, £20,000 total', 20), true, 'a genuine standalone 20 still matches elsewhere in the same text');
+  assert.equal(containsNumberToken('nothing numeric here', 2), false);
+  assert.equal(containsNumberToken('', 2), false);
 });
 
 test('the ceiling-proximity radius and voice window are documented, positive constants', () => {

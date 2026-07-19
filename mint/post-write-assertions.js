@@ -86,6 +86,29 @@ async function defaultLiveFetch(url) {
 }
 
 // ── (c) truth-pack: the render truth-pass (Rule 7 / C-124). Three sources, in priority order. ─────────────
+// truthPackFnLeg(payload, opts) -> the authoritative injected-fn leg, GUARDED (CodeRabbit,
+// mint/post-write-assertions.js:112): unlike a bare await, a throwing/rejecting opts.truthPackFn (e.g. a
+// stuck browser truth-pass) can no longer propagate an uncaught exception out of truthPackCheck/assertMinted
+// - it degrades to a ran-but-FAILED leg, mirroring runRealTruthPack's own fail-open contract below. A
+// bounded Promise.race deadline on this call is a tracked follow-up (Rule 8/9), not yet wired here.
+// truthPackFnResultLeg(r) -> the injected-fn leg shape for a resolved (non-throwing) truthPackFn result.
+function truthPackFnResultLeg(r) {
+  const ok = Boolean(r && r.ok);
+  const reason = (r && r.reason) || (ok ? null : 'truth-pack reported a render mismatch');
+  return { ok, ran: true, reason };
+}
+async function truthPackFnLeg(payload, opts) {
+  try {
+    const r = await opts.truthPackFn(payload);
+    return truthPackFnResultLeg(r);
+  } catch (e) {
+    // FAIL-OPEN: a throwing/rejecting truthPackFn is a broken render gate, not a pass. Recorded as a
+    // ran-but-failed leg so done stays false; never a thrown mint (Rule 7/17), exactly like runRealTruthPack.
+    return { ok: false, ran: true, reason: 'truthPackFn threw: ' + String((e && e.message) || e).slice(0, 120) };
+  }
+}
+// notRunLeg(reason) -> the shared { ok:false, ran:false, reason } shape for both honest NOT-RUN paths below.
+function notRunLeg(reason) { return { ok: false, ran: false, reason }; }
 // truthPackCheck(payload, opts) -> { ok, ran, reason? }.
 //   1. opts.truthPackFn (authoritative): the live orchestrator captures the browser-extracted page text and
 //      wires it into a closure here at run time (the injection seam mint/index.js forwards). Tests use it to
@@ -96,44 +119,53 @@ async function defaultLiveFetch(url) {
 //      assert, so the leg stays { ran:false } and the mint stays minted_pending_render (Rule 7: done is
 //      withheld, never faked).
 async function truthPackCheck(payload, opts) {
-  if (typeof opts.truthPackFn === 'function') {
-    const r = await opts.truthPackFn(payload);
-    return { ok: Boolean(r && r.ok), ran: true, reason: (r && r.reason) || (r && r.ok ? null : 'truth-pack reported a render mismatch') };
-  }
+  if (typeof opts.truthPackFn === 'function') return truthPackFnLeg(payload, opts);
   const abs = path.join(__dirname, '..', TRUTH_PACK_MODULE_REL);
-  if (!fs.existsSync(abs)) return { ok: false, ran: false, reason: 'render-proof not landed (T3b)' };
+  if (!fs.existsSync(abs)) return notRunLeg('render-proof not landed (T3b)');
   if (typeof opts.renderedText !== 'string' || opts.renderedText === '') {
     // Honest NOT-RUN: the pack exists but no live page text was captured for THIS mint. Leads with the real
     // reason (renderedText not supplied) and keeps the contiguous 'render-proof not landed for this mint'
     // marker so the render proof's absence for this mint reads uniformly to every consumer of this leg.
-    return { ok: false, ran: false, reason: 'renderedText not supplied to truthPackCheck; render-proof not landed for this mint (pass opts.renderedText to run the real render pack)' };
+    return notRunLeg('renderedText not supplied to truthPackCheck; render-proof not landed for this mint (pass opts.renderedText to run the real render pack)');
   }
-  return runRealTruthPack(abs, payload, opts);
+  return runRealTruthPack(payload, opts);
 }
 
 // payloadDate(payload) -> the payload's own generatedAt stamp (meta.date), the default source for the render
 // freshness check ('opts.generatedAt is the payload's'); undefined when the payload carries none.
 function payloadDate(payload) { return payload && payload.meta && payload.meta.date != null ? payload.meta.date : undefined; }
 
-// runRealTruthPack(abs, payload, opts) -> the pure checker's verdict as { ok, ran:true, reason }. generatedAt
-// defaults to the payload's own date; the injected clock (opts.now), catalogue and HMAC opts pass through
-// untouched. A checker that fails to load OR throws is recorded as a ran-but-FAILED leg (render_mismatch),
-// never a thrown mint (Rule 7/17): a broken render gate is not a pass.
-function runRealTruthPack(abs, payload, opts) {
-  let checker;
-  try { checker = require(abs); }
+// loadTruthPackChecker() -> { checker } on success or { error } on a load failure. A STRING-LITERAL require
+// (CodeRabbit, mint/post-write-assertions.js:129): the repo rule is "dynamic requires are invisible to the
+// reachability gate", and a `require(abs)` built from a runtime path.join is also a Semgrep CWE-829
+// non-literal-require finding. The literal path must be kept in sync with TRUTH_PACK_MODULE_REL by hand
+// (truthPackCheck's fs.existsSync(abs) presence probe still uses the computed path; only the require call
+// itself needs to be a literal for the static reachability walk to see it).
+function loadTruthPackChecker() {
+  try { return { checker: require('../render-proof/truth-pack.js') }; }
   catch (e) {
     // FAIL-OPEN: a truth-pack module that will not load is a broken render gate, not a pass. Recorded as a
     // ran-but-failed leg so done stays false; never a thrown mint (Rule 7/17).
-    return { ok: false, ran: true, reason: 'render-proof/truth-pack.js failed to load: ' + String((e && e.message) || e).slice(0, 120) };
+    return { error: 'render-proof/truth-pack.js failed to load: ' + String((e && e.message) || e).slice(0, 120) };
   }
+}
+// truthPackResultLeg(r) -> the pure checker's verdict object converted to a { ok, ran:true, reason } leg.
+function truthPackResultLeg(r) {
+  if (r && r.ok) return { ok: true, ran: true, reason: null };
+  const first = r && Array.isArray(r.violations) ? r.violations[0] : null;
+  const n = r && Array.isArray(r.violations) ? r.violations.length : 0;
+  return { ok: false, ran: true, reason: 'render truth-pack found ' + n + ' violation(s)' + (first ? ': [' + first.rule + '] ' + first.detail : '') };
+}
+// runRealTruthPack(payload, opts) -> the pure checker's verdict as { ok, ran:true, reason }. generatedAt
+// defaults to the payload's own date; the injected clock (opts.now), catalogue and HMAC opts pass through
+// untouched. A checker that fails to load OR throws is recorded as a ran-but-FAILED leg (render_mismatch),
+// never a thrown mint (Rule 7/17): a broken render gate is not a pass.
+function runRealTruthPack(payload, opts) {
+  const loaded = loadTruthPackChecker();
+  if (loaded.error) return { ok: false, ran: true, reason: loaded.error };
   const checkOpts = Object.assign({}, opts, { generatedAt: opts.generatedAt != null ? opts.generatedAt : payloadDate(payload) });
   try {
-    const r = checker.check(payload, opts.renderedText, checkOpts);
-    if (r && r.ok) return { ok: true, ran: true, reason: null };
-    const first = r && Array.isArray(r.violations) ? r.violations[0] : null;
-    const n = r && Array.isArray(r.violations) ? r.violations.length : 0;
-    return { ok: false, ran: true, reason: 'render truth-pack found ' + n + ' violation(s)' + (first ? ': [' + first.rule + '] ' + first.detail : '') };
+    return truthPackResultLeg(loaded.checker.check(payload, opts.renderedText, checkOpts));
   } catch (e) {
     // FAIL-OPEN: a throw inside the pure checker is a broken gate, recorded as a failed (not passed) leg so
     // done stays false; never a thrown mint (Rule 7/17). The pure checker is written not to throw; this is
