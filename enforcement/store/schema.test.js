@@ -44,6 +44,8 @@ const BAD_FIXTURES = [
   [{ ...GOOD_ROW, law_ids: [] }, 'an empty law_ids array'],
   [{ ...GOOD_ROW, law_ids: 'UK_MHRA_POM_AD_BAN' }, 'a law_ids that is a string, not an array'],
   [{ ...GOOD_ROW, law_ids: [''] }, 'a law_ids entry that is an empty string'],
+  [{ ...GOOD_ROW, law_ids: ['../../etc/passwd'] }, 'a law_ids entry shaped like a path-traversal attempt'],
+  [{ ...GOOD_ROW, law_ids: ['uk_gdpr_art_5'] }, 'a law_ids entry that is lowercase'],
   [{ ...GOOD_ROW, entity_name: '' }, 'an empty entity_name'],
   [{ ...GOOD_ROW, entity_name: '   ' }, 'a whitespace-only entity_name'],
   [{ ...GOOD_ROW, penalty_amount: 'a lot' }, 'a non-numeric penalty_amount'],

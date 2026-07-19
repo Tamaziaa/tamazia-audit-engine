@@ -52,6 +52,19 @@ test('parses the real fetched Kind Patches ruling (multi-rule breach) into one v
   assert.equal(row.decision_date, '2026-07-15');
   assert.ok(row.offending_quote);
   assert.match(stripHtmlToText(html), new RegExp(escapeRegex(row.offending_quote)));
+  // the page cites two plural, list-form clusters ("rules 12.1 and 12.11 (...)" and "rules 1.3 (...)
+  // and 4.9 (...)"): every rule number from BOTH clusters must be captured, not just the first
+  // cluster or the first number of each, proving ruleNumbersOf's list/plural handling.
+  assert.ok(row.law_ids.includes('UK_CAP_1212_COSMETIC'), 'rule 12.1 must map to UK_CAP_1212_COSMETIC');
+  assert.ok(row.law_ids.includes('UK_MHRA_POM_AD_BAN'), 'rule 12.11 must map to UK_MHRA_POM_AD_BAN');
+  assert.ok(row.law_ids.includes('UK_CAP_CODE'), 'rules 1.3 and 4.9 (no dedicated catalogue record yet) fall back to UK_CAP_CODE');
+});
+
+test('ruleNumbersOf recognises the plural "rules" list form ASA uses for multi-rule breaches (KNOWN-BAD CALIBRATION FIXTURE: the old singular-only "rule N.N" regex silently dropped every number in a "rules X and Y" citation)', () => {
+  const html = readFixture('kind-patches-ltd.html');
+  const rows = parse(html, ctxFor(html, 'https://www.asa.org.uk/rulings/kind-patches-ltd-a26-1333913-kind-patches-ltd.html'));
+  const { law_ids: lawIds } = rows[0];
+  assert.ok(lawIds.length > 1, 'a multi-rule "rules X and Y" citation must not collapse to the single generic UK_CAP_CODE fallback');
 });
 
 test('a structurally drifted page (no "Ruling on" heading, no date) yields zero rows, not a guess (KNOWN-BAD CALIBRATION FIXTURE)', () => {

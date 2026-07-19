@@ -58,7 +58,7 @@ function digestOf(bytes) {
 }
 
 // readSuccessResult(response, requestedUrl) -> the ok:true result shape. Split out so
-// fetchWithDeadline's own body stays a flat sequence of guard clauses (CodeScene Complex Method).
+// performFetch's own body stays a flat sequence of guard clauses (CodeScene Complex Method).
 async function readSuccessResult(response, requestedUrl) {
   const text = await response.text();
   const bytes = Buffer.from(text, 'utf8');
@@ -73,6 +73,27 @@ async function readSuccessResult(response, requestedUrl) {
   };
 }
 
+// performFetch(url, headers, deadlineMs) -> the ok:true success shape or the ok:false http_status
+// shape (never throws for its OWN caller, but IS run entirely inside fetchWithDeadline's
+// withDeadline race - see below). Fetching headers, checking the status and reading the response
+// body are all part of the one external operation Rule 9 requires a hard deadline around; a
+// slow-drip or failing body read must degrade the same way a slow-to-respond source does, never
+// hang or throw past the deadline.
+//
+// The fetch itself carries an AbortSignal.timeout(deadlineMs) so a source that never responds is
+// actually CANCELLED at the deadline, not merely abandoned still running in the background:
+// withDeadline's own timer (started a moment earlier, in fetchWithDeadline below) settles the
+// caller's result first, so this signal firing is purely a cleanup path - its resulting AbortError
+// rejection is routed to withDeadline's settleError, which is already a no-op once withDeadline has
+// settled (deadline.js: `if (ctx.settled) return;`), so it never changes the reported outcome.
+async function performFetch(url, headers, deadlineMs) {
+  const response = await fetch(url, { headers, redirect: 'follow', signal: AbortSignal.timeout(deadlineMs) });
+  if (!isSuccessResponse(response)) {
+    return { ok: false, reason: 'http_status', status: response ? response.status : null };
+  }
+  return readSuccessResult(response, url);
+}
+
 // fetchWithDeadline(url, { deadlineMs, headers, label } = {})
 //   -> Promise<{ ok:true, status, url, text, bytes, sha256, fetchedAt }
 //            | { ok:false, reason:'timeout'|'error'|'http_status', status?, label?, error? }>
@@ -81,20 +102,17 @@ async function fetchWithDeadline(url, opts = {}) {
   const label = opts.label || url;
   const headers = buildRequestHeaders(opts);
 
-  const outcome = await withDeadline(() => fetch(url, { headers, redirect: 'follow' }), deadlineMs, label);
+  const outcome = await withDeadline(() => performFetch(url, headers, deadlineMs), deadlineMs, label);
 
   if (!outcome.ok) {
-    // outcome.reason is 'timeout' or 'error' (withDeadline's own discriminants); passed through
-    // verbatim so the collector's caller sees the real cause, never a synthesised empty success.
+    // outcome.reason is 'timeout' or 'error' (withDeadline's own discriminants, the latter now also
+    // covering a thrown/rejected response.text() read); passed through verbatim so the collector's
+    // caller sees the real cause, never a synthesised empty success.
     return { ok: false, reason: outcome.reason, label, error: outcome.error || null };
   }
 
-  const response = outcome.value;
-  if (!isSuccessResponse(response)) {
-    return { ok: false, reason: 'http_status', status: response ? response.status : null, label };
-  }
-
-  return readSuccessResult(response, url);
+  const result = outcome.value;
+  return result.ok ? result : { ...result, label };
 }
 
 // sha256Of(text) -> hex digest. Exposed so fixture-based tests and the seed-authoring script can

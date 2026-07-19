@@ -41,6 +41,12 @@ const SHA256_RX = /^[0-9a-f]{64}$/;
 // A currency ISO-4217 code, OR the literal 'GBP'/'EUR'/'USD' set this store actually emits. Kept as
 // a general 3-uppercase-letter check so a future source's currency is not rejected by a closed enum.
 const CURRENCY_RX = /^[A-Z]{3}$/;
+// law_ids are catalogue-shaped identifiers (e.g. UK_MHRA_POM_AD_BAN, EU_GDPR_ART_5), never free text.
+// enforcement/derive/lexicon.js builds an output filename directly from a law_id
+// (`${lawId}.json`); this is the ONE declared producer of the shape guarantee every downstream
+// consumer of law_ids relies on, so a law_id containing a path-traversal-shaped character (`/`, `..`)
+// is rejected here, at the source, rather than trusted by each consumer individually.
+const LAW_ID_RX = /^[A-Z0-9_]+$/;
 
 // isPresent(value) -> boolean. The store's own "set" test: undefined and null both mean "not
 // supplied" for every optional field (offending_quote, penalty_amount, currency).
@@ -118,8 +124,12 @@ function assertLawIdsPresent(row) {
 
 function assertLawIdEntriesValid(row) {
   for (const lawId of row.law_ids) {
-    if (!isBlankString(lawId)) continue;
-    throw new TypeError('EnforcementAction.law_ids entries must be non-empty strings');
+    if (isBlankString(lawId)) {
+      throw new TypeError('EnforcementAction.law_ids entries must be non-empty strings');
+    }
+    if (!LAW_ID_RX.test(lawId)) {
+      throw new TypeError(`EnforcementAction.law_ids entries must match ${LAW_ID_RX}, got "${lawId}"`);
+    }
   }
 }
 

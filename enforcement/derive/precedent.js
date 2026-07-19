@@ -39,21 +39,28 @@ function bucketFor(byKey, lawId, currency) {
   return byKey.get(key);
 }
 
+// addRowToBuckets(byKey, row) -> void. Pushes row's amount/source/date onto every law_id::currency
+// bucket it carries. The one place that touches byKey's Map API, kept out of
+// groupRowsByLawIdAndCurrency's own body so that function nests only one level deep (CodeScene
+// Bumpy Road Ahead: a loop-inside-a-loop is two nested-conditional chunks in one function).
+function addRowToBuckets(byKey, row) {
+  for (const lawId of row.law_ids) {
+    const bucket = bucketFor(byKey, lawId, row.currency);
+    bucket.amounts.push(row.penalty_amount);
+    bucket.sources.push({ entity_name: row.entity_name, url: row.url, sha256: row.sha256, decision_date: row.decision_date, penalty_amount: row.penalty_amount });
+    bucket.dates.push(row.decision_date);
+  }
+}
+
 // groupRowsByLawIdAndCurrency(rows) -> Map<`${law_id}::${currency}`, bucket>. Multi-currency
 // law_ids are kept SEPARATE per currency (never summed/converted - a currency conversion is itself a
 // fact this module has no authority to invent), so a mixed UK/EU law_id produces one bucket per
-// currency observed. Split out of buildPrecedentRanges so neither function nests a loop inside a
-// loop inside a conditional (CodeScene Bumpy Road Ahead).
+// currency observed.
 function groupRowsByLawIdAndCurrency(rows) {
   const byKey = new Map();
   for (const row of rows) {
     if (!hasMonetaryPenalty(row)) continue;
-    for (const lawId of row.law_ids) {
-      const bucket = bucketFor(byKey, lawId, row.currency);
-      bucket.amounts.push(row.penalty_amount);
-      bucket.sources.push({ entity_name: row.entity_name, url: row.url, sha256: row.sha256, decision_date: row.decision_date, penalty_amount: row.penalty_amount });
-      bucket.dates.push(row.decision_date);
-    }
+    addRowToBuckets(byKey, row);
   }
   return byKey;
 }
@@ -77,8 +84,11 @@ function rangeFromBucket(bucket, generatedAt) {
   };
 }
 
-// buildPrecedentRanges(rows) -> Map<law_id, PrecedentRange>. See groupRowsByLawIdAndCurrency and
-// rangeFromBucket above for the two halves of this pure arithmetic pass.
+// buildPrecedentRanges(rows) -> Map<`${law_id}::${currency}`, PrecedentRange>. See
+// groupRowsByLawIdAndCurrency and rangeFromBucket above for the two halves of this pure arithmetic
+// pass. The key is currency-qualified (never a bare law_id) because a mixed-currency law_id keeps
+// its ranges separate per currency (see groupRowsByLawIdAndCurrency); a caller must look up
+// `${lawId}::${currency}`, not `ranges.get(lawId)`.
 function buildPrecedentRanges(rows, generatedAt) {
   const byKey = groupRowsByLawIdAndCurrency(rows);
   const ranges = new Map();

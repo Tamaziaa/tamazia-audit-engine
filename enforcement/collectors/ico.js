@@ -11,10 +11,20 @@
 
 const { stripHtmlToText } = require('./lib/text');
 const { collectFromSource } = require('./lib/framework');
+const { JURISDICTIONS } = require('../../facts/vocabulary');
 
 const SOURCE = 'ICO';
 const REGULATOR = "Information Commissioner's Office";
 const ARCHIVE_URL = 'https://ico.org.uk/action-weve-taken/enforcement/';
+
+// UK_JURISDICTION: sourced from facts/vocabulary.js's canonical jurisdiction code list rather than a
+// bare re-typed string literal (enforcement/ is a documented co-door for the jurisdiction fact, but
+// ONLY for the vocabulary primitives facts/vocabulary.js owns - tools/one-door/facts.json). Fails
+// fast at load time if the vocabulary ever drops the UK code.
+const UK_JURISDICTION = 'UK';
+if (!Object.prototype.hasOwnProperty.call(JURISDICTIONS, UK_JURISDICTION)) {
+  throw new Error('facts/vocabulary.js JURISDICTIONS no longer defines UK');
+}
 
 // ARTICLE_TO_LAW_ID: maps a cited UK GDPR article (base number only - see baseArticleNumber below)
 // to a law_id. UK GDPR articles do not yet have per-article catalogue records (only
@@ -72,16 +82,26 @@ function pecrRegsOf(text) {
   return [...found];
 }
 
+// lawIdsOf(text) -> law_id[]. Every id here is anchored to an article/regulation number ACTUALLY
+// cited in the page text (Rule 3: no artifact, no breach); an empty result means the page cited none
+// and the caller (parse()) treats that the same as a structurally-drifted page, never guessing a
+// citation the page never made.
 function lawIdsOf(text) {
   const ids = new Set();
   for (const article of articlesOf(text)) ids.add(ARTICLE_TO_LAW_ID[article] || `UK_GDPR_ART_${article.replace(/[()]/g, '_')}`);
   for (const reg of pecrRegsOf(text)) ids.add(PECR_REG_TO_LAW_ID[reg] || 'UK_PECR_EMARKETING');
-  return ids.size > 0 ? [...ids] : ['UK_GDPR_ART_5'];
+  return [...ids];
 }
 
 const DATE_LINE_RX = /\nDate\s*\n?\s*(\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})/;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const PENALTY_RX = /£\s?([\d,]+(?:\.\d{2})?)/;
+// PENALTY_RX: anchors the £ amount to one of the three ways ICO pages actually phrase the CONFIRMED
+// penalty ("<Article/PECR> ... issued a monetary penalty of £X", "imposed a fine of £X on <Entity>",
+// "was fined £X for ...", "£X penalty imposed on <Entity>") - never the first £ figure anywhere on
+// the page. MediaLab.AI's real fixture states the final £247,590 this way BEFORE narrating the
+// £393,000 originally "proposed" in the NOI; "proposed" carries none of these anchor words, so an
+// earlier-proposed or otherwise unrelated amount cannot populate penalty_amount.
+const PENALTY_RX = /(?:(?:penalty|fine)\s+of\s+£\s?([\d,]+(?:\.\d{2})?)|fined\s+£\s?([\d,]+(?:\.\d{2})?)|£\s?([\d,]+(?:\.\d{2})?)\s+penalty\b)/i;
 
 function isoDateOf(day, month, year) {
   const mm = String(MONTHS.indexOf(month) + 1).padStart(2, '0');
@@ -89,18 +109,24 @@ function isoDateOf(day, month, year) {
 }
 
 // entityNameOf(text) -> the ICO page's own H1, which repeats the organisation name (the "Action
-// we've taken / Enforcement action / <Entity> / <Entity>" structural pair every page shares).
+// we've taken / Enforcement action / <Entity> / <Entity>" structural pair every page shares). No
+// fallback: a page whose structure does not repeat the name is treated as drifted (null), never fed
+// an unverified single line that could be a label or breadcrumb fragment into a client-visible field.
+//
+// The repeat is anchored with a lookahead for newline-or-end (never `\b`): a `\b` word-boundary check
+// immediately after the backreference fails whenever the entity name ends in punctuation ("Reddit,
+// Inc.", "MediaLab.AI, Inc." - the period before the following `\n` is non-word-to-non-word, so `\b`
+// never matches there), which would silently reject two of this collector's own real fixtures.
 function entityNameOf(text) {
-  const m = /Enforcement action\s*\n\s*([^\n]+)\n\s*\1\b/.exec(text);
-  if (m) return m[1].trim();
-  const fallback = /Enforcement action\s*\n\s*([^\n]+)/.exec(text);
-  return fallback ? fallback[1].trim() : null;
+  const m = /Enforcement action\s*\n\s*([^\n]+)\n\s*\1(?=\n|$)/.exec(text);
+  return m ? m[1].trim() : null;
 }
 
 function penaltyOf(text) {
   const m = PENALTY_RX.exec(text);
   if (!m) return { amount: null, currency: null };
-  const amount = Number(m[1].replace(/,/g, ''));
+  const raw = m[1] || m[2] || m[3];
+  const amount = Number(raw.replace(/,/g, ''));
   return Number.isFinite(amount) ? { amount, currency: 'GBP' } : { amount: null, currency: null };
 }
 
@@ -113,12 +139,16 @@ function parse(html, ctx) {
   const decisionDate = isoDateOf(Number(dateMatch[1]), dateMatch[2], dateMatch[3]);
   const { amount, currency } = penaltyOf(text);
   const lawIds = lawIdsOf(text);
+  // No article/PECR regulation citation found: the same fail-closed path as a structurally drifted
+  // page (Rule 3 - no artifact, no breach; never emit a row asserting a statutory citation the page
+  // never actually made).
+  if (lawIds.length === 0) return [];
 
   const row = {
     id: `ICO-${ctx.sha256.slice(0, 12)}`,
     source: SOURCE,
     regulator: REGULATOR,
-    jurisdiction: 'UK',
+    jurisdiction: UK_JURISDICTION,
     law_ids: lawIds,
     entity_name: entity,
     offending_quote: null, // ICO enforcement pages narrate conduct; they do not quote verbatim page copy

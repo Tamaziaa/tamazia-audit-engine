@@ -66,6 +66,26 @@ test('fetchWithDeadline returns a typed timeout failure when the source hangs pa
   );
 });
 
+test('fetchWithDeadline aborts the underlying request once the deadline elapses, not merely abandoning it running in the background', async () => {
+  let observedSignal;
+  await withMockedFetch(
+    (_url, opts) => {
+      observedSignal = opts.signal;
+      return new Promise(() => {}); // never resolves: only the AbortSignal ever settles this fetch
+    },
+    async () => {
+      const result = await fetchWithDeadline('https://example.test/hangs-and-aborts', { deadlineMs: 30 });
+      assert.equal(result.ok, false);
+      assert.equal(result.reason, 'timeout');
+      assert.ok(observedSignal, 'the mocked fetch must have been called with a signal in its options');
+      // AbortSignal.timeout(30) is a separate clock from withDeadline's own 30ms timer; give it a
+      // moment to fire so this assertion is not a race against the first one above.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.equal(observedSignal.aborted, true, 'the fetch signal must abort at the deadline, proving the in-flight request is actually cancelled, not just abandoned');
+    },
+  );
+});
+
 test('sha256Of is deterministic and matches the digest fetchWithDeadline computes', () => {
   assert.equal(sha256Of('abc'), sha256Of('abc'));
   assert.equal(sha256Of('abc').length, 64);

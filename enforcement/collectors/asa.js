@@ -38,13 +38,32 @@ function lawIdsFromRuleNumbers(ruleNumbers) {
 }
 
 // ruleNumbersOf(text) -> the distinct CAP Code rule numbers (e.g. "12.12") the ruling body cites.
+// Recognises both the singular "rule N.N" ASA uses for a one-rule breach and the plural, LIST form
+// it uses for a multi-rule breach ("rules 12.1 and 12.11 (...)"; "rules 3.1 (...), 3.7 (...), and
+// 3.32 (...)"): a citation cluster is "rule(s)" followed by one or more N.N numbers, each optionally
+// followed by the parenthetical rule title ASA always prints, chained by "," and/or "and" (including
+// the Oxford-comma "X, Y, and Z" form). The parenthetical's own prose (which can itself contain
+// "and") is consumed as part of that number's optional trailing group, never mistaken for a further
+// citation, because the next citation must start with a fresh \d{1,2}\.\d{1,2} straight after a
+// separator, not merely appear somewhere later in the parenthetical.
+//
+// KNOWN LIMITATION: a ruling with more than one complaint, where some rules were dismissed ("did not
+// find it in breach") and others upheld, cites every rule number on the one page; this function
+// extracts all of them without checking which complaint's verdict a given rule belongs to. Every
+// fixture this collector is tested against today is single-complaint or uniformly-upheld (kind-
+// patches-ltd.html: "Two issues were investigated, both of which were Upheld"), so Rule 3 (no
+// artifact, no breach) still holds for them; a genuinely mixed-verdict page is a follow-on hardening
+// item, not silently claimed solved here.
 function ruleNumbersOf(text) {
   const found = new Set();
-  const rx = /\brule\s+(\d{1,2}\.\d{1,2})\b/gi;
-  let m = rx.exec(text);
+  // A literal regex throughout (never RegExp built from a runtime string): a static, fully-reviewed
+  // pattern, not a dynamic one a security scanner would need to treat as unbounded input.
+  const clusterRx = /\brules?\s+(\d{1,2}\.\d{1,2}(?:\s*\([^)]*\))?(?:(?:\s*,\s*|\s+and\s+)+\d{1,2}\.\d{1,2}(?:\s*\([^)]*\))?)*)/gi;
+  const numberRx = /\d{1,2}\.\d{1,2}/g;
+  let m = clusterRx.exec(text);
   while (m) {
-    found.add(m[1]);
-    m = rx.exec(text);
+    for (const num of m[1].match(numberRx) || []) found.add(num);
+    m = clusterRx.exec(text);
   }
   return [...found];
 }

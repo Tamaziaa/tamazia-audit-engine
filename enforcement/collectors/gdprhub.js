@@ -36,11 +36,18 @@ const DATE_RX = /Decided:\s*(\d{4})-(\d{2})-(\d{2})/;
 const PARTY_RX = /Party:\s*([^\n]+)/;
 const ARTICLE_RX = /Article\s*(\d{1,2})/g;
 
+// lawIdsOf(text) -> law_id[]. Only article numbers this collector already maps to a real,
+// catalogue-aligned id are emitted (Constitution Rule 2: no literal/invented law fact outside the
+// catalogue's own promotion path); an article number the map does not recognise is DROPPED, never
+// synthesised into a fresh EU_GDPR_ART_N id this repo has no record for. EU_GDPR_ART_5 is the
+// fallback ONLY when the infobox cited no known article at all (never a substitute for a genuinely
+// unrecognised one).
 function lawIdsOf(text) {
   const found = new Set();
   let m = ARTICLE_RX.exec(text);
   while (m) {
-    found.add(ARTICLE_TO_LAW_ID[m[1]] || `EU_GDPR_ART_${m[1]}`);
+    const lawId = ARTICLE_TO_LAW_ID[m[1]];
+    if (lawId) found.add(lawId);
     m = ARTICLE_RX.exec(text);
   }
   return found.size > 0 ? [...found] : ['EU_GDPR_ART_5'];

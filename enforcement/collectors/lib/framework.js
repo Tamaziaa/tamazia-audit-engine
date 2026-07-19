@@ -15,10 +15,13 @@ const { isValidRow, assertValidRow } = require('../../store/schema');
 
 // fetchErrorResult(fetched, source, url) -> the ok:false shape for a failed fetch. A failed fetch is
 // a typed, reported LaneError - never an empty rows[] masquerading as "no enforcement actions today"
-// (the same discipline evidence/registers/lib/lookup-runner.js uses).
+// (the same discipline evidence/registers/lib/lookup-runner.js uses). The HTTP status carries through
+// on an 'http_status' failure (fetchWithDeadline sets status, not error, for that reason) so a
+// blocked source's actual response code (403, 404, ...) survives into this collection report -
+// exactly the debugging signal an operator needs, never silently dropped.
 function fetchErrorResult(fetched, source, url) {
   const detail = fetched.error ? String(fetched.error.message || fetched.error) : null;
-  return { ok: false, reason: fetched.reason, source, url, detail };
+  return { ok: false, reason: fetched.reason, source, url, status: fetched.status ?? null, detail };
 }
 
 // parseCandidates(parse, fetched, source, url) -> Array | the ok:false parse_error shape (never

@@ -39,20 +39,35 @@ function phraseCandidateOf(row) {
   };
 }
 
+// addRowPhrasesToBuckets(byLawId, row) -> void. Pushes row's phrase candidate onto every law_id
+// bucket it carries, creating a bucket on first use. The one place that touches byLawId's Map API,
+// kept out of groupPhrasesByLawId's own body so that function nests only one level deep (CodeScene
+// Bumpy Road Ahead: a loop-inside-a-loop is two nested-conditional chunks in one function).
+function addRowPhrasesToBuckets(byLawId, row) {
+  for (const lawId of row.law_ids) {
+    if (!byLawId.has(lawId)) byLawId.set(lawId, []);
+    byLawId.get(lawId).push(phraseCandidateOf(row));
+  }
+}
+
 // groupPhrasesByLawId(rows) -> Map<law_id, phraseCandidate[]>. Rows with no verbatim quote
 // contribute nothing (there is no phrase to propose); every law_id a quoted row carries gets its own
-// bucket. Split out of buildLexiconProposals so neither function nests a loop inside a loop inside a
-// conditional (CodeScene Bumpy Road Ahead).
+// bucket.
 function groupPhrasesByLawId(rows) {
   const byLawId = new Map();
   for (const row of rows) {
     if (!row.offending_quote) continue; // no verbatim quote on this row: nothing to propose
-    for (const lawId of row.law_ids) {
-      if (!byLawId.has(lawId)) byLawId.set(lawId, []);
-      byLawId.get(lawId).push(phraseCandidateOf(row));
-    }
+    addRowPhrasesToBuckets(byLawId, row);
   }
   return byLawId;
+}
+
+// compareByDecisionDateDesc(a, b) -> the most-recent-first comparator every phrase list is sorted
+// with. Returns 0 for equal dates (Array.prototype.sort's contract requires it - a comparator that
+// only ever answers -1/1 for equal inputs can produce an inconsistent order across engines).
+function compareByDecisionDateDesc(a, b) {
+  if (a.decision_date === b.decision_date) return 0;
+  return a.decision_date < b.decision_date ? 1 : -1;
 }
 
 // toSortedProposals(byLawId, generatedAt) -> Map<law_id, LexiconProposal>, each bucket's phrases
@@ -60,7 +75,7 @@ function groupPhrasesByLawId(rows) {
 function toSortedProposals(byLawId, generatedAt) {
   const proposals = new Map();
   for (const [lawId, phrases] of byLawId) {
-    const sorted = [...phrases].sort((a, b) => (a.decision_date < b.decision_date ? 1 : -1));
+    const sorted = [...phrases].sort(compareByDecisionDateDesc);
     proposals.set(lawId, { law_id: lawId, phrases: sorted, generated_at: generatedAt });
   }
   return proposals;

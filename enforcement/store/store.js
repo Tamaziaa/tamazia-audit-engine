@@ -46,8 +46,9 @@ function parseStoreLine(line, index, storePath) {
   return row;
 }
 
-// loadStore(storePath = DEFAULT_STORE_PATH) -> EnforcementAction[]. Throws on a missing file, an
-// unparseable line, or a row that fails assertValidRow - never returns a partial list silently.
+// loadStore(storePath = DEFAULT_STORE_PATH) -> EnforcementAction[]. Returns [] on a missing file;
+// throws on an unparseable line or a row that fails assertValidRow - never returns a partial list
+// silently.
 function loadStore(storePath = DEFAULT_STORE_PATH) {
   const raw = readStoreFile(storePath);
   if (raw === null) return [];
