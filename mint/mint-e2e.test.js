@@ -56,12 +56,20 @@ const registersFetchFn = async (_url, options) => (options && options.requestKey
 // candidates correctly abstain to needs_review (Rule 12 gate 4).
 const scriptedDecline = async () => ({ ok: false });
 
-// in-memory Neon + R2 doors (no network). captureSql records the INSERT so we can prove the idempotency key.
+// in-memory Neon + R2 doors (no network). captureSql records the INSERT so we can prove the marker + key.
+// The INSERT binds the CONFORMING columns (slug=$1, hash=$2, ... payload_json=$7, ... idem_key=$10); the
+// engine version now rides INSIDE the payload_json marker ($7), so the fake extracts it there (mirroring the
+// live `payload_json->>'engine_version'` the read-back and the DB trigger both read) - never a column.
 function makeStores() {
   const db = new Map(); const r2 = new Map(); const sqlCalls = [];
   const sqlFn = async (query, params) => {
     sqlCalls.push({ query, params });
-    if (/^INSERT/.test(query)) { db.set(params[1] + '|' + params[2], { slug: params[1], hash: params[2], engine_version: params[3] }); return { ok: true, rows: [{ slug: params[1], hash: params[2], engine_version: params[3] }] }; }
+    if (/^INSERT/.test(query)) {
+      const ev = JSON.parse(params[6]).engine_version;
+      const row = { slug: params[0], hash: params[1], engine_version: ev };
+      db.set(params[0] + '|' + params[1], row);
+      return { ok: true, rows: [row] };
+    }
     if (/^SELECT/.test(query)) { const row = db.get(params[0] + '|' + params[1]); return { ok: true, rows: row ? [row] : [] }; }
     return { ok: false, rows: [] };
   };
@@ -131,13 +139,22 @@ test('E2E: compose produced a CONTRACT-VALID payload (validatePayload is empty; 
   assert.ok(payload.notLegalAdvice && payload.notLegalAdvice.length > 0, 'the standing not-legal-advice line ships (C-200)');
 });
 
-test('E2E: persist wrote the R2 object AND the Neon row with the idempotency key carrying ENGINE_VERSION (Rule 15)', async () => {
+test('E2E: persist wrote the R2 object AND the Neon row on the REAL (slug, hash) constraint, the version riding the marker (Rule 15)', async () => {
   const stores = makeStores();
   const res = await runMint(stores);
   const insert = stores.sqlCalls.find((c) => /^INSERT/.test(c.query));
   assert.ok(insert, 'an INSERT was issued');
-  assert.match(insert.query, /ON CONFLICT \(url, engine_version\) DO UPDATE/, 'the idempotency key is (url, engine_version)');
-  assert.strictEqual(insert.params[3], ENGINE_VERSION, 'the engine version rides the key');
+  assert.match(insert.query, /INSERT INTO audit_pages \(slug, hash, domain, sector, country, framework_version, payload_json, generated_at, status, idem_key\)/, 'only the ten conforming columns');
+  assert.match(insert.query, /ON CONFLICT \(slug, hash\) DO UPDATE/, 'the real unique constraint is (slug, hash), never (url, engine_version)');
+  assert.doesNotMatch(insert.query, /\b(url|score|grade)\b/, 'no phantom column reaches the SQL');
+  // the version + realness markers ride INSIDE payload_json ($7), the exact blob the live trigger inspects.
+  const marker = JSON.parse(insert.params[6]);
+  assert.strictEqual(marker.r2, true, 'the row stores the {r2:true} marker, not the full payload');
+  assert.ok('binding' in marker, 'binding key present (trigger guard 1)');
+  assert.ok(marker.binding > 0, 'binding carries connect()\'s frameworksBinding count');
+  assert.strictEqual(marker.engine_version, ENGINE_VERSION, 'the engine version rides the marker the trigger gates on (guard 2)');
+  assert.strictEqual(typeof marker.llm_verify, 'boolean', 'llm_verify present as a boolean');
+  assert.strictEqual(insert.params[9], res.payload.meta.domain + '|' + ENGINE_VERSION, 'idem_key carries domain + ENGINE_VERSION (Rule 15)');
   assert.ok(stores.r2.has('audits/' + res.slug + '/' + res.hash + '.json'), 'the full payload landed in R2 at the website read key');
   assert.ok(stores.db.has(res.slug + '|' + res.hash), 'the compact row landed in Neon');
 });

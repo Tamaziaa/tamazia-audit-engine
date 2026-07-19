@@ -2,26 +2,44 @@
 // mint/persist.js - THE two persistence doors of the live mint (Constitution Rule 7, Rule 9, Rule 15,
 // Rule 16, C-102/C-103/C-177).
 //
-// A mint writes to TWO stores, mirroring the tamazia-website read contract exactly:
+// A mint writes to TWO stores, mirroring the tamazia-website read contract EXACTLY (verified against the
+// live audit_pages table + the live BEFORE-INSERT trigger trg_ap_engine, read-only, 2026-07-19):
 //   R2  (writeR2)  the FULL payload, at object key `audits/<slug>/<hash>.json`. The website read path
 //                  (functions/audit/[[path]].js) fetches `env.AUDITS.get('audits/${slug}/${hash}.json')`
 //                  when the Neon row's payload_json is `{r2:true}`, so the object key here MIRRORS that
 //                  read exactly. Written via the Cloudflare R2 REST API:
 //                    PUT /client/v4/accounts/<CLOUDFLARE_ACCOUNT_ID>/r2/buckets/<R2_BUCKET>/objects/<key>
-//   Neon (writeRow) the COMPACT projection row {slug, hash, engine_version, generated_at, payload_json:
-//                  {r2:true}, + summary fields}, INSERTed with ON CONFLICT on the idempotency key
-//                  (url, engine_version) DO UPDATE (Rule 15: the engine version rides the idempotency key;
-//                  the DB-level required_engine_version trigger, C-177, is the lock every minter passes).
-//                  Written via the Neon HTTP /sql endpoint (header Neon-Connection-String), the SAME
-//                  transport the website's functions/api/_neon.js uses on the Workers runtime.
+//   Neon (writeRow) a COMPACT row of ONLY the columns that exist in the live audit_pages table
+//                  (slug, hash, domain, sector, country, framework_version, payload_json, generated_at,
+//                  status, idem_key), INSERTed with ON CONFLICT (slug, hash) DO UPDATE - the REAL unique
+//                  constraint. payload_json is the r2 MARKER blob the DB trigger inspects, NOT the full
+//                  payload. Written via the Neon HTTP /sql endpoint (header Neon-Connection-String), the
+//                  SAME transport the website's functions/api/_neon.js uses on the Workers runtime.
+//
+// THE LIVE SCHEMA + TRIGGER THIS FILE IS BUILT TO (why the columns are exactly these ten):
+//   - audit_pages has NO `url`, NO `engine_version`, NO `score`, NO `grade` column. Writing any of those
+//     would fail the INSERT outright, so this door writes NONE of them (the four are the phantom columns the
+//     pre-conform code carried; INSERT_COLUMNS below is the verified real subset, proven a subset of
+//     LIVE_AUDIT_PAGES_COLUMNS by mint/persist.test.js - no live DB call).
+//   - the UNIQUE constraint is (slug, hash); there is NO (url, engine_version) constraint, so the conflict
+//     target is (slug, hash) (a re-mint of the SAME content updates ONE row; a content change is a new hash).
+//   - the BEFORE-INSERT trigger reads the ENGINE VERSION and the realness markers from payload_json, NOT from
+//     columns: it rejects a stub write unless payload_json carries `binding` (for an r2 marker) and it rejects
+//     a STALE WORKER unless `payload_json->>'engine_version'` equals engine_flags.required_engine_version. So
+//     the marker MUST carry { r2, binding, engine_version, llm_verify } (buildMarker below). RAISING the flag
+//     to this engine's ENGINE_VERSION is a FOUNDER-GATED cutover (out of scope here); until it is raised the
+//     conforming write is correctly rejected for the RIGHT reason (version), not a phantom-column SQL error.
+//
+// Rule 15 (the engine version is load-bearing): the version rides the idempotency key. Here it rides BOTH the
+// live `idem_key` column (`<domain>|<ENGINE_VERSION>`) AND the payload_json marker's `engine_version` (the key
+// the DB trigger actually gates on). ON CONFLICT is (slug, hash) because that is the real constraint; the
+// version gate is enforced by the trigger over the marker, not by the conflict target.
 //
 // slug/hash DERIVATION (documented, mirrors the website's `/audit/<slug>/<hash>` route where each is a
 // single `[^/]+` path segment):
 //   slug = kebab(domain)   - a URL-safe single segment from the normalised host (never a slash), stable per
 //                            site and independent of identity resolution (which may abstain).
 //   hash = sha256(payload-json).slice(0,8) - the 8-hex content hash the website route reads as the barrier.
-// A re-mint of the SAME site under the SAME engine version updates ONE row (idempotency key url+version); a
-// content change yields a new hash and the DO UPDATE points the row's slug/hash at the fresh object.
 //
 // BOTH DOORS ARE INJECTABLE (opts.sqlFn / opts.putFn) so node:test never touches the network. BOTH default
 // doors are deadline-bounded (a hard AbortSignal, Rule 9) and route their endpoint URL through the
@@ -37,6 +55,30 @@ const WRITE_DEADLINE_MS = 10000; // a CAP on each persistence write (Rule 8/9), 
 const DEFAULT_TABLE = 'audit_pages';
 const DEFAULT_BUCKET = 'AUDITS';
 const DEFAULT_AUDIT_BASE = 'https://tamazia.co.uk';
+// DEFAULT_STATUS: the ready-state the website read tolerates. The read (functions/audit/[[path]].js) selects
+// by slug+hash and honours expires_at; it does NOT filter on status, so any non-null ready string serves.
+// 'ready' is the honest default for a freshly minted, live page.
+const DEFAULT_STATUS = 'ready';
+
+// LIVE_AUDIT_PAGES_COLUMNS: the EXACT column set of the live audit_pages table, verified read-only against
+// Neon on 2026-07-19 (the schema of record, in code). INSERT_COLUMNS is asserted a SUBSET of this in
+// mint/persist.test.js so a phantom column (url/engine_version/score/grade) can never silently return.
+const LIVE_AUDIT_PAGES_COLUMNS = Object.freeze([
+  'id', 'workspace_id', 'lead_id', 'slug', 'hash', 'domain', 'sector', 'country', 'framework_version',
+  'payload_json', 'generated_at', 'expires_at', 'status', 'archived_at', 'pdf_url', 'share_card_url',
+  'open_count', 'last_opened_at', 'high_intent_at', 'unlocked', 'verified', 'verify_report', 'idem_key',
+]);
+
+// INSERT_COLUMNS: the columns this door writes (all REAL, all in LIVE_AUDIT_PAGES_COLUMNS). workspace_id and
+// lead_id are deliberately left to their table defaults (never invented). CONFLICT_TARGET is the real unique
+// constraint (slug, hash). UPDATE_COLUMNS are the mutable columns re-pointed on a same-key re-mint. The SQL
+// is built from these lists so the column order and the bound-param order cannot drift apart.
+const INSERT_COLUMNS = Object.freeze([
+  'slug', 'hash', 'domain', 'sector', 'country', 'framework_version', 'payload_json', 'generated_at',
+  'status', 'idem_key',
+]);
+const CONFLICT_TARGET = Object.freeze(['slug', 'hash']);
+const UPDATE_COLUMNS = Object.freeze(['payload_json', 'generated_at', 'framework_version', 'status', 'idem_key']);
 
 // kebab(s) -> a lowercase, hyphen-joined single URL path segment (alphanumerics kept, every other run
 // collapsed to one hyphen, ends trimmed). '' when the input has no usable characters (the caller refuses).
@@ -61,44 +103,123 @@ function deriveHash(payload) {
   return crypto.createHash('sha256').update(stableJson(payload)).digest('hex').slice(0, 8);
 }
 
-// summaryFields(payload) -> the compact summary the Neon row carries alongside slug/hash (the website read
-// selects domain/sector/country; score/grade are cheap projections for the ops surface). Never the full
-// payload (that lives in R2).
-function summaryFields(payload) {
-  const meta = (payload && payload.meta) || {};
-  return {
-    domain: str(meta.domain), sector: str(meta.sector), country: str(meta.country),
-    score: numOrNull(payload && payload.score), grade: str(payload && payload.grade),
-  };
-}
+// str(v) -> the string value, or null for null/undefined/empty (the columns are nullable metadata, never a
+// fabricated placeholder). numeric/other values are coerced to their string form.
 function str(v) { return typeof v === 'string' && v ? v : (v == null ? null : String(v)); }
-function numOrNull(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
 
-// buildRow({slug, hash, generatedAt, payload}) -> the compact projection persisted to Neon. payload_json is
-// the `{r2:true}` marker the website read keys on to fetch the full object from R2 (never the full payload).
-function buildRow({ slug, hash, generatedAt, payload }) {
-  const s = summaryFields(payload);
+// domainOf(payload) -> the one-door host fact (payload.meta.domain), or '' when absent.
+function domainOf(payload) {
+  const d = payload && payload.meta && payload.meta.domain;
+  return typeof d === 'string' ? d : (d == null ? '' : String(d));
+}
+
+// idemKeyFor(domain) -> the version-bearing idempotency key value (Rule 15: the engine version rides the key).
+// `<domain>|<ENGINE_VERSION>`, deterministic per site+version. This is the live `idem_key` column value; the
+// conflict target stays (slug, hash) - the real constraint.
+function idemKeyFor(domain) {
+  return String(domain == null ? '' : domain) + '|' + ENGINE_VERSION;
+}
+
+// ── the payload_json MARKER blob (what the live trigger inspects) ─────────────────────────────────────────
+// markerBinding(payload) -> the frameworksBinding COUNT the payload carries (connect()'s binding count,
+// threaded verbatim into compose). A FINITE number always (0 when absent), so the `binding` KEY is ALWAYS
+// present in the marker - trigger guard 1 tests key EXISTENCE (`payload_json ? 'binding'`), not truthiness,
+// so `binding: 0` (a firm with no binding frameworks) still satisfies it.
+function markerBinding(payload) {
+  const b = Number(payload && payload.frameworksBinding);
+  return Number.isFinite(b) ? b : 0;
+}
+// llmVerifyFor(payload, explicit) -> the boolean "did the LLM adjudication step run". A caller MAY pass an
+// explicit boolean (opts.llmVerify, e.g. a report-derived truth); absent, it is derived from the payload:
+// true when the payload carries the adjudicator's findings output array. In this engine a `findings` array
+// exists ONLY on a fully composed payload (the propose -> verify -> enrich -> adjudicate chain, including the
+// LLM Gate-3/Gate-5 seam, ran and produced the findings surface), so this genuinely distinguishes a real
+// verified mint from a bare `{r2:true}` stub. It does NOT claim per-finding model approval: observed/register
+// facts bypass the model to a violation (C-084), which is a fact, not a model judgement.
+function llmVerifyFor(payload, explicit) {
+  if (typeof explicit === 'boolean') return explicit;
+  return Array.isArray(payload && payload.findings);
+}
+// buildMarker(payload, llmVerify) -> the COMPACT r2 marker persisted in the Neon row's payload_json (NEVER
+// the full payload; that lives in R2). Carries the four keys the live trigger reads: r2 (dual-path flag the
+// website read keys on), binding (guard 1), engine_version (guard 2, the STRING the trigger compares to
+// engine_flags.required_engine_version), llm_verify (realness marker; required by guard 1 only for a non-r2
+// blob, carried here regardless per the marker contract).
+function buildMarker(payload, llmVerify) {
   return {
-    url: s.domain, slug, hash, engine_version: ENGINE_VERSION, generated_at: generatedAt || null,
-    r2: true, payload_json: { r2: true },
-    domain: s.domain, sector: s.sector, country: s.country, score: s.score, grade: s.grade,
+    r2: true,
+    binding: markerBinding(payload),
+    engine_version: ENGINE_VERSION,
+    llm_verify: llmVerifyFor(payload, llmVerify),
   };
 }
 
-// buildInsertSql(table, row) -> { query, params } for the idempotent upsert. ON CONFLICT (url,
-// engine_version) DO UPDATE (Rule 15). The column set mirrors the website read (slug/hash/payload_json/
-// domain/sector/country) plus engine_version + generated_at for the version gate (C-177). Parameterised
-// ($1..$N) so no value is interpolated into SQL. The table name is a validated identifier (never a param).
+// ── framework_version: the catalogue/law-pack version (a metadata column; distinct from ENGINE_VERSION) ──
+// The composed payload carries no framework/catalogue version field today, so the honest source is the
+// compiled catalogue artifact's `catalogue_version` (Rule 2: the one law-fact door). Read ONCE and memoised.
+let _catalogueVersion; // undefined until first resolved; then a string or null.
+function catalogueVersion() {
+  if (_catalogueVersion !== undefined) return _catalogueVersion;
+  try {
+    const cat = require('../catalogue/dist/catalogue.v1.json');
+    _catalogueVersion = (cat && typeof cat.catalogue_version === 'string' && cat.catalogue_version) ? cat.catalogue_version : null;
+  } catch (e) {
+    // FAIL-OPEN (justified): the compiled catalogue is a build product. If it is somehow unreadable at
+    // persist time, framework_version records as null - a NULLABLE metadata column the website read does NOT
+    // select - rather than throwing the mint (Rule 9). The write still conforms; only the version fact is
+    // absent, and it is recorded (memoised) as null, not silently swallowed (Rule 4/swallow-gate).
+    _catalogueVersion = null;
+  }
+  return _catalogueVersion;
+}
+// frameworkVersionFor(payload, opts) -> the framework_version column value. An explicit opts.frameworkVersion
+// wins (tests / a future payload-borne version); absent, the compiled catalogue's catalogue_version.
+function frameworkVersionFor(payload, opts) {
+  const o = opts || {};
+  if (typeof o.frameworkVersion === 'string' && o.frameworkVersion) return o.frameworkVersion;
+  const carried = payload && (payload.framework_version || payload.catalogue_version
+    || (payload.meta && payload.meta.framework_version));
+  if (typeof carried === 'string' && carried) return carried;
+  return catalogueVersion();
+}
+
+// buildRow({slug, hash, generatedAt, payload, frameworkVersion, llmVerify, status}) -> the COMPACT row
+// persisted to Neon, keyed ONLY to real audit_pages columns. payload_json is the r2 marker (buildMarker), not
+// the full payload. frameworkVersion/llmVerify/status are explicit inputs (pure function); persist() sources
+// them. Absent frameworkVersion -> null; absent llmVerify -> derived from the payload; absent status -> ready.
+function buildRow({ slug, hash, generatedAt, payload, frameworkVersion, llmVerify, status }) {
+  const domain = domainOf(payload);
+  return {
+    slug,
+    hash,
+    domain: str(domain),
+    sector: str(payload && payload.meta && payload.meta.sector),
+    country: str(payload && payload.meta && payload.meta.country),
+    framework_version: str(frameworkVersion) || null,
+    payload_json: buildMarker(payload, llmVerify),
+    generated_at: generatedAt || null,
+    status: str(status) || DEFAULT_STATUS,
+    idem_key: idemKeyFor(domain),
+  };
+}
+
+// buildInsertSql(table, row) -> { query, params } for the idempotent upsert. ON CONFLICT (slug, hash) DO
+// UPDATE (the REAL unique constraint) re-points the mutable columns on a same-key re-mint. The column list,
+// the placeholder list and the bound-param list are all built from INSERT_COLUMNS so they cannot drift; the
+// only non-1:1 mapping is payload_json, sent as a JSON string for the jsonb column. The table name is a
+// validated identifier (never a bound param); no value is interpolated into the SQL string.
 function buildInsertSql(table, row) {
   const t = safeTable(table);
+  const cols = INSERT_COLUMNS.join(', ');
+  const placeholders = INSERT_COLUMNS.map((_c, i) => '$' + (i + 1)).join(',');
+  const conflict = CONFLICT_TARGET.join(', ');
+  const updates = UPDATE_COLUMNS.map((c) => c + '=EXCLUDED.' + c).join(', ');
   const query =
-    'INSERT INTO ' + t + ' (url, slug, hash, engine_version, generated_at, payload_json, domain, sector, country, score, grade)'
-    + ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)'
-    + ' ON CONFLICT (url, engine_version) DO UPDATE SET'
-    + ' slug=EXCLUDED.slug, hash=EXCLUDED.hash, generated_at=EXCLUDED.generated_at, payload_json=EXCLUDED.payload_json,'
-    + ' domain=EXCLUDED.domain, sector=EXCLUDED.sector, country=EXCLUDED.country, score=EXCLUDED.score, grade=EXCLUDED.grade'
-    + ' RETURNING slug, hash, engine_version';
-  const params = [row.url, row.slug, row.hash, row.engine_version, row.generated_at, JSON.stringify(row.payload_json), row.domain, row.sector, row.country, row.score, row.grade];
+    'INSERT INTO ' + t + ' (' + cols + ')'
+    + ' VALUES (' + placeholders + ')'
+    + ' ON CONFLICT (' + conflict + ') DO UPDATE SET ' + updates
+    + ' RETURNING slug, hash, payload_json';
+  const params = INSERT_COLUMNS.map((c) => (c === 'payload_json' ? JSON.stringify(row[c]) : row[c]));
   return { query, params };
 }
 
@@ -177,16 +298,19 @@ function liveUrlFor(slug, hash, env) {
 }
 
 /**
- * persist(payload, opts) -> Promise<{ slug, hash, row, liveUrl, r2, rowResult, r2Result }>. Writes R2 FIRST
- * (the full object must exist before the row that points at it - the website 404s a row whose R2 object is
- * missing), then the idempotent Neon row. NEVER throws: a failed door returns its typed { ok:false } and the
- * caller (post-write assertions) refuses to flip done (the phantom-data class, Rule 7/C-249).
+ * persist(payload, opts) -> Promise<{ slug, hash, row, liveUrl, objectKey, r2Result, rowResult }>. Writes R2
+ * FIRST (the full object must exist before the row that points at it - the website 404s a row whose R2 object
+ * is missing), then the idempotent Neon row. NEVER throws: a failed door returns its typed { ok:false } and
+ * the caller (post-write assertions) refuses to flip done (the phantom-data class, Rule 7/C-249).
  *
- * opts.env        env for both doors (default process.env; secrets read at call time only, Rule 16).
- * opts.generatedAt the row's generated_at (the caller's minted timestamp; NEVER Date.now inside pure code).
- * opts.table      the Neon table (default env.MINT_TABLE or 'audit_pages').
- * opts.sqlFn      injected (query, params) => {ok, rows} (tests: in-memory; production: the Neon door).
- * opts.putFn      injected (objectKey, body) => {ok, status} (tests: in-memory; production: the R2 door).
+ * opts.env             env for both doors (default process.env; secrets read at call time only, Rule 16).
+ * opts.generatedAt     the row's generated_at (the caller's minted timestamp; NEVER Date.now inside pure code).
+ * opts.table           the Neon table (default env.MINT_TABLE or 'audit_pages').
+ * opts.frameworkVersion override the framework_version column (default: the compiled catalogue_version).
+ * opts.llmVerify       override the marker's llm_verify boolean (default: derived from the payload).
+ * opts.status          override the status column (default 'ready').
+ * opts.sqlFn           injected (query, params) => {ok, rows} (tests: in-memory; production: the Neon door).
+ * opts.putFn           injected (objectKey, body) => {ok, status} (tests: in-memory; production: the R2 door).
  */
 async function persist(payload, opts = {}) {
   const env = opts.env || process.env;
@@ -194,7 +318,10 @@ async function persist(payload, opts = {}) {
   const hash = deriveHash(payload);
   if (!slug || !hash) throw new Error('mint/persist: cannot derive a slug/hash (no domain fact in the payload); refusing to persist a keyless row (Rule 7)');
   const table = opts.table || env.MINT_TABLE || DEFAULT_TABLE;
-  const row = buildRow({ slug, hash, generatedAt: opts.generatedAt, payload });
+  const row = buildRow({
+    slug, hash, generatedAt: opts.generatedAt, payload,
+    frameworkVersion: frameworkVersionFor(payload, opts), llmVerify: opts.llmVerify, status: opts.status,
+  });
   const sqlFn = typeof opts.sqlFn === 'function' ? opts.sqlFn : defaultSqlFn(env);
   const putFn = typeof opts.putFn === 'function' ? opts.putFn : defaultPutFn(env);
 
@@ -211,7 +338,11 @@ module.exports = {
   deriveSlug,
   deriveHash,
   buildRow,
+  buildMarker,
   buildInsertSql,
+  frameworkVersionFor,
+  catalogueVersion,
+  idemKeyFor,
   liveUrlFor,
   kebab,
   safeTable,
@@ -221,4 +352,9 @@ module.exports = {
   WRITE_DEADLINE_MS,
   DEFAULT_TABLE,
   DEFAULT_BUCKET,
+  DEFAULT_STATUS,
+  INSERT_COLUMNS,
+  CONFLICT_TARGET,
+  UPDATE_COLUMNS,
+  LIVE_AUDIT_PAGES_COLUMNS,
 };
