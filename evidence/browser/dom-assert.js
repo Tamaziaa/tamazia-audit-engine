@@ -60,11 +60,47 @@ function normaliseOpts(opts) {
   return { deadlineMs: clampDeadline(o.deadlineMs), now: typeof o.now === 'function' ? o.now : Date.now };
 }
 
+// ── the risk-tier partition (W6, the ONE classification door) ─────────────────────────────────────────
+// DOM_RULE_TIER maps each dom-assert rule_id to its FINDING tier. This is the single frozen door that
+// decides whether a CONFIRMED node ships as a hard violation or must adjudicate to needs-review:
+//   'deterministic'  the DOM fact IS the breach with no legal judgement needed (a missing alt attribute
+//                     just IS a WCAG 1.1.1 failure). A confirmed node keeps the observed-fact bypass and
+//                     ships as `violation`.
+//   'risk'           the DOM fact is a real, deterministic OBSERVATION (the insecure form IS present) but
+//                     its LEGAL characterisation is risk-based, not deterministic: an https page whose form
+//                     posts to an http action is a transport-security RISK INDICATOR under UK GDPR Art 32
+//                     (a risk-based duty needing the controller's own assessment - the C-048 class), and a
+//                     pre-ticked consent box is a consent-law risk to review. A confirmed risk node is
+//                     evidence-backed (Rule 3) but must route to needs-review (Rule 6/Rule 10), NEVER a
+//                     hard accusation. See caution.md C-048 and catalogue/packs/uk-universal.QA.md.
+// The tier is a FINDING-STATE classifier only; it does NOT change DOM detection. A risk node is still
+// emitted with its true detection state ('violation' for a confirmed insecure form), so it is never
+// silently under-reported (dropping it to 'incomplete' would be the opposite error). The downstream
+// routing (breach/adjudicator/evidence-kind.js) reads this tier off the artifact.
+const DOM_RULE_TIER = Object.freeze({
+  'image-alt': 'deterministic',
+  'label': 'deterministic',
+  'html-has-lang': 'deterministic',
+  'link-name': 'deterministic',
+  'button-name': 'deterministic',
+  'color-contrast': 'deterministic',
+  'insecure-form': 'risk',
+  'pre-ticked-consent': 'risk',
+});
+// tierOf(rule_id) -> the finding tier for a rule_id. An unmapped rule_id defaults to 'risk' (fail-closed,
+// Rule 6): an unclassified DOM check is never auto-shipped as a hard violation. Every rule this lane
+// actually emits is explicitly mapped above, so the default is defensive only.
+function tierOf(rule_id) {
+  return Object.prototype.hasOwnProperty.call(DOM_RULE_TIER, rule_id) ? DOM_RULE_TIER[rule_id] : 'risk';
+}
+
 // ── the canonical node shape (Rule 1: one door for the dom_node artifact fields) ──────────────────────
-// nodeOf(...) -> { rule_id, selector, snippet, wcag_sc, state } and NOTHING else. Every predicate below
-// returns exactly this shape (or null for a pass), so the verifier and the proposer read one stable shape.
+// nodeOf(...) -> { rule_id, selector, snippet, wcag_sc, state, tier } and NOTHING else. Every predicate
+// below returns exactly this shape (or null for a pass), so the verifier and the proposer read one stable
+// shape. `tier` is stamped from the one DOM_RULE_TIER door above so a node carries its finding tier from
+// the moment it is observed; the proposer spreads it onto the artifact and the adjudicator routes on it.
 function nodeOf(rule_id, selector, snippet, wcag_sc, state) {
-  return { rule_id, selector, snippet, wcag_sc, state };
+  return { rule_id, selector, snippet, wcag_sc, state, tier: tierOf(rule_id) };
 }
 
 // ── pure decision predicates (the honesty core; each is a pure function of ONE plain descriptor) ───────
@@ -425,4 +461,7 @@ module.exports = {
   isLargeText,
   normaliseOpts,
   DEFAULT_DEADLINE_MS,
+  // the risk-tier partition (W6), exported so the classification is testable and has one visible door:
+  DOM_RULE_TIER,
+  tierOf,
 };
