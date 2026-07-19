@@ -57,27 +57,18 @@ function loadCatalogue() {
   return require('../catalogue/dist/catalogue.v1.json');
 }
 
-// runFactsDoors(bundle) -> { identity, jurisdiction, sector, capabilities }. Mirrors the eval harness's own
-// runFactsDoors: the four pure doors over the bundle, with capabilities derived only when there is a
-// readable corpus (an empty corpus abstains rather than derive from nothing).
-//
-// WHY THE DOOR METHOD NAMES ARE ASSEMBLED FROM FRAGMENTS below (`'resolve' + 'Identity'` etc.): tools/one-
-// door keys each fact's PRODUCER on a name heuristic that matches each door's own resolver-function name,
-// and the mint is the ONE legitimate CONSUMER that calls the one producer door (facts/*.js) to turn a bundle
-// into fact envelopes - it RE-DERIVES NOTHING; facts/*.js remain the sole producers and this file authors no
-// fact. Spelling the door names out contiguously here would masquerade as a SECOND door to that heuristic
-// (a false positive: a consumer call site is not a second producer). Assembling the names from fragments
-// keeps the runtime call byte-identical while the producer-name scan returns zero hits on this consumer -
-// the exact technique eval/e2e/lib/real-llm.js uses for its Rule-16 secret-shape grep. The one-door
-// contract is UNWEAKENED: the producers stay facts/*.js alone.
+// runFactsDoors(bundle) -> { identity, jurisdiction, sector, capabilities }. The four pure doors over the
+// bundle (capabilities only when the corpus is readable; an empty corpus abstains rather than derive from
+// nothing). The mint is a CONSUMER of the facts doors (Rule 1): it CALLS each one producer (facts/*.js) and
+// re-derives nothing, so tools/one-door exempts these member-call sites (a call to the door is not a second
+// door).
 function runFactsDoors(bundle) {
   const pages = bundle && bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
-  const door = (mod, name) => mod[name](bundle);
   return {
-    identity: door(identity, 'resolve' + 'Identity'),
-    jurisdiction: door(jurisdiction, 'resolve' + 'Jurisdiction'),
-    sector: door(sector, 'resolve' + 'Sector'),
-    capabilities: pages.length > 0 ? door(capabilities, 'derive' + 'Capabilities') : null,
+    identity: identity.resolveIdentity(bundle),
+    jurisdiction: jurisdiction.resolveJurisdiction(bundle),
+    sector: sector.resolveSector(bundle),
+    capabilities: pages.length > 0 ? capabilities.deriveCapabilities(bundle) : null,
   };
 }
 
