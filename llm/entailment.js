@@ -4,12 +4,15 @@
 // into a hypothesis, its cited span into a premise, and runs an INJECTED model as an NLI verifier.
 // Anything not labelled `entailment` is refused; the failure mode is abstention, never a guess.
 //
-// NO NETWORK. The model caller is INJECTED (`llmCall`), exactly like breach/adjudicator/adjudicate.js;
-// this module owns only: prompt assembly (llm/prompts/entailment.js), a HARD per-call deadline
-// (Rule 9, reusing llm/router.js withDeadline), the post-hoc structural gate (llm/gate.js
-// validateResponse: schema + retrieval-gate + quote-match), and the verdict -> ok reduction.
+// NO NETWORK. The model caller is INJECTED - EITHER a single `llmCall` (unchanged) OR a router-provider
+// `providers` chain routed Ministral-8b-first through llm/router.js route() (the founder decision to
+// anchor Gate 3 on Ministral); either way this module opens no socket. It owns only: prompt assembly
+// (llm/prompts/entailment.js), a HARD per-call deadline (Rule 9, via llm/router.js withDeadline on the
+// single-caller path and route()'s own per-provider deadline on the chain path), the post-hoc structural
+// gate (llm/gate.js validateResponse: schema + retrieval-gate + quote-match), and the verdict -> ok
+// reduction. The prompt/gates/closed enum are IDENTICAL on both paths; only provider preference changes.
 //
-// checkEntailment(claims, { llmCall, deadlineMs, now, log }) -> Promise<Array<{
+// checkEntailment(claims, { llmCall | providers, anchorFamily, deadlineMs, now, log }) -> Promise<Array<{
 //   claim, premise_source_id, verdict: 'entailment'|'neutral'|'contradiction', ok:boolean, reason
 // }>>
 //   - one result per input claim, IN ORDER (the array is built by mapping the INPUT, never the model
@@ -30,7 +33,7 @@
 // The premise MUST be the exact verbatim span the quote-match verifier already string-matched to the
 // corpus (Rule 12 gate 2 feeds gate 3), so the NLI premise is grounded, not paraphrased.
 
-const { withDeadline } = require('./router.js');
+const { withDeadline, route, OPENROUTER_FAMILY } = require('./router.js');
 const { validateResponse } = require('./gate.js');
 const { buildEntailmentPrompt, LABELS } = require('./prompts/entailment.js');
 
@@ -92,18 +95,58 @@ function resultFor({ hypothesis, sourceId, verdict, ok, reason }) {
 // body-builders) reads only system/prompt/schema/sources, so request.candidate can never reach a live
 // model's input or a token bill. Absent candidate -> the field is simply not set (a caller that does
 // not supply it - e.g. a direct llm/entailment.js unit test - is unaffected).
-async function callModel(pkg, opts, candidate) {
+// buildRequest(pkg, opts, candidate): the model-facing request object, shared by the single-caller
+// (callModel) and the provider-routed (routeModel) paths so the two can never build a divergent request
+// (the prompt/system/schema/sources come from buildEntailmentPrompt ONLY; candidate rides out-of-band).
+function buildRequest(pkg, opts, candidate) {
   const request = {
     role: 'extract', system: pkg.system, prompt: pkg.prompt, schema: pkg.schema,
     allowedSourceIds: pkg.allowedSourceIds, sources: pkg.sources,
     temperature: 0, max_tokens: 400, deadline_ms: opts.deadlineMs,
   };
   if (candidate) request.candidate = candidate;
+  return request;
+}
+
+async function callModel(pkg, opts, candidate) {
+  const request = buildRequest(pkg, opts, candidate);
   const work = Promise.resolve().then(() => opts.llmCall(request));
   const raced = await withDeadline(work, opts.deadlineMs);
   if (raced.timedOut) return { _abstain: true, reason: 'nli call exceeded the ' + opts.deadlineMs + 'ms deadline -> abstain (Rule 9)' };
   if (raced.error !== undefined) return { _abstain: true, reason: 'nli call threw: ' + String(raced.error).slice(0, 80) + ' -> abstain (Rule 4)' };
   return { value: raced.value };
+}
+
+// entailmentRouteValidate(pkg): the router `validate` for the PROVIDERS path - exactly llm/gate.js
+// validateResponse over THIS claim's schema + retrieval set (the router's own gate discipline). A
+// structurally-broken reply (unparseable, out-of-set source_id, quote drift) FALLS THE CHAIN OVER to the
+// next provider; a structurally-valid neutral/contradiction PASSES the router so verdictFromResponse below
+// can see and demote it. This is a thin adapter over the ONE gate door, never a second parser (C-216).
+function entailmentRouteValidate(pkg) {
+  return function validate(raw) {
+    const text = typeof raw === 'string' ? raw : (raw && raw.text) || '';
+    const gated = validateResponse(text, { schema: pkg.schema, allowedSourceIds: pkg.allowedSourceIds, sources: pkg.sources });
+    return gated.ok ? { ok: true, value: gated.value } : { ok: false, violations: gated.violations || [{ code: 'gate_reject' }] };
+  };
+}
+
+// routeModel(pkg, opts, candidate): the PROVIDERS path - Gate 3 routed to Ministral-8b as PRIMARY (the
+// founder-anchored reliable leg), the free chain as fallback, abstain if ALL fail (fail-closed, never a
+// fabricated label). llm/router.js route() imposes free-first order then hoists the anchor family
+// (Ministral) to the front, deadline-bounds each provider (Rule 9), and gate-validates each reply; the
+// first structurally-valid reply wins and its verbatim text is re-gated authoritatively below. Exhaustion
+// returns the abstain marker, exactly like a timeout/throw on the single-caller path.
+async function routeModel(pkg, opts, candidate) {
+  const request = buildRequest(pkg, opts, candidate);
+  const result = await route(request, {
+    providers: opts.providers,
+    anchorFamily: opts.anchorFamily || OPENROUTER_FAMILY,
+    validate: entailmentRouteValidate(pkg),
+    deadlineMs: opts.deadlineMs,
+    log: opts.log,
+  });
+  if (!result.ok) return { _abstain: true, reason: 'nli route exhausted all providers (' + (result.reason || 'exhausted') + ') -> abstain (Rule 12 gate 4)' };
+  return { value: result.text };
 }
 
 // verdictFromResponse(raw, pkg): run the injected caller's return through llm/gate.js and reduce it
@@ -142,8 +185,11 @@ async function checkOne(claim, opts) {
   if (claimUnverifiable(hypothesis, sourceId, premise)) {
     return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no hypothesis, cited premise span or source_id -> cannot verify, abstain (Rule 3/4)' });
   }
-  if (typeof opts.llmCall !== 'function') {
-    return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no llmCall injected -> abstain (Rule 12 gate 4)' });
+  // A model caller is EITHER a provider chain (opts.providers, routed Ministral-first) OR a single
+  // injected opts.llmCall. With neither there is nothing to consult, so abstain (Rule 12 gate 4).
+  const hasProviders = Array.isArray(opts.providers) && opts.providers.length > 0;
+  if (!hasProviders && typeof opts.llmCall !== 'function') {
+    return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: 'no model caller injected: no llmCall and no providers chain -> abstain (Rule 12 gate 4)' });
   }
   // `bridge` (FINAL UNIT iteration 2) rides into the prompt as a SECOND, DOC-delimited catalogue premise
   // when present; absent -> the single-premise prompt, unchanged. It is real, trusted rule text (Rule 2),
@@ -151,7 +197,10 @@ async function checkOne(claim, opts) {
   const pkg = buildEntailmentPrompt({ hypothesis, premise, sourceId, bridge });
   // claim.candidate (if the caller attached one) rides the request out-of-band for the replay key
   // derivation; it is NOT part of the prompt inputs above and never reaches the model (see callModel).
-  const called = await callModel(pkg, opts, claim && claim.candidate);
+  // Providers path (Gate 3 routed Ministral-first) when a chain is supplied; else the single llmCall.
+  const called = hasProviders
+    ? await routeModel(pkg, opts, claim && claim.candidate)
+    : await callModel(pkg, opts, claim && claim.candidate);
   if (called._abstain) return resultFor({ hypothesis, sourceId, verdict: ABSTAIN_LABEL, ok: false, reason: called.reason });
   const v = verdictFromResponse(called.value, pkg);
   logSafe(opts.log, { event: 'nli', source_id: sourceId, verdict: v.verdict, ok: v.ok });
@@ -170,8 +219,14 @@ function logSafe(log, event) {
  * (so per-claim deadlines compose predictably and a shared free-tier is not stormed). The output array
  * is a strict 1:1 map of the INPUT (filter-only): |result| === |claims|, always.
  *
+ * opts.providers OPTIONAL router-provider chain (Gate 3 routed to Ministral-8b as PRIMARY via
+ *                 llm/router.js route(): the anchor family is hoisted first, the free chain is the
+ *                 fallback, and exhaustion abstains). When present and non-empty it takes precedence over
+ *                 opts.llmCall; absent, the single-caller path below is byte-for-byte unchanged.
+ * opts.anchorFamily OPTIONAL anchor for the providers path (default 'mistral' = Ministral-8b).
  * opts.llmCall    async (request) => model response (raw string, {text}, or {ok,text}); INJECTED, this
- *                 module never opens a socket. Absent/throws/times out/unparseable -> the claim abstains.
+ *                 module never opens a socket. Used when opts.providers is absent. Absent/throws/times
+ *                 out/unparseable -> the claim abstains.
  * opts.deadlineMs the per-call hard deadline (default 9000); a CAP, never a floor (Rule 8/9).
  * opts.now/opts.log  reserved clock + optional observability sink (both optional).
  */
@@ -179,6 +234,8 @@ async function checkEntailment(claims, options = {}) {
   const list = Array.isArray(claims) ? claims : [];
   const opts = {
     llmCall: typeof options.llmCall === 'function' ? options.llmCall : null,
+    providers: Array.isArray(options.providers) ? options.providers : null,
+    anchorFamily: (typeof options.anchorFamily === 'string' && options.anchorFamily) ? options.anchorFamily : null,
     deadlineMs: numOr(options.deadlineMs, DEFAULT_DEADLINE_MS),
     log: typeof options.log === 'function' ? options.log : null,
   };

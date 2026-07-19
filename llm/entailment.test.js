@@ -224,3 +224,66 @@ test('NO bridge -> the single-premise path is byte-unchanged (one page id, no ru
   assert.equal(RULE_SID in seen.sources, false, 'no bridge -> no rule-text premise, exactly as before');
   assert.ok(!/RULE TEXT/.test(seen.prompt), 'no RULE TEXT section without a bridge');
 });
+
+// ── UNIT 2: Gate 3 routed to Ministral-8b as PRIMARY, the free chain as fallback, abstain if all fail.
+// Providers are SCRIPTED router-provider fakes (no network). The prompt/gates/closed enum are UNCHANGED;
+// only provider preference changes (a `providers` chain instead of a single llmCall). ──────────────────
+// provider(name, family, reply): a scripted router provider that counts calls; reply is the raw model
+// return (a JSON string, an {ok,text}/{ok:false} object, or a function producing one).
+function provider(name, family, reply) {
+  const p = { name, family, calls: 0 };
+  p.call = async () => { p.calls += 1; return (typeof reply === 'function' ? reply() : reply); };
+  return p;
+}
+
+test('UNIT 2: Ministral (mistral) is tried FIRST even when a free provider is listed before it (anchor)', async () => {
+  const ministral = provider('ministral', 'mistral', jsonReply('entailment'));
+  const free = provider('free', 'groq', jsonReply('entailment'));
+  const [r] = await checkEntailment([CLAIM], { providers: [free, ministral] });
+  assert.equal(r.ok, true, 'a clean entailment from Ministral ships');
+  assert.equal(ministral.calls, 1, 'the anchor was consulted');
+  assert.equal(free.calls, 0, 'Ministral is anchored first; on success the free chain is never consulted');
+});
+
+test('UNIT 2: a FAILING Ministral falls over to the free chain (Ministral primary, free fallback)', async () => {
+  const ministral = provider('ministral', 'mistral', () => { throw new Error('ministral down'); });
+  const free = provider('free', 'groq', jsonReply('entailment'));
+  const [r] = await checkEntailment([CLAIM], { providers: [ministral, free] });
+  assert.equal(r.ok, true);
+  assert.equal(ministral.calls, 1, 'the anchor is tried exactly once - no retry storm (C-138)');
+  assert.equal(free.calls, 1, 'the free chain is the fallback');
+});
+
+test('UNIT 2: a structurally-INVALID Ministral reply (out-of-set source_id) falls over to the free chain', async () => {
+  const ministral = provider('ministral', 'mistral', jsonReply('entailment', 'fabricated-99'));
+  const free = provider('free', 'groq', jsonReply('entailment'));
+  const [r] = await checkEntailment([CLAIM], { providers: [ministral, free] });
+  assert.equal(r.ok, true, 'the fabricated-citation Ministral reply is gate-rejected and the free chain wins');
+  assert.equal(free.calls, 1);
+});
+
+test('UNIT 2: when EVERY provider fails, the claim ABSTAINS (fail-closed, never a fabricated label)', async () => {
+  const ministral = provider('ministral', 'mistral', () => { throw new Error('down'); });
+  const free = provider('free', 'groq', () => ({ ok: false, error: 'boom' }));
+  const [r] = await checkEntailment([CLAIM], { providers: [ministral, free] });
+  assert.equal(r.ok, false);
+  assert.equal(r.verdict, ABSTAIN_LABEL);
+  assert.match(r.reason, /route exhausted|abstain/);
+});
+
+test('UNIT 2: providers take PRECEDENCE over a single llmCall when both are supplied', async () => {
+  let llmCalled = false;
+  const llmCall = async () => { llmCalled = true; return jsonReply('entailment'); };
+  const ministral = provider('ministral', 'mistral', jsonReply('entailment'));
+  const [r] = await checkEntailment([CLAIM], { providers: [ministral], llmCall });
+  assert.equal(r.ok, true);
+  assert.equal(ministral.calls, 1);
+  assert.equal(llmCalled, false, 'the providers chain is used; the single llmCall is not');
+});
+
+test('UNIT 2: the gates/enum are UNCHANGED on the providers path - a NEUTRAL reply still abstains', async () => {
+  const ministral = provider('ministral', 'mistral', jsonReply('neutral'));
+  const [r] = await checkEntailment([CLAIM], { providers: [ministral] });
+  assert.equal(r.ok, false, 'neutral is not entailment -> abstain, exactly as on the llmCall path');
+  assert.equal(r.verdict, 'neutral');
+});

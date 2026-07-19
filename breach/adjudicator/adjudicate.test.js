@@ -471,3 +471,69 @@ test('B1/C-211: callGate attaches request.candidates alongside the prompt, invis
   // The out-of-band field must never appear inside the model-facing prompt/system text itself.
   assert.ok(!seenRequest.prompt.includes('CAPTURE-RULE'), 'record_id must not leak into the model-visible prompt text');
 });
+
+// ── UNIT 3: Rule 12 GATE 5 (the diverse jury) wired into the adjudicator. A `breach` that passes Gate 3
+// must ALSO clear a >= 3-leg, Ministral-anchored, veto-to-reject quorum before it ships as a `violation`.
+// The jury is OPT-IN (opts.jury); jurors are scripted router-provider fakes (no network). ──────────────
+// juror(name, family, verdict): a scripted jury leg returning the adjudicate-shaped reply.
+function juror(name, family, verdict) {
+  return { name, family, call: async () => JSON.stringify({ verdicts: [{ id: 0, verdict, reason: 'test', disproof: null }] }) };
+}
+// panel(v1, v2, v3): a distinct-family, Ministral-anchored 3-leg jury.
+function juryPanel(v1, v2, v3) {
+  return [juror('ministral', 'mistral', v1), juror('groq', 'groq', v2), juror('gemini', 'gemini', v3)];
+}
+const BREACH = [{ id: 0, verdict: 'breach', reason: 'prohibited claim present' }];
+
+test('GATE 5: a breach that passes Gate 3 AND a unanimous anchored jury ships as a violation', async () => {
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate(BREACH), jury: { providers: juryPanel('breach', 'breach', 'breach') } });
+  assert.equal(findings[0].state, 'violation');
+  assert.equal(findings[0].adjudication, 'breach', 'a shipped jury violation keeps the breach adjudication');
+});
+
+test('GATE 5: a breach the jury VETOES demotes to needs_review (jury_demoted), never ships un-juried', async () => {
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate(BREACH), jury: { providers: juryPanel('breach', 'no_breach', 'breach') } });
+  assert.equal(findings[0].state, 'needs_review');
+  assert.equal(findings[0].adjudicated, true);
+  assert.equal(findings[0].adjudication, 'jury_demoted');
+  assert.match(findings[0].adjudication_reason, /^jury:reject/);
+  assert.match(findings[0].adjudication_reason, /veto/);
+});
+
+test('GATE 5 KEYS-ABSENT: too few distinct families demotes the would-ship violation to needs_review', async () => {
+  const twoFamilies = [juror('ministral', 'mistral', 'breach'), juror('groq', 'groq', 'breach')]; // need 3
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate(BREACH), jury: { providers: twoFamilies } });
+  assert.equal(findings[0].state, 'needs_review', 'a violation never ships un-juried (fail-closed)');
+  assert.equal(findings[0].adjudication, 'jury_demoted');
+  assert.match(findings[0].adjudication_reason, /insufficient_independent_families/);
+});
+
+test('GATE 5 ANCHOR-ABSENT: three families but no Ministral demotes (the reliable leg must be present)', async () => {
+  const noAnchor = [juror('groq', 'groq', 'breach'), juror('gemini', 'gemini', 'breach'), juror('cloudflare', 'cloudflare', 'breach')];
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate(BREACH), jury: { providers: noAnchor } });
+  assert.equal(findings[0].state, 'needs_review');
+  assert.match(findings[0].adjudication_reason, /anchor_family_absent/);
+});
+
+test('GATE 5 IMMUNITY (C-131): a curated/immune text finding BYPASSES the jury and ships even with an all-veto panel', async () => {
+  const immune = textCand({ sector_relevance: 'SECTOR_CORE' });
+  const { findings } = await adjudicate([immune], BUNDLE, { llmCall: gate(BREACH), jury: { providers: juryPanel('no_breach', 'no_breach', 'no_breach') } });
+  assert.equal(findings[0].state, 'violation', 'the jury may never veto a curated catalogue fact');
+  assert.equal(findings[0].adjudication, 'breach');
+});
+
+test('GATE 5 BACKWARD-COMPAT: with NO jury option a breach ships as before (scripted/replay e2e path unchanged)', async () => {
+  const { findings } = await adjudicate([textCand()], BUNDLE, { llmCall: gate(BREACH) });
+  assert.equal(findings[0].state, 'violation');
+  assert.equal(findings[0].adjudication, 'breach', 'not jury_demoted - the jury is not engaged');
+});
+
+test('GATE 5 (Rule 11): the jury composition and each leg vote are logged', async () => {
+  const events = [];
+  await adjudicate([textCand()], BUNDLE, { llmCall: gate(BREACH), jury: { providers: juryPanel('breach', 'breach', 'breach') }, log: (e) => events.push(e) });
+  const juryEvent = events.find((e) => e && e.event === 'jury');
+  assert.ok(juryEvent, 'a jury event is logged (Rule 11)');
+  assert.equal(juryEvent.verdict, 'accept');
+  assert.equal(juryEvent.families.length, 3);
+  assert.equal(juryEvent.votes.length, 3, 'each leg vote is logged');
+});

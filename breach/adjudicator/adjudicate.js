@@ -47,6 +47,11 @@ const { fieldStr, briefOf, systemPrompt, buildPrompt, candidateRefsFor } = requi
 // abstaining as bare `neutral`. See claim.js's bridgeTextFor header and docs/P3-TAIL-ACCEPTANCE.md
 // "FINAL UNIT iteration 2". The hypothesis is unchanged; contradiction/neutral still demote.
 const { atomicClaimFor, bridgeTextFor } = require('./claim.js');
+// Rule 12 GATE 5 (the diverse jury), extracted to ./jury.js (caution.md C-254: this file sits at the
+// health-gate 500-line cap, so the jury logic AND its config normaliser live in their own module and are
+// wired at the seam below, never grown inline here). The jury is OPT-IN (opts.jury); absent, a `breach`
+// ships exactly as before.
+const { juryDecision, normaliseJury } = require('./jury.js');
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -57,9 +62,11 @@ function normaliseOptions(options) {
   const o = options || {};
   return {
     llmCall: typeof o.llmCall === 'function' ? o.llmCall : null,
+    providers: Array.isArray(o.providers) ? o.providers : null,
     deadlineMs: numOr(o.deadlineMs, DEFAULT_DEADLINE_MS),
     now: typeof o.now === 'function' ? o.now : Date.now,
     log: typeof o.log === 'function' ? o.log : null,
+    jury: normaliseJury(o),
   };
 }
 
@@ -168,6 +175,16 @@ function stampNliDemote(f, e) {
   baseAdj(f, 'needs_review', true, 'nli_demoted');
   f.adjudication_reason = 'nli:' + ((e && e.verdict) || 'no_result');
 }
+// stampJuryDemote(f, decision): Rule 12 gate 5. A `breach` that passed Gate 3 (NLI) but that the diverse
+// jury VETOED - or could not convene (too few distinct families, the Ministral anchor absent, too few
+// valid votes, or a jury error) - is demoted to needs_review. It was adjudicated and entailed, but the
+// jury withheld the violation (veto-to-reject); a violation never ships un-juried (fail-closed).
+function stampJuryDemote(f, decision) {
+  baseAdj(f, 'needs_review', true, 'jury_demoted');
+  const verdict = (decision && decision.verdict) || 'reject';
+  const why = (decision && decision.reason) ? ' (' + String(decision.reason).slice(0, 80) + ')' : '';
+  f.adjudication_reason = 'jury:' + verdict + why;
+}
 
 // verdictsFrom(out) -> the verdicts array from the injected caller's return, accepting both the gate.js
 // shape ({ ok, out:{ verdicts } }) and a bare { verdicts }. `ok:false` or no array -> null (abstain).
@@ -254,7 +271,9 @@ function claimFor(f) {
 // checkEntailment already captures caller throws internally; this catch is belt-and-braces.
 async function runEntailment(claim, opts, remaining) {
   try {
-    const results = await checkEntailment([claim], { llmCall: opts.llmCall, deadlineMs: remaining, log: opts.log });
+    // opts.providers (when supplied) routes Gate 3 Ministral-8b-first via llm/router.js; absent, checkEntailment
+    // falls back to the single opts.llmCall exactly as before (scripted/replay e2e + llm-evals pass no providers).
+    const results = await checkEntailment([claim], { llmCall: opts.llmCall, providers: opts.providers, deadlineMs: remaining, log: opts.log });
     return (results && results[0]) || null;
   } catch (_err) {
     // FAIL-OPEN: (Rule 4/9) a throwing NLI shell yields null, which the caller (gateEntailment) treats as
@@ -268,7 +287,20 @@ async function gateEntailment(f, parsed, opts) {
   if (remaining <= 0) { stampNliDemote(f, { verdict: 'deadline' }); return; }
   const e = await runEntailment(claimFor(f), opts, remaining);
   if (!e || !e.ok) { stampNliDemote(f, e); return; }
+  if (opts.jury) { await juryGate(f, parsed, opts); return; } // Rule 12 GATE 5: the diverse jury (opt-in)
   stampFromVerdict(f, parsed);
+}
+
+// juryGate(f, parsed, opts): Rule 12 GATE 5. Convene the diverse jury for a `breach` that passed Gate 3.
+// The violation ships ONLY on a unanimous, un-vetoed quorum (or an immune/curated bypass); any veto, or a
+// jury that cannot convene (too few distinct families, the Ministral anchor absent, too few valid votes),
+// demotes to needs_review (fail-closed). The jury runs under whatever adjudication budget remains
+// (Rule 8/9: a cap, never a floor). The composition and each leg's vote are logged (Rule 11).
+async function juryGate(f, parsed, opts) {
+  const decision = await juryDecision(f, opts.juryCtx, opts.jury, { deadlineMs: remainingBudget(opts), log: opts.log });
+  safeLog(opts.log, { event: 'jury', verdict: decision.verdict, families: decision.families, votes: decision.votes, reason: decision.reason });
+  if (decision.ship) { stampFromVerdict(f, parsed); return; }
+  stampJuryDemote(f, decision);
 }
 
 // applyVerdicts(batch, verdicts, opts) - THE FILTER-ONLY CORE. Iterate the INPUT candidates and look up
@@ -364,7 +396,7 @@ async function adjudicateText(text, ctx, opts, report) {
     const batch = text.slice(start, start + BATCH);
     const remaining = deadline - opts.now();
     if (remaining <= 0) { applyAbstain(batch, 'adjudication deadline exhausted -> abstain'); report.timed_out = true; report.batches.push({ start, ranOk: false, reason: 'deadline' }); continue; }
-    const batchOpts = Object.assign({}, opts, { batchDeadlineMs: remaining, deadlineAt: deadline });
+    const batchOpts = Object.assign({}, opts, { batchDeadlineMs: remaining, deadlineAt: deadline, juryCtx: ctx });
     const row = await adjudicateBatch(batch, ctx, batchOpts);
     report.ran = report.ran || row.ranOk;
     report.batches.push(Object.assign({ start }, row));
@@ -414,6 +446,13 @@ function tallyState(report, state) {
  * opts.llmCall   async (request) => { ok, out:{ verdicts:[{id,verdict,reason,disproof}] } } (gate.js
  *                shape) OR { verdicts:[...] }. INJECTED; this module never calls a network. Absent, or a
  *                caller that throws/times out/returns no verdicts -> every text candidate abstains.
+ * opts.providers OPTIONAL router-provider chain; when present, Gate 3 (NLI) routes Ministral-8b-first
+ *                through it (free chain fallback, abstain if all fail). Absent -> Gate 3 uses opts.llmCall.
+ * opts.jury      OPTIONAL Gate-5 jury (truthy engages it): `true` (use opts.providers + defaults) or
+ *                { providers?, n?, anchorFamily? }. When engaged, a would-ship `violation` must pass a
+ *                >= 3-leg, Ministral-anchored, veto-to-reject quorum or it demotes to needs_review; a
+ *                curated/immune fact bypasses the jury. Absent -> a `breach` ships as before (the scripted/
+ *                replay e2e and llm-evals harnesses pass no jury, so those paths are byte-for-byte unchanged).
  * opts.deadlineMs  the total adjudication ceiling (default 60000); a CAP, never a floor (Rule 8/9).
  * opts.now / opts.log  injected clock + optional observability sink (both optional).
  */
