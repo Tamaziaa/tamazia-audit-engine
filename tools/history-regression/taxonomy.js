@@ -310,7 +310,12 @@ const TAXONOMY = [
     class: 'phantom-data',
     description: 'A mint reported done that never produced a page: 1,004 phantom done rows, ON CONFLICT DO NOTHING adopting a stale row, a stub payload writable, queue/pages divergence.',
     catching_gate: 'mint/post-write-assertions.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 T1: mint/post-write-assertions.js now LANDED and is invoked by mint/index.js - done
+    // flips true ONLY on row read-back + live 200 + truth-pack, and never on a missing leg (it withholds done
+    // as minted_pending_render). The history-regression gap-gate-landed rule requires this flip once the
+    // named gate exists. (The render truth-pack itself - render-security-freshness / coverage-truth - stays
+    // a separate gap until T3b lands render-proof/truth-pack.spec.js.)
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-176', 'C-177', 'C-178', 'C-179', 'C-180', 'C-181', 'C-182', 'C-183', 'C-187', 'C-189', 'C-190'],
   },
   {
