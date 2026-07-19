@@ -73,7 +73,7 @@
    "penalty": {
     "typical_low": 50000,
     "typical_high": 5000000,
-    "statutory_max": 53088,
+    "statutory_max": null,
     "currency": "USD",
     "basis": "no per se fine for a first §5(a) violation; civil penalties up to $53,088 per violation (2025 adjustment) attach to conduct that violates an FTC rule or a prior order, plus redress/disgorgement; typical band reflects negotiated monetary judgments",
     "max_is_rare": false

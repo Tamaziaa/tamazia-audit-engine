@@ -1,5 +1,8 @@
-<!-- qa-approval pack_sha256=c2bb253c1b2585bc581c99f7a9ee5456dcc5926635aa8a645eb54411315dd9e3 verdict=approved reviewed=2026-07-17 -->
-Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
+<!-- qa-approval pack_sha256=a95948429075ed004795d820a380329d10661f6c9b1a92bc60e09a860b62a859 verdict=approved reviewed=2026-07-19 -->
+Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17; re-stamped 2026-07-19 after the correction below). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that it is unchanged since review: the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
+
+## Re-verification 2026-07-19 (penalty correction; legal basis CATALOGUE-VERIFICATION-2026-07-19.md)
+Per two primary-source-verified adversarial legal-QA passes (see `CATALOGUE-VERIFICATION-2026-07-19.md`; Cornell LII 15 U.S.C. 45 and the CRS UDAP primer), US_FTC_ACT_S5_UDAP `penalty.statutory_max` is set to null: FTC Act s.5 carries no first-violation civil penalty (civil penalties attach only to a later FTC-rule or prior-order violation; AMG Capital v FTC removed s.13(b) first-violation money), matching the record's own `basis` and its sibling US_FTC5_HEALTH (C-244). The $53,088 per-violation figure is retained verbatim in `basis`. The pack_sha256 in the header is re-stamped to the post-edit bytes.
 
 # us-universal — QA verification (2026-07-17)
 
