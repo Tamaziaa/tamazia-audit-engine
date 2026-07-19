@@ -26,20 +26,32 @@ const REFUSAL_CODES = Object.freeze({
   NO_COVERAGE_MANIFEST: 'no_coverage_manifest',
 });
 
+// firstUndecidedFinding(findings, shipped) -> the first finding with no recorded 'ship' decision, or
+// null when every finding was explicitly decided (fail closed - a finding never decided is treated as
+// undecided, never assumed shippable).
+function firstUndecidedFinding(findings, shipped) {
+  return findings.find((f) => !shipped.has(f.finding_id)) || null;
+}
+
 // checkSignature(store, runId, findings) -> { ok, reasonCode?, detail?, signature? }. Requires SIGN, and
-// requires EVERY finding the caller is trying to ship to have an explicit 'ship' decision recorded (a
-// finding never decided is treated as undecided, never assumed shippable - fail closed).
+// requires EVERY finding the caller is trying to ship to have an explicit 'ship' decision recorded.
 function checkSignature(store, runId, findings) {
   const signature = latestSignature(store, runId);
   if (!signature) return { ok: false, reasonCode: REFUSAL_CODES.NO_SIGNATURE, detail: 'no signature has been recorded for run ' + runId };
   if (signature.overall !== 'SIGN') return { ok: false, reasonCode: REFUSAL_CODES.SIGNATURE_HOLD, detail: 'the latest signature for run ' + runId + ' is ' + signature.overall + ', not SIGN' };
-  const shipped = shippedFindingIds(signature);
-  for (const f of findings) {
-    if (!shipped.has(f.finding_id)) {
-      return { ok: false, reasonCode: REFUSAL_CODES.UNDECIDED_FINDING, detail: 'finding ' + f.finding_id + ' has no recorded "ship" decision in the signature' };
-    }
-  }
+  const undecided = firstUndecidedFinding(findings, shippedFindingIds(signature));
+  if (undecided) return { ok: false, reasonCode: REFUSAL_CODES.UNDECIDED_FINDING, detail: 'finding ' + undecided.finding_id + ' has no recorded "ship" decision in the signature' };
   return { ok: true, signature };
+}
+
+// firstUnverifiableFinding(captureIndex, findings) -> {finding, result} for the first finding whose
+// verify_quote fails, or null when every finding verifies.
+function firstUnverifiableFinding(captureIndex, findings) {
+  for (const f of findings) {
+    const result = verifyQuoteDetailed(captureIndex, f.quote);
+    if (!result.ok) return { finding: f, result };
+  }
+  return null;
 }
 
 // checkQuotes(captureIndex, findings) -> { ok, reasonCode?, detail? }. Re-runs verify_quote over EVERY
@@ -47,13 +59,31 @@ function checkSignature(store, runId, findings) {
 // whatever check ran earlier in the harness (defence in depth: this is the check that runs immediately
 // before persistence, not a trust of an earlier pass).
 function checkQuotes(captureIndex, findings) {
+  const bad = firstUnverifiableFinding(captureIndex, findings);
+  if (!bad) return { ok: true };
+  return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + bad.finding.finding_id + ' (' + bad.finding.rule_id + ') failed verify_quote: ' + bad.result.reason };
+}
+
+// catalogueRecordIds(catalogue) -> the Set of every record id in the loaded catalogue (accepts either
+// {records:[...]} or a bare array - both shapes are used across this repo).
+function catalogueRecordIds(catalogue) {
+  const records = catalogue.records || catalogue;
+  return new Set((Array.isArray(records) ? records : []).map((r) => r && r.id));
+}
+
+// firstCatalogueProblem(catalogue, ids, findings) -> {finding, reasonCode, detail} for the first finding
+// whose rule_id does not resolve, or whose catalogue_hash does not match the loaded catalogue; null when
+// every finding resolves cleanly.
+function firstCatalogueProblem(catalogue, ids, findings) {
   for (const f of findings) {
-    const result = verifyQuoteDetailed(captureIndex, f.quote);
-    if (!result.ok) {
-      return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + f.finding_id + ' (' + f.rule_id + ') failed verify_quote: ' + result.reason };
+    if (!ids.has(f.rule_id)) {
+      return { finding: f, reasonCode: REFUSAL_CODES.UNRESOLVABLE_LAW_ID, detail: 'finding ' + f.finding_id + ' cites rule_id ' + JSON.stringify(f.rule_id) + ' which is not present in the loaded catalogue' };
+    }
+    if (f.catalogue_hash !== catalogue.content_hash) {
+      return { finding: f, reasonCode: REFUSAL_CODES.CATALOGUE_HASH_MISMATCH, detail: 'finding ' + f.finding_id + ' carries catalogue_hash ' + f.catalogue_hash + ' but the loaded catalogue is ' + catalogue.content_hash };
     }
   }
-  return { ok: true };
+  return null;
 }
 
 // checkCatalogue(catalogue, findings) -> { ok, reasonCode?, detail? }. Every finding's law_id (rule_id)
@@ -61,17 +91,9 @@ function checkQuotes(captureIndex, findings) {
 // catalogue's own content_hash (a finding minted against a stale/different catalogue is refused, never
 // silently re-stamped).
 function checkCatalogue(catalogue, findings) {
-  const records = catalogue.records || catalogue;
-  const ids = new Set((Array.isArray(records) ? records : []).map((r) => r && r.id));
-  for (const f of findings) {
-    if (!ids.has(f.rule_id)) {
-      return { ok: false, reasonCode: REFUSAL_CODES.UNRESOLVABLE_LAW_ID, detail: 'finding ' + f.finding_id + ' cites rule_id ' + JSON.stringify(f.rule_id) + ' which is not present in the loaded catalogue' };
-    }
-    if (f.catalogue_hash !== catalogue.content_hash) {
-      return { ok: false, reasonCode: REFUSAL_CODES.CATALOGUE_HASH_MISMATCH, detail: 'finding ' + f.finding_id + ' carries catalogue_hash ' + f.catalogue_hash + ' but the loaded catalogue is ' + catalogue.content_hash };
-    }
-  }
-  return { ok: true };
+  const problem = firstCatalogueProblem(catalogue, catalogueRecordIds(catalogue), findings);
+  if (!problem) return { ok: true };
+  return { ok: false, reasonCode: problem.reasonCode, detail: problem.detail };
 }
 
 // checkCoverageManifest(coverageManifest) -> { ok, reasonCode?, detail? }.

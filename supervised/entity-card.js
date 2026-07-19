@@ -13,6 +13,32 @@ function factSummary(fact) {
   return { value: fact.value === undefined ? null : fact.value, confidence: fact.confidence || 'abstain' };
 }
 
+// identityCardOf(identity) -> the entity card's `identity` section, tolerant of an absent envelope.
+function identityCardOf(identity) {
+  const id = identity || {};
+  return {
+    display_name: factSummary(id.display_name),
+    legal_name: factSummary(id.legal_name),
+    company_number: factSummary(id.company_number),
+    registered_office: factSummary(id.registered_office),
+  };
+}
+
+// jurisdictionCardOf(jurisdiction) -> the entity card's `jurisdiction` section, tolerant of an absent
+// envelope; `bound` entries are projected to just the fields the card needs (never the raw fact object).
+function jurisdictionCardOf(jurisdiction) {
+  const j = jurisdiction || {};
+  const bound = Array.isArray(j.bound) ? j.bound.map((b) => ({ jurisdiction: b.jurisdiction, confidence: b.confidence, tier_evidence: b.tier_evidence || [] })) : [];
+  const serves = Array.isArray(j.serves) ? j.serves.slice() : [];
+  return { bound, serves };
+}
+
+// sectorCardOf(sector) -> the entity card's `sector` section, tolerant of an absent envelope.
+function sectorCardOf(sector) {
+  const s = sector || {};
+  return { value: s.value || null, conflict_flag: Boolean(s.conflict_flag), contradictions: Array.isArray(s.contradictions) ? s.contradictions : [] };
+}
+
 // buildEntityCard(facts) -> { domain, identity, jurisdiction, sector, capabilities }. `facts` is exactly
 // the object mint/index.js's runFactsDoors() produces ({ identity, jurisdiction, sector, capabilities }) -
 // this module is a pure, read-only projection of it, never a second identity/jurisdiction/sector resolver.
@@ -20,23 +46,9 @@ function buildEntityCard(facts) {
   const f = facts || {};
   return {
     domain: (f.identity && f.identity.domain) || null,
-    identity: {
-      display_name: factSummary(f.identity && f.identity.display_name),
-      legal_name: factSummary(f.identity && f.identity.legal_name),
-      company_number: factSummary(f.identity && f.identity.company_number),
-      registered_office: factSummary(f.identity && f.identity.registered_office),
-    },
-    jurisdiction: {
-      bound: Array.isArray(f.jurisdiction && f.jurisdiction.bound)
-        ? f.jurisdiction.bound.map((b) => ({ jurisdiction: b.jurisdiction, confidence: b.confidence, tier_evidence: b.tier_evidence || [] }))
-        : [],
-      serves: Array.isArray(f.jurisdiction && f.jurisdiction.serves) ? f.jurisdiction.serves.slice() : [],
-    },
-    sector: {
-      value: (f.sector && f.sector.value) || null,
-      conflict_flag: Boolean(f.sector && f.sector.conflict_flag),
-      contradictions: Array.isArray(f.sector && f.sector.contradictions) ? f.sector.contradictions : [],
-    },
+    identity: identityCardOf(f.identity),
+    jurisdiction: jurisdictionCardOf(f.jurisdiction),
+    sector: sectorCardOf(f.sector),
     capabilities: f.capabilities || null,
   };
 }

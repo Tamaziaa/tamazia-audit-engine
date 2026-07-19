@@ -69,6 +69,35 @@ function lintBannedPhrases(sentence) {
   return { type: 'banned_phrase', phrase: hit, sentence, suggestion: 'reserve "' + hit + '" for a CONFIRMED-tier citation only; otherwise use "' + SOFTENED_EQUIVALENT + '"' };
 }
 
+// citedFindingIdIn(sentence) -> the lowercased finding/evidence id a sentence cites, via either the
+// "Finding <id>" phrasing or a bare 16-hex token, or null when it cites nothing id-shaped.
+function citedFindingIdIn(sentence) {
+  const m = sentence.match(CITATION_RE) || sentence.match(BARE_ID_RE);
+  return m ? (m[1] || m[0]).toLowerCase() : null;
+}
+
+// bannedPhraseViolation(sentence, findingsById) -> a violation object when `sentence` uses a banned
+// phrase without a CONFIRMED-tier citation backing it, else null. A citation to a real but non-CONFIRMED
+// finding is `banned_phrase_wrong_tier`; no citation at all is the plain `banned_phrase` type.
+function bannedPhraseViolation(sentence, findingsById) {
+  const banned = lintBannedPhrases(sentence);
+  if (!banned) return null;
+  const citedId = citedFindingIdIn(sentence);
+  const tier = citedId ? findingTierOf(citedId, findingsById) : null;
+  if (tier === 'confirmed') return null;
+  return Object.assign({}, banned, { type: citedId ? 'banned_phrase_wrong_tier' : 'banned_phrase', cited_tier: tier });
+}
+
+// violationForSentence(sentence, findingsById, knownFindingIds) -> the ONE violation (if any) a single
+// sentence produces. An orphaned factual claim is reported once and never ALSO checked for a banned
+// phrase (an uncited sentence is already the worse finding; double-counting it would just be noise).
+function violationForSentence(sentence, findingsById, knownFindingIds) {
+  if (isFactualSentence(sentence) && !hasCitation(sentence, knownFindingIds)) {
+    return { type: 'orphan_claim', sentence, reason: 'factual sentence cites no finding_id or artifact' };
+  }
+  return bannedPhraseViolation(sentence, findingsById);
+}
+
 // lintNoOrphanClaims(reportText, findings) -> { ok, violations: [{type, sentence, ...}] }.
 //   - orphan_claim: a factual sentence with no finding/evidence citation at all.
 //   - banned_phrase: a top-tier phrase used without a CONFIRMED-class citation backing it.
@@ -77,23 +106,9 @@ function lintNoOrphanClaims(reportText, findings) {
   const list = Array.isArray(findings) ? findings : [];
   const findingsById = new Map(list.map((f) => [String(f.finding_id).toLowerCase(), f]));
   const knownFindingIds = new Set(findingsById.keys());
-  const violations = [];
-
-  for (const sentence of splitSentences(reportText)) {
-    if (isFactualSentence(sentence) && !hasCitation(sentence, knownFindingIds)) {
-      violations.push({ type: 'orphan_claim', sentence, reason: 'factual sentence cites no finding_id or artifact' });
-      continue; // an orphaned sentence is reported once; do not double-count the banned-phrase check on it
-    }
-    const banned = lintBannedPhrases(sentence);
-    if (banned) {
-      const m = sentence.match(CITATION_RE) || sentence.match(BARE_ID_RE);
-      const citedId = m ? (m[1] || m[0]).toLowerCase() : null;
-      const tier = citedId ? findingTierOf(citedId, findingsById) : null;
-      if (tier !== 'confirmed') {
-        violations.push(Object.assign({}, banned, { type: citedId ? 'banned_phrase_wrong_tier' : 'banned_phrase', cited_tier: tier }));
-      }
-    }
-  }
+  const violations = splitSentences(reportText)
+    .map((sentence) => violationForSentence(sentence, findingsById, knownFindingIds))
+    .filter(Boolean);
   return { ok: violations.length === 0, violations };
 }
 

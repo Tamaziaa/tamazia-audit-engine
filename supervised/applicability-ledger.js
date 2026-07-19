@@ -20,17 +20,25 @@ function classifyExcludedReason(reason) {
   return UNKNOWN_REASON_HINTS.some((hint) => r.includes(hint)) ? 'unknown' : 'not_applicable';
 }
 
+// asArray(v) -> v when it is an array, else []; the one small helper every list field below reads
+// through, so the ternary is written once rather than repeated at every call site.
+function asArray(v) {
+  return Array.isArray(v) ? v : [];
+}
+// applicableEntry(record) -> the ledger row for a record connect() bound as applicable.
+function applicableEntry(record) {
+  return { law_id: record && record.id, decision: 'applies', reason: null };
+}
+// excludedEntry(ex) -> the ledger row for a record connect() excluded, classified unknown/not_applicable.
+function excludedEntry(ex) {
+  return { law_id: ex && ex.record_id, decision: classifyExcludedReason(ex && ex.reason), reason: ex && ex.reason };
+}
+
 // buildApplicabilityLedger(connectResult) -> { entries: [{law_id, decision, reason}], counts }. `decision`
 // is one of 'applies' | 'not_applicable' | 'unknown' - the total-function trivalent the blueprint names.
 function buildApplicabilityLedger(connectResult) {
   const cr = connectResult || { applicable: [], excluded: [], counts: {} };
-  const entries = [];
-  for (const record of Array.isArray(cr.applicable) ? cr.applicable : []) {
-    entries.push({ law_id: record && record.id, decision: 'applies', reason: null });
-  }
-  for (const ex of Array.isArray(cr.excluded) ? cr.excluded : []) {
-    entries.push({ law_id: ex && ex.record_id, decision: classifyExcludedReason(ex && ex.reason), reason: ex && ex.reason });
-  }
+  const entries = asArray(cr.applicable).map(applicableEntry).concat(asArray(cr.excluded).map(excludedEntry));
   return { entries, counts: cr.counts || {} };
 }
 

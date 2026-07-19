@@ -88,6 +88,37 @@ class ArtifactStore {
 // ...) on the store's errors list, because an empty capture and a captured-empty-page are different facts
 // (Constitution Rule 4: empty-arrays-flowing-as-success is exactly the disease the blueprint's `Clean`
 // constructor closes at the type level; this module closes the analogous hole at the capture layer).
+// captureOnePage(page, fetchedAt) -> {artifact, error}. Exactly one of the two is non-null: a malformed
+// page (no url) or an unreadable one (no visible text after whitespace-normalisation) yields a typed
+// LaneError and no artifact; a readable page yields a real, hashed artifact and no error.
+function captureOnePage(page, fetchedAt) {
+  if (!page || typeof page.url !== 'string' || !page.url) {
+    return { artifact: null, error: new LaneError('capture', 'malformed_page', 'a bundle page had no url; skipped rather than hashed under a guessed key') };
+  }
+  const text = typeof page.text === 'string' ? page.text : '';
+  const normalised = normaliseWhitespace(text);
+  if (!normalised.trim()) {
+    return { artifact: null, error: new LaneError('capture', 'empty_page', 'page ' + JSON.stringify(page.url) + ' carried no readable visible text; not hashed as a real artifact') };
+  }
+  const bytes = Buffer.from(normalised, 'utf8');
+  return {
+    error: null,
+    artifact: { evidence_id: evidenceIdFor(page.url, 'static'), url: page.url, lane: 'static', sha256: sha256Hex(bytes), length: bytes.length, fetched_at: fetchedAt, bytes },
+  };
+}
+
+// unreachableSiteError(stageManifest) -> a LaneError when the crawl lane recorded the domain as
+// unreachable, else null. The crawl lane's own unreachable/reason verdict lives on the stageManifest
+// entry it produced (mint/compose-bundle.js's manifest.push({stage:'crawl', unreachable, reason, ...})),
+// not on bundle.corpus itself (which is always just {pages:[...]}) - pulled through here so an
+// unreachable site is recorded as a real LaneError on the capture index too, not just upstream (a
+// consumer must never have to go re-read the raw stageManifest).
+function unreachableSiteError(stageManifest) {
+  const crawlStage = Array.isArray(stageManifest) ? stageManifest.find((s) => s && s.stage === 'crawl') : null;
+  if (!crawlStage || !crawlStage.unreachable) return null;
+  return new LaneError('capture', 'site_unreachable', crawlStage.reason || 'the crawl lane recorded the domain as unreachable');
+}
+
 function buildCaptureIndex(bundle, opts) {
   const o = opts || {};
   const now = typeof o.now === 'function' ? o.now : Date.now;
@@ -96,36 +127,12 @@ function buildCaptureIndex(bundle, opts) {
   const artifacts = [];
   const errors = [];
   for (const page of pages) {
-    if (!page || typeof page.url !== 'string' || !page.url) {
-      errors.push(new LaneError('capture', 'malformed_page', 'a bundle page had no url; skipped rather than hashed under a guessed key'));
-      continue;
-    }
-    const text = typeof page.text === 'string' ? page.text : '';
-    const normalised = normaliseWhitespace(text);
-    if (!normalised.trim()) {
-      errors.push(new LaneError('capture', 'empty_page', 'page ' + JSON.stringify(page.url) + ' carried no readable visible text; not hashed as a real artifact'));
-      continue;
-    }
-    const bytes = Buffer.from(normalised, 'utf8');
-    artifacts.push({
-      evidence_id: evidenceIdFor(page.url, 'static'),
-      url: page.url,
-      lane: 'static',
-      sha256: sha256Hex(bytes),
-      length: bytes.length,
-      fetched_at: fetchedAt,
-      bytes,
-    });
+    const captured = captureOnePage(page, fetchedAt);
+    if (captured.artifact) artifacts.push(captured.artifact);
+    if (captured.error) errors.push(captured.error);
   }
-  // The crawl lane's own unreachable/reason verdict lives on the stageManifest entry it produced
-  // (mint/compose-bundle.js's manifest.push({stage:'crawl', unreachable, reason, ...})), not on
-  // bundle.corpus itself (which is always just {pages:[...]}). Pass it through when the caller has it
-  // (run-harness.js always does) so an unreachable site is recorded as a real LaneError here too, not
-  // just upstream - a capture index consumer must never have to go re-read the raw stageManifest.
-  const crawlStage = Array.isArray(o.stageManifest) ? o.stageManifest.find((s) => s && s.stage === 'crawl') : null;
-  if (crawlStage && crawlStage.unreachable) {
-    errors.push(new LaneError('capture', 'site_unreachable', crawlStage.reason || 'the crawl lane recorded the domain as unreachable'));
-  }
+  const unreachable = unreachableSiteError(o.stageManifest);
+  if (unreachable) errors.push(unreachable);
   return new ArtifactStore(artifacts, errors);
 }
 

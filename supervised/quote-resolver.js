@@ -16,28 +16,40 @@ const { normaliseWhitespace, sha256Hex } = require('./capture-index.js');
 // returns the byte offsets of the FIRST match. Returns null (never throws) when the page was not captured
 // or the text is not present - an unresolvable candidate is dropped by the caller, never forced through
 // (Constitution Rule 4: fail closed on the caller's side, not a fabricated span here).
-function resolveQuoteSpan(store, pageUrl, quoteText) {
+// artifactForPage(store, pageUrl) -> the captured artifact for pageUrl, or null when the page was never
+// captured (an unresolvable page is the caller's fail-closed signal, never a fabricated span).
+function artifactForPage(store, pageUrl) {
   if (!store || typeof store.list !== 'function') return null;
-  const needle = normaliseWhitespace(quoteText);
-  if (!needle.trim()) return null;
-  const artifact = store.list().find((a) => a.url === pageUrl);
-  if (!artifact || !Buffer.isBuffer(artifact.bytes)) return null;
-  const haystack = artifact.bytes.toString('utf8');
+  return store.list().find((a) => a.url === pageUrl) || null;
+}
+
+// locateNeedle(artifact, needle) -> { byteStart, byteEnd, sliceBytes } | null. Finds the FIRST
+// occurrence of `needle` in the artifact's own bytes, then a sanity round-trip (the slice must decode
+// back to `needle` exactly) guards against a multi-byte-UTF8 boundary landing mid-character, which
+// Buffer.indexOf on raw bytes cannot itself see.
+function locateNeedle(artifact, needle) {
+  if (!Buffer.isBuffer(artifact.bytes)) return null;
   const needleBytes = Buffer.from(needle, 'utf8');
   const byteStart = artifact.bytes.indexOf(needleBytes);
   if (byteStart === -1) return null;
   const byteEnd = byteStart + needleBytes.length;
   if (byteEnd > artifact.bytes.length) return null;
-  // Sanity round-trip: the slice must decode back to the needle bytes exactly (guards against a
-  // multi-byte-UTF8 boundary landing mid-character, which Buffer.indexOf on raw bytes cannot itself see).
   const sliceBytes = artifact.bytes.subarray(byteStart, byteEnd);
-  const roundTrip = sliceBytes.toString('utf8');
-  if (roundTrip !== needle) return null;
-  void haystack; // kept for readability/debugging symmetry with the byte-level check above; not otherwise used
+  if (sliceBytes.toString('utf8') !== needle) return null;
+  return { byteStart, byteEnd, sliceBytes };
+}
+
+function resolveQuoteSpan(store, pageUrl, quoteText) {
+  const needle = normaliseWhitespace(quoteText);
+  if (!needle.trim()) return null;
+  const artifact = artifactForPage(store, pageUrl);
+  if (!artifact) return null;
+  const located = locateNeedle(artifact, needle);
+  if (!located) return null;
   // span_sha256: the ONE-WAY commitment to the exact bytes at these offsets (verify-quote.js re-checks it,
   // so a later drift of the offsets no longer verifies - the anti-fake bind of a quote to its own bytes).
   // A hash, never the words themselves, so the "a Quote is never a raw string" rule (finding.js) holds.
-  return { evidence_id: artifact.evidence_id, byte_start: byteStart, byte_end: byteEnd, span_sha256: sha256Hex(sliceBytes) };
+  return { evidence_id: artifact.evidence_id, byte_start: located.byteStart, byte_end: located.byteEnd, span_sha256: sha256Hex(located.sliceBytes) };
 }
 
 module.exports = { resolveQuoteSpan };

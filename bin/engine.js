@@ -136,19 +136,35 @@ async function cmdRun(args) {
   return 0;
 }
 
+// runStartEntryFor(manifestStore, runId) -> the run's own 'run_start' manifest entry, or throws when no
+// manifest exists for that run_id at all (a packet can only ever be built for a run that actually ran).
+function runStartEntryFor(manifestStore, runId) {
+  const runStart = manifestStore.readAll(runId).find((e) => e.stage === 'run_start');
+  if (!runStart) throw new Error('engine packet: no manifest found for run_id ' + runId);
+  return runStart;
+}
+// reportTextFrom(args) -> the drafted report text at --report-text, or '' when no readable file was
+// given (the packet then renders "lint not run" rather than fabricating a lint result over nothing).
+function reportTextFrom(args) {
+  if (!args['report-text'] || !fs.existsSync(args['report-text'])) return '';
+  return fs.readFileSync(args['report-text'], 'utf8');
+}
+// packetOutPathFor(args, manifestStore) -> --out when given, else the manifest store's own default path.
+function packetOutPathFor(args, manifestStore) {
+  return args.out || path.join(manifestStore.baseDir, args['run-id'] + '.packet.html');
+}
+
 async function cmdPacket(args) {
   if (!args['run-id']) throw new Error('engine packet: --run-id <id> is required');
   const manifestStore = storeFrom(args);
-  const entries = manifestStore.readAll(args['run-id']);
-  const runStart = entries.find((e) => e.stage === 'run_start');
-  if (!runStart) throw new Error('engine packet: no manifest found for run_id ' + args['run-id']);
+  const runStart = runStartEntryFor(manifestStore, args['run-id']);
   const site = args.site || runStart.site;
   const catalogue = loadCatalogueFrom(args);
   const result = await runSupervised(site, Object.assign({ runId: args['run-id'], manifestStore, catalogue }, captureOptsFrom(args)));
-  const reportText = args['report-text'] && fs.existsSync(args['report-text']) ? fs.readFileSync(args['report-text'], 'utf8') : '';
+  const reportText = reportTextFrom(args);
   const lintResult = reportText ? lintNoOrphanClaims(reportText, result.candidateFindings) : null;
   const html = buildPacketHtml(Object.assign({}, result, { lintResult }));
-  const outPath = args.out || path.join(manifestStore.baseDir, args['run-id'] + '.packet.html');
+  const outPath = packetOutPathFor(args, manifestStore);
   fs.writeFileSync(outPath, html, 'utf8');
   process.stdout.write(JSON.stringify({ runId: args['run-id'], packetPath: outPath, findingCount: result.candidateFindings.length }, null, 2) + '\n');
   return 0;

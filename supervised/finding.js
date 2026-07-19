@@ -63,22 +63,33 @@ function isNonNegativeInt(v) {
 // SPAN_HASH_RE: a span_sha256 must be a 64-char lowercase-hex string (the crypto.digest('hex') shape).
 const SPAN_HASH_RE = /^[0-9a-f]{64}$/;
 
-// validateQuote(quote) -> throws FindingConstructionError on the first structural defect found, else
-// returns nothing. This is SHAPE validation only (a quote must name a real-looking evidence artifact and a
-// well-ordered, non-negative byte range) - it does NOT reach into an artifact store to confirm the bytes
-// really exist; that deeper reality check is verify-quote.js's job, run over the artifact store before a
-// finding may ship (section 3/7). Keeping the two separate lets createFinding() stay a PURE constructor
-// (no store dependency) while still making "missing or malformed" quotes structurally impossible.
-function validateQuote(quote) {
+// Each assertXxx() below owns exactly ONE structural rule and throws FindingConstructionError on its
+// own defect, never anyone else's (kept as separate single-purpose functions, rather than one long
+// if-chain, purely for readability/reviewability - validateQuote()'s own job is just to call them in
+// order, so a reader can see the whole shape contract as a short list of named rules).
+
+// assertQuotePlainObject(quote) -> throws unless quote is a plain, non-array object.
+function assertQuotePlainObject(quote) {
   if (!quote || typeof quote !== 'object' || Array.isArray(quote)) {
     throw new FindingConstructionError('quote', 'quote is required and must be an object {evidence_id, byte_start, byte_end}, never a raw string');
   }
+}
+// assertQuoteHasNoRawText(quote) -> throws if a raw quote_text/text field is present (Kimi blueprint
+// section 2.2: the quote IS the byte range, never a copy of the words).
+function assertQuoteHasNoRawText(quote) {
   if (typeof quote.quote_text === 'string' || typeof quote.text === 'string') {
     throw new FindingConstructionError('quote', 'quote must never carry a raw string field (quote_text/text) - the quote IS the byte range, never a copy of the words (Kimi blueprint section 2.2)');
   }
+}
+// assertQuoteEvidenceId(quote) -> throws unless evidence_id is a non-empty string.
+function assertQuoteEvidenceId(quote) {
   if (!isNonEmptyString(quote.evidence_id)) {
     throw new FindingConstructionError('quote.evidence_id', 'quote.evidence_id is required and must be a non-empty string naming a captured artifact');
   }
+}
+// assertQuoteByteRange(quote) -> throws unless byte_start/byte_end are non-negative integers with
+// byte_end strictly greater than byte_start.
+function assertQuoteByteRange(quote) {
   if (!isNonNegativeInt(quote.byte_start)) {
     throw new FindingConstructionError('quote.byte_start', 'quote.byte_start is required and must be a non-negative integer');
   }
@@ -88,9 +99,27 @@ function validateQuote(quote) {
   if (quote.byte_end <= quote.byte_start) {
     throw new FindingConstructionError('quote', 'quote.byte_end (' + quote.byte_end + ') must be strictly greater than quote.byte_start (' + quote.byte_start + ')');
   }
+}
+// assertQuoteSpanHash(quote) -> throws unless span_sha256 is a 64-char lowercase-hex commitment.
+function assertQuoteSpanHash(quote) {
   if (typeof quote.span_sha256 !== 'string' || !SPAN_HASH_RE.test(quote.span_sha256)) {
     throw new FindingConstructionError('quote.span_sha256', 'quote.span_sha256 is required and must be a 64-char lowercase-hex commitment to the exact bytes at the offsets (a hash, never the words - computed by quote-resolver.js and re-checked by verify-quote.js so a drifted/fabricated span is refused)');
   }
+}
+
+// validateQuote(quote) -> throws FindingConstructionError on the first structural defect found (in the
+// order above), else returns nothing. This is SHAPE validation only (a quote must name a real-looking
+// evidence artifact and a well-ordered, non-negative byte range) - it does NOT reach into an artifact
+// store to confirm the bytes really exist; that deeper reality check is verify-quote.js's job, run over
+// the artifact store before a finding may ship (section 3/7). Keeping the two separate lets
+// createFinding() stay a PURE constructor (no store dependency) while still making "missing or
+// malformed" quotes structurally impossible.
+function validateQuote(quote) {
+  assertQuotePlainObject(quote);
+  assertQuoteHasNoRawText(quote);
+  assertQuoteEvidenceId(quote);
+  assertQuoteByteRange(quote);
+  assertQuoteSpanHash(quote);
 }
 
 // canonicalQuote(quote) -> the exact FOUR fields a Finding's quote may carry, in a fixed key order (used

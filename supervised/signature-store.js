@@ -23,6 +23,27 @@ function isValidDecision(d) {
   return d === 'ship' || d === 'drop';
 }
 
+// assertValidOverall(overall) -> throws unless overall is exactly 'SIGN' or 'HOLD'.
+function assertValidOverall(overall) {
+  if (overall !== 'SIGN' && overall !== 'HOLD') {
+    throw new Error('signature-store: overall must be "SIGN" or "HOLD", got ' + JSON.stringify(overall));
+  }
+}
+// assertOneDecision(d) -> throws unless d carries a real finding_id and a valid ship/drop decision.
+function assertOneDecision(d) {
+  if (!d || typeof d.finding_id !== 'string' || !d.finding_id) {
+    throw new Error('signature-store: every finding decision needs a finding_id');
+  }
+  if (!isValidDecision(d.decision)) {
+    throw new Error('signature-store: finding ' + d.finding_id + ' decision must be "ship" or "drop", got ' + JSON.stringify(d.decision));
+  }
+}
+// assertValidFindingDecisions(findingDecisions) -> throws unless it is an array of valid decisions.
+function assertValidFindingDecisions(findingDecisions) {
+  if (!Array.isArray(findingDecisions)) throw new Error('signature-store: findingDecisions must be an array');
+  for (const d of findingDecisions) assertOneDecision(d);
+}
+
 // recordSignature(store, runId, { signer, overall, findingDecisions, note }) -> the appended entry.
 //   overall            'SIGN' | 'HOLD' - the whole-run verdict.
 //   findingDecisions   [{ finding_id, decision: 'ship'|'drop', reason_code, note? }] - one entry required
@@ -31,20 +52,8 @@ function isValidDecision(d) {
 function recordSignature(store, runId, fields) {
   const s = store instanceof ManifestStore ? store : new ManifestStore();
   const f = fields || {};
-  if (f.overall !== 'SIGN' && f.overall !== 'HOLD') {
-    throw new Error('signature-store: overall must be "SIGN" or "HOLD", got ' + JSON.stringify(f.overall));
-  }
-  if (!Array.isArray(f.findingDecisions)) {
-    throw new Error('signature-store: findingDecisions must be an array');
-  }
-  for (const d of f.findingDecisions) {
-    if (!d || typeof d.finding_id !== 'string' || !d.finding_id) {
-      throw new Error('signature-store: every finding decision needs a finding_id');
-    }
-    if (!isValidDecision(d.decision)) {
-      throw new Error('signature-store: finding ' + d.finding_id + ' decision must be "ship" or "drop", got ' + JSON.stringify(d.decision));
-    }
-  }
+  assertValidOverall(f.overall);
+  assertValidFindingDecisions(f.findingDecisions);
   return s.append(runId, 'signature', {
     signer: typeof f.signer === 'string' && f.signer ? f.signer : 'unknown',
     overall: f.overall,

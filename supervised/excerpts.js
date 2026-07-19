@@ -6,14 +6,18 @@
 
 const EXCERPT_PAD_BYTES = 240; // a CAP (Rule 8): the window either side of the quote, never grown by a caller.
 
-// excerptFor(store, quote) -> { evidence_id, url, before, quote_text, after } | null. Reads the artifact's
-// bytes (must be present - this is a capture-time helper, not a rehydrated-from-manifest one) and slices a
-// bounded window either side of the verified byte range. Returns null when the artifact/bytes are absent
-// (never fabricates a window from nothing).
-function excerptFor(store, quote) {
+// artifactForExcerpt(store, quote) -> the artifact a quote's excerpt would read, or null when the quote,
+// store, or the artifact's own bytes are not available (never fabricates a window from nothing).
+function artifactForExcerpt(store, quote) {
   if (!quote || !store || typeof store.get !== 'function') return null;
   const artifact = store.get(quote.evidence_id);
   if (!artifact || !Buffer.isBuffer(artifact.bytes)) return null;
+  return artifact;
+}
+
+// sliceExcerptWindow(artifact, quote) -> { evidence_id, url, before, quote_text, after }, a bounded
+// window either side of the verified byte range (never grown past EXCERPT_PAD_BYTES either way).
+function sliceExcerptWindow(artifact, quote) {
   const len = artifact.bytes.length;
   const start = Math.max(0, quote.byte_start - EXCERPT_PAD_BYTES);
   const end = Math.min(len, quote.byte_end + EXCERPT_PAD_BYTES);
@@ -24,6 +28,15 @@ function excerptFor(store, quote) {
     quote_text: artifact.bytes.subarray(quote.byte_start, quote.byte_end).toString('utf8'),
     after: artifact.bytes.subarray(quote.byte_end, end).toString('utf8'),
   };
+}
+
+// excerptFor(store, quote) -> { evidence_id, url, before, quote_text, after } | null. Reads the
+// artifact's bytes (must be present - this is a capture-time helper, not a rehydrated-from-manifest
+// one) and slices a bounded window either side of the verified byte range. Returns null when the
+// artifact/bytes are absent (never fabricates a window from nothing).
+function excerptFor(store, quote) {
+  const artifact = artifactForExcerpt(store, quote);
+  return artifact ? sliceExcerptWindow(artifact, quote) : null;
 }
 
 // buildExcerpts(store, findings) -> [{finding_id, excerpt}], one per finding whose excerpt could be built

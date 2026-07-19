@@ -92,6 +92,48 @@ function buildCoverageManifest(app, catalogueHash) {
   };
 }
 
+// jurisdictionFor(record, facts) -> the catalogue record's own jurisdiction when it declares one, else
+// the first BOUND jurisdiction facts/jurisdiction.js found, else the honest 'UNKNOWN' floor (never
+// invented - a Finding's jurisdiction is always traceable to one of these two real sources).
+function jurisdictionFor(record, facts) {
+  if (record && record.jurisdiction) return record.jurisdiction;
+  const bound = facts.jurisdiction && facts.jurisdiction.bound;
+  return (bound && bound[0] && bound[0].jurisdiction) || 'UNKNOWN';
+}
+// recordFor(catalogue, recordId) -> the catalogue record with this id, or null (catalogue may be handed
+// either {records:[...]} or a bare array - both shapes are accepted throughout this repo).
+function recordFor(catalogue, recordId) {
+  const records = catalogue.records || catalogue;
+  return records.find ? records.find((r) => r.id === recordId) : null;
+}
+// classifyOneCandidate(entry, catalogue, captureIndex, facts, catalogueHash) -> a tagged outcome for ONE
+// verified candidate: {kind:'nonQuote'|'rejected'|'finding', value}. Pulled out of classifyCandidates()'s
+// loop so each of the three ways a candidate can resolve (not a quote artifact; a quote that cannot be
+// hash-verified; a genuinely verified quote) is one small, separately readable step, never nested ifs.
+function classifyOneCandidate(entry, catalogue, captureIndex, facts, catalogueHash) {
+  const candidate = entry.candidate;
+  const artifact = candidate && candidate.artifact;
+  if (!artifact || artifact.type !== ARTIFACT_TYPES.QUOTE) {
+    return { kind: 'nonQuote', value: { record_id: candidate && candidate.record_id, artifact_type: artifact && artifact.type } };
+  }
+  const pageUrl = candidatePageUrl(candidate, artifact);
+  const quoteText = candidateQuoteText(candidate, artifact);
+  const span = resolveQuoteSpan(captureIndex, pageUrl, quoteText);
+  if (!span) {
+    return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'span_unresolved', reason: 'candidate quote could not be located in the hash-chained capture index (page ' + JSON.stringify(pageUrl) + ')' } };
+  }
+  if (!verifyQuote(captureIndex, span)) {
+    return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'verify_quote_failed', reason: 'the resolved byte range failed verify_quote against the hashed artifact' } };
+  }
+  const jurisdiction = jurisdictionFor(recordFor(catalogue, candidate.record_id), facts);
+  try {
+    const finding = createFinding({ rule_id: candidate.record_id, catalogue_hash: catalogueHash, quote: span, jurisdiction, class: FINDING_CLASS.LIKELY });
+    return { kind: 'finding', value: finding };
+  } catch (e) {
+    return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'construction_failed', reason: e.message } };
+  }
+}
+
 // classifyCandidates(verified, captureIndex) -> { findings, rejected, nonQuote }. Walks every verified
 // candidate exactly once; quote-type candidates whose span resolves AND re-verifies become typed Findings,
 // everything else is accounted for honestly (never dropped without a reason).
@@ -101,33 +143,10 @@ function classifyCandidates(verified, catalogue, captureIndex, facts) {
   const nonQuote = [];
   const catalogueHash = catalogue.content_hash;
   for (const entry of verified) {
-    const candidate = entry.candidate;
-    const artifact = candidate && candidate.artifact;
-    if (!artifact || artifact.type !== ARTIFACT_TYPES.QUOTE) {
-      nonQuote.push({ record_id: candidate && candidate.record_id, artifact_type: artifact && artifact.type });
-      continue;
-    }
-    const pageUrl = candidatePageUrl(candidate, artifact);
-    const quoteText = candidateQuoteText(candidate, artifact);
-    const span = resolveQuoteSpan(captureIndex, pageUrl, quoteText);
-    if (!span) {
-      rejected.push({ record_id: candidate.record_id, code: 'span_unresolved', reason: 'candidate quote could not be located in the hash-chained capture index (page ' + JSON.stringify(pageUrl) + ')' });
-      continue;
-    }
-    if (!verifyQuote(captureIndex, span)) {
-      rejected.push({ record_id: candidate.record_id, code: 'verify_quote_failed', reason: 'the resolved byte range failed verify_quote against the hashed artifact' });
-      continue;
-    }
-    const record = (catalogue.records || catalogue).find ? (catalogue.records || catalogue).find((r) => r.id === candidate.record_id) : null;
-    const jurisdiction = (record && record.jurisdiction) || (facts.jurisdiction && facts.jurisdiction.bound && facts.jurisdiction.bound[0] && facts.jurisdiction.bound[0].jurisdiction) || 'UNKNOWN';
-    try {
-      const finding = createFinding({
-        rule_id: candidate.record_id, catalogue_hash: catalogueHash, quote: span, jurisdiction, class: FINDING_CLASS.LIKELY,
-      });
-      findings.push(finding);
-    } catch (e) {
-      rejected.push({ record_id: candidate.record_id, code: 'construction_failed', reason: e.message });
-    }
+    const outcome = classifyOneCandidate(entry, catalogue, captureIndex, facts, catalogueHash);
+    if (outcome.kind === 'finding') findings.push(outcome.value);
+    else if (outcome.kind === 'rejected') rejected.push(outcome.value);
+    else nonQuote.push(outcome.value);
   }
   return { findings, rejected, nonQuote };
 }

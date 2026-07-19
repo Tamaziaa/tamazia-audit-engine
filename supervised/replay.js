@@ -36,49 +36,66 @@ function rehydrateArtifactStore() {
   return null;
 }
 
+// shippedRecordsFor(entries, signature) -> the shipped finding records (from the run's own
+// 'candidate_findings' manifest entry) whose finding_id has an explicit 'ship' decision in `signature`.
+function shippedRecordsFor(entries, signature) {
+  const candidateEntry = [...entries].reverse().find((e) => e.stage === 'candidate_findings');
+  const shipped = shippedFindingIds(signature);
+  const records = candidateEntry && Array.isArray(candidateEntry.findings) ? candidateEntry.findings : [];
+  return records.filter((f) => shipped.has(f.finding_id));
+}
+
+// checkShippedQuotes(shippedRecords, captureIndex) -> { incidents: ReplayIncident[], checkedCount, note? }.
+// Re-runs verify_quote over every shipped record against the LIVE ArtifactStore; when no store was
+// supplied, checks nothing and returns the honest NO_STORE_FOR_MANIFEST note instead of a false pass.
+function checkShippedQuotes(shippedRecords, captureIndex) {
+  if (!captureIndex) {
+    const note = 'NO_STORE_FOR_MANIFEST: replay was given no live ArtifactStore, so quote re-verification could not run for '
+      + shippedRecords.length + ' shipped finding(s) (see this file\'s rehydrateArtifactStore() doc)';
+    return { incidents: [], checkedCount: 0, note };
+  }
+  const incidents = [];
+  for (const rec of shippedRecords) {
+    const result = verifyQuoteDetailed(captureIndex, rec.quote);
+    if (!result.ok) {
+      incidents.push(new ReplayIncident(rec.finding_id, result.reason, 'shipped finding ' + rec.finding_id + ' (' + rec.rule_id + ') failed replay verify_quote: ' + result.reason));
+    }
+  }
+  return { incidents, checkedCount: shippedRecords.length, note: null };
+}
+
+// catalogueDriftNote(catalogue, runStart) -> the 'catalogue_drift' note when the currently-loaded
+// catalogue's content_hash differs from the one this run was made against, else null.
+function catalogueDriftNote(catalogue, runStart) {
+  if (!catalogue || !runStart || !runStart.catalogue_hash || catalogue.content_hash === runStart.catalogue_hash) return null;
+  return 'catalogue_drift: run was made against catalogue_hash ' + runStart.catalogue_hash + ', currently loaded catalogue is ' + catalogue.content_hash;
+}
+
 // replayRun({store, runId, captureIndex, catalogue}) -> { runId, ok, incidents, checkedCount, notes }.
 function replayRun(input) {
   const i = input || {};
   const store = i.store instanceof ManifestStore ? i.store : new ManifestStore();
   const runId = i.runId;
-  const notes = [];
   const entries = store.readAll(runId);
   if (!entries.length) {
     return { runId, ok: false, incidents: [], checkedCount: 0, notes: ['no manifest found for run_id ' + JSON.stringify(runId)] };
   }
-  const runStart = entries.find((e) => e.stage === 'run_start');
-  const candidateEntry = [...entries].reverse().find((e) => e.stage === 'candidate_findings');
   const signature = latestSignature(store, runId);
   if (!signature) {
     return { runId, ok: false, incidents: [], checkedCount: 0, notes: ['no signature recorded; nothing was ever shipped to replay'] };
   }
-  const shipped = shippedFindingIds(signature);
-  const shippedRecords = (candidateEntry && Array.isArray(candidateEntry.findings) ? candidateEntry.findings : [])
-    .filter((f) => shipped.has(f.finding_id));
 
+  const shippedRecords = shippedRecordsFor(entries, signature);
   const captureIndex = i.captureIndex instanceof ArtifactStore ? i.captureIndex : rehydrateArtifactStore();
-  const incidents = [];
-  let checkedCount = 0;
-
-  if (!captureIndex) {
-    notes.push('NO_STORE_FOR_MANIFEST: replay was given no live ArtifactStore, so quote re-verification could not run for ' + shippedRecords.length + ' shipped finding(s) (see this file\'s rehydrateArtifactStore() doc)');
-  } else {
-    for (const rec of shippedRecords) {
-      checkedCount += 1;
-      const result = verifyQuoteDetailed(captureIndex, rec.quote);
-      if (!result.ok) {
-        incidents.push(new ReplayIncident(rec.finding_id, result.reason, 'shipped finding ' + rec.finding_id + ' (' + rec.rule_id + ') failed replay verify_quote: ' + result.reason));
-      }
-    }
-  }
-
-  if (i.catalogue && runStart && runStart.catalogue_hash && i.catalogue.content_hash !== runStart.catalogue_hash) {
-    notes.push('catalogue_drift: run was made against catalogue_hash ' + runStart.catalogue_hash + ', currently loaded catalogue is ' + i.catalogue.content_hash);
-  }
+  const quoteCheck = checkShippedQuotes(shippedRecords, captureIndex);
+  const runStart = entries.find((e) => e.stage === 'run_start');
+  const driftNote = catalogueDriftNote(i.catalogue, runStart);
+  const notes = [quoteCheck.note, driftNote].filter(Boolean);
 
   return {
-    runId, ok: incidents.length === 0, incidents: incidents.map((inc) => ({ findingId: inc.findingId, reasonCode: inc.reasonCode, detail: inc.detail })),
-    checkedCount, shippedCount: shippedRecords.length, notes,
+    runId, ok: quoteCheck.incidents.length === 0,
+    incidents: quoteCheck.incidents.map((inc) => ({ findingId: inc.findingId, reasonCode: inc.reasonCode, detail: inc.detail })),
+    checkedCount: quoteCheck.checkedCount, shippedCount: shippedRecords.length, notes,
   };
 }
 

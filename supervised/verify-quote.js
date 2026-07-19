@@ -65,26 +65,55 @@ function isInBounds(quote, length) {
 // raw string" rule (finding.js) still holds. verify_quote re-slices the CURRENT bytes and confirms they
 // hash to that same commitment; a drifted or fabricated span no longer matches, so it is refused. A quote
 // with NO span_sha256 is unverifiable by construction and refused (fail closed, Rule 4).
-function verifyQuoteDetailed(store, quote) {
-  if (!quote || typeof quote !== 'object' || typeof quote.evidence_id !== 'string' || !quote.evidence_id) {
-    return { ok: false, reason: REFUSAL_REASONS.NO_ARTIFACT };
-  }
+// resolveArtifact(store, quote) -> {ok, reason, artifact}. Steps 1-2 of the choke point: the quote must
+// name a real evidence_id, and that id must resolve to an actual captured record in the store.
+function resolveArtifact(store, quote) {
+  const hasEvidenceId = quote && typeof quote === 'object' && typeof quote.evidence_id === 'string' && quote.evidence_id;
+  if (!hasEvidenceId) return { ok: false, reason: REFUSAL_REASONS.NO_ARTIFACT, artifact: null };
   const artifact = store && typeof store.get === 'function' ? store.get(quote.evidence_id) : null;
-  if (!artifact) return { ok: false, reason: REFUSAL_REASONS.NO_ARTIFACT };
+  if (!artifact) return { ok: false, reason: REFUSAL_REASONS.NO_ARTIFACT, artifact: null };
+  return { ok: true, reason: null, artifact };
+}
+
+// verifyArtifactIntegrity(artifact) -> {ok, reason}. Step 3: the artifact must carry real bytes, and
+// those bytes must still hash to the sha256 recorded at capture time (catches tamper/corruption).
+function verifyArtifactIntegrity(artifact) {
   if (!Buffer.isBuffer(artifact.bytes)) return { ok: false, reason: REFUSAL_REASONS.NO_BYTES };
-  const recomputed = sha256Hex(artifact.bytes);
-  if (recomputed !== artifact.sha256) return { ok: false, reason: REFUSAL_REASONS.HASH_MISMATCH };
-  if (!isInBounds(quote, artifact.bytes.length)) return { ok: false, reason: REFUSAL_REASONS.RANGE_OUT_OF_BOUNDS };
+  if (sha256Hex(artifact.bytes) !== artifact.sha256) return { ok: false, reason: REFUSAL_REASONS.HASH_MISMATCH };
+  return { ok: true, reason: null };
+}
+
+// sliceInBounds(artifact, quote) -> {ok, reason, sliceBytes, slice}. Step 4: the byte range must be
+// well-ordered and inside the artifact, and the resulting slice must decode to real, non-blank text.
+function sliceInBounds(artifact, quote) {
+  if (!isInBounds(quote, artifact.bytes.length)) return { ok: false, reason: REFUSAL_REASONS.RANGE_OUT_OF_BOUNDS, sliceBytes: null, slice: null };
   const sliceBytes = artifact.bytes.subarray(quote.byte_start, quote.byte_end);
   const slice = sliceBytes.toString('utf8');
-  if (!slice.trim()) return { ok: false, reason: REFUSAL_REASONS.EMPTY_SLICE };
+  if (!slice.trim()) return { ok: false, reason: REFUSAL_REASONS.EMPTY_SLICE, sliceBytes: null, slice: null };
+  return { ok: true, reason: null, sliceBytes, slice };
+}
+
+// verifySpanHash(quote, sliceBytes) -> {ok, reason}. Step 5, the anti-drift commitment: quote.span_sha256
+// must be shape-valid AND must equal the hash of the bytes actually sliced (a drifted/fabricated span,
+// even one that lands in-bounds on real text, does not match and is refused).
+function verifySpanHash(quote, sliceBytes) {
   if (typeof quote.span_sha256 !== 'string' || !SPAN_HASH_RE.test(quote.span_sha256)) {
     return { ok: false, reason: REFUSAL_REASONS.MISSING_SPAN_HASH };
   }
-  if (sha256Hex(sliceBytes) !== quote.span_sha256) {
-    return { ok: false, reason: REFUSAL_REASONS.SPAN_HASH_MISMATCH };
-  }
-  return { ok: true, reason: null, text: slice };
+  if (sha256Hex(sliceBytes) !== quote.span_sha256) return { ok: false, reason: REFUSAL_REASONS.SPAN_HASH_MISMATCH };
+  return { ok: true, reason: null };
+}
+
+function verifyQuoteDetailed(store, quote) {
+  const resolved = resolveArtifact(store, quote);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const integrity = verifyArtifactIntegrity(resolved.artifact);
+  if (!integrity.ok) return { ok: false, reason: integrity.reason };
+  const sliced = sliceInBounds(resolved.artifact, quote);
+  if (!sliced.ok) return { ok: false, reason: sliced.reason };
+  const spanHash = verifySpanHash(quote, sliced.sliceBytes);
+  if (!spanHash.ok) return { ok: false, reason: spanHash.reason };
+  return { ok: true, reason: null, text: sliced.slice };
 }
 
 // verify_quote(artifact_store, quote) -> bool. The spec's own exact function name/signature, kept as a
