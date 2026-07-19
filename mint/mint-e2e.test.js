@@ -113,7 +113,9 @@ test('DEFECT-6 E2E: a broken browser lane (goto REJECTS, the real DEFECT-1 shape
   const { payload, stageManifest } = await runMint(makeStores(), { launchBrowser: async () => brokenBrowser });
   const byStage = Object.fromEntries(stageManifest.map((m) => [m.stage, m]));
   assert.strictEqual(byStage.observe.ran, false, 'the stageManifest itself records the failure');
+  assert.strictEqual(byStage.observe.reason, 'error', 'a TYPED failure state, not just ran:false (an unrelated skip/launcher-failure must not pass this assertion)');
   assert.strictEqual(byStage.domAssert.ran, false);
+  assert.strictEqual(byStage.domAssert.reason, 'error');
   assert.ok(Array.isArray(payload.coverageCaveats), 'coverageCaveats is present on the CLIENT-FACING payload, not just the engine manifest');
   assert.strictEqual(payload.coverageCaveats.length, 2, 'both browser lanes failed, so both are projected');
   const lanes = payload.coverageCaveats.map((c) => c.lane).sort();

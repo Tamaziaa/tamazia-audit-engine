@@ -58,6 +58,11 @@ function normaliseOpts(opts) {
     now: typeof o.now === 'function' ? o.now : Date.now,
     log: typeof o.log === 'function' ? o.log : null,
     crawlOpts: o.crawlOpts || {},
+    // TEST-ONLY seam (DEFECT-6, CodeRabbit PR #25 comment 3610846889): threaded through to BOTH browser
+    // lanes' own resolvePlaywrightLauncher() calls so a test can deterministically prove the "no Playwright
+    // driver installed" path for either lane, without depending on whether the optionalDependency happens
+    // to be present in node_modules. Production never sets this.
+    resolveChromium: typeof o.resolveChromium === 'function' ? o.resolveChromium : undefined,
   };
 }
 
@@ -131,7 +136,7 @@ async function runCrawlLane(domain, cfg, manifest) {
 // records its own lane:{ran,reason} (playwright-unavailable/deadline/error/ran); this only threads the
 // injected launcher + clock and mirrors the lane's outcome onto the manifest (C-041).
 async function runObserveLane(url, cfg, manifest) {
-  const res = await observe(url, { launchBrowser: cfg.launchBrowser || undefined, fetchLink: cfg.fetchLink || undefined, deadlineMs: OBSERVE_DEADLINE_MS, now: cfg.now });
+  const res = await observe(url, { launchBrowser: cfg.launchBrowser || undefined, fetchLink: cfg.fetchLink || undefined, deadlineMs: OBSERVE_DEADLINE_MS, now: cfg.now, resolveChromium: cfg.resolveChromium });
   manifest.push({ stage: 'observe', ran: Boolean(res.lane && res.lane.ran), reason: (res.lane && res.lane.reason) || null, observed: Array.isArray(res.observed) ? res.observed.length : 0 });
   return { observed: res.observed || [], consentControl: res.consentControl || { found: false }, lane: res.lane || { ran: false, reason: 'no-lane' } };
 }
@@ -170,7 +175,7 @@ async function forceClose(holder, cfg) {
 // A launcher that will not resolve (no injected browser, no Playwright driver) records the lane unavailable
 // LOUDLY (C-041) without attempting a launch. Never throws into the mint (Rule 4).
 async function runDomLane(url, cfg, manifest) {
-  const launch = typeof cfg.launchBrowser === 'function' ? cfg.launchBrowser : await resolvePlaywrightLauncher({ now: cfg.now });
+  const launch = typeof cfg.launchBrowser === 'function' ? cfg.launchBrowser : await resolvePlaywrightLauncher({ now: cfg.now, resolveChromium: cfg.resolveChromium });
   if (typeof launch !== 'function') {
     manifest.push({ stage: 'domAssert', ran: false, reason: 'playwright-unavailable', launch: 'second-bounded-launch (not attempted: no launcher)' });
     return { nodes: [], lane: { ran: false, reason: 'playwright-unavailable' } };

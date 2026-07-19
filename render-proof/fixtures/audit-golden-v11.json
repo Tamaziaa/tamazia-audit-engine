@@ -435,6 +435,7 @@
   },
   "confirmed": 1,
   "screenedLabel": "Screened the catalogue",
+  "coverageCaveats": [],
   "frameworksAssessed": 3,
   "frameworksBinding": 2,
   "rulesChecked": 7,

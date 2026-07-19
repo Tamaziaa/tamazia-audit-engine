@@ -294,6 +294,18 @@ RANK 17, and `healthcare-us.md`'s "Defect A/C"):
   field: an absent/failed `observe` or `domAssert` lane is now a loud, human-readable caveat on the
   CLIENT-FACING payload, not just a note in the engine's own manifest (closing RANK 17's own stated
   residual: "visible in the manifest is not visible in the client report").
+
+**These two "FIXED" claims are backed by deterministic, committed CI gates, not narrative evidence alone**
+(the live-site numbers above are investigation proof of real-world impact; completion itself is judged by
+the fleet, per this repo's own rule that CI is the arbiter, never a self-certifying claim): `tools/lib/
+safe-fetch.test.js`'s `resolveNavigableUrl` suite, `evidence/browser/observe.test.js`'s and `evidence/
+browser/playwright-adapter.test.js`'s DEFECT-1/`httpFallbackOf` suites, `mint/compose-bundle.test.js`'s
+DEFECT-1 suite (bare-domain -> schemed-URL threading, and a rejecting `goto()` producing a recorded
+`lane.reason='error'` on both browser lanes, never the old false-clean signature), `mint/mint-e2e.test.js`'s
+DEFECT-6 E2E test (a broken browser lane end to end through the real `mint()` produces
+`payload.coverageCaveats`), and `payload/composer/compose.test.js`'s five `coverageCaveats` tests, all
+green in `node --test` and re-verified by `tools/sweep/run.js` (GREEN, ACT 0) and `tools/history-regression/
+check.js` (exit 0) on every push to PR #25.
 - **DEFECT-8b (D5: pre-consent tracker capture stayed at zero even after the bare-domain fix) - INVESTIGATED,
   PARTIALLY RE-SCOPED, NOT claimed fully closed.** Once DEFECT-1 is fixed, direct empirical testing through
   the real `composeBundle()` pipeline against two real tracker-bearing sites gave two DIFFERENT, both

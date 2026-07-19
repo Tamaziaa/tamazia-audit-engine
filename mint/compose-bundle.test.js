@@ -140,3 +140,13 @@ test('DEFECT-1: a goto() REJECTION on the domAssert second launch is a LOUD reco
   const domStage = stageManifest.find((m) => m.stage === 'domAssert');
   assert.strictEqual(domStage.ran, false, 'the manifest itself is loud, not just the bundle');
 });
+
+test('CodeRabbit PR #25: opts.resolveChromium threads through to BOTH browser lanes\' own driver resolution, not just observe()', async () => {
+  const { bundle, stageManifest } = await composeBundle('acme.example', {
+    fetchFn, registersFetchFn, env: {}, now: () => 1, resolveChromium: () => null, // no launchBrowser injected: forces the real resolvePlaywrightLauncher() path on both lanes
+  });
+  assert.strictEqual(bundle.browser.lane.reason, 'playwright-unavailable', 'observe honoured the injected resolver');
+  assert.strictEqual(bundle.browser.domLane.reason, 'playwright-unavailable', 'domAssert honoured the SAME injected resolver');
+  assert.deepStrictEqual(stageManifest.map((m) => [m.stage, m.reason]).filter(([s]) => s === 'observe' || s === 'domAssert'),
+    [['observe', 'playwright-unavailable'], ['domAssert', 'playwright-unavailable']]);
+});

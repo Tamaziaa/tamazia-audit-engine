@@ -275,7 +275,7 @@ test('the schema + contract selftest passes (B1 benchmark, invoked here as a gat
   // exits 0 on success; execFileSync throws on a non-zero exit, failing this test.
   const out = execFileSync('node', [path.join(__dirname, '..', 'contract', 'index.js'), '--selftest'], { encoding: 'utf8' });
   assert.match(out, /selftest OK/);
-  assert.match(out, /schema v1\.1\.0 in sync/);
+  assert.match(out, /schema v1\.2\.0 in sync/); // v1.2 (P6, DEFECT-6): coverageCaveats[] added, purely additive
 });
 
 // ── KNOWN-BAD calibration fixtures (the earn-your-zero cases: compose must FAIL closed, never ship) ─────
