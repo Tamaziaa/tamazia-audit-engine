@@ -117,24 +117,32 @@ test('loadBudgets: the real committed budgets.json passes its own schema validat
   assert.equal(typeof budgets.jurisdiction_wrong_attach_max, 'number');
 });
 
-test('loadBudgets: a budgets.json missing a required key throws (fails closed, CodeRabbit PR #32)', () => {
-  const tmp = path.join(os.tmpdir(), 'reality-corpus-budgets-known-bad-' + process.pid + '.json');
-  fs.writeFileSync(tmp, JSON.stringify({ false_accusations_max: 0, sector_refusal_rate_max: 0, coverage_adjusted_recall_min: 0 }));
+// withTempJsonFile(doc, fn) -> writes doc into a freshly-created, exclusive, randomly-named temp
+// directory (fs.mkdtempSync, not a predictable os.tmpdir()-plus-pid path) and always removes it
+// afterwards - a predictable temp filename in a shared, world-writable directory is a symlink-attack/
+// race-condition surface (CodeQL "Insecure temporary file", CWE-377), flagged on PR #32's first version
+// of this test.
+function withTempJsonFile(doc, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reality-corpus-known-bad-'));
+  const tmp = path.join(dir, 'budgets.json');
   try {
-    assert.throws(() => loadBudgets(tmp), /jurisdiction_wrong_attach_max/);
+    fs.writeFileSync(tmp, JSON.stringify(doc));
+    return fn(tmp);
   } finally {
-    fs.unlinkSync(tmp);
+    fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+test('loadBudgets: a budgets.json missing a required key throws (fails closed, CodeRabbit PR #32)', () => {
+  withTempJsonFile({ false_accusations_max: 0, sector_refusal_rate_max: 0, coverage_adjusted_recall_min: 0 }, (tmp) => {
+    assert.throws(() => loadBudgets(tmp), /jurisdiction_wrong_attach_max/);
+  });
 });
 
 test('loadBudgets: a budgets.json with a non-finite value throws', () => {
-  const tmp = path.join(os.tmpdir(), 'reality-corpus-budgets-known-bad-nan-' + process.pid + '.json');
-  fs.writeFileSync(tmp, JSON.stringify({
+  withTempJsonFile({
     false_accusations_max: 0, sector_refusal_rate_max: 0, coverage_adjusted_recall_min: 'not-a-number', jurisdiction_wrong_attach_max: 0,
-  }));
-  try {
+  }, (tmp) => {
     assert.throws(() => loadBudgets(tmp), /coverage_adjusted_recall_min/);
-  } finally {
-    fs.unlinkSync(tmp);
-  }
+  });
 });

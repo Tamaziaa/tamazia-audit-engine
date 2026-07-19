@@ -275,13 +275,12 @@ function loadBudgets(budgetsPath) {
   return budgets;
 }
 
-// evaluateBudgets(summary, budgets) -> {pass: bool, failures: [string]}. Every failure names the exact
-// number and the exact budget it missed - the gate must never fail silently or fail vaguely.
-function evaluateBudgets(summary, budgets) {
+// vacuousGreenFailures(summary) -> failure strings for a run with no real signal behind it (CodeRabbit
+// PR #32): with zero ran sites every avg/recall metric is `null` and every budget check against a
+// `null` is skipped, which would otherwise let a fully broken run (fixtures directory missing, every
+// site erroring) report PASS.
+function vacuousGreenFailures(summary) {
   const failures = [];
-  // Vacuous-green guards (CodeRabbit PR #32): with zero ran sites every avg/recall metric below is
-  // `null` and every budget check against a `null` is skipped, which would otherwise let a fully broken
-  // run (fixtures directory missing, every site erroring) report PASS with no real signal behind it.
   if (summary.sites_ran === 0) {
     failures.push('sites_ran is 0 - no site produced a scoreable result; a scorecard with nothing scored is not a pass');
   }
@@ -289,6 +288,13 @@ function evaluateBudgets(summary, budgets) {
     failures.push('sites_errored ' + summary.sites_errored + ' > 0 - an errored site is a harness/engine defect, not data, '
       + 'and must not be silently excluded from the other metrics\' denominators (see each row\'s own "error" detail)');
   }
+  return failures;
+}
+
+// evaluateBudgets(summary, budgets) -> {pass: bool, failures: [string]}. Every failure names the exact
+// number and the exact budget it missed - the gate must never fail silently or fail vaguely.
+function evaluateBudgets(summary, budgets) {
+  const failures = [...vacuousGreenFailures(summary)];
   if (summary.false_accusations_total > budgets.false_accusations_max) {
     failures.push('false_accusations_total ' + summary.false_accusations_total + ' > max ' + budgets.false_accusations_max + ' (HARD, Constitution Rule 3/10, Kimi blueprint section 3.4)');
   }

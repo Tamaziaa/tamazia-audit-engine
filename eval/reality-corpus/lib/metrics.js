@@ -29,20 +29,42 @@ function expectedFamilyOf(site) {
 // emittedSector is facts.sector.value ({sector, sub_sector}) or null (the door's own abstain signal).
 // familyOf is injected (facts/sector.js's own familyOf against the loaded tree) so this stays a pure
 // function of its arguments, independently testable with a fake mapping (see metrics.test.js).
+// hasNoSectorValue(emittedSector) -> true when the door abstained (no sector emitted at all, or an
+// emitted value with no .sector field).
+function hasNoSectorValue(emittedSector) {
+  if (!emittedSector) return true;
+  return !emittedSector.sector;
+}
+
 function sectorTop1(site, emittedSector, familyOf) {
   const expected = expectedFamilyOf(site);
   if (!expected) return 'not_labelled';
-  if (!emittedSector || !emittedSector.sector) return 'abstain';
+  if (hasNoSectorValue(emittedSector)) return 'abstain';
   const family = familyOf(emittedSector.sector);
-  return family === expected ? 'correct' : 'wrong';
+  if (family === expected) return 'correct';
+  return 'wrong';
+}
+
+// recallOrNull(hitCount, totalCount) -> hitCount/totalCount, or null when there was nothing to expect
+// (an empty denominator is "not applicable", never a false 0% or a false 100%). Shared by
+// jurisdictionEstablishmentBind() and applicabilityRecall() - the same "no expectation -> null, not a
+// score" rule both were duplicating.
+function recallOrNull(hitCount, totalCount) {
+  if (totalCount === 0) return null;
+  return hitCount / totalCount;
+}
+
+// expectedJurisdictions(site) -> the jurisdiction codes site.establishment[] labels as expected.
+function expectedJurisdictions(site) {
+  return (Array.isArray(site.establishment) ? site.establishment : [])
+    .map((e) => e && e.jurisdiction).filter(Boolean);
 }
 
 // jurisdictionEstablishmentBind(site, boundList) -> {expected:[...], bound:[...], recall, precision}
 // boundList is facts.jurisdiction.bound.map(b => b.jurisdiction) (country/sub-jurisdiction codes the
 // engine actually bound). Establishment recall/precision, per the corpus's `establishment[]` labels.
 function jurisdictionEstablishmentBind(site, boundList) {
-  const expected = (Array.isArray(site.establishment) ? site.establishment : [])
-    .map((e) => e && e.jurisdiction).filter(Boolean);
+  const expected = expectedJurisdictions(site);
   const bound = Array.isArray(boundList) ? boundList.filter(Boolean) : [];
   const expectedSet = new Set(expected);
   const boundSet = new Set(bound);
@@ -51,7 +73,7 @@ function jurisdictionEstablishmentBind(site, boundList) {
   return {
     expected,
     bound,
-    recall: expected.length === 0 ? null : hit.length / expected.length,
+    recall: recallOrNull(hit.length, expected.length),
     wrong_attach_count: wrongAttach.length,
     wrong_attach: wrongAttach,
   };
@@ -75,7 +97,7 @@ function applicabilityRecall(site, applicableRecordIds, catalogueIds) {
     assessable_count: assessable.length,
     bound,
     not_bound: notBound,
-    recall: assessable.length === 0 ? null : bound.length / assessable.length,
+    recall: recallOrNull(bound.length, assessable.length),
   };
 }
 

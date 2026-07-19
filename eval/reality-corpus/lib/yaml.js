@@ -46,15 +46,21 @@ function quoteMask(s) {
   return mask;
 }
 
+// startsToken(s, i) -> true if index i is the start of a token: line-start, or preceded by whitespace.
+function startsToken(s, i) {
+  if (i === 0) return true;
+  return /\s/.test(s[i - 1]);
+}
+
 // stripComment(line) -> line with a trailing `# ...` comment removed, unless the `#` lies inside a
-// quoted span (a `#` never starts a comment mid-quote). Only a `#` that starts a token (line-start or
-// preceded by whitespace) counts as a comment marker - the corpus format never needs a literal
-// unquoted '#'.
+// quoted span (a `#` never starts a comment mid-quote). Only a `#` that starts a token counts as a
+// comment marker - the corpus format never needs a literal unquoted '#'.
 function stripComment(line) {
   const mask = quoteMask(line);
   for (let i = 0; i < line.length; i++) {
     if (mask[i]) continue;
-    if (line[i] === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+    if (line[i] !== '#') continue;
+    if (startsToken(line, i)) return line.slice(0, i);
   }
   return line;
 }
@@ -127,40 +133,60 @@ function tokenise(text) {
   return out;
 }
 
+// isSequenceMarker(trimmed) -> true for a block-sequence item line ("- foo" or a bare "-"). Shared by
+// parseBlock(), parseSequence() and parseMapping() so all three agree on the one marker (previously
+// each inlined the same `startsWith('- ') || === '-'` check).
+function isSequenceMarker(trimmed) {
+  if (trimmed.startsWith('- ')) return true;
+  return trimmed === '-';
+}
+
 // parseBlock(tokens, pos, indent) -> [value, nextPos]. Decides mapping vs sequence from the first
 // token at this indent level, then consumes every subsequent token at the SAME indent belonging to
 // that block, recursing into deeper indents for nested values.
 function parseBlock(tokens, pos, indent) {
   if (pos >= tokens.length || tokens[pos].indent < indent) return [null, pos];
   const first = tokens[pos].raw.trim();
-  if (first.startsWith('- ') || first === '-') {
-    return parseSequence(tokens, pos, indent);
-  }
+  if (isSequenceMarker(first)) return parseSequence(tokens, pos, indent);
   return parseMapping(tokens, pos, indent);
+}
+
+const INLINE_MAPPING_KEY_RX = /^([A-Za-z0-9_.\-]+):(\s|$)/;
+
+// isInlineMappingItem(rest) -> true for "- key: value" (an inline mapping item, not a bare scalar item).
+function isInlineMappingItem(rest) {
+  return INLINE_MAPPING_KEY_RX.test(rest);
+}
+
+// parseSequenceNestedItem(tokens, pos, indent) -> [value, nextPos] for a bare "- " item whose value is
+// a nested block on following, deeper-indented lines.
+function parseSequenceNestedItem(tokens, pos, indent) {
+  return parseBlock(tokens, pos + 1, indent + 2);
+}
+
+// parseSequenceMappingItem(tokens, pos, indent, rest) -> [value, nextPos] for a "- key: value" item;
+// its own indent is treated as indent+2 for the purpose of sibling keys on subsequent, deeper-indented
+// lines (parseMapping re-reads tokens[pos] under that synthetic indent/raw).
+function parseSequenceMappingItem(tokens, pos, indent, rest) {
+  const itemIndent = indent + 2;
+  tokens[pos] = { indent: itemIndent, raw: ' '.repeat(itemIndent) + rest };
+  return parseMapping(tokens, pos, itemIndent);
 }
 
 function parseSequence(tokens, pos, indent) {
   const arr = [];
   while (pos < tokens.length && tokens[pos].indent === indent) {
     const trimmed = tokens[pos].raw.trim();
-    if (!(trimmed.startsWith('- ') || trimmed === '-')) break;
+    if (!isSequenceMarker(trimmed)) break;
     const rest = trimmed === '-' ? '' : trimmed.slice(2);
     if (rest === '') {
-      // '- ' alone: the item is a nested block on following, deeper-indented lines.
-      pos++;
-      const [val, next] = parseBlock(tokens, pos, indent + 2);
+      const [val, next] = parseSequenceNestedItem(tokens, pos, indent);
       arr.push(val);
       pos = next;
       continue;
     }
-    const colonMatch = /^([A-Za-z0-9_.\-]+):(\s|$)/.exec(rest);
-    if (colonMatch) {
-      // '- key: value' starts an inline mapping item; its own indent is treated as indent+2 for the
-      // purpose of sibling keys that follow on subsequent, deeper-indented lines.
-      const itemIndent = indent + 2;
-      const syntheticRaw = ' '.repeat(itemIndent) + rest;
-      tokens[pos] = { indent: itemIndent, raw: syntheticRaw };
-      const [val, next] = parseMapping(tokens, pos, itemIndent);
+    if (isInlineMappingItem(rest)) {
+      const [val, next] = parseSequenceMappingItem(tokens, pos, indent, rest);
       arr.push(val);
       pos = next;
       continue;
@@ -185,7 +211,7 @@ function parseMapping(tokens, pos, indent) {
   const obj = {};
   while (pos < tokens.length && tokens[pos].indent === indent) {
     const trimmed = tokens[pos].raw.trim();
-    if (trimmed.startsWith('- ') || trimmed === '-') break;
+    if (isSequenceMarker(trimmed)) break;
     const idx = findColon(trimmed);
     if (idx === -1) throw new Error('eval/reality-corpus/lib/yaml.js: expected "key: value" at "' + trimmed + '"');
     const key = trimmed.slice(0, idx).trim();
@@ -198,11 +224,18 @@ function parseMapping(tokens, pos, indent) {
   return [obj, pos];
 }
 
+// endsToken(s, i) -> true if index i is the end of a token: string-end, or followed by whitespace.
+function endsToken(s, i) {
+  if (i === s.length - 1) return true;
+  return /\s/.test(s[i + 1]);
+}
+
 function findColon(s) {
   const mask = quoteMask(s);
   for (let i = 0; i < s.length; i++) {
     if (mask[i]) continue;
-    if (s[i] === ':' && (i === s.length - 1 || /\s/.test(s[i + 1]))) return i;
+    if (s[i] !== ':') continue;
+    if (endsToken(s, i)) return i;
   }
   return -1;
 }
