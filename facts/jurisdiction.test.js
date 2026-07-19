@@ -452,6 +452,97 @@ test('internals.registerIsUsable requires BOTH a real id and a name', () => {
 });
 
 // ===========================================================================
+// DEFECT-3: real-world US/UK address + phone formats bind (repetition class #5, inverted
+// over-abstention). Every case below carries a POSITIVE control (the real firm binds) AND the
+// negative controls that keep the fix from opening a false-binding hole (a .com or a lone domestic
+// number never binds). Corpus strings are the empirical sites' ACTUAL captured text.
+// ===========================================================================
+
+test('DEFECT-3 positive: a US firm with a spelled-out state + ZIP and a domestic phone binds US (healthcare-US Defect D, vanfamilymedical.com)', () => {
+  // The address and the phone sit on separate footer lines, split from the "Head Office" context word.
+  const out = resolveJurisdiction(pageBundle('Head Office\n\n488 West Main Ste. 101 Van, Texas 75790\n\n903-963-6850\n\ncustomerservice@van.com', { domain: 'vanfamilymedical.com' }));
+  const us = findBound(out, 'US');
+  assert.ok(us, 'a real US "Head Office" address + domestic phone must bind US, not abstain');
+  assert.ok(bKinds(us).size >= 2, 'two independent Tier-B kinds (postcode + phone) carried the bind');
+  const tx = out.sub_jurisdictions.find((s) => s.code === 'TX');
+  assert.ok(tx && tx.status === 'bound', 'the spelled-out state Texas + ZIP is a bound state nexus');
+});
+
+test('DEFECT-3 positive: a US footer with a state code + ZIP and a NANP domestic phone binds US (legal-US Finding 4, avidlawyers.com)', () => {
+  const out = resolveJurisdiction(pageBundle('Mincone Personal Injury Lawyers, 1925 E 6th Ave Unit 10, Tampa, FL 33605, United States. Call (813) 800-0810 today.', { domain: 'avidlawyers.com' }));
+  const us = findBound(out, 'US');
+  assert.ok(us, 'the plain-text US address + (813) domestic phone must bind US');
+  assert.ok(bKinds(us).size >= 2, 'postcode + phone are two independent Tier-B kinds');
+  assert.ok(out.sub_jurisdictions.some((s) => s.code === 'FL' && s.status === 'bound'), 'Florida is a bound state nexus');
+});
+
+test('DEFECT-3 positive: a UK "+44 (0) ..." phone with a postcode address binds UK (legal-UK Fix 4, ukimmigrationconsulting.com)', () => {
+  // "+44 (0) 7896 085 553" carries a " (" and ") " run the old single-separator PHONE_RX could not span.
+  const out = resolveJurisdiction(pageBundle('Queen Victoria House, 794 Cranbrook Road, Ilford, IG6 1HZ, UK. Call +44 (0) 7896 085 553.', { domain: 'ukimmigrationconsulting.com' }));
+  const uk = findBound(out, 'UK');
+  assert.ok(uk, 'postcode + a bracketed UK phone are two Tier-B kinds; UK must bind, not abstain');
+  assert.ok(bKinds(uk).size >= 2, 'the phone kind is recovered from the bracketed "+44 (0)" format');
+});
+
+test('DEFECT-3 negative: a US domestic phone ALONE (no US address) never binds US (one Tier-B kind is not enough)', () => {
+  const out = resolveJurisdiction(pageBundle('Call us on 903-963-6850 for a free quote.', { domain: 'acme.com' }));
+  assert.equal(out.abstained, true, 'a lone NANP phone is one kind; it must not bind on its own');
+  assert.ok(!boundCodes(out).includes('US'));
+});
+
+test('DEFECT-3 negative: a bare .com with no other evidence never binds US (a mere .com must not bind a jurisdiction)', () => {
+  const out = resolveJurisdiction(bundleOf({ domain: 'acme.com', corpus: { pages: [{ url: 'https://acme.com/', text: 'Welcome to our website.', jsonLd: [] }], footerText: '' } }));
+  assert.equal(out.abstained, true);
+  assert.deepEqual(boundCodes(out), []);
+});
+
+test('DEFECT-3 negative: a UK "+44 (0)" number and a UK postcode never bind the US (the domestic-phone widening is US-scoped)', () => {
+  const out = resolveJurisdiction(pageBundle('Call +44 (0) 7896 085 553. Office at 794 Cranbrook Road, Ilford, IG6 1HZ.', { domain: 'x.co.uk' }));
+  assert.ok(!boundCodes(out).includes('US'), 'a leading-0 UK number can never match the NANP domestic detector (area code 2-9)');
+});
+
+test('DEFECT-3 independence: two US office postcodes are still ONE kind and never bind alone (C-007)', () => {
+  const out = resolveJurisdiction(pageBundle('Offices at 350 Fifth Avenue, New York, NY 10118 and 100 Main St, San Diego, CA 92101.', { domain: 'acme.com' }));
+  assert.equal(out.abstained, true, 'two postcodes are two matches of ONE kind; no second independent kind, no bind');
+});
+
+// ===========================================================================
+// DEFECT-8: US state-bar authorisation is Tier-A establishment (the state advertising records are
+// established_in-only). Positive: a firm publishing its bar credentials binds the state at Tier A.
+// Negative: merely NAMING a state bar (a complaint route) is a Tier-C mention that never binds - and
+// the pre-existing "admitted to the New York bar" prose still renders advisory, never bound.
+// ===========================================================================
+
+test('DEFECT-8 positive: a US state-bar authorisation WITH a bar number is Tier-A establishment and binds the state', () => {
+  const out = resolveJurisdiction(pageBundle('John Smith is a member of the State Bar of California, Bar No. 245123.', { domain: 'smithlaw.com' }));
+  const us = findBound(out, 'US');
+  assert.ok(us, 'a bar authorisation with a number binds US at Tier A (established_in can now be satisfied)');
+  assert.ok(us.tier_evidence.some((e) => e.tier === 'A' && e.kind === 'authorisation'), 'the establishment kind is Tier-A authorisation');
+  const ca = out.sub_jurisdictions.find((s) => s.code === 'CA');
+  assert.ok(ca && ca.status === 'bound' && ca.basis === 'bar_authorisation', 'California is a BOUND state nexus off the bar authorisation');
+});
+
+test('DEFECT-8 negative: merely naming a state bar (no number) is a Tier-C mention and never binds (C-014)', () => {
+  const out = resolveJurisdiction(pageBundle('If you have a concern you may file a complaint with the State Bar of California.', { domain: 'acme.com' }));
+  assert.equal(out.abstained, true, 'a bare state-bar mention with no bar number never binds');
+  assert.ok(!boundCodes(out).includes('US'));
+});
+
+test('DEFECT-8 negative: a sentence naming TWO state bars binds only the one whose bar number is nearby (no over-bind)', () => {
+  const out = resolveJurisdiction(pageBundle('Our attorneys are members of the Florida Bar and the State Bar of California, Bar No. 245123.'));
+  const ca = out.sub_jurisdictions.find((s) => s.code === 'CA');
+  const fl = out.sub_jurisdictions.find((s) => s.code === 'FL');
+  assert.ok(ca && ca.status === 'bound' && ca.basis === 'bar_authorisation', 'California (whose bar number follows it) is bound');
+  assert.ok(!(fl && fl.status === 'bound'), 'Florida (named without its own nearby bar number) must NOT be a bound bar_authorisation');
+});
+
+test('DEFECT-8 preserved: "admitted to the New York bar" (no number) still renders advisory, never bound', () => {
+  const out = resolveJurisdiction(pageBundle('Incorporated in Delaware. Our partners are admitted to the New York bar.'));
+  const ny = out.sub_jurisdictions.find((s) => s.code === 'NY');
+  assert.ok(ny && ny.status === 'advisory' && ny.basis === 'bar_admission', 'the numberless bar admission is advisory, never a bound bar_authorisation');
+});
+
+// ===========================================================================
 // Calibration fixture wiring (item 3): the adversarial corpus must be caught EVERY run.
 // ===========================================================================
 

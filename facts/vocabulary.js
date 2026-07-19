@@ -121,9 +121,21 @@ const SECTORS = {
         detect: /\bchartered legal executives?\b|\blegal executives?\b|\bcilex\b|\bchartered institute of legal executives\b/i,
         sample: 'our chartered legal executives are CILEX members of the Chartered Institute of Legal Executives',
       },
+      // DEFECT-7 (empirical legal-US Finding 1): the detect vocabulary was British-only
+      // (solicitor/conveyancing/probate), so a US law firm using American practice terms scored ZERO
+      // legal cues and misclassified (ask4sam.net read as healthcare off its medical-malpractice blog;
+      // seriousaccidents.com read as hospitality off a "Hotels Nearby" widget) despite "attorney" x366.
+      // The US terms below are \b-anchored (C-059) and each ships a known-positive (vocabulary.test.js
+      // + the p6 controls). 'personal injury' is anchored to a following LEGAL word (lawyer/law/claim/
+      // ...) and 'counsel' only as 'of/legal counsel', so a physiotherapy clinic treating "personal
+      // injury" or an insurer offering "legal counsel" never scores a legal cue on that phrase alone;
+      // and the two-cue-beats-rival floor (facts/sector.js) means even a stray legal cue can never
+      // out-score a healthcare/finance site's own richer vocabulary (proven by the cross-sector
+      // negative controls). A firm still resolves to sub_sector 'solicitors', which binds the us-legal
+      // records tagged 'attorney'/'law-firm' through the merged SUB_SECTOR_SYNONYMS door (PR #24).
       solicitors: {
-        detect: /\bsolicitors?\b|\bconveyancing\b|\bprobate\b|\blaw firm\b|\blegal advice\b/i,
-        sample: 'our solicitors provide conveyancing and probate; ask our law firm for legal advice',
+        detect: /\bsolicitors?\b|\bconveyancing\b|\bprobate\b|\blaw firm\b|\blaw offices?\b|\blegal advice\b|\battorneys?\b|\blawyers?\b|\bpersonal injury (?:lawyer|lawyers|attorney|attorneys|law|claim|claims|lawsuit|settlement)\b|\blitigation\b|\bof counsel\b|\blegal counsel\b|\besq\.?\b|\btrial (?:lawyer|lawyers|attorney|attorneys)\b/i,
+        sample: 'our attorneys and personal injury lawyers run a law office; contact our trial attorney, Jane Doe, Esq., for litigation, conveyancing and legal advice',
       },
     },
   },
@@ -833,6 +845,14 @@ const CANONICAL_SUB_SECTORS = [
 ];
 const CANONICAL_SUB_SECTOR_SET = new Set(CANONICAL_SUB_SECTORS);
 
+// US attorney SELF-ID fragment (DEFECT-7): the subset of the solicitors leaf's US terms that names
+// what a firm IS (attorney / lawyer / law office), distinct from the practice-area cues (litigation /
+// personal injury) that a barristers chambers can also carry. Exported from THIS one vocabulary door so
+// facts/sector.js's barrister-vs-solicitor guard reads it here rather than hand-rolling the same terms
+// (Rule 1, one door for the legal-sector US vocabulary; the solicitors detect above is built to include
+// exactly these alternations, and vocabulary.test.js asserts the two never drift).
+const US_ATTORNEY_SELF_ID = /\battorneys?\b|\blawyers?\b|\blaw offices?\b/i;
+
 // Sub-sector-exclusive bindings (registry/sector.js SUB_EXCLUSIVE): a marker that a downstream
 // catalogue rule keyed to one sub-sector must never leak to a sibling. Data only, no law names.
 const SUB_EXCLUSIVE = {
@@ -1235,6 +1255,7 @@ const EXPORTS = {
   SUB_EXCLUSIVE,
   // sub-sector binding taxonomy (P6 connection-integrity; the one door for sub_sector attachment)
   SUB_SECTOR_SYNONYMS,
+  US_ATTORNEY_SELF_ID,
   CLASSIFIER_SUB_SECTORS,
   subSectorBinds,
   isReachableSubSector,
