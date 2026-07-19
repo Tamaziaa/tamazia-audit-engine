@@ -106,44 +106,68 @@ function recordFor(catalogue, recordId) {
   const records = catalogue.records || catalogue;
   return records.find ? records.find((r) => r.id === recordId) : null;
 }
-// classifyOneCandidate(entry, catalogue, captureIndex, facts, catalogueHash) -> a tagged outcome for ONE
-// verified candidate: {kind:'nonQuote'|'rejected'|'finding', value}. Pulled out of classifyCandidates()'s
-// loop so each of the three ways a candidate can resolve (not a quote artifact; a quote that cannot be
-// hash-verified; a genuinely verified quote) is one small, separately readable step, never nested ifs.
-function classifyOneCandidate(entry, catalogue, captureIndex, facts, catalogueHash) {
-  const candidate = entry.candidate;
+// quoteArtifactOf(candidate) -> the candidate's artifact when it is a QUOTE-type one, else null (a
+// non-quote or missing artifact is handled entirely by the caller via this single null check).
+function quoteArtifactOf(candidate) {
   const artifact = candidate && candidate.artifact;
-  if (!artifact || artifact.type !== ARTIFACT_TYPES.QUOTE) {
-    return { kind: 'nonQuote', value: { record_id: candidate && candidate.record_id, artifact_type: artifact && artifact.type } };
-  }
+  return artifact && artifact.type === ARTIFACT_TYPES.QUOTE ? artifact : null;
+}
+
+// resolveVerifiedSpan(candidate, artifact, captureIndex) -> { span, rejection }. Exactly one is non-null:
+// the span-resolution and hash-verification steps a quote-type candidate must clear before it can even be
+// offered to createFinding() (Finding construction only checks shape, never reality - this is the reality
+// check, kept as its own small step so classifyOneCandidate() never nests these two ifs).
+function resolveVerifiedSpan(candidate, artifact, captureIndex) {
   const pageUrl = candidatePageUrl(candidate, artifact);
   const quoteText = candidateQuoteText(candidate, artifact);
   const span = resolveQuoteSpan(captureIndex, pageUrl, quoteText);
   if (!span) {
-    return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'span_unresolved', reason: 'candidate quote could not be located in the hash-chained capture index (page ' + JSON.stringify(pageUrl) + ')' } };
+    return { span: null, rejection: { record_id: candidate.record_id, code: 'span_unresolved', reason: 'candidate quote could not be located in the hash-chained capture index (page ' + JSON.stringify(pageUrl) + ')' } };
   }
   if (!verifyQuote(captureIndex, span)) {
-    return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'verify_quote_failed', reason: 'the resolved byte range failed verify_quote against the hashed artifact' } };
+    return { span: null, rejection: { record_id: candidate.record_id, code: 'verify_quote_failed', reason: 'the resolved byte range failed verify_quote against the hashed artifact' } };
   }
-  const jurisdiction = jurisdictionFor(recordFor(catalogue, candidate.record_id), facts);
+  return { span, rejection: null };
+}
+
+// buildFindingOrRejection(candidate, span, ctx) -> {kind:'finding'|'rejected', value}. The ONLY place
+// createFinding()'s FindingConstructionError is caught (a shape defect here is unexpected given the
+// caller already verified the span, but still fail-closed to a rejection, never an uncaught throw).
+function buildFindingOrRejection(candidate, span, ctx) {
+  const jurisdiction = jurisdictionFor(recordFor(ctx.catalogue, candidate.record_id), ctx.facts);
   try {
-    const finding = createFinding({ rule_id: candidate.record_id, catalogue_hash: catalogueHash, quote: span, jurisdiction, class: FINDING_CLASS.LIKELY });
+    const finding = createFinding({ rule_id: candidate.record_id, catalogue_hash: ctx.catalogueHash, quote: span, jurisdiction, class: FINDING_CLASS.LIKELY });
     return { kind: 'finding', value: finding };
   } catch (e) {
     return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'construction_failed', reason: e.message } };
   }
 }
 
-// classifyCandidates(verified, captureIndex) -> { findings, rejected, nonQuote }. Walks every verified
-// candidate exactly once; quote-type candidates whose span resolves AND re-verifies become typed Findings,
-// everything else is accounted for honestly (never dropped without a reason).
+// classifyOneCandidate(entry, ctx) -> a tagged outcome for ONE verified candidate:
+// {kind:'nonQuote'|'rejected'|'finding', value}. `ctx` is {catalogue, captureIndex, facts, catalogueHash}
+// (bundled once by classifyCandidates() so this function reads one context, not four loose parameters).
+function classifyOneCandidate(entry, ctx) {
+  const candidate = entry.candidate;
+  const artifact = quoteArtifactOf(candidate);
+  if (!artifact) {
+    return { kind: 'nonQuote', value: { record_id: candidate && candidate.record_id, artifact_type: candidate && candidate.artifact && candidate.artifact.type } };
+  }
+  const resolved = resolveVerifiedSpan(candidate, artifact, ctx.captureIndex);
+  if (!resolved.span) return { kind: 'rejected', value: resolved.rejection };
+  return buildFindingOrRejection(candidate, resolved.span, ctx);
+}
+
+// classifyCandidates(verified, catalogue, captureIndex, facts) -> { findings, rejected, nonQuote }.
+// Walks every verified candidate exactly once; quote-type candidates whose span resolves AND
+// re-verifies become typed Findings, everything else is accounted for honestly (never dropped without a
+// reason).
 function classifyCandidates(verified, catalogue, captureIndex, facts) {
+  const ctx = { catalogue, captureIndex, facts, catalogueHash: catalogue.content_hash };
   const findings = [];
   const rejected = [];
   const nonQuote = [];
-  const catalogueHash = catalogue.content_hash;
   for (const entry of verified) {
-    const outcome = classifyOneCandidate(entry, catalogue, captureIndex, facts, catalogueHash);
+    const outcome = classifyOneCandidate(entry, ctx);
     if (outcome.kind === 'finding') findings.push(outcome.value);
     else if (outcome.kind === 'rejected') rejected.push(outcome.value);
     else nonQuote.push(outcome.value);

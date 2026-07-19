@@ -47,21 +47,31 @@ function assertValidFindingDecisions(findingDecisions) {
   for (const d of findingDecisions) assertOneDecision(d);
 }
 
+// asManifestStore(store) -> store when it is already a real ManifestStore, else a fresh default one (the
+// one small coercion every reader/writer in this file needs, factored out rather than repeated).
+function asManifestStore(store) {
+  return store instanceof ManifestStore ? store : new ManifestStore();
+}
+// resolvedSigner(f) -> f.signer when it is a non-empty string, else the honest 'unknown' floor.
+function resolvedSigner(f) {
+  return typeof f.signer === 'string' && f.signer ? f.signer : 'unknown';
+}
+// resolvedNote(f) -> f.note when it is a string, else null (never undefined - a stable manifest shape).
+function resolvedNote(f) {
+  return typeof f.note === 'string' ? f.note : null;
+}
+
 // recordSignature(store, runId, { signer, overall, findingDecisions, note }) -> the appended entry.
 //   overall            'SIGN' | 'HOLD' - the whole-run verdict.
 //   findingDecisions   [{ finding_id, decision: 'ship'|'drop', reason_code, note? }] - one entry required
 //                       per candidate finding the packet presented; a finding with no decision is treated
 //                       by mint-gate.js as NOT signed off (fail closed, never assume 'ship').
 function recordSignature(store, runId, fields) {
-  const s = store instanceof ManifestStore ? store : new ManifestStore();
   const f = fields || {};
   assertValidOverall(f.overall);
   assertValidFindingDecisions(f.findingDecisions);
-  return s.append(runId, 'signature', {
-    signer: typeof f.signer === 'string' && f.signer ? f.signer : 'unknown',
-    overall: f.overall,
-    finding_decisions: f.findingDecisions,
-    note: typeof f.note === 'string' ? f.note : null,
+  return asManifestStore(store).append(runId, 'signature', {
+    signer: resolvedSigner(f), overall: f.overall, finding_decisions: f.findingDecisions, note: resolvedNote(f),
   });
 }
 
@@ -69,20 +79,23 @@ function recordSignature(store, runId, fields) {
 // recent" (never "first") because a founder may HOLD, request changes, and re-sign; only the latest
 // verdict governs the mint gate.
 function latestSignature(store, runId) {
-  const s = store instanceof ManifestStore ? store : new ManifestStore();
-  const entries = s.entriesOfStage(runId, 'signature');
+  const entries = asManifestStore(store).entriesOfStage(runId, 'signature');
   return entries.length ? entries[entries.length - 1] : null;
 }
 
+// decisionsOf(signature) -> signature.finding_decisions when it is a real array, else [].
+function decisionsOf(signature) {
+  const decisions = signature && signature.finding_decisions;
+  return Array.isArray(decisions) ? decisions : [];
+}
+// isShipDecision(d) -> true only for a real decision entry whose decision is 'ship'.
+function isShipDecision(d) {
+  return Boolean(d) && d.decision === 'ship';
+}
 // shippedFindingIds(signature) -> Set<finding_id> of every finding whose latest decision is 'ship'. A
 // finding never decided is NOT in this set (fail closed - see recordSignature's own doc).
 function shippedFindingIds(signature) {
-  const set = new Set();
-  if (!signature || !Array.isArray(signature.finding_decisions)) return set;
-  for (const d of signature.finding_decisions) {
-    if (d && d.decision === 'ship') set.add(d.finding_id);
-  }
-  return set;
+  return new Set(decisionsOf(signature).filter(isShipDecision).map((d) => d.finding_id));
 }
 
 module.exports = { recordSignature, latestSignature, shippedFindingIds, REASON_CODES };

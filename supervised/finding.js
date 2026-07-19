@@ -68,9 +68,14 @@ const SPAN_HASH_RE = /^[0-9a-f]{64}$/;
 // if-chain, purely for readability/reviewability - validateQuote()'s own job is just to call them in
 // order, so a reader can see the whole shape contract as a short list of named rules).
 
+// isPlainObject(v) -> true for a real, non-null, non-array object (never a string/array/primitive).
+function isPlainObject(v) {
+  if (!v || typeof v !== 'object') return false;
+  return !Array.isArray(v);
+}
 // assertQuotePlainObject(quote) -> throws unless quote is a plain, non-array object.
 function assertQuotePlainObject(quote) {
-  if (!quote || typeof quote !== 'object' || Array.isArray(quote)) {
+  if (!isPlainObject(quote)) {
     throw new FindingConstructionError('quote', 'quote is required and must be an object {evidence_id, byte_start, byte_end}, never a raw string');
   }
 }

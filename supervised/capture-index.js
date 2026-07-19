@@ -88,11 +88,18 @@ class ArtifactStore {
 // ...) on the store's errors list, because an empty capture and a captured-empty-page are different facts
 // (Constitution Rule 4: empty-arrays-flowing-as-success is exactly the disease the blueprint's `Clean`
 // constructor closes at the type level; this module closes the analogous hole at the capture layer).
+// hasReadableUrl(page) -> true when page carries a non-empty string url (a page with none cannot be
+// hashed under any real key, so it is a malformed page, not a same-url duplicate or empty capture).
+function hasReadableUrl(page) {
+  if (!page) return false;
+  return typeof page.url === 'string' && page.url !== '';
+}
+
 // captureOnePage(page, fetchedAt) -> {artifact, error}. Exactly one of the two is non-null: a malformed
 // page (no url) or an unreadable one (no visible text after whitespace-normalisation) yields a typed
 // LaneError and no artifact; a readable page yields a real, hashed artifact and no error.
 function captureOnePage(page, fetchedAt) {
-  if (!page || typeof page.url !== 'string' || !page.url) {
+  if (!hasReadableUrl(page)) {
     return { artifact: null, error: new LaneError('capture', 'malformed_page', 'a bundle page had no url; skipped rather than hashed under a guessed key') };
   }
   const text = typeof page.text === 'string' ? page.text : '';
