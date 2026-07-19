@@ -1,0 +1,122 @@
+'use strict';
+// supervised/mint-gate.js - THE mint gate (Kimi K3 round-3 spec section 2 row 9, section 7). Mint proceeds
+// ONLY if: (a) a recorded human signature exists for the run AND its latest verdict is SIGN, (b) re-running
+// verify_quote over EVERY SHIPPED finding passes, and (c) a coverage manifest is present. Any unverifiable
+// quote, unresolvable law_id (not present in the compiled catalogue handed to this gate), or a
+// catalogue_hash mismatch (the finding was made against a DIFFERENT catalogue than the one now loaded) ->
+// REFUSES with a typed, explicit MintRefusalError. This is wired ADDITIVELY alongside mint/persist.js and
+// mint/post-write-assertions.js - it does not touch, weaken or bypass either; it is a NEW, EARLIER gate
+// that must pass before persist()/assertMinted() are even called, and STUB_PERSIST mode (below) never
+// calls the real persist.js door at all, so a dress rehearsal cannot touch production Neon/R2
+// (AGENT-CONTEXT-PACK-2026-07-19.md's own rule 5: "any test mint of a real site: persistence MUST be
+// stubbed").
+
+const { verifyQuoteDetailed } = require('./verify-quote.js');
+const { latestSignature, shippedFindingIds } = require('./signature-store.js');
+const { ManifestStore } = require('./manifest-store.js');
+const { MintRefusalError } = require('./errors.js');
+
+const REFUSAL_CODES = Object.freeze({
+  NO_SIGNATURE: 'no_signature',
+  SIGNATURE_HOLD: 'signature_hold',
+  UNDECIDED_FINDING: 'undecided_finding',
+  UNVERIFIABLE_QUOTE: 'unverifiable_quote',
+  UNRESOLVABLE_LAW_ID: 'unresolvable_law_id',
+  CATALOGUE_HASH_MISMATCH: 'catalogue_hash_mismatch',
+  NO_COVERAGE_MANIFEST: 'no_coverage_manifest',
+});
+
+// checkSignature(store, runId, findings) -> { ok, reasonCode?, detail?, signature? }. Requires SIGN, and
+// requires EVERY finding the caller is trying to ship to have an explicit 'ship' decision recorded (a
+// finding never decided is treated as undecided, never assumed shippable - fail closed).
+function checkSignature(store, runId, findings) {
+  const signature = latestSignature(store, runId);
+  if (!signature) return { ok: false, reasonCode: REFUSAL_CODES.NO_SIGNATURE, detail: 'no signature has been recorded for run ' + runId };
+  if (signature.overall !== 'SIGN') return { ok: false, reasonCode: REFUSAL_CODES.SIGNATURE_HOLD, detail: 'the latest signature for run ' + runId + ' is ' + signature.overall + ', not SIGN' };
+  const shipped = shippedFindingIds(signature);
+  for (const f of findings) {
+    if (!shipped.has(f.finding_id)) {
+      return { ok: false, reasonCode: REFUSAL_CODES.UNDECIDED_FINDING, detail: 'finding ' + f.finding_id + ' has no recorded "ship" decision in the signature' };
+    }
+  }
+  return { ok: true, signature };
+}
+
+// checkQuotes(captureIndex, findings) -> { ok, reasonCode?, detail? }. Re-runs verify_quote over EVERY
+// finding being minted, against the SAME hash-chained artifact store the run captured - independent of
+// whatever check ran earlier in the harness (defence in depth: this is the check that runs immediately
+// before persistence, not a trust of an earlier pass).
+function checkQuotes(captureIndex, findings) {
+  for (const f of findings) {
+    const result = verifyQuoteDetailed(captureIndex, f.quote);
+    if (!result.ok) {
+      return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + f.finding_id + ' (' + f.rule_id + ') failed verify_quote: ' + result.reason };
+    }
+  }
+  return { ok: true };
+}
+
+// checkCatalogue(catalogue, findings) -> { ok, reasonCode?, detail? }. Every finding's law_id (rule_id)
+// must resolve to a record IN the catalogue currently loaded, and its catalogue_hash must match that
+// catalogue's own content_hash (a finding minted against a stale/different catalogue is refused, never
+// silently re-stamped).
+function checkCatalogue(catalogue, findings) {
+  const records = catalogue.records || catalogue;
+  const ids = new Set((Array.isArray(records) ? records : []).map((r) => r && r.id));
+  for (const f of findings) {
+    if (!ids.has(f.rule_id)) {
+      return { ok: false, reasonCode: REFUSAL_CODES.UNRESOLVABLE_LAW_ID, detail: 'finding ' + f.finding_id + ' cites rule_id ' + JSON.stringify(f.rule_id) + ' which is not present in the loaded catalogue' };
+    }
+    if (f.catalogue_hash !== catalogue.content_hash) {
+      return { ok: false, reasonCode: REFUSAL_CODES.CATALOGUE_HASH_MISMATCH, detail: 'finding ' + f.finding_id + ' carries catalogue_hash ' + f.catalogue_hash + ' but the loaded catalogue is ' + catalogue.content_hash };
+    }
+  }
+  return { ok: true };
+}
+
+// checkCoverageManifest(coverageManifest) -> { ok, reasonCode?, detail? }.
+function checkCoverageManifest(coverageManifest) {
+  if (!coverageManifest || !Array.isArray(coverageManifest.checks_planned)) {
+    return { ok: false, reasonCode: REFUSAL_CODES.NO_COVERAGE_MANIFEST, detail: 'no coverage manifest (checks_planned) present for this run' };
+  }
+  return { ok: true };
+}
+
+// evaluateMintGate({store, runId, findings, captureIndex, catalogue, coverageManifest}) -> { proceed,
+// refusal? }. Pure decision function (no persistence side effect) - callers that need the typed throw form
+// use mintGate() below; this is exported separately so a caller (e.g. the CLI, or a packet-time preview)
+// can check "would the gate pass" without triggering the throw-based control flow.
+function evaluateMintGate(input) {
+  const i = input || {};
+  const findings = Array.isArray(i.findings) ? i.findings : [];
+  const coverage = checkCoverageManifest(i.coverageManifest);
+  if (!coverage.ok) return coverage;
+  const sig = checkSignature(i.store, i.runId, findings);
+  if (!sig.ok) return sig;
+  const cat = checkCatalogue(i.catalogue, findings);
+  if (!cat.ok) return cat;
+  const quotes = checkQuotes(i.captureIndex, findings);
+  if (!quotes.ok) return quotes;
+  return { ok: true, signature: sig.signature };
+}
+
+// mintGate(input) -> { proceeded: true, mode, persisted? }. Throws MintRefusalError on any failed check
+// (typed, explicit reason - never a bare boolean false the caller might ignore). `mode` is 'stub' unless
+// input.stubPersist === false AND a real persist function is supplied - production wiring for a later
+// phase; this v0 defaults to stub always unless explicitly told otherwise, and even then requires an
+// explicit persistFn injection (there is no accidental path to a real Neon/R2 write from this module).
+async function mintGate(input) {
+  const i = input || {};
+  const decision = evaluateMintGate(i);
+  if (!decision.ok) {
+    throw new MintRefusalError(decision.reasonCode, decision.detail, { runId: i.runId });
+  }
+  const stubPersist = i.stubPersist !== false; // STUB_PERSIST is the default; a real write needs an explicit opt-out.
+  if (stubPersist || typeof i.persistFn !== 'function') {
+    return { proceeded: true, mode: 'stub', persisted: null, signature: decision.signature, findingsShipped: (i.findings || []).length };
+  }
+  const persisted = await i.persistFn(i.findings, i);
+  return { proceeded: true, mode: 'live', persisted, signature: decision.signature, findingsShipped: (i.findings || []).length };
+}
+
+module.exports = { mintGate, evaluateMintGate, checkSignature, checkQuotes, checkCatalogue, checkCoverageManifest, REFUSAL_CODES, ManifestStore };

@@ -10,6 +10,11 @@
 // ONE producer, ONE consumer surface (Rule 1): every mint module reads ENGINE_VERSION from here; no
 // second copy of the string exists anywhere in the engine. Frozen so a consumer cannot mutate it.
 
-const ENGINE_VERSION = 'engine-v2.1.5-p4';
+// v2.1.6 (Mint Gate v0, ws-mint-gate-v0): adds the supervised/ run harness + hash-chained capture index +
+// verify_quote choke point + mint gate as an ADDITIVE layer ahead of persist()/assertMinted(); this bump
+// records that the engine's scan-adjacent surface changed (a new deterministic verification spine sits in
+// front of the existing mint path), per Rule 15's own doctrine ("any change to scan logic bumps this
+// string"). The supervised lane does not alter mint()'s own behaviour or its version-gated idempotency key.
+const ENGINE_VERSION = 'engine-v2.1.6-p4';
 
 module.exports = Object.freeze({ ENGINE_VERSION });

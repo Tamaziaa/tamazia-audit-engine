@@ -28,3 +28,8 @@ eval/e2e/record/
 
 # OS noise
 .DS_Store
+
+# supervised/manifest-store.js local run manifests (Mint Gate v0) - JSONL run records may carry crawled
+# site prose; the local store is a dress-rehearsal/dev convenience, never committed (Rule 16). R2 is the
+# production destination once the supervised lane graduates past v0.
+.supervised-runs/
