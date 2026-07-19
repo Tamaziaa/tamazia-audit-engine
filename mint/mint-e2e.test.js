@@ -14,6 +14,17 @@ const assert = require('node:assert');
 const { mint } = require('./index.js');
 const { validatePayload } = require('../payload/contract');
 const { ENGINE_VERSION } = require('./version.js');
+const { buildSeo, buildGeo, buildCompetitors } = require('../payload/composer/sections.js');
+
+// fakeRunProbes: this suite drives the mint end to end with NO network anywhere (its own header says so
+// explicitly); the WS-SEO-GEO probe lane (probes/index.js) makes real HTTP calls by design (PageSpeed,
+// live SERP, AI-readiness robots.txt/llms.txt/Wikidata are zero-key and always attempt a real fetch), so
+// it is injected here exactly like every other live surface (fetchFn/launchBrowser/registersFetchFn/
+// llmCall) rather than left to hit the real internet from a unit test. The stub reuses the composer's own
+// not-probed section builders (called with no input, they return the SAME honest `probe_unavailable`-
+// shaped-cousin `not_probed` leaves compose() would fall back to on its own): a genuinely valid, inert
+// stand-in for "SEO/GEO was not probed in this fixture", which is orthogonal to every assertion below.
+const fakeRunProbes = async () => ({ seo: buildSeo({}), geo: buildGeo({}), competitors: buildCompetitors({}) });
 
 // ── the injected fake UK law firm (fabricated: Rule 16, no real firm, no PII) ─────────────────────────
 const DOMAIN = 'oakhurst-legal.example';
@@ -79,7 +90,7 @@ function makeStores() {
 
 async function runMint(stores, overrides) {
   return mint(DOMAIN, Object.assign({
-    fetchFn, launchBrowser, registersFetchFn, llmCall: scriptedDecline, providers: [],
+    fetchFn, launchBrowser, registersFetchFn, llmCall: scriptedDecline, providers: [], runProbes: fakeRunProbes,
     sqlFn: stores.sqlFn, putFn: stores.putFn, liveFetch: async () => ({ status: 200 }),
     now: () => 1700000000000, generatedAt: '2026-07-19', env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' },
   }, overrides || {}));
@@ -200,7 +211,7 @@ test('E2E: opts.truthPackDeadlineMs threads through mint() -> assertMinted (Rule
   const stores = makeStores();
   const t0 = Date.now();
   const res = await mint(DOMAIN, {
-    fetchFn, launchBrowser, registersFetchFn, llmCall: scriptedDecline, providers: [],
+    fetchFn, launchBrowser, registersFetchFn, llmCall: scriptedDecline, providers: [], runProbes: fakeRunProbes,
     sqlFn: stores.sqlFn, putFn: stores.putFn, liveFetch: async () => ({ status: 200 }),
     now: () => 1700000000000, generatedAt: '2026-07-19', env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' },
     truthPackFn: () => new Promise(() => {}), // a hanging render truth-pass (e.g. a stuck browser); never settles
