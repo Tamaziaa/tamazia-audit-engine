@@ -715,16 +715,16 @@ test('CLI smoke test: --print-hashes against a fixture directory prints one dete
 test('discoverPacks() against the real catalogue/packs/ succeeds now every committed sidecar carries a current CR-2 qa-approval header', () => {
   // Constitution/caution C-201: the P2 law-verification wave hash-stamped every QA'd sidecar's
   // approval header (`node catalogue/compile.js --print-hashes`, then a human legal-QA sign-off
-  // per pack) - this is the graduated state predicted by the prior version of this test. Six packs
-  // have a sidecar and a valid, current header and must be INCLUDED; uk-tech-media-industrial has
-  // no sidecar at all (by design, a parallel workstream not yet QA'd) and must be EXCLUDED, never
-  // thrown.
+  // per pack) - this is the graduated state predicted by the prior version of this test. Seven
+  // packs have a sidecar and a valid, current header and must be INCLUDED (the P5 uk-real-estate
+  // cell joined the original six); uk-tech-media-industrial has no sidecar at all (by design, a
+  // parallel workstream not yet QA'd) and must be EXCLUDED, never thrown.
   const { included, excluded } = compile.discoverPacks();
   const includedCells = included.map((p) => p.cellName).sort();
   assert.deepStrictEqual(
     includedCells,
-    ['uk-healthcare', 'uk-legal', 'uk-universal', 'us-healthcare', 'us-legal', 'us-universal'],
-    'expected exactly the six QA-stamped packs to be included'
+    ['uk-healthcare', 'uk-legal', 'uk-real-estate', 'uk-universal', 'us-healthcare', 'us-legal', 'us-universal'],
+    'expected exactly the seven QA-stamped packs to be included'
   );
   assert.ok(
     excluded.some((e) => e.cell === 'uk-tech-media-industrial' && e.reason === 'no legal-QA sidecar'),
