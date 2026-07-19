@@ -490,22 +490,45 @@ const ABSTAIN_NOW = Symbol('sector-abstain-now');
 // _fromTextWinner(winner, ctx) -> {sector, confidence} | null. Register cross-check on the text
 // winner: ANY decisive register or SIC family that contradicts the text family means null (never
 // ship a contradicted sector); the caller maps null to ABSTAIN_NOW.
-function _fromTextWinner(winner, ctx) {
-  const { decisive, sicFams, self_identity, bundle, evidence, contradictions } = ctx;
-  const fam = winner.family;
-  const regConflicts = decisive.filter((d) => d.family !== fam);
-  const sicConflict = sicFams.size > 0 && !sicFams.has(fam);
+// _pushTextWinnerEvidence(winner, ctx) -> void. Records every evidence entry the text-winner path
+// contributes (text cues, domain self-identity, decisive registers, SIC family) UNCONDITIONALLY,
+// before the conflict check runs below (mirrors the original ordering exactly: evidence is
+// recorded whether or not the winner turns out to be contradicted).
+function _pushTextWinnerEvidence(winner, ctx) {
+  const { decisive, sicFams, self_identity, bundle, evidence } = ctx;
   for (const c of winner.cues) evidence.push({ kind: 'text-cue', source: c.source, quote: c.quote });
   if (self_identity === winner.family) {
     evidence.push({ kind: 'domain-self-identity', source: 'domain', quote: String((bundle && bundle.domain) || '') });
   }
   for (const d of decisive) evidence.push({ kind: 'register', source: d.register, quote: 'register row present' });
   if (sicFams.size > 0) evidence.push({ kind: 'register', source: 'companies-house-sic', quote: 'SIC families: ' + Array.from(sicFams).join(', ') });
+}
+
+// _textWinnerConflicts(fam, decisive, sicFams) -> {regConflicts, sicConflict}: any decisive
+// register or SIC family that disagrees with the text-derived family.
+function _textWinnerConflicts(fam, decisive, sicFams) {
+  const regConflicts = decisive.filter((d) => d.family !== fam);
+  const sicConflict = sicFams.size > 0 && !sicFams.has(fam);
+  return { regConflicts, sicConflict };
+}
+
+// _textWinnerContradictionDetail(winner, regConflicts, sicConflict, sicFams) -> the human-readable
+// detail string for the register-contradiction entry.
+function _textWinnerContradictionDetail(winner, regConflicts, sicConflict, sicFams) {
+  const parts = regConflicts.map((d) => d.family + ' (' + d.register + ')');
+  if (sicConflict) parts.push('SIC ' + Array.from(sicFams).join('/'));
+  return 'text evidence resolves ' + winner.sector + ' but register evidence implies ' + parts.join(', ');
+}
+
+function _fromTextWinner(winner, ctx) {
+  const { decisive, sicFams, contradictions } = ctx;
+  const fam = winner.family;
+  const { regConflicts, sicConflict } = _textWinnerConflicts(fam, decisive, sicFams);
+  _pushTextWinnerEvidence(winner, ctx);
   if (regConflicts.length || sicConflict) {
     contradictions.push({
       kind: 'register-contradiction',
-      detail: 'text evidence resolves ' + winner.sector + ' but register evidence implies '
-        + (regConflicts.map((d) => d.family + ' (' + d.register + ')').concat(sicConflict ? ['SIC ' + Array.from(sicFams).join('/')] : []).join(', ')),
+      detail: _textWinnerContradictionDetail(winner, regConflicts, sicConflict, sicFams),
       text_sector: winner.sector,
     });
     return null;
