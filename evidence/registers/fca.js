@@ -1,13 +1,39 @@
 'use strict';
-// evidence/registers/fca.js — the FCA Financial Services Register.
+// evidence/registers/fca.js: the FCA Financial Services Register.
 //
 // Port source: cowork-os-fresh src/lib/audit/register-check.js `_fca()` (accepted the first search
-// result as a match, no scoring at all — C-004).
+// result as a match, no scoring at all, C-004).
 //
-// FOUNDER-BLOCKED IN THIS ESTATE (2026-07): CLAUDE.md records FCA_API_EMAIL and FCA_API_KEY as
-// blank, pending registration at the FCA Register API developer portal. This module degrades loudly
-// on every real call in this estate today (see the missing_key note below) — expected, reported
-// honestly, and not a bug in this module.
+// SHAPE RESEARCHED AND CONFIRMED CURRENT (2026-07-19): the base URL, the /Search?q=&type= resource
+// path and the X-Auth-Email/X-Auth-Key header names below are NOT a guess. They match the FCA's own
+// account of the API (https://www.fca.org.uk/firms/financial-services-register: registration via
+// the FS Register API Developer Portal at https://register.fca.org.uk/Developer/s/ issues a key;
+// "https://register.fca.org.uk/services/" is the stated base) AND the source of
+// sr-murthy/financial-services-register-api (PyPI, actively maintained, v1.3.1 released
+// 2026-04-11), whose published constants are BASEURL = 'https://register.fca.org.uk/services/V0.1'
+// and headers {'X-AUTH-EMAIL', 'X-AUTH-KEY'} (HTTP header names are case-insensitive, so the casing
+// difference from this file is immaterial), with common_search() building exactly
+// `${BASEURL}/Search?q=<name>&type=<firm|individual|fund>`. This is the same shape already in this
+// file; this fix did not need to change it.
+//
+// LIVE FINDING 2026-07-19 (see this PR's report for the full smoke-test evidence, no secrets
+// included): with this estate's real FCA_API_EMAIL/FCA_API_KEY, /Search?q=...&type=firm answers
+// HTTP 404, and so does a bare GET on /Firm/106078 (a direct reference-number lookup, no Search
+// involved at all). Critically, the SAME calls with NO auth headers at all answer HTTP 403, not
+// 404, so the auth headers are doing SOMETHING (a bare 403 gatekeeper lets an authenticated-
+// looking request through to a routing layer that then cannot find the resource FOR THIS ACCOUNT),
+// and an apexrest URL variant and an upper-cased header-name variant both still answered 404. Every
+// avenue this module's code shape can control was tried and behaves consistently with an
+// ACCOUNT-SIDE problem (the key/email pair not actually subscribed/entitled to the Financial
+// Services Register API product on the FCA's Salesforce developer portal, or a stale/rotated key)
+// rather than a URL or header defect. Per Constitution's own discipline for this task (never guess
+// an endpoint into the code; only ship a shape proven live or backed by an official/actively-
+// maintained citable source), the code shape stays exactly as documented above. The founder action
+// is to sign in at https://register.fca.org.uk/Developer/s/, confirm the Financial Services
+// Register API product shows as an ACTIVE subscription for this key (not just an account with no
+// product attached), regenerate the key if it shows expired/revoked/unsubscribed, and re-run this
+// module's own request-builder path with the fresh key before assuming a further code change is
+// needed.
 const { runLookup } = require('./lib/lookup-runner');
 const { makeNote } = require('./lib/notes');
 
@@ -71,7 +97,7 @@ async function lookupFca({ query, sector, fetchFn, deadlineMs, keys, log }) {
     requiredKeyNote: hasKey ? null : {
       present: false,
       reason: 'missing_key',
-      detail: 'FCA_API_EMAIL/FCA_API_KEY are not configured in this estate today (founder-blocked; register at the FCA Register API developer portal, see CLAUDE.md founder actions)',
+      detail: 'FCA_API_EMAIL/FCA_API_KEY were not supplied to this lookup (founder-blocked; see CLAUDE.md founder actions: sign in at the FCA Register API developer portal and confirm the API product subscription is active for this key, not only that an account exists)',
     },
     buildRequest: () => buildRequest(query, fcaKeys || {}),
     extractCandidates,

@@ -1,5 +1,5 @@
 'use strict';
-// evidence/registers/registers.js — THE orchestrator for evidence/registers/ (P3 Wave 1b).
+// evidence/registers/registers.js: THE orchestrator for evidence/registers/ (P3 Wave 1b).
 //
 // fetchRegisters(identityHints, opts) -> the EvidenceBundle.registers object described in
 // facts/README.md: { companiesHouse?, gleif?, sra?, cqc?, fca?, ico?, notes:[...] }. Each register
@@ -32,7 +32,7 @@ try {
 
 // resolveQuery(hints) -> the best company-name candidate to search registers with. A caller-supplied
 // company-name hint always wins; otherwise this falls back to a bare domain-stem guess (a minimal,
-// non-authoritative seed — never the identity fact itself; facts/identity.js is the one door for
+// non-authoritative seed, never the identity fact itself; facts/identity.js is the one door for
 // that, Rule 1).
 function resolveQuery(hints) {
   const company = hints && typeof hints.company === 'string' ? hints.company.trim() : '';
@@ -42,7 +42,7 @@ function resolveQuery(hints) {
 
 // tryUkRegisters(hints) -> true unless the caller has told us the firm's country is explicitly
 // something other than UK. An unknown/absent country hint still tries: withholding a UK register
-// check because jurisdiction is not YET resolved would be circular — a register hit is itself
+// check because jurisdiction is not YET resolved would be circular: a register hit is itself
 // Tier-A jurisdiction evidence (facts/README.md's confidence ladder), so registers must run before,
 // not after, jurisdiction is settled.
 function tryUkRegisters(hints) {
@@ -102,7 +102,7 @@ async function fetchRegisters(identityHints, opts) {
   if (typeof options.fetchFn !== 'function') {
     throw new Error(
       'evidence/registers/registers.js: fetchRegisters requires opts.fetchFn (dependency-injected '
-      + 'fetch; Rule 9 — no raw network call is ever made by this module)'
+      + 'fetch; Rule 9, no raw network call is ever made by this module)'
     );
   }
   const query = resolveQuery(hints);

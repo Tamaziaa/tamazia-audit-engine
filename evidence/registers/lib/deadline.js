@@ -1,5 +1,5 @@
 'use strict';
-// evidence/registers/lib/deadline.js — the ONE hard-deadline primitive every register module in
+// evidence/registers/lib/deadline.js: the ONE hard-deadline primitive every register module in
 // this directory calls its fetchFn through (Constitution Rule 9: every register lookup is wrapped
 // in a hard Promise.race deadline; a slow dependency degrades the mint, it never hangs it).
 //
