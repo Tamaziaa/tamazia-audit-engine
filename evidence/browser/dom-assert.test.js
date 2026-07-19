@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
 const {
   domAssert, buildNodes, imgNode, controlNode, htmlNode, linkNode, buttonNode,
   contrastNode, formNode, checkboxNode, contrastRatio, isLargeText, DEFAULT_DEADLINE_MS, normaliseOpts,
+  DOM_RULE_TIER, tierOf,
 } = require('./dom-assert.js');
 
 // A fake wrapped page: evaluate(fn) ignores fn (it cannot run the real DOM walk without a browser) and
@@ -28,7 +29,7 @@ function fakePage(script) {
   };
 }
 
-const NODE_KEYS = ['rule_id', 'selector', 'snippet', 'state', 'wcag_sc'];
+const NODE_KEYS = ['rule_id', 'selector', 'snippet', 'state', 'tier', 'wcag_sc'];
 
 // ── image-alt (WCAG 1.1.1): alt="" is a decorative PASS, a missing alt is the violation ───────────────
 test('image-alt: a missing alt attribute is a violation; alt="" (hasAlt:true) is a PASS', () => {
@@ -123,7 +124,7 @@ test('pre-ticked-consent: a pre-checked consent checkbox is a violation; uncheck
 });
 
 // ── node shape + buildNodes dispatch ──────────────────────────────────────────────────────────────────
-test('every emitted node has EXACTLY the five contract keys', () => {
+test('every emitted node has EXACTLY the six contract keys (including the W6 tier)', () => {
   const samples = [
     imgNode({ selector: 'img', snippet: '<img>', hasAlt: false }),
     htmlNode({ selector: 'html', snippet: '<html>', lang: '' }),
@@ -131,6 +132,31 @@ test('every emitted node has EXACTLY the five contract keys', () => {
     contrastNode({ selector: 'p', snippet: '<p>', fg: 'rgb(1,1,1)', bg: 'rgb(2,2,2)', bgImage: 'none', fontPx: 16, bold: false }),
   ];
   for (const node of samples) assert.deepEqual(Object.keys(node).sort(), NODE_KEYS);
+});
+
+// ── the W6 risk-tier partition (the ONE classification door) ──────────────────────────────────────────
+test('every emitted node carries its finding TIER from the DOM_RULE_TIER door', () => {
+  // the six accessibility checks are DETERMINISTIC (the DOM fact IS the breach); insecure-form and
+  // pre-ticked-consent are RISK indicators (a real observation, but a risk-based legal characterisation).
+  assert.equal(imgNode({ selector: 'img', snippet: '<img>', hasAlt: false }).tier, 'deterministic');
+  assert.equal(htmlNode({ selector: 'html', snippet: '<html>', lang: '' }).tier, 'deterministic');
+  assert.equal(controlNode({ selector: 'input', snippet: '<input>', controlType: 'text', hasLabelElement: false, hasAriaLabel: false, hasAriaLabelledby: false }).tier, 'deterministic');
+  assert.equal(linkNode({ selector: 'a', snippet: '<a href>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '' }).tier, 'deterministic');
+  assert.equal(buttonNode({ selector: 'button', snippet: '<button>', text: '', ariaLabel: '', ariaLabelledbyText: '', imgAltInside: '' }).tier, 'deterministic');
+  assert.equal(contrastNode({ selector: 'p', snippet: '<p>', fg: 'rgb(150,150,150)', bg: 'rgb(200,200,200)', bgImage: 'none', fontPx: 16, bold: false }).tier, 'deterministic');
+  assert.equal(formNode({ selector: 'form', snippet: '<form>', pageScheme: 'https:', actionScheme: 'http:' }).tier, 'risk', 'an insecure form is a risk indicator (Art 32), not a deterministic breach');
+  assert.equal(checkboxNode({ selector: 'input', snippet: '<input checked>', checkedAttr: true, labelText: 'Sign me up for the newsletter' }).tier, 'risk', 'a pre-ticked consent box is a consent-law risk indicator');
+});
+
+test('DOM_RULE_TIER classifies all eight checks and tierOf fails closed to risk on an unmapped rule', () => {
+  assert.deepEqual(Object.keys(DOM_RULE_TIER).sort(), [
+    'button-name', 'color-contrast', 'html-has-lang', 'image-alt', 'insecure-form', 'label', 'link-name', 'pre-ticked-consent',
+  ]);
+  // exactly two RISK rules; the rest deterministic (the partition is the whole safety property).
+  assert.deepEqual(Object.keys(DOM_RULE_TIER).filter((k) => DOM_RULE_TIER[k] === 'risk').sort(), ['insecure-form', 'pre-ticked-consent']);
+  assert.equal(tierOf('image-alt'), 'deterministic');
+  assert.equal(tierOf('insecure-form'), 'risk');
+  assert.equal(tierOf('some-future-unmapped-check'), 'risk', 'an unclassified check is never auto-shipped as a hard violation (Rule 6, fail-closed)');
 });
 
 test('buildNodes maps descriptors through predicates, keeps violations AND incompletes, drops passes and unknowns', () => {

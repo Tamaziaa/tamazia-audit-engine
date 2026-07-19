@@ -7,6 +7,9 @@ const fs = require('fs');
 const { propose, evaluateSpec, KIND, MIN_PAGES_FOR_ABSENCE } = require('./propose.js');
 const ds = require('./detection-spec.js');
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
+// The real DOM-lane predicates, so the dom_node tests below carry the AUTHENTIC finding tier the lane
+// stamps (W6), never a hand-typed one - the test proves the real wiring, not a fixture's assumption.
+const { formNode, imgNode } = require('../../evidence/browser/dom-assert.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const FIXTURES = path.join(REPO_ROOT, 'eval', 'calibration-known-bad', 'fixtures');
@@ -206,6 +209,29 @@ test('behavioural does not attribute a cookie observation to an unrelated (non-c
   b.browser = { lane: { ran: true, reason: null }, consentControl: { found: false, healthy: null, url: null },
     observed: [{ kind: 'cookie_pre_consent', name: '_ga', host: 'ga.example', essential: false, networkEvent: {}, ts: 1 }] };
   assert.strictEqual(fired(propose(b, cat, coverageFor(b, cat)), KIND.BEHAVIOURAL).length, 0, 'a cookie event never proves an advertising duty');
+});
+
+// ── dom_node lane: the W6 risk tier rides onto the artifact (deterministic vs risk) ──────────────────
+test('a dom_node candidate carries the finding TIER from the DOM lane (risk for insecure-form, deterministic for image-alt)', () => {
+  const cat = { records: [{ id: 'FAKE_DOM_2099', regulator: {}, citation: {}, website_obligations: [
+    { duty: 'Transmit personal data over a secure transport connection',
+      elements: ['secure transport security uses https and tls, not plaintext http', 'forms submit over an encrypted https connection not a plaintext http action'], evidence_type: 'behavioural' },
+    { duty: 'The website must be accessible to screen reader users with disabilities',
+      elements: ['content is accessible to disabled and screen reader users'], evidence_type: 'behavioural' },
+  ] }] };
+  // Build both nodes through the REAL dom-assert predicates so each carries the tier the lane truly stamps.
+  const insecureForm = formNode({ selector: 'form#signup', snippet: '<form action="http://x/y">', pageScheme: 'https:', actionScheme: 'http:' });
+  const missingAlt = imgNode({ selector: 'main > img:nth-of-type(1)', snippet: '<img src="/hero.png">', hasAlt: false });
+  const b = bundle({ browser: { lane: { ran: true, reason: null }, observed: [], consentControl: { found: false, healthy: null, url: null },
+    domLane: { ran: true, reason: null }, domNodes: [insecureForm, missingAlt] } });
+  const doms = fired(propose(b, cat, coverageFor(b, cat)), KIND.BEHAVIOURAL).filter((c) => c.artifact && c.artifact.type === 'dom_node');
+  const form = doms.find((c) => c.artifact.rule_id === 'insecure-form');
+  const alt = doms.find((c) => c.artifact.rule_id === 'image-alt');
+  assert.ok(form, 'the insecure-form node routes to the transport-security duty and STILL becomes a candidate');
+  assert.strictEqual(form.artifact.tier, 'risk', 'a confirmed insecure form carries tier=risk onto the artifact (Art 32 risk indicator)');
+  assert.strictEqual(form.artifact.state, 'violation', 'detection state is unchanged: the insecure form IS present (never silently under-reported)');
+  assert.ok(alt, 'the image-alt node routes to the accessibility duty');
+  assert.strictEqual(alt.artifact.tier, 'deterministic', 'a missing alt is a deterministic accessibility breach');
 });
 
 // ── register (bundle.registers) ─────────────────────────────────────────────────────────────────────

@@ -1211,7 +1211,7 @@
   {
    "jurisdiction": "UK",
    "sub_jurisdiction": null,
-   "status": "needs_verification",
+   "status": "candidate",
    "client_useful": true,
    "id": "UK_DATA_SECURITY_TRANSPORT",
    "name": "UK GDPR security of processing (encryption in transit and secure transport of personal data submitted through the website)",

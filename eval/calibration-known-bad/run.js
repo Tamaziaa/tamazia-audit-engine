@@ -253,6 +253,15 @@ const CALIBRATIONS = [
     fixtures: ['p4-onedoor-second-producer.js'],
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-onedoor-second-producer.js'],
   },
+
+  // ---- W6 risk-tier dom_node routing (breach/adjudicator, the C-048 false-accusation class) ----
+  {
+    name: 'p4-risk-domnode-never-hard-violation',
+    description:
+      'a risk-indicator dom_node (an https->http insecure-form node under UK GDPR Art 32, or a pre-ticked-consent node) must NEVER ship as a hard violation via the observed-fact bypass (the C-048 false-accusation class, Constitution Rule 6/Rule 10, W6): it quarantines to needs_review carrying its dom_node artifact, while a DETERMINISTIC missing-alt node still ships as a hard violation (the guard is not vacuously demoting every dom_node). Self-driving fixture drives breach/adjudicator/adjudicate.js against hand-built risk + deterministic dom_node candidates; self-sufficient (candidates only), so it needs NO compiled catalogue and runs safely BEFORE the catalogue compile in CI.',
+    fixtures: ['p4-risk-domnode-never-hard-violation.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p4-risk-domnode-never-hard-violation.js'],
+  },
 ];
 
 function findChecker(candidates) {

@@ -62,6 +62,34 @@ test('CANONICAL: a real network_event observation bypasses to a violation (the C
   assert.equal(report.observed_fact, 1);
 });
 
+// ── W6: a risk-indicator dom_node quarantines to needs-review; a deterministic one still bypasses ──────
+function domNodeCand(tier, over) {
+  return Object.assign({ code: 'D', framework: 'FW', description: 'transport security risk indicator',
+    artifact: { type: 'dom_node', rule_id: tier === 'risk' ? 'insecure-form' : 'image-alt', selector: 'form#x', snippet: '<form action="http://x">', state: 'violation', tier } }, over || {});
+}
+
+test('W6: a RISK-tier dom_node (insecure-form) quarantines to needs_review WITHOUT any llmCall - never a hard violation (C-048)', async () => {
+  let llmCalls = 0;
+  const llmCall = async () => { llmCalls += 1; throw new Error('the model must NEVER be called for a risk-indicator dom_node'); };
+  const { findings, report } = await adjudicate([domNodeCand('risk')], BUNDLE, { llmCall });
+  assert.equal(findings[0].state, 'needs_review', 'a risk indicator is quarantined, never a hard violation');
+  assert.equal(findings[0].adjudicated, false, 'no model ruled on it; the legal conclusion is withheld for the controller Art 32 assessment');
+  assert.equal(findings[0].adjudication, 'risk_indicator');
+  assert.equal(findings[0].artifact.type, 'dom_node', 'it still carries its dom_node artifact (Rule 3, evidence-backed)');
+  assert.equal(report.risk_review, 1);
+  assert.equal(report.observed_fact, 0, 'a risk node is NOT counted as a bypassing observed fact');
+  assert.equal(report.text_derived, 0, 'a risk node is NOT routed to text adjudication');
+  assert.equal(llmCalls, 0, 'the model is never invoked for a risk-indicator observation');
+});
+
+test('W6 mirror: a DETERMINISTIC-tier dom_node (image-alt) still bypasses to a hard violation (accessibility unchanged)', async () => {
+  const { findings, report } = await adjudicate([domNodeCand('deterministic')], BUNDLE, {});
+  assert.equal(findings[0].state, 'violation');
+  assert.equal(findings[0].adjudication, 'observed_fact');
+  assert.equal(report.observed_fact, 1);
+  assert.equal(report.risk_review, 0);
+});
+
 test('CANONICAL: a register_absence is quarantined to needs_review, never a bypassed hard violation (Rule 6)', async () => {
   const absent = { code: 'SRA', description: 'firm does not appear on the SRA register',
     artifact: { type: 'register_absence', register: 'sra', lane: 'no_match' } };

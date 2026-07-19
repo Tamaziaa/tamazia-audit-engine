@@ -47,6 +47,11 @@ const OBSERVED_ARTIFACT_TYPES = new Set([
   ARTIFACT_TYPES.NETWORK_EVENT,
   'network_request', 'cookie_jar_entry', 'dom_node', 'failing_dom_node', 'link_health', // port aliases
 ]);
+// DOM_NODE_ARTIFACT_TYPES (W6): the dom_node artifact types (the canonical enum value plus the port
+// alias). The risk-tier check reads a `tier` ONLY off these: a network_event or register_row carries no
+// finding tier and must keep its normal bypass. A dom_node is still an OBSERVED type (above); the tier
+// only decides whether a CONFIRMED node bypasses-to-violation or routes to needs-review.
+const DOM_NODE_ARTIFACT_TYPES = new Set([ARTIFACT_TYPES.DOM_NODE, 'failing_dom_node']);
 const REGISTER_ARTIFACT_TYPES = new Set([
   ARTIFACT_TYPES.REGISTER_ROW,
   'register_hit', 'register_check', // port aliases
@@ -76,6 +81,19 @@ const BYPASS_KINDS = new Set(['observation', 'register']); // observations + reg
 function artifactTypeOf(candidate) {
   const a = candidate && candidate.artifact;
   return a && typeof a.type === 'string' ? a.type.toLowerCase().trim() : '';
+}
+
+// isRiskTierDomNode(candidate) -> true when the artifact is a dom_node whose finding tier is exactly
+// 'risk' (insecure-form, pre-ticked-consent - the risk-based, non-deterministic rules, W6). ONLY an exact
+// tier==='risk' qualifies: a 'deterministic' tier, an absent tier (a legacy/ported dom_node that never
+// carried one), or any other value keeps the normal deterministic bypass-to-violation (W6 backward
+// safety). The tier is stamped by evidence/browser/dom-assert.js's DOM_RULE_TIER door and ridden onto the
+// artifact by breach/proposers/propose.js, so this classifier never re-derives it (Rule 1, one door).
+function isRiskTierDomNode(candidate) {
+  const a = candidate && candidate.artifact;
+  if (!a || typeof a !== 'object') return false;
+  const t = typeof a.type === 'string' ? a.type.toLowerCase().trim() : '';
+  return DOM_NODE_ARTIFACT_TYPES.has(t) && a.tier === 'risk';
 }
 
 // Port-compat: the old estate carried the observed/register signal inside `absence_evidence.state`
@@ -117,18 +135,22 @@ function declaredKindOf(candidate) {
   return DECLARED_TO_KIND.get(raw.toLowerCase().trim()) || null;
 }
 
-function classification(kind, bypass, valid, reason) {
-  return { kind, bypass, valid, reason: reason || null };
+function classification(kind, bypass, valid, reason, review) {
+  return { kind, bypass, valid, reason: reason || null, review: review === true };
 }
 
 /**
- * classifyEvidenceKind(candidate) -> { kind, bypass, valid, reason }
+ * classifyEvidenceKind(candidate) -> { kind, bypass, valid, reason, review }
  *   kind    'observation' | 'absence' | 'register' - the resolved evidence kind (task contract).
  *   bypass  true for observation + register (skip LLM adjudication, ship as an observed fact);
- *           false for absence (must be adjudicated by the model).
+ *           false for absence (must be adjudicated by the model) AND for a risk-indicator dom_node.
  *   valid   false when the candidate MASQUERADED its kind (declared != artifact) or carries no
  *           deterministic artifact at all - the adjudicator quarantines it to needs-review.
- *   reason  a human-readable cause when valid is false (for the report + stage manifest), else null.
+ *   reason  a human-readable cause when valid is false, or the risk-review reason, else null.
+ *   review  true (W6) for a RISK-tier dom_node: a confirmed observation whose legal characterisation is
+ *           risk-based, not deterministic (insecure-form under UK GDPR Art 32, pre-ticked-consent). It
+ *           skips the LLM (there is no text to adjudicate) but routes to needs-review carrying its
+ *           dom_node artifact, NEVER a hard violation (Rule 6/Rule 10, the C-048 class). false otherwise.
  *
  * The artifact is ground truth. A declared kind is only ever a cross-check against it; on any
  * disagreement the candidate is rejected (never silently trusted, never allowed to bypass).
@@ -148,6 +170,17 @@ function classifyEvidenceKind(candidate) {
     return classification(artifactKind, false, false,
       'kind mismatch: declared "' + declared + '" but the artifact establishes "' + artifactKind + '"');
   }
+  // W6: a RISK-tier dom_node does NOT take the observed-fact bypass-to-violation. It is a real, confirmed
+  // observation (valid, artifact intact) but its legal characterisation is risk-based, so it routes to
+  // needs-review (review:true, bypass:false), never a hard accusation (C-048, Rule 6/Rule 10). Reached
+  // only for a valid, non-masqueraded observation (the two guards above already returned on a null
+  // artifact or a declared-kind mismatch, so a risk dom_node that ALSO masquerades is still rejected
+  // first). A deterministic or tier-absent dom_node falls through to the normal bypass below.
+  if (artifactKind === 'observation' && isRiskTierDomNode(candidate)) {
+    return classification('observation', false, true,
+      'risk-indicator dom_node: a confirmed observation with a risk-based (non-deterministic) legal '
+      + 'characterisation -> needs-review, never a hard violation (C-048, Rule 6/Rule 10)', true);
+  }
   return classification(artifactKind, BYPASS_KINDS.has(artifactKind), true, null);
 }
 
@@ -155,9 +188,11 @@ module.exports = {
   classifyEvidenceKind,
   artifactKindOf,
   declaredKindOf,
+  isRiskTierDomNode,
   KINDS,
   BYPASS_KINDS,
   OBSERVED_ARTIFACT_TYPES,
+  DOM_NODE_ARTIFACT_TYPES,
   REGISTER_ARTIFACT_TYPES,
   TEXT_ARTIFACT_TYPES,
 };
