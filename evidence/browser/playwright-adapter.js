@@ -122,7 +122,10 @@ function combinedGotoError(primaryErr, fallbackErr) {
 // FAIL-OPEN catch, not a swallow. On an https:// failure it makes ONE bounded http:// fallback attempt
 // (Rule 9: a single extra try, never a loop); on a genuine double failure it throws a combined,
 // informative error so observe.js / mint/compose-bundle.js's own outer deadline+catch records a visible
-// lane failure (lane.reason='error') instead of silently leaving the page at about:blank.
+// lane failure (lane.reason='error') instead of silently leaving the page at about:blank. Exported
+// (CodeRabbit PR #25 comment 3610860881): `page` is an INJECTED contract (only `.goto(url)` is called), so
+// this orchestration is directly testable over a fake page with no real browser - unlike the rest of this
+// file, which stays untested by design because it touches the real, lazily-required Playwright driver.
 async function gotoUrl(page, url) {
   const primary = await attemptGoto(page, url);
   if (primary.ok) return;
@@ -189,4 +192,4 @@ function resolvePlaywrightLauncher(opts) {
   };
 }
 
-module.exports = { resolvePlaywrightLauncher, scanConsentDom, DRIVERS, httpFallbackOf };
+module.exports = { resolvePlaywrightLauncher, scanConsentDom, DRIVERS, httpFallbackOf, gotoUrl };

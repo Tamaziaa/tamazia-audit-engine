@@ -146,7 +146,9 @@ test('CodeRabbit PR #25: opts.resolveChromium threads through to BOTH browser la
     fetchFn, registersFetchFn, env: {}, now: () => 1, resolveChromium: () => null, // no launchBrowser injected: forces the real resolvePlaywrightLauncher() path on both lanes
   });
   assert.strictEqual(bundle.browser.lane.reason, 'playwright-unavailable', 'observe honoured the injected resolver');
+  assert.strictEqual(bundle.browser.lane.ran, false);
   assert.strictEqual(bundle.browser.domLane.reason, 'playwright-unavailable', 'domAssert honoured the SAME injected resolver');
-  assert.deepStrictEqual(stageManifest.map((m) => [m.stage, m.reason]).filter(([s]) => s === 'observe' || s === 'domAssert'),
-    [['observe', 'playwright-unavailable'], ['domAssert', 'playwright-unavailable']]);
+  assert.strictEqual(bundle.browser.domLane.ran, false);
+  assert.deepStrictEqual(stageManifest.map((m) => [m.stage, m.ran, m.reason]).filter(([s]) => s === 'observe' || s === 'domAssert'),
+    [['observe', false, 'playwright-unavailable'], ['domAssert', false, 'playwright-unavailable']]);
 });
