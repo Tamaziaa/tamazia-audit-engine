@@ -288,21 +288,35 @@ function attachDetectedLanguage(bundle) {
   return detected;
 }
 
+// isGatingLanguage(detected) -> true only when `detected` would actually trip propose.js's
+// isNonEnglishGated (a non-empty tag that does NOT start with "en"). Mirrors that function's own
+// /^en\b/i test exactly, so this reporting helper cannot drift from the real gate's contract.
+function isGatingLanguage(detected) {
+  return typeof detected === 'string' && detected !== '' && !/^en\b/i.test(detected);
+}
+
 // languageDetectorNote(detected) -> the honest reason-string fragment describing what detectLanguage()
-// did on this fixture's own text - confident and wired, or below the confidence floor by design.
+// did on this fixture's own text, and whether that result ACTUALLY fires propose.js's isNonEnglishGated
+// (an "en" result passes through ungated - reporting it as "actually firing" would misstate the gate's
+// own contract, the exact class this note exists to avoid getting wrong).
 function languageDetectorNote(detected) {
-  if (detected) return 'resolved "' + detected + '" and was attached to bundle.corpus.language, actually firing propose.js\'s isNonEnglishGated';
-  return 'resolved undefined - this fixture\'s short sample sits below the confidence floor by design; the gate\'s confident path is proven on longer samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
+  if (!detected) return 'resolved undefined - this fixture\'s short sample sits below the confidence floor by design; the gate\'s confident path is proven on longer samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
+  if (isGatingLanguage(detected)) return 'resolved "' + detected + '" and was attached to bundle.corpus.language, actually firing propose.js\'s isNonEnglishGated';
+  return 'resolved "' + detected + '" (English) and was attached to bundle.corpus.language; isNonEnglishGated does not gate an English result, so it passed through unfired';
 }
 
 async function rtForeignLanguage(entry) {
   const bundle = ((entry || {}).input || {}).bundle;
   if (!bundle || !bundle.corpus) return { status: 'skipped', reason: 'entry carries no French corpus bundle' };
+  // Language detection precedes classification (C-022 doctrine): attach BEFORE the sector check, not
+  // after, so a non-English corpus is gated ahead of any classification attempt, matching the real
+  // crawl.js -> facts pipeline order (crawl.js's resolveLanguage() sets corpus.language before facts
+  // ever run on the bundle it produced).
+  const detected = attachDetectedLanguage(bundle);
   const sec = runFactsDoors(bundle).sector || {};
   if (sec.value != null) {
     return { status: 'escaped', reason: 'sector classified (' + JSON.stringify(sec.value) + ') from non-English prose without English cues (C-022): an English sector pack could attach' };
   }
-  const detected = attachDetectedLanguage(bundle);
   const result = await runPipeline(bundle.domain || 'rt-e-foreign.test', bundle, { breachInProcess: true });
   const violations = (result.breach.findings || []).filter((f) => f && f.state === 'violation');
   if (violations.length > 0) {

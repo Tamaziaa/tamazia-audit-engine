@@ -73,10 +73,12 @@ function stopwordDensity(text) {
 }
 
 // primaryLangSubtag(raw) -> the lowercased primary subtag of a BCP-47-shaped value ('fr' from 'fr-FR'),
-// or '' when raw is empty/malformed. A light shape check (mirrors dom-assert.js's VALID_LANG), kept as
-// an independent copy on purpose: that module grades a live-DOM signal, this one grades a fetched-HTML
-// signal, and the two lanes stay independently testable without importing a browser-only module.
-const LANG_TAG_RX = /^([a-z]{2})(?:-[A-Za-z0-9]+)*$/i;
+// or '' when raw is empty/malformed. A light shape check (mirrors dom-assert-predicates.js's VALID_LANG,
+// including its 2-OR-3-letter primary subtag width - ISO 639-2/3 alpha-3 codes like "fil"/"yue" are
+// valid too), kept as an independent copy on purpose: that module grades a live-DOM signal, this one
+// grades a fetched-HTML signal, and the two lanes stay independently testable without importing a
+// browser-only module.
+const LANG_TAG_RX = /^([a-z]{2,3})(?:-[A-Za-z0-9]+)*$/i;
 function primaryLangSubtag(raw) {
   const m = LANG_TAG_RX.exec(String(raw || '').trim());
   return m ? m[1].toLowerCase() : '';

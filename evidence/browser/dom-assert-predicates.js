@@ -138,7 +138,11 @@ function controlNode(d) {
 }
 
 // html-has-lang (WCAG 3.1.1): the <html> lang attribute must be present and a well-formed language tag.
-const VALID_LANG = /^[a-z]{2}(-[A-Za-z0-9]+)*$/i;
+// The primary subtag is 2 OR 3 letters (BCP-47/ISO 639-1 alpha-2 covers most languages, but ISO 639-2/3
+// alpha-3 codes are also valid primary subtags - "fil" Filipino, "yue" Cantonese): a 2-letter-only check
+// would false-accuse a page correctly tagged lang="fil" of a missing/malformed language, the exact
+// false-accusation class this predicate exists to avoid.
+const VALID_LANG = /^[a-z]{2,3}(-[A-Za-z0-9]+)*$/i;
 function htmlNode(d) {
   const lang = typeof d.lang === 'string' ? d.lang.trim() : '';
   if (lang !== '' && VALID_LANG.test(lang)) return null;

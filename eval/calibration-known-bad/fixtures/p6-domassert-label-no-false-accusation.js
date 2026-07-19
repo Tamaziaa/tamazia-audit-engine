@@ -26,8 +26,9 @@
 // 1 on a miss. Self-sufficient (drives the real module's pure predicates directly, no compiled catalogue
 // or browser needed), so it runs safely BEFORE the catalogue compile in CI.
 
-const path = require('path');
-const { controlNode } = require(path.resolve(__dirname, '..', '..', '..', 'evidence', 'browser', 'dom-assert.js'));
+// STRING-LITERAL require (never path.resolve(__dirname, ...)): a dynamic require is invisible to the
+// reachability gate (madge), which is exactly how correct logic has sat dead in production before.
+const { controlNode } = require('../../../evidence/browser/dom-assert.js');
 
 // bareControl(): every labelling-route field explicitly empty/false - the baseline every scenario diffs from.
 function bareControl(over) {

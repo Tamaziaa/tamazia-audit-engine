@@ -27,9 +27,11 @@
 // miss. Self-sufficient (a hand-built synthetic catalogue + bundle, no compiled catalogue dependency),
 // so it runs safely BEFORE the catalogue compile in CI.
 
-const path = require('path');
-const { propose } = require(path.resolve(__dirname, '..', '..', '..', 'breach', 'proposers', 'propose.js'));
-const { detectLanguage } = require(path.resolve(__dirname, '..', '..', '..', 'evidence', 'crawler', 'language.js'));
+// STRING-LITERAL requires (never path.resolve(__dirname, ...)): a dynamic require is invisible to the
+// reachability gate (madge), which is exactly how correct logic has sat dead in production before.
+const { propose } = require('../../../breach/proposers/propose.js');
+const { detectLanguage } = require('../../../evidence/crawler/language.js');
+const coverageContract = require('../../../evidence/crawler/coverage-contract.js');
 
 const OFFENDING_PHRASE = 'Buy our miracle tonic cures all today and feel amazing within a single week of trying it.';
 
@@ -75,7 +77,6 @@ function bundle(text, language) {
 }
 
 function coverageFor(b) {
-  const coverageContract = require(path.resolve(__dirname, '..', '..', '..', 'evidence', 'crawler', 'coverage-contract.js'));
   return coverageContract.coverageFor(catalogue().records, b.corpus.pages, { truncated: b.corpus.truncated });
 }
 
