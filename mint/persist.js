@@ -164,10 +164,10 @@ function catalogueVersion() {
     const cat = require('../catalogue/dist/catalogue.v1.json');
     _catalogueVersion = (cat && typeof cat.catalogue_version === 'string' && cat.catalogue_version) ? cat.catalogue_version : null;
   } catch (e) {
-    // FAIL-OPEN (justified): the compiled catalogue is a build product. If it is somehow unreadable at
-    // persist time, framework_version records as null - a NULLABLE metadata column the website read does NOT
-    // select - rather than throwing the mint (Rule 9). The write still conforms; only the version fact is
-    // absent, and it is recorded (memoised) as null, not silently swallowed (Rule 4/swallow-gate).
+    // FAIL-OPEN: the compiled catalogue is a build product. If it is somehow unreadable at persist time,
+    // framework_version records as null - a NULLABLE metadata column the website read does NOT select -
+    // rather than throwing the mint (Rule 9). The write still conforms; the version fact is recorded
+    // (memoised) as null, not silently swallowed (Rule 4/swallow-gate). e is the read failure, unused here.
     _catalogueVersion = null;
   }
   return _catalogueVersion;
