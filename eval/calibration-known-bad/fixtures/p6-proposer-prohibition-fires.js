@@ -26,7 +26,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { propose } = require(path.resolve(__dirname, '..', '..', '..', 'breach', 'proposers', 'propose.js'));
+// STRING-LITERAL REQUIRE ONLY (path instructions / reachability gate): a computed require is invisible to
+// the tooling that follows literal require() calls, and that is how correct legal logic sat dead in
+// production for months. The propose.js module load must stay a literal so the reachability gate sees it.
+const { propose } = require('../../../breach/proposers/propose.js');
 
 const RECORD_ID = 'UK_MHRA_POM_AD_BAN';
 const PACK = path.resolve(__dirname, '..', '..', '..', 'catalogue', 'packs', 'uk-healthcare.json');
