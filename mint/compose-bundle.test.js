@@ -28,7 +28,7 @@ const registersFetchFn = async (_url, options) => (options && options.requestKey
   ? { status: 200, json: { items: [{ title: 'Acme Ltd', company_number: '12345678', company_status: 'active' }] } } : null);
 
 test('composeBundle assembles the exact EvidenceBundle shape facts/ and breach/ read', async () => {
-  const { bundle, stageManifest } = await composeBundle('acme.example', { fetchFn, launchBrowser, registersFetchFn, env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' }, now: () => 1 });
+  const { bundle } = await composeBundle('acme.example', { fetchFn, launchBrowser, registersFetchFn, env: { COMPANIES_HOUSE_API_KEY: 'ci-fixture-key' }, now: () => 1 });
   assert.strictEqual(bundle.domain, 'acme.example');
   assert.ok(Array.isArray(bundle.corpus.pages) && bundle.corpus.pages.length >= 1);
   assert.ok(bundle.browser.lane.ran === true, 'observe (PECR) lane ran');

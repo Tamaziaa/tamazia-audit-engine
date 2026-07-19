@@ -45,10 +45,13 @@ test('providers set the provider-native structured-output mode (C-137) and the r
   const env = { GROQ_API_KEY: 'g', CLOUDFLARE_API_TOKEN: 't', CLOUDFLARE_ACCOUNT_ID: 'acct', GEMINI_API_KEY: 'gk', NIM_API_KEY: 'n' };
   const { providers } = chain.buildChain({ env, fetchImpl: cap.fn });
   for (const p of providers) await p.call({ prompt: 'hi', system: 's' }, { signal: undefined });
-  const groqCall = cap.calls.find((c) => c.url.includes('api.groq.com'));
+  // exact-prefix checks on the full https origin (CodeQL js/incomplete-url-substring-sanitization: a bare
+  // .includes('api.groq.com') also matches an attacker-shaped 'https://evil.com/api.groq.com' or
+  // 'https://api.groq.com.evil.com/' host, so the assertion anchors the origin with startsWith instead).
+  const groqCall = cap.calls.find((c) => c.url.startsWith('https://api.groq.com/'));
   assert.ok(JSON.parse(groqCall.options.body).response_format.type === 'json_object');
-  assert.ok(cap.calls.some((c) => c.url.includes('generativelanguage.googleapis.com')), 'gemini endpoint');
-  assert.ok(cap.calls.some((c) => c.url.includes('api.cloudflare.com') && c.url.includes('acct')), 'cloudflare endpoint carries the account id');
+  assert.ok(cap.calls.some((c) => c.url.startsWith('https://generativelanguage.googleapis.com/')), 'gemini endpoint');
+  assert.ok(cap.calls.some((c) => c.url.startsWith('https://api.cloudflare.com/') && c.url.includes('acct')), 'cloudflare endpoint carries the account id');
 });
 
 test('preflight reports each provider ONCE; a live provider is ok, a dead one is attributed to its id (C-135)', async () => {

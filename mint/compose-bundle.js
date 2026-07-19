@@ -37,8 +37,9 @@ const safeFetch = require('../tools/lib/safe-fetch.js');
 const { createFetchFn } = require('./fetch.js');
 
 // Budgets (Rule 8: every one a CAP, never a floor). The mint's own per-lane ceilings; each lane also
-// carries its module's internal cap and takes whichever is tighter.
-const CRAWL_DEADLINE_MS = 45000;
+// carries its module's internal cap and takes whichever is tighter. The crawl lane's own deadline comes
+// from crawl.js's injected fetchFn (mint/fetch.js's perPageMs); this module does not add a second crawl
+// ceiling on top of it today (CodeQL js/unused-local-variable removed the unwired CRAWL_DEADLINE_MS).
 const OBSERVE_DEADLINE_MS = 45000;
 const DOM_LANE_DEADLINE_MS = 25000; // wall-clock ceiling around the SECOND launch (launch+goto+assert+close)
 const DOM_ASSERT_MS = 20000;

@@ -17,12 +17,16 @@ test('parseArgs reads urls from the argv and honours --deadline-ms (clamped, nev
 });
 
 test('parseArgs reads urls from a --file list, skipping blank and # comment lines', () => {
-  const f = path.join(os.tmpdir(), 'mint-worker-test-' + process.pid + '.txt');
+  // a private mkdtempSync directory, not a predictable os.tmpdir() filename (CodeQL
+  // js/insecure-temporary-file: a fixed name is a symlink/race sink); mirrors the pattern
+  // eval/e2e/lib/pipeline.js jobFilePath() uses.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mint-worker-test-'));
+  const f = path.join(dir, 'urls.txt');
   fs.writeFileSync(f, 'a.example\n\n# a comment\nb.example\n');
   try {
     const a = parseArgs(['node', 'worker.js', '--file', f]);
     assert.deepStrictEqual(a.urls, ['a.example', 'b.example']);
-  } finally { fs.rmSync(f, { force: true }); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('runWorker mints each url sequentially and writes ONE JSON line per url (never a payload, never a secret)', async () => {
