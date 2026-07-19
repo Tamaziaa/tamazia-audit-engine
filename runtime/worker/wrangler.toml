@@ -1,0 +1,45 @@
+## wrangler.toml - Tamazia audit engine intake Worker (WS-Runtime)
+#
+# STAGED, NOT LIVE. This Worker deploys to a workers.dev preview subdomain only.
+# It is never bound to the tamazia.co.uk route: no `routes = [...]` entry exists in this file.
+# Binding a route onto the production zone is a founder decision, made after the day-15 verified
+# mint, and is documented as a manual step in DEPLOY-RUNBOOK.md - it is never done from CI or by
+# an agent.
+#
+# Per Kimi blueprint section D: Cloudflare is the front door only (intake API, HMAC report links,
+# Turnstile anti-abuse, Queue producer). The 45-second multi-lane audit pipeline itself runs on the
+# VM (docker compose), never inside a Worker request lifecycle.
+
+name = "tamazia-audit-intake-staging"
+main = "src/index.mjs"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# No top-level `routes` or `route` key: this Worker is reachable only at
+# https://tamazia-audit-intake-staging.<account-subdomain>.workers.dev until a founder explicitly
+# adds a route in a future, reviewed change.
+
+[observability]
+enabled = true
+
+# Cloudflare Queue producer binding. The `audit-requests` queue must exist before first deploy;
+# DEPLOY-RUNBOOK.md documents the `wrangler queues create audit-requests` step (idempotent, safe to
+# run against the real account - queues are namespaced and inert until a Worker publishes to them).
+[[queues.producers]]
+queue = "audit-requests-staging"
+binding = "AUDIT_QUEUE"
+
+# R2 binding for evidence + rendered artefacts. Points at the EXISTING tamazia-audits bucket
+# (already provisioned, already used by mint/) under a staging key prefix so nothing staged here
+# collides with production keys. No new bucket is created.
+[[r2_buckets]]
+binding = "AUDITS_BUCKET"
+bucket_name = "tamazia-audits"
+preview_bucket_name = "tamazia-audits"
+
+# Non-secret config. Secrets (HMAC key, Turnstile secret key) are set with
+# `wrangler secret put <NAME> --env staging` and never appear in this file or in git - see
+# DEPLOY-RUNBOOK.md.
+[vars]
+ENVIRONMENT = "staging"
+R2_KEY_PREFIX = "staging/"

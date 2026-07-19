@@ -1,0 +1,16 @@
+{
+  "domain": "conveyancingdirect.net",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://conveyancingdirect.net/",
+        "title": "Conveyancing Direct",
+        "text": "Conveyancing Direct, regulated by the Council for Licensed Conveyancers (CLC). Company Number 08123456, registered office London. Full conveyancing and property transfer services. This site uses a Cookie-Script consent banner: manage your cookie preferences before any analytics or marketing cookies load."
+      }
+    ],
+    "footerText": "Conveyancing Direct, CLC regulated, Company Number 08123456, registered office London."
+  },
+  "registers": {}
+}

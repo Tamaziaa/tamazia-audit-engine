@@ -1,0 +1,21 @@
+{
+  "domain": "damiradental.co.uk",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://damiradental.co.uk/",
+        "title": "Damira Dental",
+        "text": "Damira Dental is a UK dental chain. Our dentists and dental hygienists are registered with the General Dental Council. We are also regulated by the Care Quality Commission for our specialist dental services. Damira Dental practices across the UK provide general dentistry, hygiene, and dental implants."
+      },
+      {
+        "url": "https://damiradental.co.uk/find-a-practice/",
+        "title": "Find a Practice",
+        "text": "Find your nearest Damira Dental practice. All our dentists are GDC registered."
+      }
+    ],
+    "footerText": "Damira Dental. GDC registered dentists. CQC regulated."
+  },
+  "registers": {}
+}

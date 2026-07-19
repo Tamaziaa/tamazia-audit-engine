@@ -1,0 +1,21 @@
+# CodeQL config: scope the JavaScript/TypeScript analysis to this engine's own source code.
+#
+# enforcement/collectors/fixtures/** holds byte-for-byte captured real regulator pages (ASA, CNIL,
+# ICO, FTC, OCR, GDPRhub) committed as deterministic parser-test fixtures (Constitution Rule 4: a
+# gate is calibrated against real, fixed input; caution.md C-199 requires a ported/collected module
+# to arrive WITH its eval fixtures). These files are DATA, not application source.
+#
+# CodeQL's JavaScript/TypeScript extractor also parses inline <script> blocks and on*="" attributes
+# inside .html files, which means it treats captured third-party markup quirks in these real pages
+# (a duplicated `method="GET"` attribute on a page's own search form, a legacy `onClick="#"`
+# placeholder button) as findings about OUR code. They are not: they are exactly what the regulator's
+# site served, preserved verbatim so the parser tests are calibrated against real structure, not a
+# cleaned-up approximation of it.
+#
+# This exclusion touches zero bytes of any fixture file - it only tells the scanner these paths are
+# evidence, not code to lint - and mirrors the identical, already-established precedent this repo
+# uses for CodeScene's health gate over deliberately-out-of-scope fixtures
+# (.codescene/code-health-rules.json, which documents the same "data, not code" reasoning for
+# eval/calibration-known-bad/fixtures/**).
+paths-ignore:
+  - enforcement/collectors/fixtures/**

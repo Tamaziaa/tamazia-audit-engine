@@ -1,0 +1,26 @@
+{
+  "domain": "avidlawyers.com",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://avidlawyers.com/",
+        "title": "Mincone Personal Injury Lawyers",
+        "text": "Mincone Personal Injury Lawyers, 1925 E 6th Ave Unit 10, Tampa, FL 33605. Attorney Matthew Mincone leads our team of personal injury lawyers and attorneys. No win, no fee. Guaranteed. Call our attorneys today."
+      },
+      {
+        "url": "https://avidlawyers.com/about-us/",
+        "title": "About Us",
+        "text": "About Mincone Law Group. Our attorneys and lawyers serve Tampa, FL."
+      },
+      {
+        "url": "https://avidlawyers.com/about-us/testimonials/",
+        "title": "Testimonials",
+        "text": "Client testimonials for Mincone Personal Injury Lawyers, named client outcomes and results from our attorneys' cases."
+      }
+    ],
+    "footerText": "Mincone Personal Injury Lawyers, 1925 E 6th Ave Unit 10, Tampa, FL 33605."
+  },
+  "registers": {}
+}

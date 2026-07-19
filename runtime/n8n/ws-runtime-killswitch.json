@@ -1,0 +1,86 @@
+{
+  "name": "ws-runtime-killswitch",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ws-runtime-killswitch",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Killswitch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 220],
+      "webhookId": "ws-runtime-killswitch"
+    },
+    {
+      "parameters": {
+        "path": "ws-runtime-killswitch-status",
+        "httpMethod": "GET",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "status-webhook-trigger",
+      "name": "Killswitch Status Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 420],
+      "webhookId": "ws-runtime-killswitch-status"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "engaged", "value": "true" },
+            { "name": "reason", "value": "={{$json.body.reason}}" },
+            { "name": "actor", "value": "={{$json.body.actor}}" },
+            { "name": "engagedAt", "value": "={{$now.toISO()}}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-kill-flag",
+      "name": "Set kill flag (workflow static data)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.engaged = true;\nstaticData.reason = $input.first().json.reason;\nstaticData.actor = $input.first().json.actor;\nstaticData.engagedAt = $input.first().json.engagedAt;\nreturn [{ json: staticData }];"
+      },
+      "id": "persist-kill-flag",
+      "name": "Persist to workflow static data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nreturn [{ json: { engaged: Boolean(staticData.engaged), reason: staticData.reason || null, actor: staticData.actor || null, engagedAt: staticData.engagedAt || null } }];"
+      },
+      "id": "read-kill-flag",
+      "name": "Read kill flag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 420]
+    }
+  ],
+  "connections": {
+    "Killswitch Webhook": {
+      "main": [[{ "node": "Set kill flag (workflow static data)", "type": "main", "index": 0 }]]
+    },
+    "Set kill flag (workflow static data)": {
+      "main": [[{ "node": "Persist to workflow static data", "type": "main", "index": 0 }]]
+    },
+    "Killswitch Status Webhook": {
+      "main": [[{ "node": "Read kill flag", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

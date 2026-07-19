@@ -1,0 +1,16 @@
+{
+  "name": "tamazia-runtime-queue",
+  "version": "0.1.0",
+  "private": true,
+  "description": "pg-boss job queue + typed step-function skeleton for the Tamazia audit engine runtime (staged, not deployed). See ../../DEPLOY-RUNBOOK.md.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test",
+    "migrate": "node migrate.js",
+    "create-branch": "node create-branch.js"
+  },
+  "dependencies": {
+    "pg-boss": "^10.1.5",
+    "pg": "^8.13.1"
+  }
+}

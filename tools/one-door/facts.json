@@ -5,7 +5,7 @@
       "id": "jurisdiction",
       "label": "JURISDICTION NEXUS (which legal regimes bind the subject)",
       "kind": "producer-fn",
-      "allowed_producers": ["facts/jurisdiction.js", "facts/vocabulary.js", "catalogue/schema.js"],
+      "allowed_producers": ["facts/jurisdiction.js", "facts/vocabulary.js", "catalogue/schema.js", "enforcement/"],
       "patterns": [
         "established_in\\s*[:=]",
         "\\bjurisdiction\\s*[:=]\\s*['\"`]",
@@ -45,7 +45,7 @@
     {
       "id": "regulator",
       "label": "REGULATOR NAME (the authority a client is told about)",
-      "allowed_producers": ["catalogue/"],
+      "allowed_producers": ["catalogue/", "enforcement/"],
       "patterns": [
         "(^|[^.\\w])regulator\\s*[:=]\\s*['\"`]",
         "\\bREGULATOR(_NAME|_MAP|S)?\\s*[:=]",
@@ -53,19 +53,19 @@
         "Sector regulator",
         "Regulated by (the )?[A-Z]"
       ],
-      "note": "The catalogue is the ONLY source of regulator names. A regulator string literal anywhere else is a second door."
+      "note": "The catalogue is the ONLY source of regulator names FOR THE LIVE MINT PATH. enforcement/ is a co-door for a deliberately separate, non-client-facing historical record (enforcement/store/schema.js is its own one-door for the EnforcementAction row shape); nothing in enforcement/ is imported by the mint pipeline."
     },
     {
       "id": "fine",
       "label": "FINE AMOUNT (the figure a client is quoted)",
-      "allowed_producers": ["catalogue/"],
+      "allowed_producers": ["catalogue/", "enforcement/"],
       "patterns": [
         "fine_(high|low|max|min)_?(gbp|eur|usd|aed|sar)?\\s*[:=]\\s*['\"`]?\\d",
         "penalty_(band|max|amount|typical)\\s*[:=]",
         "(£|\\bGBP ?)\\d[\\d,.]*\\s?(m\\b|M\\b|million)",
         "statutory_max\\s*[:=]"
       ],
-      "note": "Fines come from the catalogue's penalty field only. A hard-coded fine in code fails CI: this exact class shipped a wrong GBP 17.5M figure."
+      "note": "Fines shown to a CLIENT come from the catalogue's penalty field only. enforcement/ is a co-door for penalty_amount fields on EnforcementAction rows (real regulators' real historical fines, mined for penalty-precedent derivation) - a wholly separate, non-client-facing record with its own schema validator; nothing in enforcement/ feeds a client-facing fine."
     },
     {
       "id": "law-title",
