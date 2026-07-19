@@ -1,0 +1,52 @@
+# The mint reconciler (Constitution Rule 7 / Rule 17): a mint is done only when the row, the live 200
+# and the truth-pack all pass, and the old estate reported "done" on 1,004 phantom audits with no page
+# behind them (caution.md C-176/C-177). This scheduled job diffs the mint's persisted table against
+# ENGINE_VERSION and the R2 object reference every row claims, and alarms on any done-without-page or
+# stale-version row - the real logic lives in tools/mint-reconciler/reconcile.js (its own node:test suite
+# seeds every alarm class over an injected sqlFn) - this file stays thin.
+#
+# NEON_URL is a repository secret; this workflow NEVER echoes it. If the secret is not configured (a
+# fork, or before the founder wires it in), the reconcile step SKIPS LOUDLY rather than failing the
+# scheduled run - a repo with no database configured yet is not a reconciler failure (the same optional-
+# secret pattern semgrep.yml uses for SEMGREP_APP_TOKEN).
+name: Mint reconciler
+
+on:
+  schedule:
+    - cron: '40 6 * * *' # 06:40 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mint-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Mint reconciler
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEON_URL: ${{ secrets.NEON_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reconcile audit_pages (done-without-page / stale-version alarms, row-count info)
+        if: env.NEON_URL != ''
+        run: node tools/mint-reconciler/reconcile.js
+
+      - name: Reconciler skipped (no NEON_URL secret configured)
+        if: env.NEON_URL == ''
+        run: echo "::warning title=mint-reconciler skipped::NEON_URL secret is not configured on this repository - the reconciler has nothing to check against and is SKIPPING rather than failing the scheduled run."

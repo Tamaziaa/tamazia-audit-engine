@@ -10,8 +10,8 @@
   "totals": {
     "defects": 267,
     "classes": 43,
-    "guarded_classes": 38,
-    "gap_classes": 5,
+    "guarded_classes": 39,
+    "gap_classes": 4,
     "act": 17
   },
   "classification_note": "Sweep defects are triaged category->class with a message-keyword refinement for the \"other\" bucket (see build-crossref.js). This is best-effort triage of tool output; the load-bearing contract is the class->gate mapping, enforced by check.js.",
@@ -676,8 +676,8 @@
       "class": "cache-version",
       "description": "Stale scans replayed as current: scanner_cache keyed on an unbumped ENGINE_VERSION, a partial catalogue cached process-wide, pg() returning null indistinguishable from no-rows.",
       "catching_gate": ".github/workflows/engine-version-guard.yml",
-      "status": "gap",
-      "phase": "P4",
+      "status": "guarded",
+      "phase": null,
       "past_severity": "P0",
       "shipped_to_client": true,
       "caution_pointers": [
@@ -1564,7 +1564,7 @@
       "class": "cache-version",
       "caution_pointer": "C-166",
       "catching_gate": ".github/workflows/engine-version-guard.yml",
-      "status": "gap",
+      "status": "guarded",
       "id": "SW-0047",
       "source": "sweep",
       "act": false,

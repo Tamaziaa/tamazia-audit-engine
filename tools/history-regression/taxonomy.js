@@ -322,7 +322,17 @@ const TAXONOMY = [
     class: 'cache-version',
     description: 'Stale scans replayed as current: scanner_cache keyed on an unbumped ENGINE_VERSION, a partial catalogue cached process-wide, pg() returning null indistinguishable from no-rows.',
     catching_gate: '.github/workflows/engine-version-guard.yml',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 W4: .github/workflows/engine-version-guard.yml now LANDED, backed by
+    // tools/engine-version-guard/check.js (its own node:test suite + an in-memory selfTest() proving
+    // BOTH directions - bump-missing fails, bump-present passes, test-only change passes - before any
+    // real git command ever runs). It fails any PR whose diff touches the scan-logic surface
+    // (evidence/facts/applicability/breach/llm production code, catalogue/compile.js, payload/composer/**)
+    // while mint/version.js's ENGINE_VERSION is unchanged between the merge base and HEAD. The
+    // history-regression gap-gate-landed rule requires this flip once the named gate exists. (The other
+    // cache-symptom classes this row's caution pointers touch - a partial catalogue cached process-wide,
+    // pg() returning null indistinguishable from no-rows - are DB/loader-layer concerns the version guard
+    // does not itself police; they stay covered by Rule 4's fail-closed calibration gate, not this row.)
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-166', 'C-167', 'C-168', 'C-169', 'C-170', 'C-171', 'C-172', 'C-173', 'C-174', 'C-175', 'C-184', 'C-185', 'C-186'],
   },
   {

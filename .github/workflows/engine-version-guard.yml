@@ -1,0 +1,48 @@
+# Engine version guard (Constitution Rule 15): a legal-evidence engine keeps NO scan cache, so any
+# change to scan logic (evidence/facts/applicability/breach/llm production code, the catalogue compiler,
+# the payload composer) must bump mint/version.js's ENGINE_VERSION. This workflow FAILS a PR that touches
+# that surface without a bump; the real logic lives in tools/engine-version-guard/check.js (its own
+# node:test suite proves both directions in memory before this workflow ever runs) - this file stays thin.
+#
+# An INDEPENDENT check, not one of the three required contexts (Local tool fleet / CodeQL / Semgrep, see
+# docs/FOUNDER-ACTIONS.md): the job name below is "Engine version guard", never reused or aliased.
+#
+# fetch-depth: 0 (full history) is required so `git merge-base <base-sha> HEAD` can resolve a common
+# ancestor even when the base branch has moved past the PR's original base sha.
+name: Engine version guard
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-version-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Engine version guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history, for a real merge-base)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rule 15 check (scan-logic changes must bump ENGINE_VERSION)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node tools/engine-version-guard/check.js "$BASE_SHA"
