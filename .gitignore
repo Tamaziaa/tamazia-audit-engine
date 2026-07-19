@@ -22,6 +22,10 @@ coverage/
 # catalogue compiler output (regenerated deterministically by catalogue/compile.js; never committed)
 catalogue/dist/
 
+# enforcement-mining derived outputs (regenerated deterministically by enforcement/derive/*.js from
+# the committed enforcement/data/enforcement-actions.ndjson store; never committed themselves)
+enforcement/derive/out/
+
 # Scratch
 scratch/
 scratch.*

@@ -26,7 +26,7 @@ const { runGateCli, ROOT } = require('../lib/gate-cli');
 const safePath = require('../lib/safe-path');
 
 const FACTS_PATH = path.join(__dirname, 'facts.json');
-const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof'];
+const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof', 'enforcement'];
 
 // THE CONSUMER-CALL-SITE EXEMPTION (why this gate must not fire on a legitimate caller).
 // A fact tagged "kind":"producer-fn" in facts.json (jurisdiction, sector, identity, capabilities) carries

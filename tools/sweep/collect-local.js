@@ -27,7 +27,7 @@ const TMP = path.join(ROOT, 'tools', 'sweep', 'out', 'tmp');
 
 // Mint entrypoints of the NEW engine. mint/ is empty in P0; entries are armed the moment the files exist.
 const ENTRIES = ['mint/worker.js', 'mint/index.js'];
-const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload'];
+const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'enforcement'];
 // Clone and dependency hygiene also cover the tool fleet itself: the tools eat their own cooking.
 const HYGIENE_DIRS = [...SCAN_DIRS, 'mint', 'render-proof', 'tools'];
 // dirs is always one of SCAN_DIRS/HYGIENE_DIRS above (single-segment, repo-defined literal
