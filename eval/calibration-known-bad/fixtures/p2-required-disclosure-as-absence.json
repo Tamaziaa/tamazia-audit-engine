@@ -1,0 +1,155 @@
+{
+  "_calibration": "CALIBRATION FIXTURE (known-bad, deliberately committed): the required-disclosure-mistyped-as-a-prohibition class (caution.md C-046/C-048, the mechanical guarantee added after CATALOGUE-VERIFICATION-2026-07-19.md). records[0] is a REQUIRED DISCLOSURE (the New York 'Attorney Advertising' label class) typed evidence_type='absence' - so propose.js runs it as a PRESENCE-breach and FALSE-ACCUSES the compliant firm that DOES show the label, and can never catch the real violation (the label missing). catalogue/linters/polarity.js MUST flag records[0] as polarity-required-disclosure-mistyped in --calibrate mode, or it has not earned its zero. records[1] is the SAME duty correctly typed 'presence' and records[2] is a genuine prohibition that quotes FORBIDDEN examples in an element (the BREACH_PRESENT class); NEITHER may be flagged - that both-direction contract is asserted by catalogue/linters/polarity.test.js.",
+  "cell": "p2-calibration-required-disclosure",
+  "jurisdiction": "US",
+  "generated": "2026-07-19",
+  "records": [
+    {
+      "jurisdiction": "US",
+      "sub_jurisdiction": "NY",
+      "status": "needs_verification",
+      "client_useful": true,
+      "id": "CAL_P2_REQUIRED_DISCLOSURE_ABSENCE",
+      "name": "Attorney advertising label (calibration fixture: required disclosure mistyped absence)",
+      "citation": {
+        "act": "New York Rules of Professional Conduct (22 NYCRR Part 1200)",
+        "section": "Rule 7.1(f)",
+        "url": "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.1"
+      },
+      "sector": ["legal"],
+      "sub_sector": ["law-firm"],
+      "activity_tags": ["b2c"],
+      "required_nexus": ["established_in"],
+      "applies_when": ["a New York lawyer advertises services on a website"],
+      "excluded_when": ["operator holds no New York admission or office"],
+      "website_obligations": [
+        {
+          "duty": "Label advertising 'Attorney Advertising' on the home page as Rule 7.1(f) requires",
+          "elements": ["'Attorney Advertising' on the website home page"],
+          "evidence_type": "absence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "calibration fixture: state bar discipline, no fixed fine",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Appellate Division attorney grievance committees",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (deliberately seeded required-disclosure mistyped absence)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-19"
+      }
+    },
+    {
+      "jurisdiction": "US",
+      "sub_jurisdiction": "NY",
+      "status": "needs_verification",
+      "client_useful": true,
+      "id": "CAL_P2_REQUIRED_DISCLOSURE_PRESENCE",
+      "name": "Attorney advertising label (calibration fixture: same disclosure correctly typed presence)",
+      "citation": {
+        "act": "New York Rules of Professional Conduct (22 NYCRR Part 1200)",
+        "section": "Rule 7.1(f)",
+        "url": "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.1"
+      },
+      "sector": ["legal"],
+      "sub_sector": ["law-firm"],
+      "activity_tags": ["b2c"],
+      "required_nexus": ["established_in"],
+      "applies_when": ["a New York lawyer advertises services on a website"],
+      "excluded_when": ["operator holds no New York admission or office"],
+      "website_obligations": [
+        {
+          "duty": "Label advertising 'Attorney Advertising' on the home page as Rule 7.1(f) requires",
+          "elements": ["'Attorney Advertising' on the website home page"],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "calibration fixture: state bar discipline, no fixed fine",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Appellate Division attorney grievance committees",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (correctly typed presence, must NOT be flagged)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-19"
+      }
+    },
+    {
+      "jurisdiction": "UK",
+      "sub_jurisdiction": null,
+      "status": "needs_verification",
+      "client_useful": true,
+      "id": "CAL_P2_GENUINE_PROHIBITION_ABSENCE",
+      "name": "Advertising claim prohibition (calibration fixture: genuine prohibition, quotes forbidden examples)",
+      "citation": {
+        "act": "Consumer Protection from Unfair Trading Regulations 2008",
+        "section": "regs 3, 5",
+        "url": "https://www.legislation.gov.uk/uksi/2008/1277/contents"
+      },
+      "sector": ["universal"],
+      "sub_sector": [],
+      "activity_tags": ["b2c"],
+      "required_nexus": ["serves_customers_in"],
+      "applies_when": ["makes marketing claims to consumers on a website"],
+      "excluded_when": ["b2b only"],
+      "website_obligations": [
+        {
+          "duty": "Keep marketing claims lawful and substantiated (the breach is a prohibited or misleading claim being present)",
+          "elements": ["vague labels ('collab', 'thanks brand') not used as the only disclosure", "no unsubstantiated superlatives"],
+          "evidence_type": "absence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "GBP",
+        "basis": "calibration fixture: CMA/Trading Standards enforcement",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "Competition and Markets Authority / Trading Standards",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "calibration fixture",
+        "regulator_asks_first": "calibration fixture",
+        "relevance_hook": "calibration fixture"
+      },
+      "provenance": {
+        "sources": ["calibration fixture (genuine prohibition with quoted forbidden examples, must NOT be flagged)"],
+        "seed_status": "seed",
+        "verified_date": "2026-07-19"
+      }
+    }
+  ]
+}

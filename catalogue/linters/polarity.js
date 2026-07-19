@@ -79,6 +79,32 @@ const SELF_DECLARATION_RX = /\bwe (?:do not|don't|never)\b|\bself[- ]?declar|\bs
 // breach signal (the rule-polarity-inverted.json class).
 const LEGACY_COMPLIANT_CONSENT_RX = /\b(?:ask(?:s|ed)? for|obtain(?:s|ed)?)\b.{0,40}\bconsent\b.{0,40}\b(?:before|prior to)\b/i;
 
+// Lint 3 (required-disclosure mistyped as a prohibition - the mechanical guarantee against C-048):
+// a REQUIRED DISCLOSURE the law compels the firm to SHOW ("Label 'Attorney Advertising'", "include a
+// disclaimer", "Place a warning") mistyped evidence_type "absence" is a live FALSE ACCUSER. propose.js
+// runs "absence" as a PRESENCE-breach, so such a record fires against the compliant firm that DOES show
+// the disclosure and can NEVER catch the real violation (the disclosure missing); the correct type is
+// "presence" (fires an ABSENCE-breach when the disclosure is missing). This is the DG-02 defect class
+// (C-046/C-048) and the seven us-legal records CATALOGUE-VERIFICATION-2026-07-19.md corrected. Lint 1's
+// REQUIREMENT_RX misses it: the load-bearing verb is often a bare imperative ("Label ...", "Place ...")
+// and the load-bearing quoted phrase sits in elements[], which Lint 1 never reads.
+//
+// Two independent signals, EITHER of which flags an "absence" obligation:
+//   A) DISCLOSURE_VERB_RX matches the DUTY in an IMPERATIVE clause position (clause-initial, or after
+//      must/shall/should/be/to/and) - a REQUIRED action to put content on the site. A verb preceded by
+//      a negator ("do not display X") or a mid-phrase noun homograph ("certification marks") is not in
+//      an imperative position and does not flag, so a genuine prohibition is never mislabelled.
+//   B) an ELEMENT carries a quoted required phrase (>= 2 words) and is not itself prohibition-framed.
+// Quoted phrases are read ONLY from elements[], never from the duty: a genuine prohibition quotes its
+// FORBIDDEN examples in the duty ("remove ... (e.g. 'wrinkle-relaxing injections')" - UK_MHRA_POM_AD_BAN),
+// so reading duty quotes would false-flag it. Calibrated against every real absence obligation: flags the
+// seven disclosure records, clears the four genuine prohibitions (MHRA POM, VMD POM-V, CA_BPC_6157, FTC
+// s.5 UDAP).
+const DISCLOSURE_VERB_RX = /\b(?:includ(?:e|es|ing)|display(?:s|ed|ing)?|label(?:s|led|ling)?|mark(?:s|ed|ing)?|place(?:s|d)?|indicate(?:s|d)?|provide(?:s|d)?|show(?:s|n|ing)?)\b/gi;
+const IMPERATIVE_LEAD_RX = /(?:^|[,;:.]|\b(?:must|shall|should|be|to|and|then|also|will)\s+(?:be\s+)?)\s*$/i;
+const DISCLOSURE_QUOTE_RX = /['"‘’“”]([^'"‘’“”]{3,})['"‘’“”]/g;
+const PROHIBITION_LEAD_RX = /^\s*(?:no|not|without|avoid|remove|do not|does not|never)\b/i;
+
 // isProhibitionMismatch/isBreachPresentMismatch/isRequirementMismatch: named predicates (each
 // RETURNS a boolean, so the multi-operator test lives in the predicate, not in an if/else-if TEST
 // position) pulled out of checkObligationPolarityMismatch below (Constitution Rule
@@ -133,6 +159,70 @@ function checkNegationGuard(duty, evidenceType, tag) {
   }];
 }
 
+// dutyHasDisclosureImperative(duty) -> a disclosure verb sits in an imperative clause position (a
+// REQUIRED action to put content on the site), not negated and not a mid-phrase noun homograph.
+function dutyHasDisclosureImperative(duty) {
+  const s = String(duty || '');
+  DISCLOSURE_VERB_RX.lastIndex = 0;
+  let m;
+  while ((m = DISCLOSURE_VERB_RX.exec(s)) !== null) {
+    if (IMPERATIVE_LEAD_RX.test(s.slice(0, m.index))) return true;
+  }
+  return false;
+}
+// quotedPhrasesIn(text) -> quoted spans of >= 2 words (a single quoted word is a token, not a phrase).
+function quotedPhrasesIn(text) {
+  const s = String(text || '');
+  const out = [];
+  DISCLOSURE_QUOTE_RX.lastIndex = 0;
+  let m;
+  while ((m = DISCLOSURE_QUOTE_RX.exec(s)) !== null) {
+    if (m[1].trim().split(/\s+/).length >= 2) out.push(m[1].trim());
+  }
+  return out;
+}
+// elementHasRequiredQuotedPhrase(el) -> the element carries a quoted phrase and is NOT itself
+// prohibition-framed (leading no/not/without/remove, i.e. a quoted FORBIDDEN example, not a required one).
+function elementHasRequiredQuotedPhrase(el) {
+  if (quotedPhrasesIn(el).length === 0) return false;
+  const stripped = String(el || '').replace(DISCLOSURE_QUOTE_RX, ' ').trim();
+  return !PROHIBITION_LEAD_RX.test(stripped);
+}
+// dutyIsProhibitionFramed(duty) -> the duty is a GENUINE prohibition (correctly typed "absence"): it
+// carries a hard prohibition word (PROHIBITION_RX), the "breach is X being present" framing
+// (BREACH_PRESENT_RX), or a "do not / never / avoid / remove" lead. Such a duty's ELEMENTS may quote
+// FORBIDDEN examples ("vague labels ('thanks brand')", "'UKCA/CE certified' claims match ...",
+// "vague absolutes ('eco-friendly')" - the uk-tech-media-industrial UGC/green/UKCA class), so the
+// element-quote signal (B) must NOT fire on it. The duty-imperative signal (A) is unaffected: a duty
+// that BOTH imperatively requires a disclosure AND carries a prohibition clause (the pre-split
+// NY_RPC_7_3_7_4 "must be labelled ... and must not be made where prohibited") is still a mis-typed
+// compound and is flagged by A before this gate is reached.
+const PROHIBITION_DUTY_RX = /\bdo not\b|\bdon't\b|\bnever\b|\bavoid\b|\bremove\b/i;
+function dutyIsProhibitionFramed(duty) {
+  const s = String(duty || '');
+  return PROHIBITION_RX.test(s) || BREACH_PRESENT_RX.test(s) || PROHIBITION_DUTY_RX.test(s);
+}
+// isRequiredDisclosureMistyped(w) -> boolean. Only an "absence" obligation can be a mis-typed required
+// disclosure (a presence/register/behavioural duty is not the false-accuser this catches). Signal A (a
+// disclosure imperative in the duty) flags first; a genuine prohibition duty short-circuits BEFORE
+// Signal B so a forbidden example quoted in an element is never mistaken for a required disclosure.
+function isRequiredDisclosureMistyped(w) {
+  if (!w || w.evidence_type !== 'absence' || typeof w.duty !== 'string') return false;
+  if (dutyHasDisclosureImperative(w.duty)) return true;
+  if (dutyIsProhibitionFramed(w.duty)) return false;
+  const elements = Array.isArray(w.elements) ? w.elements : [];
+  return elements.some(elementHasRequiredQuotedPhrase);
+}
+// checkRequiredDisclosureMistype(w, i) -> finding[] (Lint 3). Error severity (no severity field): a
+// required disclosure typed "absence" is a live false accusation, the exact class this repo exists to stop.
+function checkRequiredDisclosureMistype(w, i) {
+  if (!isRequiredDisclosureMistyped(w)) return [];
+  return [{
+    rule: 'polarity-required-disclosure-mistyped',
+    message: 'website_obligations[' + i + '] is a REQUIRED DISCLOSURE (a disclosure-imperative duty, or a quoted required phrase in an element) typed evidence_type "absence"; it must be "presence" so the breach fires when the disclosure is MISSING, not when a compliant firm SHOWS it (C-046/C-048): ' + JSON.stringify(w.duty),
+  }];
+}
+
 // checkObligationPolarity(w, i) -> finding[] (each finding still needs locator/id stamped on by
 // the caller). One website_obligations[] entry's polarity + negation-guard checks: a small
 // aggregator over the two checks above, named and extracted out of checkComRecord's own forEach
@@ -146,6 +236,7 @@ function checkObligationPolarity(w, i) {
   return [
     ...checkObligationPolarityMismatch(duty, evidenceType, tag),
     ...checkNegationGuard(duty, evidenceType, tag),
+    ...checkRequiredDisclosureMistype(w, i),
   ];
 }
 
@@ -192,57 +283,56 @@ function scan(dirsOrPatterns) {
   return { violations, scanned: entries.length, parseErrors };
 }
 
-function selfTest() {
-  const inverted = {
-    id: 'CAL_SELFTEST_PROHIBIT',
-    website_obligations: [{ duty: 'It is an offence to advertise this product to the public', elements: ['x'], evidence_type: 'presence' }],
-  };
-  const invertedBreachPresent = {
-    id: 'CAL_SELFTEST_BREACH_PRESENT',
-    website_obligations: [{ duty: 'Published membership terms must be fair and transparent (the breach is an unfair term being present in the published terms)', elements: ['x'], evidence_type: 'presence' }],
-  };
-  const invertedRequirement = {
-    id: 'CAL_SELFTEST_REQUIRE',
-    website_obligations: [{ duty: 'The firm must publish its complaints procedure', elements: ['x'], evidence_type: 'absence' }],
-  };
-  const negationGuard = {
-    id: 'CAL_SELFTEST_NEGGUARD',
-    website_obligations: [{ duty: 'We do not treat patients under the age of 18 with this product', elements: ['x'], evidence_type: 'absence' }],
-  };
-  const good = {
-    id: 'CAL_SELFTEST_GOOD',
-    website_obligations: [
+// selfTestRecords() -> the fixture records the selfTest asserts against. Pure data (no branching),
+// extracted from selfTest so that function stays within the health-gate line cap. "good" carries a
+// behavioural prohibition (exempt) and a register "breach ... being present" duty (register-exempt);
+// the last three exercise Lint 3 both ways (a mistype flagged, its retype cleared, a prohibition cleared).
+function selfTestRecords() {
+  return {
+    inverted: { id: 'CAL_SELFTEST_PROHIBIT', website_obligations: [{ duty: 'It is an offence to advertise this product to the public', elements: ['x'], evidence_type: 'presence' }] },
+    invertedBreachPresent: { id: 'CAL_SELFTEST_BREACH_PRESENT', website_obligations: [{ duty: 'Published membership terms must be fair and transparent (the breach is an unfair term being present in the published terms)', elements: ['x'], evidence_type: 'presence' }] },
+    invertedRequirement: { id: 'CAL_SELFTEST_REQUIRE', website_obligations: [{ duty: 'The firm must publish its complaints procedure', elements: ['x'], evidence_type: 'absence' }] },
+    negationGuard: { id: 'CAL_SELFTEST_NEGGUARD', website_obligations: [{ duty: 'We do not treat patients under the age of 18 with this product', elements: ['x'], evidence_type: 'absence' }] },
+    good: { id: 'CAL_SELFTEST_GOOD', website_obligations: [
       { duty: 'Do not advertise prescription-only medicine to the public', elements: ['x'], evidence_type: 'absence' },
       { duty: 'The firm must publish a privacy notice', elements: ['x'], evidence_type: 'presence' },
-      // behavioural duties are exempt from polarity language checks (SEMANTIC DOCTRINE above):
-      // this one carries prohibition language ("must not") but is legitimately observed-action.
       { duty: 'Firm names and domain names must not be false or misleading', elements: ['x'], evidence_type: 'behavioural' },
-      // "register" IS exempt from the BREACH_PRESENT_RX wording class specifically (real
-      // register-verified claim-authenticity duties phrase it exactly this way) - must clear.
       { duty: 'Only claim regulator membership that is actually held (the breach is a false membership claim being present)', elements: ['x'], evidence_type: 'register' },
-    ],
+    ] },
+    disclosureMistyped: { id: 'CAL_SELFTEST_DISCLOSURE_ABSENCE', website_obligations: [{ duty: "Label advertising 'Attorney Advertising' on the home page as the rule requires", elements: ["'Attorney Advertising' on the website home page"], evidence_type: 'absence' }] },
+    disclosureCorrect: { id: 'CAL_SELFTEST_DISCLOSURE_PRESENCE', website_obligations: [{ duty: "Label advertising 'Attorney Advertising' on the home page as the rule requires", elements: ["'Attorney Advertising' on the website home page"], evidence_type: 'presence' }] },
+    prohibitionQuotedExamples: { id: 'CAL_SELFTEST_PROHIBIT_QUOTED_EXAMPLE', website_obligations: [{ duty: "Do not advertise a prescription only medicine; remove indirect references (e.g. 'wrinkle-relaxing injections', 'fat jab')", elements: ['no POM brand or generic name in public copy'], evidence_type: 'absence' }] },
+    legacyBad: { id: 'CAL_LEGACY', style: 'prohibit', regex_pattern: 'we (ask for|obtain) your consent before (setting|placing)( any)? cookies' },
   };
-  const legacyBad = { id: 'CAL_LEGACY', style: 'prohibit', regex_pattern: 'we (ask for|obtain) your consent before (setting|placing)( any)? cookies' };
+}
 
-  const invertedF = checkComRecord(inverted, 'selftest');
-  const invertedBreachPresentF = checkComRecord(invertedBreachPresent, 'selftest');
-  const invertedReqF = checkComRecord(invertedRequirement, 'selftest');
-  const negF = checkComRecord(negationGuard, 'selftest');
-  const goodF = checkComRecord(good, 'selftest');
-  const legacyF = checkLegacyRecord(legacyBad, 'selftest');
+function selfTest() {
+  const r = selfTestRecords();
+  const invertedF = checkComRecord(r.inverted, 'selftest');
+  const invertedBreachPresentF = checkComRecord(r.invertedBreachPresent, 'selftest');
+  const invertedReqF = checkComRecord(r.invertedRequirement, 'selftest');
+  const negF = checkComRecord(r.negationGuard, 'selftest');
+  const goodF = checkComRecord(r.good, 'selftest');
+  const disclosureMistypedF = checkComRecord(r.disclosureMistyped, 'selftest');
+  const disclosureCorrectF = checkComRecord(r.disclosureCorrect, 'selftest');
+  const prohibitionQuotedF = checkComRecord(r.prohibitionQuotedExamples, 'selftest');
+  const legacyF = checkLegacyRecord(r.legacyBad, 'selftest');
 
   const pass = invertedF.some((f) => f.rule === 'polarity-prohibition-mismatch')
     && invertedBreachPresentF.some((f) => f.rule === 'polarity-prohibition-mismatch')
     && invertedReqF.some((f) => f.rule === 'polarity-requirement-mismatch')
     && negF.some((f) => f.rule === 'negation-guard-needed')
     && goodF.length === 0
+    && disclosureMistypedF.some((f) => f.rule === 'polarity-required-disclosure-mistyped')
+    && disclosureCorrectF.length === 0
+    && prohibitionQuotedF.length === 0
     && legacyF.some((f) => f.rule === 'legacy-polarity-inverted');
 
   return {
     pass,
     detail: pass
-      ? 'catches an inverted prohibition, the "breach ... being present" wording class, an inverted requirement, a negation-guard case, the legacy inverted-consent class, and clears correctly-typed duties'
-      : 'FAILED one or more self-test cases: ' + JSON.stringify({ invertedF, invertedBreachPresentF, invertedReqF, negF, goodF, legacyF }),
+      ? 'catches an inverted prohibition, the "breach ... being present" wording class, an inverted requirement, a negation-guard case, a required-disclosure mistyped "absence", and the legacy inverted-consent class; clears correctly-typed duties and a prohibition that quotes forbidden examples'
+      : 'FAILED one or more self-test cases: ' + JSON.stringify({ invertedF, invertedBreachPresentF, invertedReqF, negF, goodF, disclosureMistypedF, disclosureCorrectF, prohibitionQuotedF, legacyF }),
   };
 }
 
@@ -254,4 +344,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { PROHIBITION_RX, BREACH_PRESENT_RX, REQUIREMENT_RX, SELF_DECLARATION_RX, LEGACY_COMPLIANT_CONSENT_RX, checkComRecord, checkLegacyRecord, scan, selfTest, toFindings };
+module.exports = { PROHIBITION_RX, BREACH_PRESENT_RX, REQUIREMENT_RX, SELF_DECLARATION_RX, LEGACY_COMPLIANT_CONSENT_RX, DISCLOSURE_VERB_RX, checkComRecord, checkLegacyRecord, checkRequiredDisclosureMistype, isRequiredDisclosureMistyped, scan, selfTest, toFindings };

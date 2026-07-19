@@ -73,8 +73,8 @@ const CALIBRATIONS = [
   },
   {
     name: 'catalogue-polarity',
-    description: 'polarity-inverted rule: prohibit-style regex that matches compliant wording',
-    fixtures: ['rule-polarity-inverted.json', 'p2-polarity-inverted.json'],
+    description: 'polarity-inverted rule: prohibit-style regex that matches compliant wording; and a required disclosure ("Attorney Advertising" label class) mistyped evidence_type "absence", which false-accuses the compliant firm that shows the disclosure (caution.md C-046/C-048, CATALOGUE-VERIFICATION-2026-07-19.md)',
+    fixtures: ['rule-polarity-inverted.json', 'p2-polarity-inverted.json', 'p2-required-disclosure-as-absence.json'],
     checkerCandidates: [
       'catalogue/linters/polarity.js',
       'tools/catalogue-lint/polarity.js',
@@ -170,6 +170,13 @@ const CALIBRATIONS = [
       'the adjudicator is filter-only (Rule 11 / C-083): a hostile llmCall that tries to inject a fabricated finding and clear a real one with an unproven no_breach must be structurally incapable of doing either; self-driving fixture drives breach/adjudicator/adjudicate.js against a scripted hostile llmCall',
     fixtures: ['p3-adjudicator-invented-finding.js'],
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-adjudicator-invented-finding.js'],
+  },
+  {
+    name: 'required-disclosure-breach',
+    description:
+      'a required disclosure retyped presence (the New York "Attorney Advertising" label): propose.js must NOT breach a compliant page that SHOWS the disclosure (the false accusation is gone) and MUST breach a page that omits it (the real violation is caught); the old "absence" typing false-accuses the compliant page (caution.md C-046/C-048, CATALOGUE-VERIFICATION-2026-07-19.md, Rule 3); self-driving fixture drives breach/proposers/propose.js against the shipped NY_RPC_7_1 record',
+    fixtures: ['p3-required-disclosure-breach.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-required-disclosure-breach.js'],
   },
   {
     name: 'host-substring',

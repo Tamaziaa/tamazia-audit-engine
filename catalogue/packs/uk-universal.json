@@ -144,7 +144,9 @@
    ],
    "excluded_when": [
     "only strictly necessary cookies are set (session, security, load balancing, cart)",
-    "marketing sent only to existing customers about similar products where the soft opt-in and an easy unsubscribe are both satisfied (reg 22(3))"
+    "marketing sent only to existing customers about similar products where the soft opt-in and an easy unsubscribe are both satisfied (reg 22(3))",
+    "(UK only) first-party statistical or analytics storage or access whose sole purpose is measuring how this site or service is used in order to improve it, where the collected information is not shared with any third party except a processor assisting those improvements, the technology does not rely on device fingerprinting (information automatically emitted by the device), and the site gives clear and comprehensive information and a simple means, free of charge, to object (PECR Schedule A1 para 5, inserted by the Data (Use and Access) Act 2025, in force 5 February 2026; no equivalent under EU or French PECR)",
+    "(UK only) storage or access whose sole purpose is adapting this site's appearance or functionality to the user's preferences, on the same clear-information and simple free-of-charge objection basis (PECR Schedule A1 para 6, inserted by the Data (Use and Access) Act 2025)"
    ],
    "website_obligations": [
     {

@@ -9,7 +9,7 @@
    "citation": {
     "act": "ABA Model Rules of Professional Conduct (advisory model; adopted with variation by each state bar / state supreme court)",
     "section": "Rule 7.1",
-    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communications_concerning_a_lawyer_s_services/"
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_1_communication_concerning_a_lawyer_s_services/"
    },
    "jurisdiction": "US",
    "sub_jurisdiction": null,
@@ -56,7 +56,7 @@
       "'prior results do not guarantee a similar outcome' or equivalent, visible near the results/testimonial content",
       "results stated with enough context that they are not misleading"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
     }
    ],
    "penalty": {
@@ -129,7 +129,7 @@
       "identifiable responsible lawyer or firm name",
       "contact information (address, telephone or email) for the responsible lawyer or firm shown on the site"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
     },
     {
      "duty": "Do not give anything of value for a recommendation of the lawyer's services except payment for permitted advertising, a qualified lawyer referral service, or a reciprocal referral arrangement that is disclosed and non-exclusive",
@@ -184,7 +184,7 @@
    "citation": {
     "act": "ABA Model Rules of Professional Conduct (advisory; adopted per state)",
     "section": "Rule 7.3",
-    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_3_solicitation_of_clients/"
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_7_3_direct_contact_with_prospective_clients/"
    },
    "jurisdiction": "US",
    "sub_jurisdiction": null,
@@ -226,7 +226,7 @@
      "elements": [
       "required advertising label on targeted solicitations in states that mandate it"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
     }
    ],
    "penalty": {
@@ -379,7 +379,7 @@
      "elements": [
       "office/lawyer admission limitations shown where the name or content implies broader admission"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
     }
    ],
    "penalty": {
@@ -523,13 +523,13 @@
    ],
    "website_obligations": [
     {
-     "duty": "Place a clear, understandable warning at the point of submission that reading the site or sending information does not create an attorney-client relationship and that submitted information may not be treated as confidential until an engagement is agreed",
+     "duty": "Place a clear, understandable warning at the point of submission that reading the site or sending information does not create an attorney-client relationship and that submitted information might not be treated as confidential until an engagement is agreed",
      "elements": [
       "'submitting this form / this website does not create an attorney-client relationship' near the submit control",
       "a caution that the firm may already represent an adverse party, or that confidentiality is not guaranteed until conflicts are cleared",
       "warning is clear and reasonably understandable, not buried in a footer only"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
     }
    ],
    "penalty": {
@@ -842,7 +842,7 @@
       "'ATTORNEY ADVERTISING' in the subject line of advertising emails",
       "label on self-mailing solicitation pieces"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
     },
     {
      "duty": "Keep advertising truthful and non-misleading and retain a copy of each advertisement for the period the rule requires (Rule 7.1(k), generally at least one year for web content and three years for other ads)",
@@ -917,12 +917,19 @@
    ],
    "website_obligations": [
     {
-     "duty": "Solicitations must be labelled and retained per Rule 7.3 and must not be made where prohibited (e.g. within the post-incident window New York imposes for certain personal-injury solicitations)",
+     "duty": "Label targeted solicitations as Rule 7.3 requires",
      "elements": [
-      "required 'Attorney Advertising' labelling on solicitations",
-      "respect for the personal-injury solicitation waiting period"
+      "required 'Attorney Advertising' labelling on solicitations"
      ],
-     "evidence_type": "absence"
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Retain a copy of each solicitation per Rule 7.3, and do not make a solicitation where prohibited (e.g. within the post-incident window New York imposes for certain personal-injury solicitations)",
+     "elements": [
+      "respect for the personal-injury solicitation waiting period",
+      "copy of each solicitation retained per Rule 7.3"
+     ],
+     "evidence_type": "behavioural"
     },
     {
      "duty": "Do not state or imply certification as a specialist unless certified by an approved body, and give the required disclaimer (Rule 7.4)",
