@@ -22,9 +22,9 @@ labelled_breaches:
     url: "https://ask4sam.net/"
     note: "hero claims '$1 Billion Recovered'; zero matches for 'attorney advertising' on homepage, /disclaimer/ or /testimonials/ (NY Rule of Professional Conduct 7.1 attorney-advertising label)."
   - law_id: NY_RPC_7_1
-    quote_substring: "prior results do not guarantee a similar outcome"
+    quote_substring: "Real client results from real cases"
     url: "https://ask4sam.net/testimonials/"
-    note: "results claims and client testimonials present; zero matches for the required disclaimer text across homepage/disclaimer/testimonials."
+    note: "quote_substring is the TRIGGERING page text (the results/testimonials claim itself, present and captured in the fixture), not the missing disclaimer - the required disclaimer text is by definition absent from the page, so it can never appear as evidence in a violation finding and must not be used as the match target (CodeRabbit PR #32). The absence claim (zero matches for the required NY RPC 7.1 disclaimer across homepage/disclaimer/testimonials) is the note's own coverage statement, not a machine-matchable quote."
 applicable_law_ids:
   - NY_RPC_7_1
 known_clean_laws: []

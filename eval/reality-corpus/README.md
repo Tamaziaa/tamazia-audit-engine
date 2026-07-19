@@ -36,7 +36,7 @@ applicable_law_ids: [ "UK_SRA_TRANSPARENCY", ... ]   # every catalogue law_id th
                                                       # assessed against (used for applicability recall)
 labelled_breaches:
   - law_id: UK_SRA_TRANSPARENCY
-    quote_substring: "<verbatim or near-verbatim text a human captured from the live page, or null>"
+    quote_substring: "<verbatim text a human captured from the live page - REQUIRED, must not be null/empty>"
     url: "https://..."
     note: "<what a human verified, and how>"
 known_clean_laws: [ "UK_EQUALITY_ACCESSIBILITY" ]    # laws that apply but the firm is CLEAN on -
@@ -44,14 +44,25 @@ known_clean_laws: [ "UK_EQUALITY_ACCESSIBILITY" ]    # laws that apply but the f
                                                       # false accusation, full stop
 known_regression: "<the specific engine defect this site is known to trigger, dated and code-referenced>"
 source: "EMPIRICAL-BREACH-AUDITS/<file>.md#<anchor>"
-snapshot_source: manual-transcription | synthetic
+snapshot_source: manual-transcription | captured | synthetic
 ```
+
+`quote_substring` is machine-verified by a case-insensitive **substring** match against the finding's
+captured evidence text (`lib/metrics.js`'s `findingQuoteText()` - `evidence_quote`, then
+`artifact.text`/`snippet`/`quote`; a bare `artifact.host`/`url` is deliberately excluded, CodeRabbit PR
+#32) - it must be text that genuinely appears verbatim on the page, not a paraphrase ("near-verbatim"
+was the old, looser wording; a paraphrase will simply never match). `run.js --lint` now REQUIRES a
+non-empty `quote_substring` on every `labelled_breaches` entry ("no artifact, no breach", Constitution
+Rule 3): a law with only a summary claim and no verbatim quote belongs in `applicable_law_ids` (still
+scored for applicability recall / false-accusation coverage), not in `labelled_breaches`.
 
 `known_clean_laws` is how the NEGATIVE half of the brief is represented: near-clean and out-of-scope
 sites are corpus members with `labelled_breaches: []` and a non-empty `known_clean_laws`/expectation
 that nothing binds outside the universal set. `role: negative-near-clean` /
 `role: negative-out-of-scope` mark these explicitly (see `conveyancingdirect.yml` and
-`synthetic-out-of-scope-plumber.yml`).
+`synthetic-out-of-scope-plumber.yml`). `run.js --lint` ENFORCES the non-empty part for these two roles
+(CodeRabbit PR #32): `known_clean_laws: []` on a negative-role site would let it pass lint while never
+actually exercising the false-accusation guard it exists for - a vacuous green.
 
 YAML is parsed by a small hand-rolled subset parser, `eval/reality-corpus/lib/yaml.js` (block mappings,
 block sequences, scalars, flow-style `[]`/`{}` for empty collections, comments - documented scope limit
@@ -88,7 +99,7 @@ node eval/reality-corpus/run.js --lint          # validate corpus YAML only, no 
 node eval/reality-corpus/run.js                 # human-readable scorecard, process.exit(0|1) per budgets.json
 node eval/reality-corpus/run.js --json           # machine-readable scorecard
 node eval/reality-corpus/run.js --site botoxclinic
-node --test eval/reality-corpus/                # the harness's OWN unit tests (yaml.js, metrics.js)
+node --test "eval/reality-corpus/**/*.test.js"  # the harness's OWN unit tests (yaml.js, metrics.js, run.js)
 ```
 
 For each site with a captured snapshot (`eval/reality-corpus/fixtures/<slug>.json`), `run.js` calls the
@@ -130,14 +141,14 @@ seed site (a `--capture` mode against the live `evidence/` lanes, persistence st
 binding reflects the real page rather than an excerpt. Until then this file states the limitation on
 every read, and `budgets.json`'s baseline is set to the current honest number, not an aspirational one.
 
-## 4. The honest baseline (2026-07-20, engine-v2.1.5-p4)
+## 4. The honest baseline (2026-07-20, engine-v2.1.6-p4)
 
 ```
 sites: 13 ran, 0 skipped, 0 errored
 sector: accuracy 83.3%, refusal_rate 16.7% (2/12 abstained)              <- FAILS budget (max 0)
-jurisdiction: establishment recall avg 30.8%, wrong-attach total 0       <- PASSES budget (max 0)
-applicability: recall avg 28.2%, catalogue gaps 2
-breach: coverage-adjusted recall 0.0% (0/18 assessable of 19 labelled)   <- at floor baseline (min 0)
+jurisdiction: establishment recall avg 38.5%, wrong-attach total 0       <- PASSES budget (max 0)
+applicability: recall avg 35.9%, catalogue gaps 2
+breach: coverage-adjusted recall 0.0% (0/18 assessable of 18 labelled)   <- at floor baseline (min 0)
 FALSE ACCUSATIONS: 0                                                     <- PASSES budget (max 0)
 RESULT: FAIL (sector.refusal_rate 0.167 > max 0)
 ```
@@ -150,6 +161,18 @@ of thirteen sites abstain sector on their captured snapshots today, which alone 
 to state honestly. `budgets.json`'s `coverage_adjusted_recall_min` is deliberately pinned at `0` (not the
 observed `0.0` value dressed up as a target) so a future PR cannot make recall structurally *worse* while
 still reading as "meets baseline" - see `budgets.json`'s own `_comment` and `baseline_history[]`.
+
+**PR #32 follow-up pass (same date, before merge):** jurisdiction establishment recall avg moved
+30.8% -> 38.5% and applicability recall avg moved 28.2% -> 35.9%, both genuine improvements, not
+re-baselining noise - `synthetic-out-of-scope-plumber.yml`'s fixture previously stated a bare company
+number and a partial address with no "Companies House" wording (CodeRabbit PR #32 flagged this as
+under-evidenced for its own Tier-A UK establishment label); with that evidence corrected,
+`facts/jurisdiction.js` now genuinely binds UK for that site (it previously bound nothing at all),
+which also lets its applicable universal UK records attach. `breach.labelled_total` moved 19 -> 18
+because `damiradental.yml`'s one `quote_substring: null` entry (deliberately unassessable, by its own
+prior note) is now REMOVED rather than exempted: `run.js --lint` requires a non-empty `quote_substring`
+on every `labelled_breaches` entry (see section 1), so an unverifiable breach claim is no longer
+representable at all - it stays in `applicable_law_ids` and is still scored there.
 
 ## 5. Budgets and CI wiring
 
@@ -172,15 +195,20 @@ alongside a red reality-corpus run is not thereby blocked from other work, but a
 score REDDER (a lower recall than the recorded baseline, a new false accusation, a new refusal) must be
 treated as a regression the same way a green-to-red flip on any other gate would be.
 
-Suggested wiring (`.github/workflows/reality-corpus.yml`, alongside the existing 14-gate engine fleet in
-`.github/workflows/ci.yml`): run `node eval/reality-corpus/run.js --lint` as a required, blocking check
-(a malformed corpus file is a real bug in this harness's own inputs); run
-`node eval/reality-corpus/run.js --json` as an **informational** step whose JSON output is uploaded as a
-build artifact and diffed against the previous run's summary - a strictly worse `coverage_adjusted_recall`,
-any `false_accusations_total > 0`, or a higher `sector.refusal_rate` fails that step; an improvement is
-logged with instructions to bump `budgets.json`'s `baseline_history[]`. This mirrors the existing
-`tools/history-regression/check.js` pattern (compare against a recorded baseline, ratchet forward, never
-silently backward).
+Actual wiring (`.github/workflows/reality-corpus.yml`, alongside the existing 14-gate engine fleet in
+`.github/workflows/ci.yml`): `node eval/reality-corpus/run.js --lint` and `node --test
+"eval/reality-corpus/**/*.test.js"` are required, BLOCKING checks (a malformed corpus file or a broken
+harness unit is a real bug in this gate's own inputs/machinery, not a fact about the engine under test).
+`node eval/reality-corpus/run.js --json` is the **informational** step: `continue-on-error: true` so its
+exit code never fails the job, its JSON is uploaded as a build artifact, its human-readable form is
+written to the job summary, and the workflow's own regression comparison IS `evaluateBudgets()` against
+`budgets.json`'s current numbers (the recorded baseline) - the CI annotation names every specific budget
+missed (`verdict.failures[]`), not a generic "something regressed" line, so the reviewer sees the exact
+regression without opening the artifact. This mirrors the existing `tools/history-regression/check.js`
+pattern (compare against a recorded baseline, ratchet forward via a dated `baseline_history[]` entry,
+never silently backward) while staying strictly non-blocking on THIS gate, per this workflow's own
+header comment: a truthful red reality-corpus number must never be the thing that blocks a PR, only a
+malformed corpus/harness input may.
 
 ## 6. Adding a site
 

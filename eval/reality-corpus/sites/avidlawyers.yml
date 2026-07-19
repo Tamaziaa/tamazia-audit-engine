@@ -27,7 +27,6 @@ labelled_breaches:
     note: "homepage fee statement; zero fee/cost/expense disclosure content on the linked /about-us/ target page (FL Bar Rule 4-7.14(a)(5))."
 applicable_law_ids:
   - FL_BAR_4_7_CONTENT
-  - FL_BAR_4_7_CONTENT
   - US_COPPA
 known_clean_laws: []
 known_regression: "sector CORRECTLY resolves law-firms/solicitors via the domain-self-identity override ('avidlawyers' contains 'lawyers'), the one site of three in legal-us.md where sector was not the blocker. jurisdiction wave-1 REFUSED (facts/jurisdiction.js could not bind despite the on-page office address, compounded by the site's own broken JSON-LD); engine-v2.1.5-p4 (#28) fixes this and binds US/FL, and the retest additionally caught 2 US_COPPA confident pre-consent violations plus 18 ADA findings on this run. Both FL_BAR records are still EXCLUDED at gate-6 (established_in nexus): an on-page office address is Tier-A for jurisdiction but the catalogue's established_in gate wants a bar number or registered office, which this firm does not publish. This is the gate-6 established_in nexus gap (RETEST-2026-07-19.md blocker #3), not a sector-abstain case, so avidlawyers is the corpus's positive control proving the sector fix alone is not sufficient."

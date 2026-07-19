@@ -18,11 +18,15 @@ audience:
     basis: "UK dental chain"
 sector_paths:
   - healthcare.dental
-labelled_breaches:
-  - law_id: UK_PECR_COOKIES_MARKETING
-    quote_substring: null
-    url: "https://damiradental.co.uk/"
-    note: "RETEST-2026-07-19.md reports '14 UK_PECR_COOKIES_MARKETING violations at voice_tier: confident, each on a real captured network_event' but does not transcribe the specific cookie/property id for this site (only an aggregate count). quote_substring is deliberately left null: this entry is EXCLUDED from breach coverage-adjusted recall scoring (no quote-level label to verify against) and is used only as a sector/jurisdiction/false-accusation reference point, not a precision claim."
+labelled_breaches: []
+# UK_PECR_COOKIES_MARKETING: RETEST-2026-07-19.md reports "14 UK_PECR_COOKIES_MARKETING violations at
+# voice_tier: confident, each on a real captured network_event" but does not transcribe the specific
+# cookie/property id for this site (only an aggregate count). Per run.js's lintSite() ("no artifact, no
+# breach", Constitution Rule 3; CodeRabbit PR #32) a labelled_breaches entry now REQUIRES a verbatim
+# quote_substring, so this claim is NOT listed as a labelled_breaches row (it was previously carried
+# with quote_substring: null, explicitly excluded from scoring) - it stays in applicable_law_ids below,
+# so this site is still assessed for applicability recall and remains available as a false-accusation
+# reference point, just not as an (unverifiable) breach-coverage claim.
 applicable_law_ids:
   - UK_PECR_COOKIES_MARKETING
   - UK_GDC_ADVERTISING

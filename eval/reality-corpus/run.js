@@ -42,7 +42,8 @@
 //       instruction to keep the corpus scorecard separate from the green fleet); a CI step that runs
 //       this file is EXPECTED to go red while the sector-abstain regression is unfixed, and that red is
 //       the entire point of building this gate.
-//   2 = usage/data error (bad YAML, missing fixture set entirely, budgets.json unreadable)
+//   2 = usage/data error (bad YAML, missing fixture set entirely, budgets.json unreadable/malformed,
+//       compiled catalogue empty/unreadable)
 
 const fs = require('fs');
 const path = require('path');
@@ -80,53 +81,79 @@ function loadFixture(slug) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-// lintSite(site) -> [error strings]. Validates the corpus format described in the README without
-// running the engine - the fast check a corpus-authoring PR can run before the full gate.
-function lintSite(site) {
+// --- lintSite() internals, decomposed for CodeScene (each check below is independent and flat) ---
+
+const REQUIRED_SITE_FIELDS = ['slug', 'domain', 'sector_paths', 'source', 'snapshot_source'];
+// role values whose sole purpose is a false-accusation/wrong-attach control (README section 1) - a
+// negative-role site that asserts NOTHING (known_clean_laws: []) can never actually exercise that
+// guard, which is a vacuous green (CodeRabbit PR #32).
+const NEGATIVE_ROLES = new Set(['negative-near-clean', 'negative-out-of-scope']);
+
+function lintRequiredFields(site) {
   const errors = [];
-  const required = ['slug', 'domain', 'sector_paths', 'source', 'snapshot_source'];
-  for (const key of required) if (!(key in site) || site[key] == null) errors.push('missing required field: ' + key);
-  if (!Array.isArray(site.establishment) || site.establishment.length === 0) errors.push('establishment[] must be a non-empty array');
-  if (!Array.isArray(site.labelled_breaches)) errors.push('labelled_breaches must be an array (use [] for a clean/negative site)');
-  for (const lb of (site.labelled_breaches || [])) {
-    if (!lb.law_id) errors.push('a labelled_breaches entry has no law_id');
-  }
-  if (!Array.isArray(site.known_clean_laws)) errors.push('known_clean_laws must be an array (use [] if none)');
+  for (const key of REQUIRED_SITE_FIELDS) if (!(key in site) || site[key] == null) errors.push('missing required field: ' + key);
   return errors;
 }
 
-async function runOneSite(site, catalogueRecords, catalogueIds) {
-  const fixture = loadFixture(site.slug);
-  if (!fixture) {
-    return { slug: site.slug, domain: site.domain, status: 'skipped_no_snapshot' };
+function lintEstablishment(site) {
+  if (!Array.isArray(site.establishment) || site.establishment.length === 0) return ['establishment[] must be a non-empty array'];
+  return [];
+}
+
+// A labelled_breaches entry with no quote_substring can never be machine-verified against a captured
+// snapshot (metrics.js's breachCoverage() would otherwise accept ANY violation on that law_id as
+// "reproduced") - "no artifact, no breach" (Constitution Rule 3; CodeRabbit PR #32). A corpus author
+// with only an aggregate/summary claim and no verbatim quote should list the law in applicable_law_ids
+// (still scored for applicability recall / false-accusation coverage) and leave it out of
+// labelled_breaches, rather than assert an unverifiable breach-coverage claim.
+function lintLabelledBreaches(site) {
+  if (!Array.isArray(site.labelled_breaches)) return ['labelled_breaches must be an array (use [] for a clean/negative site)'];
+  const errors = [];
+  for (const lb of site.labelled_breaches) {
+    if (!lb.law_id) { errors.push('a labelled_breaches entry has no law_id'); continue; }
+    if (!lb.quote_substring) {
+      errors.push('labelled_breaches entry for ' + lb.law_id + ' has no quote_substring - "no artifact, no breach" '
+        + '(Constitution Rule 3); capture a verbatim quote or drop the entry (it may still be listed in applicable_law_ids)');
+    }
   }
+  return errors;
+}
 
-  let factsSector;
-  let factsJurisdiction;
-  let applicability;
-  let pipelineResult;
-  try {
-    factsSector = sector.resolveSector(fixture);
-    factsJurisdiction = jurisdiction.resolveJurisdiction(fixture);
-    const factsIdentity = identity.resolveIdentity(fixture);
-    applicability = connect({ identity: factsIdentity, jurisdiction: factsJurisdiction, sector: factsSector }, catalogueRecords);
-  } catch (e) {
-    // FAIL-CLOSED (Constitution Rule 4): a facts/applicability door throwing on this site is recorded
-    // as an errored site, never silently treated as "abstained" or "clean" - both would understate a
-    // real defect. Rethrown detail is kept on the row for the human-readable report.
-    return { slug: site.slug, domain: site.domain, status: 'error', error: 'facts/applicability threw: ' + e.message };
+function lintKnownCleanLaws(site) {
+  if (!Array.isArray(site.known_clean_laws)) return ['known_clean_laws must be an array (use [] if none)'];
+  if (NEGATIVE_ROLES.has(site.role) && site.known_clean_laws.length === 0) {
+    return ['role: ' + site.role + ' is a negative-control site and must list at least one law in known_clean_laws '
+      + '(otherwise the false-accusation guard this site exists for is never exercised)'];
   }
+  return [];
+}
 
-  try {
-    pipelineResult = await runPipeline(site.domain, fixture, { catalogueRecords });
-  } catch (e) {
-    return { slug: site.slug, domain: site.domain, status: 'error', error: 'breach pipeline threw: ' + e.message };
-  }
+// lintSite(site) -> [error strings]. Validates the corpus format described in the README without
+// running the engine - the fast check a corpus-authoring PR can run before the full gate.
+function lintSite(site) {
+  return [
+    ...lintRequiredFields(site),
+    ...lintEstablishment(site),
+    ...lintLabelledBreaches(site),
+    ...lintKnownCleanLaws(site),
+  ];
+}
 
-  const applicableIds = applicability.applicable.map((r) => r.id || r.record_id).filter(Boolean);
-  const boundJurisdictions = (factsJurisdiction.bound || []).map((b) => b && b.jurisdiction).filter(Boolean);
+// --- runOneSite() internals, decomposed for CodeScene ---
 
-  const sectorStatus = metrics.sectorTop1(site, factsSector && factsSector.value, (id) => sector.familyOf(SECTOR_TREE, id));
+function resolveFactsAndApplicability(fixture, catalogueRecords) {
+  const factsSector = sector.resolveSector(fixture);
+  const factsJurisdiction = jurisdiction.resolveJurisdiction(fixture);
+  const factsIdentity = identity.resolveIdentity(fixture);
+  const applicability = connect({ identity: factsIdentity, jurisdiction: factsJurisdiction, sector: factsSector }, catalogueRecords);
+  return { factsSector, factsJurisdiction, applicability };
+}
+
+function scoreSite(site, facts, pipelineResult, catalogueIds) {
+  const applicableIds = facts.applicability.applicable.map((r) => r.id || r.record_id).filter(Boolean);
+  const boundJurisdictions = (facts.factsJurisdiction.bound || []).map((b) => b && b.jurisdiction).filter(Boolean);
+
+  const sectorStatus = metrics.sectorTop1(site, facts.factsSector && facts.factsSector.value, (id) => sector.familyOf(SECTOR_TREE, id));
   const jurisdictionResult = metrics.jurisdictionEstablishmentBind(site, boundJurisdictions);
   const applicabilityResult = metrics.applicabilityRecall(site, applicableIds, catalogueIds);
   const breachResult = metrics.breachCoverage(site, pipelineResult.payload.findings, pipelineResult.breachLaneComplete);
@@ -137,13 +164,39 @@ async function runOneSite(site, catalogueRecords, catalogueIds) {
     domain: site.domain,
     role: site.role || 'train',
     status: 'ran',
-    sector: { status: sectorStatus, emitted: factsSector && factsSector.value, confidence: factsSector && factsSector.confidence },
+    sector: { status: sectorStatus, emitted: facts.factsSector && facts.factsSector.value, confidence: facts.factsSector && facts.factsSector.confidence },
     jurisdiction: jurisdictionResult,
     applicability: applicabilityResult,
     breach: breachResult,
     false_accusations: falseAccusationHits,
     breach_lane_complete: pipelineResult.breachLaneComplete,
   };
+}
+
+async function runOneSite(site, catalogueRecords, catalogueIds) {
+  const fixture = loadFixture(site.slug);
+  if (!fixture) {
+    return { slug: site.slug, domain: site.domain, status: 'skipped_no_snapshot' };
+  }
+
+  let facts;
+  try {
+    facts = resolveFactsAndApplicability(fixture, catalogueRecords);
+  } catch (e) {
+    // FAIL-CLOSED (Constitution Rule 4): a facts/applicability door throwing on this site is recorded
+    // as an errored site, never silently treated as "abstained" or "clean" - both would understate a
+    // real defect. Rethrown detail is kept on the row for the human-readable report.
+    return { slug: site.slug, domain: site.domain, status: 'error', error: 'facts/applicability threw: ' + e.message };
+  }
+
+  let pipelineResult;
+  try {
+    pipelineResult = await runPipeline(site.domain, fixture, { catalogueRecords });
+  } catch (e) {
+    return { slug: site.slug, domain: site.domain, status: 'error', error: 'breach pipeline threw: ' + e.message };
+  }
+
+  return scoreSite(site, facts, pipelineResult, catalogueIds);
 }
 
 function aggregate(rows) {
@@ -201,14 +254,41 @@ function aggregate(rows) {
   };
 }
 
-function loadBudgets() {
-  return JSON.parse(fs.readFileSync(BUDGETS_PATH, 'utf8'));
+const REQUIRED_BUDGET_KEYS = ['false_accusations_max', 'sector_refusal_rate_max', 'coverage_adjusted_recall_min', 'jurisdiction_wrong_attach_max'];
+
+// loadBudgets() -> the parsed, SCHEMA-VALIDATED budgets.json. Fails closed (throws) on a missing key or
+// a non-finite value rather than letting evaluateBudgets() silently skip a check against `undefined`
+// (CodeRabbit PR #32) - BUDGETS_PATH is this file's own fixed, hardcoded constant, never
+// request/argv-derived, so there is no path-traversal surface here despite the generic ast-grep
+// non-literal-fs-filename warning on this line (a static, file-local false positive: see the PR reply).
+// budgetsPath is optional (defaults to BUDGETS_PATH) purely for direct unit testing of the schema
+// validation below against a known-bad document (run.test.js) - mirrors eval/e2e/lib/catalogue-
+// records.js's loadCatalogueRecords(catalogueVPath), the same optional-path-for-testability shape.
+function loadBudgets(budgetsPath) {
+  const p = budgetsPath || BUDGETS_PATH;
+  const budgets = JSON.parse(fs.readFileSync(p, 'utf8'));
+  for (const key of REQUIRED_BUDGET_KEYS) {
+    if (typeof budgets[key] !== 'number' || !Number.isFinite(budgets[key])) {
+      throw new Error('eval/reality-corpus/budgets.json: "' + key + '" must be a finite number, got ' + JSON.stringify(budgets[key]));
+    }
+  }
+  return budgets;
 }
 
 // evaluateBudgets(summary, budgets) -> {pass: bool, failures: [string]}. Every failure names the exact
 // number and the exact budget it missed - the gate must never fail silently or fail vaguely.
 function evaluateBudgets(summary, budgets) {
   const failures = [];
+  // Vacuous-green guards (CodeRabbit PR #32): with zero ran sites every avg/recall metric below is
+  // `null` and every budget check against a `null` is skipped, which would otherwise let a fully broken
+  // run (fixtures directory missing, every site erroring) report PASS with no real signal behind it.
+  if (summary.sites_ran === 0) {
+    failures.push('sites_ran is 0 - no site produced a scoreable result; a scorecard with nothing scored is not a pass');
+  }
+  if (summary.sites_errored > 0) {
+    failures.push('sites_errored ' + summary.sites_errored + ' > 0 - an errored site is a harness/engine defect, not data, '
+      + 'and must not be silently excluded from the other metrics\' denominators (see each row\'s own "error" detail)');
+  }
   if (summary.false_accusations_total > budgets.false_accusations_max) {
     failures.push('false_accusations_total ' + summary.false_accusations_total + ' > max ' + budgets.false_accusations_max + ' (HARD, Constitution Rule 3/10, Kimi blueprint section 3.4)');
   }
@@ -235,13 +315,23 @@ function formatRow(r) {
   return r.slug.padEnd(28) + ('sector:' + sec).padEnd(18) + ('jur:' + jur).padEnd(10) + ('appl:' + app).padEnd(11) + ('breach:' + brc).padEnd(28) + fa;
 }
 
-async function main(argv) {
-  const args = argv.slice(2);
-  const jsonOut = args.includes('--json');
-  const lintOnly = args.includes('--lint');
-  const siteIdx = args.indexOf('--site');
-  const onlySlug = siteIdx >= 0 ? args[siteIdx + 1] : null;
+function fmtPct(v) {
+  return v === null ? 'n/a' : (v * 100).toFixed(1) + '%';
+}
 
+// --- main() internals, decomposed for CodeScene (main() itself is now a straight-line composition) ---
+
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const siteIdx = args.indexOf('--site');
+  return {
+    jsonOut: args.includes('--json'),
+    lintOnly: args.includes('--lint'),
+    onlySlug: siteIdx >= 0 ? args[siteIdx + 1] : null,
+  };
+}
+
+function loadRequestedSites(onlySlug) {
   let sites;
   try {
     sites = loadSites();
@@ -254,60 +344,90 @@ async function main(argv) {
     console.error('eval/reality-corpus/run.js: no corpus sites matched (onlySlug=' + onlySlug + ')');
     process.exit(2);
   }
+  return sites;
+}
 
-  if (lintOnly) {
-    let anyError = false;
-    for (const site of sites) {
-      const errors = lintSite(site);
-      if (errors.length > 0) {
-        anyError = true;
-        console.error(site.slug + ':');
-        for (const e of errors) console.error('  - ' + e);
-      }
-    }
-    if (anyError) process.exit(2);
-    console.log('eval/reality-corpus: ' + sites.length + ' corpus file(s) lint clean.');
-    process.exit(0);
-    return;
+function runLintOnly(sites) {
+  let anyError = false;
+  for (const site of sites) {
+    const errors = lintSite(site);
+    if (errors.length === 0) continue;
+    anyError = true;
+    console.error(site.slug + ':');
+    for (const e of errors) console.error('  - ' + e);
   }
+  if (anyError) process.exit(2);
+  console.log('eval/reality-corpus: ' + sites.length + ' corpus file(s) lint clean.');
+  process.exit(0);
+}
 
+// loadCatalogueOrExit() -> {catalogueRecords, catalogueIds}, exiting (2) on an empty/unreadable
+// compiled catalogue rather than silently scoring applicability/breach coverage against `[]`
+// (CodeRabbit PR #32). loadCatalogueRecords() itself stays fail-open (its own written justification,
+// eval/e2e/lib/catalogue-records.js: shared by the whole e2e fleet, degrades to [] on purpose so a
+// missing artifact never crashes the wider harness) - this wrapper is reality-corpus's OWN, narrower
+// policy on top of that shared loader: for THIS gate specifically, an empty catalogue makes every
+// applicability/breach number meaningless, so it is treated as a usage error, not silently accepted.
+function loadCatalogueOrExit() {
   const catalogueRecords = loadCatalogueRecords();
+  if (catalogueRecords.length === 0) {
+    console.error('eval/reality-corpus/run.js: the compiled catalogue (catalogue/dist/catalogue.v1.json) has zero records - '
+      + 'refusing to score applicability/breach coverage against an empty catalogue (run `npm run catalogue` first).');
+    process.exit(2);
+  }
   const catalogueIds = catalogueRecords.map((r) => r.id || r.record_id).filter(Boolean);
+  return { catalogueRecords, catalogueIds };
+}
 
+async function runAllSites(sites, catalogueRecords, catalogueIds) {
   const rows = [];
   for (const site of sites) {
     // Sequential, not Promise.all: findings can be sizeable and this is a CI/local diagnostic tool, not
     // a latency-budgeted production path (Constitution Rule 8/9 govern the mint, not this harness).
     rows.push(await runOneSite(site, catalogueRecords, catalogueIds));
   }
+  return rows;
+}
 
+function printJsonScorecard(rows, summary, budgets, verdict) {
+  console.log(JSON.stringify({ rows, summary, budgets, verdict }, null, 2));
+}
+
+function printHumanScorecard(sites, rows, summary, verdict) {
+  console.log('eval/reality-corpus scorecard (' + sites.length + ' site(s), engine ' + require('../../mint/version.js').ENGINE_VERSION + ')');
+  console.log('='.repeat(100));
+  for (const r of rows) console.log(formatRow(r));
+  console.log('-'.repeat(100));
+  console.log('sites: ' + summary.sites_ran + ' ran, ' + summary.sites_skipped_no_snapshot + ' skipped (no snapshot), ' + summary.sites_errored + ' errored');
+  console.log('sector: accuracy ' + fmtPct(summary.sector.accuracy) + ', refusal_rate ' + fmtPct(summary.sector.refusal_rate) + ' (' + summary.sector.abstain + '/' + summary.sector.labelled + ' abstained)');
+  console.log('jurisdiction: establishment recall avg ' + fmtPct(summary.jurisdiction.establishment_recall_avg) + ', wrong-attach total ' + summary.jurisdiction.wrong_attach_total);
+  console.log('applicability: recall avg ' + fmtPct(summary.applicability.recall_avg) + ', catalogue gaps ' + summary.applicability.catalogue_gaps_total);
+  console.log('breach: coverage-adjusted recall ' + fmtPct(summary.breach.coverage_adjusted_recall) + ' (' + summary.breach.reproduced_total + '/' + summary.breach.assessable_total + ' assessable of ' + summary.breach.labelled_total + ' labelled)');
+  console.log('FALSE ACCUSATIONS: ' + summary.false_accusations_total + (summary.false_accusations_total > 0 ? '  <-- HARD FAIL, zero tolerance' : ''));
+  console.log('='.repeat(100));
+  console.log(verdict.pass ? 'RESULT: PASS (within budget)' : 'RESULT: FAIL (budget exceeded)');
+  for (const f of verdict.failures) console.log('  - ' + f);
+}
+
+async function main(argv) {
+  const { jsonOut, lintOnly, onlySlug } = parseArgs(argv);
+  const sites = loadRequestedSites(onlySlug);
+
+  if (lintOnly) {
+    runLintOnly(sites);
+    return;
+  }
+
+  const { catalogueRecords, catalogueIds } = loadCatalogueOrExit();
+  const rows = await runAllSites(sites, catalogueRecords, catalogueIds);
   const summary = aggregate(rows);
   const budgets = loadBudgets();
   const verdict = evaluateBudgets(summary, budgets);
 
-  if (jsonOut) {
-    console.log(JSON.stringify({ rows, summary, budgets, verdict }, null, 2));
-  } else {
-    console.log('eval/reality-corpus scorecard (' + sites.length + ' site(s), engine ' + require('../../mint/version.js').ENGINE_VERSION + ')');
-    console.log('='.repeat(100));
-    for (const r of rows) console.log(formatRow(r));
-    console.log('-'.repeat(100));
-    console.log('sites: ' + summary.sites_ran + ' ran, ' + summary.sites_skipped_no_snapshot + ' skipped (no snapshot), ' + summary.sites_errored + ' errored');
-    console.log('sector: accuracy ' + fmtPct(summary.sector.accuracy) + ', refusal_rate ' + fmtPct(summary.sector.refusal_rate) + ' (' + summary.sector.abstain + '/' + summary.sector.labelled + ' abstained)');
-    console.log('jurisdiction: establishment recall avg ' + fmtPct(summary.jurisdiction.establishment_recall_avg) + ', wrong-attach total ' + summary.jurisdiction.wrong_attach_total);
-    console.log('applicability: recall avg ' + fmtPct(summary.applicability.recall_avg) + ', catalogue gaps ' + summary.applicability.catalogue_gaps_total);
-    console.log('breach: coverage-adjusted recall ' + fmtPct(summary.breach.coverage_adjusted_recall) + ' (' + summary.breach.reproduced_total + '/' + summary.breach.assessable_total + ' assessable of ' + summary.breach.labelled_total + ' labelled)');
-    console.log('FALSE ACCUSATIONS: ' + summary.false_accusations_total + (summary.false_accusations_total > 0 ? '  <-- HARD FAIL, zero tolerance' : ''));
-    console.log('='.repeat(100));
-    console.log(verdict.pass ? 'RESULT: PASS (within budget)' : 'RESULT: FAIL (budget exceeded)');
-    for (const f of verdict.failures) console.log('  - ' + f);
-  }
+  if (jsonOut) printJsonScorecard(rows, summary, budgets, verdict);
+  else printHumanScorecard(sites, rows, summary, verdict);
 
   process.exit(verdict.pass ? 0 : 1);
-}
-
-function fmtPct(v) {
-  return v === null ? 'n/a' : (v * 100).toFixed(1) + '%';
 }
 
 if (require.main === module) {

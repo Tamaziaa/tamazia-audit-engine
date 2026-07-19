@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const metrics = require('./metrics.js');
+const { evaluateBudgets, loadBudgets } = require('../run.js');
 
 function fakeFamilyOf(sectorId) {
   const map = { solicitors: 'law-firms', 'gp-clinic': 'healthcare', telemedicine: 'healthcare', 'claims-management': 'finance' };
@@ -117,9 +118,54 @@ test('falseAccusations: needs_review on a known-clean law is never a false accus
   assert.deepEqual(metrics.falseAccusations(site, findings), []);
 });
 
-test('findingQuoteText: checks evidence_quote, then artifact.text/snippet/quote/host/url, never throws on empty finding', () => {
+test('findingQuoteText: checks evidence_quote, then artifact.text/snippet/quote, never throws on empty finding', () => {
   assert.equal(metrics.findingQuoteText(null), '');
   assert.equal(metrics.findingQuoteText({}), '');
   assert.equal(metrics.findingQuoteText({ evidence_quote: 'a' }), 'a');
   assert.equal(metrics.findingQuoteText({ artifact: { snippet: 'b' } }), 'b');
+});
+
+test('findingQuoteText: a bare host/url is NOT a quote artifact (CodeRabbit PR #32)', () => {
+  // A host or URL alone must never be usable evidence for a quote_substring match - a coincidental
+  // domain/path substring match would let breachCoverage() count an unverified finding as "reproduced".
+  assert.equal(metrics.findingQuoteText({ artifact: { host: 'example.com', url: 'https://example.com/x' } }), '');
+});
+
+test('breachCoverage: a host/url-only finding can never satisfy a quote_substring match', () => {
+  const site = { labelled_breaches: [{ law_id: 'UK_PECR_COOKIES_MARKETING', quote_substring: 'example.com' }] };
+  // The finding's ONLY evidence is host/url, which happens to contain the literal quote_substring text -
+  // this must still score as a genuine miss, not a false "reproduced" match on the domain name.
+  const findings = [{ record_id: 'UK_PECR_COOKIES_MARKETING', state: 'violation', artifact: { host: 'example.com', url: 'https://example.com/' } }];
+  const result = metrics.breachCoverage(site, findings, true);
+  assert.equal(result.reproduced_count, 0);
+  assert.equal(result.rows[0].status, 'missed');
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Proves the FULL gate, not just the falseAccusations() helper: one fabricated finding must make the
+// end-to-end verdict (run.js's evaluateBudgets(), the same function the CLI/CI step calls) fail, not
+// merely return a non-empty hits[] array (CodeRabbit PR #32).
+// ---------------------------------------------------------------------------------------------------
+test('ADVERSARIAL, end-to-end: a fabricated false accusation makes evaluateBudgets().verdict.pass false', () => {
+  const site = { known_clean_laws: ['UK_EQUALITY_ACCESSIBILITY'] };
+  const fabricatedFindings = [
+    { record_id: 'UK_EQUALITY_ACCESSIBILITY', state: 'violation', artifact: { snippet: 'FABRICATED FOR THIS TEST' } },
+  ];
+  const hits = metrics.falseAccusations(site, fabricatedFindings);
+  assert.equal(hits.length, 1);
+
+  // A minimal but real aggregate()-shaped summary carrying that one fabricated hit through to the exact
+  // gate the CI workflow runs (evaluateBudgets against the real, committed budgets.json).
+  const summary = {
+    sites_total: 1, sites_ran: 1, sites_skipped_no_snapshot: 0, sites_errored: 0,
+    sector: { correct: 0, abstain: 0, wrong: 0, labelled: 0, refusal_rate: null, accuracy: null },
+    jurisdiction: { establishment_recall_avg: null, wrong_attach_total: 0 },
+    applicability: { recall_avg: null, catalogue_gaps_total: 0 },
+    breach: { labelled_total: 0, assessable_total: 0, reproduced_total: 0, coverage_adjusted_recall: null },
+    false_accusations_total: hits.length,
+  };
+  const budgets = loadBudgets();
+  const verdict = evaluateBudgets(summary, budgets);
+  assert.equal(verdict.pass, false);
+  assert.ok(verdict.failures.some((f) => f.includes('false_accusations_total')));
 });

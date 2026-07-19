@@ -15,7 +15,7 @@ brand:
 establishment:
   - jurisdiction: UK
     tier: A
-    basis: "synthetic: Companies House number and registered office stated on-page"
+    basis: "synthetic: 'registered with Companies House, company number 09876543' and a complete registered-office address with postcode stated on-page (see the fixture's footerText) - CodeRabbit PR #32 flagged the earlier version of this fixture for stating only a bare company number and a partial address with no 'Companies House' wording; both are now explicit in the fixture text itself."
 audience:
   - jurisdiction: UK
     tier: C

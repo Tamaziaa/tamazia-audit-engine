@@ -7,7 +7,7 @@
   "baseline_history": [
     {
       "date": "2026-07-20",
-      "engine_version": "engine-v2.1.5-p4",
+      "engine_version": "engine-v2.1.6-p4",
       "coverage_adjusted_recall_min_set_to": 0,
       "note": "Initial honest baseline. RETEST-2026-07-19.md's live wave-1-vs-now diff reproduces here: the _rivalFamiliesAtFloor sector-conflict gate (#28) abstains sector for content-rich real firms without a literal sector word in their domain, which currently drives sector_refusal_rate above zero on this corpus (a hard budget violation) and, because most catalogue records gate on sector, drags coverage_adjusted_recall toward zero at the same time. coverage_adjusted_recall_min is set to 0 (not the actually-observed number) specifically so a future regression that makes recall WORSE than today's true state cannot hide inside a min of 0 forever - see README for the instruction to ratchet this up to the real observed number once the sector-abstain fix (Kimi blueprint P0-3) lands and the gate goes green on sector_refusal_rate_max, at which point this file must be edited with a new dated entry, not silently."
     }

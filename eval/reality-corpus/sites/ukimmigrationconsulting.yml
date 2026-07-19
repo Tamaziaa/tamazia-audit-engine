@@ -23,7 +23,7 @@ labelled_breaches:
   - law_id: UK_OISC_IAA_REGISTRATION
     quote_substring: "OISC regulated"
     url: "https://ukimmigrationconsulting.com/"
-    note: "homepage claims OISC regulation in prose only; no licence/registration number anywhere on homepage, /about-us or /contact. UK_OISC_IAA_REGISTRATION does NOT exist in catalogue/dist/catalogue.v1.json (confirmed by direct id search, 2026-07-20): this is a genuine Layer-1 CATALOGUE gap, not an applicability miss - it matches LAW-COVERAGE-MAP/legal-uk-us.md's own top gap (UK IAA immigration advisers). run.js reports this entry under catalogue_gaps, separately from the applicability-recall denominator, so a future law-researcher pass that adds the record is what closes it, not an engine fix."
+    note: "homepage claims OISC regulation in prose only; no licence/registration number anywhere on homepage, /about-us or /contact. UK_OISC_IAA_REGISTRATION does NOT exist in catalogue/dist/catalogue.v1.json (re-verified by direct grep against the compiled artifact, 2026-07-20, PR #32 follow-up - zero matches across every catalogue/packs/*.json source pack too): this is a genuine Layer-1 CATALOGUE gap, not an applicability miss - it matches LAW-COVERAGE-MAP/legal-uk-us.md's own top gap (UK IAA immigration advisers). run.js reports this entry under catalogue_gaps, separately from the applicability-recall denominator, so a future law-researcher pass that adds the record is what closes it, not an engine fix."
   - law_id: UK_PECR_COOKIES_MARKETING
     quote_substring: "GTM-M664B3D"
     url: "https://ukimmigrationconsulting.com/"

@@ -20,7 +20,7 @@ labelled_breaches:
   - law_id: US_HIPAA_NPP
     quote_substring: "Page not found"
     url: "https://vanfamilymedical.com/privacy-policy/"
-    note: "/privacy-policy/ returns a genuine 404; no privacy, HIPAA or 'notice' link exists anywhere in the homepage footer or navigation (checked by direct grep, zero hits) - no HIPAA Notice of Privacy Practices anywhere on the site. US_HIPAA_NPP does NOT exist in catalogue/dist/catalogue.v1.json (confirmed by direct id search, 2026-07-20; the compiled us-healthcare pack has US_HIPAA_MKT and US_HIPAA_TRACKING but no dedicated Notice-of-Privacy-Practices duty record). Treated as a Layer-1 catalogue gap in run.js's reporting, not counted against applicability recall."
+    note: "/privacy-policy/ returns a genuine 404 (re-confirmed by direct HTTP check, 2026-07-20, PR #32 follow-up); no privacy, HIPAA or 'notice' link exists anywhere in the homepage footer or navigation (checked by direct grep, zero hits) - no HIPAA Notice of Privacy Practices anywhere on the site. US_HIPAA_NPP does NOT exist in catalogue/dist/catalogue.v1.json (re-verified by direct grep against the compiled artifact, 2026-07-20 - zero matches across every catalogue/packs/*.json source pack too; the compiled us-healthcare pack has US_HIPAA_MKT and US_HIPAA_TRACKING but no dedicated Notice-of-Privacy-Practices duty record). Treated as a Layer-1 catalogue gap in run.js's reporting, not counted against applicability recall."
   - law_id: US_FTC_HBNR
     quote_substring: "googletagmanager.com/gtag/js?id=G-0GZWWGJH71"
     url: "https://vanfamilymedical.com/"

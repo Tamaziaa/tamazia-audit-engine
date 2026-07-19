@@ -29,11 +29,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # persist-credentials: false - this job never pushes/pulls with the checked-out repo again after
+      # checkout, so there is no reason for the GITHUB_TOKEN to remain in local git config for the rest
+      # of the job (CodeRabbit PR #32, zizmor artipacked finding).
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -44,8 +49,14 @@ jobs:
       - name: Corpus format lint (BLOCKING - a malformed corpus file is a bug in this harness's own inputs)
         run: node eval/reality-corpus/run.js --lint
 
-      - name: Corpus harness unit tests (yaml.js, metrics.js - BLOCKING, these are ordinary node:test suites)
-        run: node --test eval/reality-corpus/
+      # A glob, not a bare directory path: `node --test eval/reality-corpus/` resolves the directory
+      # itself as a CJS module specifier and throws MODULE_NOT_FOUND (reproduces on Node 24 and 26) -
+      # node's test runner only auto-discovers test files under a *directory* it is not itself asked to
+      # `require()`. The quoted `**/*.test.js` glob is node --test's own supported pattern syntax (kept
+      # quoted so bash never expands `**` itself first) and is what actually finds yaml.test.js,
+      # metrics.test.js and run.test.js.
+      - name: Corpus harness unit tests (yaml.js, metrics.js, run.js - BLOCKING, these are ordinary node:test suites)
+        run: node --test "eval/reality-corpus/**/*.test.js"
 
       # catalogue.v1.json is gitignored and required by applicability/connect.js + the breach lane the
       # same way ci.yml's own "Catalogue compile" step is - see that step's comment for the fresh-clone
@@ -53,10 +64,35 @@ jobs:
       - name: Catalogue compile (release stamp from the committed RELEASE_STAMP file)
         run: npm run catalogue
 
+      # INFORMATIONAL (see this workflow's header comment): never blocks the merge. `set -o pipefail` +
+      # the explicit JSON re-parse afterwards exist so a hard crash of the node process (which `tee`
+      # alone would happily let through as a truncated/empty file with a misleadingly "successful" tee
+      # exit code) is told apart from a real, honestly-scored budget miss - both are still non-blocking,
+      # but the two must not be reported as the same thing (CodeRabbit PR #32).
       - name: "Reality-corpus scorecard (INFORMATIONAL - see this workflow's header comment: never blocks the merge, always reported)"
         id: scorecard
         continue-on-error: true
-        run: node eval/reality-corpus/run.js --json | tee reality-corpus-result.json
+        shell: bash
+        run: |
+          set -o pipefail
+          node eval/reality-corpus/run.js --json | tee reality-corpus-result.json
+
+      - name: Validate the scorecard JSON actually parses (distinguishes a crash from a budget miss)
+        id: scorecard_json
+        if: always()
+        run: |
+          set +e
+          if [ ! -s reality-corpus-result.json ]; then
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "reason=reality-corpus-result.json was never produced (the runner crashed before writing output)" >> "$GITHUB_OUTPUT"
+          elif ! node -e "JSON.parse(require('fs').readFileSync('reality-corpus-result.json','utf8'))" 2>/dev/null; then
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "reason=reality-corpus-result.json is not valid JSON (the runner produced truncated/corrupt output)" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+            echo "reason=" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
 
       - name: Human-readable scorecard in the job summary
         if: always()
@@ -64,17 +100,28 @@ jobs:
 
       - name: Upload scorecard artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: reality-corpus-scorecard
           path: reality-corpus-result.json
           retention-days: 90
 
+      # Never fails the job (see header comment) - but a crashed/invalid runner output is reported as a
+      # DIFFERENT, louder condition than an honest budget miss, and a genuine budget miss is reported
+      # with the SPECIFIC metric(s) that missed (evaluateBudgets()'s own failure strings), not a generic
+      # "something missed" line, so the regression a reviewer needs to see is in the annotation itself,
+      # not only inside the uploaded artifact/job summary.
       - name: Report the honest result (never fails the job - see header comment)
         if: always()
         run: |
-          if [ "${{ steps.scorecard.outcome }}" = "success" ]; then
+          set +e
+          if [ "${{ steps.scorecard_json.outputs.valid }}" != "true" ]; then
+            echo "::error title=reality-corpus::SCORECARD RUNNER FAILED: ${{ steps.scorecard_json.outputs.reason }}. This is NOT a budget miss and is not informational - it means the gate did not run at all; see the job's own step logs."
+          elif [ "${{ steps.scorecard.outcome }}" = "success" ]; then
             echo "::notice title=reality-corpus::within budget (eval/reality-corpus/budgets.json)"
           else
-            echo "::warning title=reality-corpus::at least one budget missed - see the job summary and the uploaded scorecard artifact. This is EXPECTED and does not fail CI (see this workflow's header comment); it must not silently regress the recorded baseline in eval/reality-corpus/budgets.json."
+            FAILURES="$(node -e "const r=require('./reality-corpus-result.json'); (r.verdict.failures||[]).forEach(f=>console.log('- '+f))" 2>/dev/null)"
+            if [ -z "$FAILURES" ]; then FAILURES="- (evaluateBudgets reported no failure strings - see the uploaded artifact)"; fi
+            echo "::warning title=reality-corpus::at least one budget missed (EXPECTED, does not fail CI - see this workflow's header comment; must not silently regress eval/reality-corpus/budgets.json's recorded baseline):%0A${FAILURES//$'\n'/%0A}"
           fi
+          exit 0

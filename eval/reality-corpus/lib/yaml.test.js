@@ -89,3 +89,31 @@ test('empty document returns null', () => {
   assert.equal(parse(''), null);
   assert.equal(parse('# only a comment'), null);
 });
+
+test('CodeRabbit PR #32: an escaped double quote does not end the quoted span early, so a later # is not treated as a comment', () => {
+  const doc = parse('note: "esc \\" quote # not-a-comment"');
+  assert.equal(doc.note, 'esc " quote # not-a-comment');
+});
+
+test('CodeRabbit PR #32: an escaped double quote inside a key/value line does not confuse the key:value colon search', () => {
+  const doc = parse('note: "a: \\"nested\\" colon # still not a comment"');
+  assert.equal(doc.note, 'a: "nested" colon # still not a comment');
+});
+
+test('CodeRabbit PR #32: fails closed on a stray, badly-indented line the parser cannot attach anywhere', () => {
+  // "orphan" sits at indent 2 with no open mapping/sequence at that indent to belong to (slug: at
+  // indent 0 already closed the top-level mapping's own indent level) - this used to parse
+  // "successfully" with the line silently dropped; it must now throw.
+  assert.throws(() => parse([
+    'slug: site',
+    '  orphan: stray',
+  ].join('\n')), /unconsumed\/malformed content/);
+});
+
+test('CodeRabbit PR #32: fails closed on a sequence item indented less than its own list', () => {
+  assert.throws(() => parse([
+    'applicable_law_ids:',
+    '  - UK_SRA_TRANSPARENCY',
+    '- UK_PECR_COOKIES_MARKETING',
+  ].join('\n')), /unconsumed\/malformed content/);
+});
