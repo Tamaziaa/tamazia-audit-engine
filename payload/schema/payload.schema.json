@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tamazia.co.uk/schemas/audit-payload/v1.0.0/payload.schema.json",
+  "$id": "https://tamazia.co.uk/schemas/audit-payload/v1.1.0/payload.schema.json",
   "title": "Tamazia audit payload contract",
-  "version": "1.0.0",
-  "description": "v1 skeleton of the audit payload contract, ported from the field inventory in tamazia-website functions/audit/_contract.js (REQUIRED, NONEMPTY, exact-count invariants). This schema is the source of truth for the @tamazia/audit-contract package: the engine composes a payload that satisfies it, the renderer consumes it and re-derives nothing. Leaf types are deliberately permissive in v1 (present-and-non-null is the contract); P4 tightens leaf types as payloadToD() moves into this repo. catalogueSize is DELIBERATELY NULLABLE and not required: the engine does not yet emit a catalogue count and the render must never invent one - it prints screenedLabel instead.",
+  "version": "1.1.0",
+  "description": "Audit payload contract, ported from the field inventory in tamazia-website functions/audit/_contract.js (REQUIRED, NONEMPTY, exact-count invariants). This schema is the source of truth for the @tamazia/audit-contract package: the engine composes a payload that satisfies it, the renderer consumes it and re-derives nothing. Leaf types are deliberately permissive (present-and-non-null is the base contract); P4 tightens leaf types as payloadToD() moves into this repo. catalogueSize is DELIBERATELY NULLABLE and not required: the engine does not yet emit a catalogue count and the render must never invent one - it prints screenedLabel instead. v1.1 is a purely ADDITIVE minor: it adds the compliance side the skeleton lacked - findings[] (REQUIRED presence, may be empty: a compliant firm has zero findings), applicability (what the catalogue said binds this firm and how each fared), notLegalAdvice (the standing line, C-200), and the $defs/exposureWaterfallShape documenting the per-family target shape while the legacy website shape stays valid. Every v1.0 path is untouched.",
   "type": "object",
   "required": [
     "meta",
@@ -37,7 +37,10 @@
     "dims",
     "fixes",
     "trajectory",
-    "pricing"
+    "pricing",
+    "findings",
+    "applicability",
+    "notLegalAdvice"
   ],
   "properties": {
     "meta": {
@@ -168,7 +171,27 @@
     },
     "fixes": { "$ref": "#/$defs/nonEmptyArray" },
     "trajectory": { "$ref": "#/$defs/nonEmptyArray" },
-    "pricing": { "$ref": "#/$defs/nonEmptyArray" }
+    "pricing": { "$ref": "#/$defs/nonEmptyArray" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" },
+      "$comment": "v1.1: REQUIRED presence, MAY be EMPTY (a compliant firm has zero findings). Deliberately NOT in the NONEMPTY set - an empty findings[] is a valid, compliant audit, never a broken one."
+    },
+    "applicability": {
+      "type": "object",
+      "required": ["assessed", "assessedCompliant", "excludedCount"],
+      "properties": {
+        "assessed": { "type": "array", "items": { "$ref": "#/$defs/assessedRecord" } },
+        "assessedCompliant": { "type": "array", "$comment": "the pass subset of assessed; may be empty" },
+        "excludedCount": { "type": "number" }
+      },
+      "$comment": "v1.1: what the catalogue said binds this firm and how each fared. No catalogueSize anywhere (C-118): coverage copy states screened counts from live numbers, never a magic total."
+    },
+    "notLegalAdvice": {
+      "type": "string",
+      "minLength": 1,
+      "$comment": "v1.1: the standing not-legal-advice line (C-200). The composer sets the one canonical sentence; the schema only requires a non-empty string."
+    }
   },
   "$defs": {
     "nonNull": {
@@ -179,6 +202,102 @@
       "type": "array",
       "minItems": 1,
       "$comment": "The render iterates this and would show nothing if empty."
+    },
+    "finding": {
+      "type": "object",
+      "required": ["record_id", "state", "kind", "artifact", "framework", "statutory_citation", "page_url", "voice_tier"],
+      "properties": {
+        "record_id": { "type": "string" },
+        "state": { "enum": ["violation", "needs_review", "pass"] },
+        "kind": { "type": "string" },
+        "artifact": {
+          "type": "object",
+          "required": ["type"],
+          "properties": { "type": { "type": "string" } },
+          "$comment": "Rule 3: no artifact, no breach. The deterministic artifact (verbatim quote / network_event / register_row / register_absence / coverage_proof) passes through untouched; its canonical type is the one door in breach/artifact-types.js."
+        },
+        "framework": { "type": "string" },
+        "statutory_citation": { "type": "string" },
+        "page_url": { "type": ["string", "null"] },
+        "voice_tier": { "enum": ["confident", "observation"] },
+        "evidence_quote": { "$comment": "optional" },
+        "description": { "$comment": "optional" },
+        "fix": { "$comment": "optional" },
+        "penalty": { "$comment": "optional" },
+        "regulator": { "$comment": "optional" },
+        "enforcement": { "$comment": "optional" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["state"], "properties": { "state": { "enum": ["needs_review", "pass"] } } },
+          "then": { "properties": { "voice_tier": { "const": "observation" } } },
+          "$comment": "Rule 10 / C-111: confident voice is EARNED. A needs_review or pass finding MUST render in observation voice; only a violation may carry confident voice, and even then only on an observed/quoted artifact. Violation MAY be observation too - never the reverse."
+        }
+      ],
+      "$comment": "v1.1 finding item. Required: record_id, state, kind, artifact(+type), framework, statutory_citation, page_url(string|null), voice_tier. Optional: evidence_quote, description, fix, penalty, regulator, enforcement."
+    },
+    "assessedRecord": {
+      "type": "object",
+      "required": ["record_id", "framework", "state"],
+      "properties": {
+        "record_id": { "type": "string" },
+        "framework": { "type": "string" },
+        "state": { "enum": ["violation", "needs_review", "pass", "not_evaluated"] }
+      },
+      "$comment": "v1.1 applicability.assessed item: one catalogue record the connect() step judged binding, with its worst finding state, or not_evaluated when propose never evaluated it."
+    },
+    "exposureWaterfallShape": {
+      "$comment": "v1.1 target shape for exposureWaterfall, documented here and available for P4 to wire at the leaf. It is an anyOf that ALSO accepts the legacy website shape, so old payloads stay valid; the top-level exposureWaterfall leaf itself stays nonNull in v1.1 (purely additive).",
+      "anyOf": [
+        {
+          "$comment": "target: per-family typical-band steps + a single deduped ceiling (C-094: one ceiling per family, never a sum of maxima).",
+          "type": "object",
+          "required": ["steps", "ceiling"],
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["family", "state"],
+                "properties": {
+                  "family": { "type": ["string", "null"] },
+                  "typical_low": { "type": ["number", "null"] },
+                  "typical_high": { "type": ["number", "null"] },
+                  "state": { "enum": ["violation", "needs_review"] }
+                }
+              }
+            },
+            "ceiling": {
+              "anyOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "required": ["value", "label"],
+                  "properties": { "value": { "type": ["number", "null"] }, "label": { "type": "string" } }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$comment": "legacy website shape (functions/audit/_adapter.js): kept valid so v1.1 does not break any already-minted payload.",
+          "type": "object",
+          "required": ["steps"],
+          "properties": {
+            "raw": { "$comment": "legacy" },
+            "collapsed": { "$comment": "legacy" },
+            "frameworks": { "$comment": "legacy" },
+            "savedPct": { "$comment": "legacy" },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "l": { "$comment": "legacy" }, "v": { "$comment": "legacy" }, "cls": { "$comment": "legacy" } }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

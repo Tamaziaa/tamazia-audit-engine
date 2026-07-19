@@ -20,6 +20,21 @@
 //                 not yet emit a catalogue count and the render must never invent one -
 //                 it prints screenedLabel instead. The two numbers we can always prove
 //                 (frameworksBinding, rulesChecked) stay required.
+//
+// v1.1 (additive minor - every v1.0 path is untouched): adds the compliance side the
+// skeleton lacked.
+//   findings                        REQUIRED presence, MAY be EMPTY (a compliant firm has
+//                                   zero findings). Deliberately NOT in NONEMPTY - an empty
+//                                   findings[] is a valid compliant audit, never a broken one.
+//   applicability.assessed          REQUIRED: the catalogue records connect() judged binding.
+//   applicability.assessedCompliant REQUIRED: the pass subset (may be empty).
+//   applicability.excludedCount     REQUIRED: how many records connect() excluded (a number,
+//                                   which may legitimately be 0). No catalogueSize (C-118).
+//   notLegalAdvice                  REQUIRED: the standing not-legal-advice line (C-200).
+// The path-level validator below is presence/non-null/non-empty/exact-count only (zero deps);
+// the finding-item shape, the earned-voice if/then (Rule 10 / C-111) and the exposureWaterfall
+// target shape live in payload/schema/payload.schema.json and are locked by the selftest below,
+// which cross-checks the JSON Schema structurally rather than running a JSON-schema engine.
 
 const schema = require('../schema/payload.schema.json');
 
@@ -34,6 +49,12 @@ const REQUIRED = [
   'geo.entityReadiness', 'geo.shareOfVoice', 'geo.radar', 'geo.schema', 'geo.citations', 'geo.sourceGap', 'geo.rootCause', 'geo.fix',
   'competitors.bestKeyword', 'competitors.youDr', 'competitors.cols', 'competitors.rows', 'competitors.drBars',
   'pricingNotes', 'upsellProof',
+  // v1.1 additive (compliance side). findings is a PRESENCE check only (an empty findings[] is a valid
+  // compliant audit) and is deliberately kept OUT of NONEMPTY. excludedCount may be 0, which is non-null
+  // and so satisfies the presence check.
+  'findings',
+  'applicability.assessed', 'applicability.assessedCompliant', 'applicability.excludedCount',
+  'notLegalAdvice',
 ];
 
 const NONEMPTY = [
@@ -144,12 +165,20 @@ function setPathForce(obj, dotPath, value) {
   parent[keys[keys.length - 1]] = value;
 }
 
-/** Builds the smallest payload that satisfies contract v1 (placeholder leaves). */
+/** Builds the smallest payload that satisfies the contract (placeholder leaves). */
 function buildMinimalValidPayload() {
   const p = {};
   for (const path of REQUIRED) setPath(p, path, 'x');
   for (const path of NONEMPTY) setPathForce(p, path, [{}]);
   for (const { path, count } of EXACT_COUNTS) setPathForce(p, path, Array.from({ length: count }, () => ({})));
+  // v1.1 keys carry real types (the REQUIRED loop stamped them the 'x' placeholder). findings is an array
+  // that MAY be empty; applicability is the assessed/assessedCompliant/excludedCount object; notLegalAdvice
+  // stays the non-empty 'x' string. setPathForce overrides the placeholders so the minimal payload is
+  // type-faithful, not merely non-null.
+  setPathForce(p, 'findings', []);
+  setPathForce(p, 'applicability.assessed', []);
+  setPathForce(p, 'applicability.assessedCompliant', []);
+  setPathForce(p, 'applicability.excludedCount', 0);
   return p;
 }
 
@@ -257,6 +286,98 @@ function checkValidatorBehaviour() {
   return errors;
 }
 
+// ---------- v1.1 additive-invariant clauses ----------
+// Each locks one v1.1 promise so a future edit that quietly loosens it fails the selftest, not a client.
+
+// 6. findings is a PRESENCE-only contract: REQUIRED but deliberately NOT in NONEMPTY (an empty findings[]
+//    is a valid compliant audit). If someone adds it to NONEMPTY, a compliant firm's payload would be
+//    rejected - lock against that.
+function checkFindingsPresenceOnly() {
+  const errors = [];
+  if (!REQUIRED.includes('findings')) errors.push('findings must be REQUIRED (presence) in v1.1');
+  if (NONEMPTY.includes('findings')) errors.push('findings must NOT be in NONEMPTY - an empty findings[] is a valid compliant audit');
+  return errors;
+}
+
+// enumOf(node) -> the sorted, comma-joined enum of a schema node, or '' when it has none. Lets the
+// finding-item enum checks read as a single equality rather than a nested guard (health-gate DP cap).
+function enumOf(node) {
+  return node && Array.isArray(node.enum) ? node.enum.slice().sort().join(',') : '';
+}
+// findingRequiredFieldErrors(f) -> a message per REQUIRED finding-item field the schema fails to require.
+function findingRequiredFieldErrors(f) {
+  const need = ['record_id', 'state', 'kind', 'artifact', 'framework', 'statutory_citation', 'page_url', 'voice_tier'];
+  return need.filter((k) => !(f.required || []).includes(k)).map((k) => `$defs.finding must require "${k}"`);
+}
+// findingEnumAndArtifactErrors(f) -> the closed-enum (state, voice_tier) and artifact-`type` errors.
+function findingEnumAndArtifactErrors(f) {
+  const props = f.properties || {};
+  const errors = [];
+  if (enumOf(props.state) !== 'needs_review,pass,violation') errors.push('$defs.finding.state must be the closed enum violation|needs_review|pass');
+  if (enumOf(props.voice_tier) !== 'confident,observation') errors.push('$defs.finding.voice_tier must be the closed enum confident|observation');
+  if (!(props.artifact && (props.artifact.required || []).includes('type'))) errors.push('$defs.finding.artifact must require a `type` (Rule 3: no artifact, no breach)');
+  return errors;
+}
+// 7. The finding item schema is real (typed, not nonNull): the eight required fields, the closed state and
+//    voice_tier enums, and artifact carrying a required `type` (Rule 3).
+function checkFindingItemSchema() {
+  const f = schema.$defs && schema.$defs.finding;
+  if (!f) return ['schema.$defs.finding is missing (v1.1 finding item shape)'];
+  return [...findingRequiredFieldErrors(f), ...findingEnumAndArtifactErrors(f)];
+}
+
+// 8. The earned-voice rule is ENCODED (Rule 10 / C-111): an if/then ties state in {needs_review, pass} to
+//    voice_tier const observation. A confident-voice string on a non-violation is schema-invalid.
+function checkEarnedVoiceRule() {
+  const f = schema.$defs && schema.$defs.finding;
+  const clause = f && Array.isArray(f.allOf) ? f.allOf.find((c) => c && c.if && c.then) : null;
+  if (!clause) return ['$defs.finding must carry an if/then allOf clause tying state to voice_tier (Rule 10 / C-111)'];
+  const guardStates = clause.if.properties && clause.if.properties.state && clause.if.properties.state.enum;
+  const forced = clause.then.properties && clause.then.properties.voice_tier && clause.then.properties.voice_tier.const;
+  const errors = [];
+  if (String((guardStates || []).sort()) !== 'needs_review,pass') errors.push('the earned-voice if must guard exactly state in {needs_review, pass}');
+  if (forced !== 'observation') errors.push('the earned-voice then must force voice_tier to observation');
+  return errors;
+}
+
+// applicabilityRequiredErrors(a) -> a message per REQUIRED applicability child the schema fails to require.
+function applicabilityRequiredErrors(a) {
+  return ['assessed', 'assessedCompliant', 'excludedCount']
+    .filter((k) => !(a.required || []).includes(k))
+    .map((k) => `applicability must require "${k}"`);
+}
+// assessedRecordStateErrors() -> the assessed-item state must be the FOUR-state enum (adds not_evaluated).
+function assessedRecordStateErrors() {
+  const rec = schema.$defs && schema.$defs.assessedRecord;
+  const state = rec && rec.properties && rec.properties.state;
+  return enumOf(state) !== 'needs_review,not_evaluated,pass,violation'
+    ? ['$defs.assessedRecord.state must be violation|needs_review|pass|not_evaluated'] : [];
+}
+// catalogueSizeAbsentErrors(a) -> catalogueSize must never appear on applicability (C-118).
+function catalogueSizeAbsentErrors(a) {
+  const present = (a.properties && a.properties.catalogueSize) || (a.required || []).includes('catalogueSize');
+  return present ? ['applicability must not carry catalogueSize (C-118)'] : [];
+}
+// 9. applicability is a real object (assessed/assessedCompliant/excludedCount), the assessed item carries
+//    the four-state enum (adds not_evaluated), and no catalogueSize leaks in anywhere (C-118).
+function checkApplicabilitySchema() {
+  const a = schema.properties && schema.properties.applicability;
+  if (!a) return ['schema.properties.applicability is missing (v1.1)'];
+  return [...applicabilityRequiredErrors(a), ...assessedRecordStateErrors(), ...catalogueSizeAbsentErrors(a)];
+}
+
+// 10. notLegalAdvice is a required non-empty string (C-200); exposureWaterfallShape is documented as an
+//     anyOf that also accepts the legacy website shape (additive, both shapes valid).
+function checkStandingLineAndWaterfallShape() {
+  const errors = [];
+  const nla = schema.properties && schema.properties.notLegalAdvice;
+  if (!nla || nla.type !== 'string' || !(nla.minLength >= 1)) errors.push('notLegalAdvice must be a string with minLength >= 1 (C-200)');
+  if (!(schema.required || []).includes('notLegalAdvice')) errors.push('notLegalAdvice must be in schema.required');
+  const w = schema.$defs && schema.$defs.exposureWaterfallShape;
+  if (!w || !Array.isArray(w.anyOf) || w.anyOf.length < 2) errors.push('$defs.exposureWaterfallShape must be an anyOf accepting the target AND legacy shapes');
+  return errors;
+}
+
 function selftest() {
   return [
     ...checkRequiredPathsAgainstSchema(),
@@ -264,6 +385,11 @@ function selftest() {
     ...checkExactCountsAgainstSchema(),
     ...checkCatalogueSizeNotRequired(),
     ...checkValidatorBehaviour(),
+    ...checkFindingsPresenceOnly(),
+    ...checkFindingItemSchema(),
+    ...checkEarnedVoiceRule(),
+    ...checkApplicabilitySchema(),
+    ...checkStandingLineAndWaterfallShape(),
   ];
 }
 
