@@ -300,7 +300,12 @@ function isGatingLanguage(detected) {
 // (an "en" result passes through ungated - reporting it as "actually firing" would misstate the gate's
 // own contract, the exact class this note exists to avoid getting wrong).
 function languageDetectorNote(detected) {
-  if (!detected) return 'resolved undefined - this fixture\'s short sample sits below the confidence floor by design; the gate\'s confident path is proven on longer samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
+  // detectLanguage() returns undefined for TWO distinct reasons it does not distinguish in its return
+  // value (too little text below MIN_SAMPLE_WORDS, OR enough text sitting in the ambiguous middle
+  // density band) - this note stays neutral about WHICH, rather than presuming "short sample" when the
+  // real cause could equally be a genuinely ambiguous-but-substantial corpus (Rule 6: unknown never
+  // gates, and an honest note never claims a reason it cannot verify).
+  if (!detected) return 'resolved undefined - the sample did not clear the detector\'s confidence floor (too little text, or an ambiguous density, by design); the gate\'s confident path is proven on longer, more decisively-worded samples in language.test.js and the p6-corpus-language-gate-fires calibration fixture';
   if (isGatingLanguage(detected)) return 'resolved "' + detected + '" and was attached to bundle.corpus.language, actually firing propose.js\'s isNonEnglishGated';
   return 'resolved "' + detected + '" (English) and was attached to bundle.corpus.language; isNonEnglishGated does not gate an English result, so it passed through unfired';
 }
