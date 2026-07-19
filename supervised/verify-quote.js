@@ -122,4 +122,53 @@ function verifyQuote(store, quote) {
   return verifyQuoteDetailed(store, quote).ok;
 }
 
-module.exports = { verifyQuote, verify_quote: verifyQuote, verifyQuoteDetailed, REFUSAL_REASONS };
+// ── raw-provenance durability (Kimi K3 HIGH-E2) - ADDITIVE, ALONGSIDE the span_sha256 gate above ─────────
+// verifyRawProvenance()/verifyRawProvenanceDetailed() do NOT replace or weaken verifyQuote/
+// verifyQuoteDetailed above; the existing gate stays the SOLE determinant of "is this Quote real bytes
+// genuinely captured and undrifted". This is a SECOND, independent check answering a different question:
+// does the normalised span this Quote points at correspond to text that actually existed as a continuous
+// run on the raw fetched page, or does it straddle a point where two originally separate raw text nodes
+// were stitched together with no source separator between them (a phantom sentence no human could find
+// rendered on the page, e.g. two unrelated "Free"/"VPS" pill badges concatenated into "Free VPS")? Call
+// this ALONGSIDE verifyQuoteDetailed(), never instead of it - a caller wanting the full durability posture
+// checks BOTH and treats either refusal as needs-review (Constitution Rule 6: ambiguity defaults to
+// withholding).
+const RAW_REFUSAL_REASONS = Object.freeze({
+  RAW_UNAVAILABLE: 'raw_unavailable',       // the artifact carries no raw bytes (older bundle/replay input; honestly unresolvable, not a pass)
+  RAW_HASH_MISMATCH: 'raw_hash_mismatch',   // the artifact's raw bytes no longer hash to their recorded rawSha256 (tamper/corruption of the raw record)
+  PHANTOM_JOIN_RISK: 'phantom_join_risk',   // the span crosses a raw-text-run boundary with no source punctuation on either side (capture-index.js's boundary map)
+});
+
+// verifyRawProvenanceDetailed(store, quote) -> { ok, reason? }. Steps: (1) the quote's evidence_id must
+// resolve to a real artifact (reuses resolveArtifact, the SAME resolution step verifyQuoteDetailed uses -
+// one door for "find the artifact"); (2) the artifact must actually carry raw bytes (rawAvailable); (3) the
+// raw bytes must still hash to their recorded rawSha256 (tamper/corruption on the raw record, mirroring
+// verifyArtifactIntegrity's normalised-side check); (4) no boundary strictly inside [byte_start, byte_end)
+// may be an unpunctuated raw-text-run join (the phantom-join refusal).
+function verifyRawProvenanceDetailed(store, quote) {
+  const resolved = resolveArtifact(store, quote);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const artifact = resolved.artifact;
+  if (!artifact.rawAvailable || !Buffer.isBuffer(artifact.rawBytes)) {
+    return { ok: false, reason: RAW_REFUSAL_REASONS.RAW_UNAVAILABLE };
+  }
+  if (sha256Hex(artifact.rawBytes) !== artifact.rawSha256) {
+    return { ok: false, reason: RAW_REFUSAL_REASONS.RAW_HASH_MISMATCH };
+  }
+  const boundaries = Array.isArray(artifact.boundaries) ? artifact.boundaries : [];
+  const start = Number(quote && quote.byte_start);
+  const end = Number(quote && quote.byte_end);
+  const crossing = boundaries.find((b) => b.byteOffset > start && b.byteOffset < end && !b.punctuated);
+  if (crossing) return { ok: false, reason: RAW_REFUSAL_REASONS.PHANTOM_JOIN_RISK };
+  return { ok: true, reason: null };
+}
+
+// verifyRawProvenance(store, quote) -> bool. The bool-only convenience wrapper, mirroring verifyQuote().
+function verifyRawProvenance(store, quote) {
+  return verifyRawProvenanceDetailed(store, quote).ok;
+}
+
+module.exports = {
+  verifyQuote, verify_quote: verifyQuote, verifyQuoteDetailed, REFUSAL_REASONS,
+  verifyRawProvenance, verifyRawProvenanceDetailed, RAW_REFUSAL_REASONS,
+};

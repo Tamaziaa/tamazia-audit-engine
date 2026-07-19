@@ -108,3 +108,61 @@ test('KNOWN-BAD CALIBRATION FIXTURE: exceeding MAX_PAGES stops the capture with 
   assert.ok(store.list().length <= 200);
   assert.ok(store.errors.some((e) => e.reasonCode === 'page_budget_exceeded'));
 });
+
+// ── raw-vs-normalised durability (Kimi K3 HIGH-E2) ─────────────────────────────────────────────────────
+
+test('a page with no rawHtml captures exactly as before, honestly flagged rawAvailable:false (no fabricated raw commitment)', () => {
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/', text: 'plain text only, no raw HTML supplied' }]));
+  const artifact = store.list()[0];
+  assert.strictEqual(artifact.rawAvailable, false);
+  assert.strictEqual(artifact.rawBytes, null);
+  assert.strictEqual(artifact.rawSha256, null);
+  assert.deepStrictEqual(artifact.boundaries, []);
+});
+
+test('a page WITH rawHtml gets a second, independent raw-bytes commitment, and the raw digest matches an independent sha256', () => {
+  const rawHtml = '<html><body><p>We use cookies before you consent to them.</p></body></html>';
+  const store = buildCaptureIndex(bundleWithPages([
+    { url: 'https://example.com/privacy', text: 'We use cookies before you consent to them.', rawHtml },
+  ]));
+  const artifact = store.list()[0];
+  assert.strictEqual(artifact.rawAvailable, true);
+  assert.ok(Buffer.isBuffer(artifact.rawBytes));
+  assert.strictEqual(artifact.rawSha256, sha256Hex(Buffer.from(rawHtml, 'utf8')));
+  assert.strictEqual(artifact.rawBytes.toString('utf8'), rawHtml);
+});
+
+// THE phantom-join proof (HIGH-E2 test (b)): two raw sibling text nodes with NO punctuation between them
+// ("Free" and "VPS", each its own <span> pill) produce a normalised sentence ("Free VPS") that never
+// existed as a single rendered run - the boundary map must record that join as unpunctuated so a consumer
+// (verify-quote.js's verifyRawProvenance) can refuse/flag a span crossing it.
+test('a phantom join (two raw text nodes with no source punctuation between them) is detectable in the boundary map', () => {
+  const rawHtml = '<div><span>Free</span><span>VPS</span></div>';
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/pricing', text: 'Free VPS', rawHtml }]));
+  const artifact = store.list()[0];
+  assert.strictEqual(artifact.rawAvailable, true);
+  assert.ok(artifact.boundaries.length >= 1, 'expected at least one boundary between the two raw runs');
+  const phantom = artifact.boundaries.find((b) => !b.punctuated);
+  assert.ok(phantom, 'the Free/VPS join must be recorded as an UNPUNCTUATED boundary');
+});
+
+// THE positive control: a genuine single-source sentence split only by an INLINE mid-sentence tag (e.g. a
+// bold span) but with real punctuation still present in the text on either side of any real break must NOT
+// be over-flagged when the runs themselves already carry sentence structure.
+test('a real sentence spanning a punctuated join is NOT flagged as a phantom join', () => {
+  const rawHtml = '<p>We use cookies before you consent to them, which some visitors will find intrusive.</p><p>Read our policy.</p>';
+  const text = 'We use cookies before you consent to them, which some visitors will find intrusive. Read our policy.';
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/privacy', text, rawHtml }]));
+  const artifact = store.list()[0];
+  const boundary = artifact.boundaries[0];
+  assert.ok(boundary, 'expected a boundary between the two <p> runs');
+  assert.strictEqual(boundary.punctuated, true, 'a sentence ending in "." before the join must be recognised as punctuated');
+});
+
+test('KNOWN-BAD CALIBRATION FIXTURE: a raw page over the per-page raw byte ceiling captures normalised text but drops the raw commitment (fail closed, never an unbounded raw buffer)', () => {
+  const hugeRawHtml = '<p>' + 'x'.repeat(5 * 1024 * 1024) + ' real readable text</p>';
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/huge', text: 'x'.repeat(20) + ' real readable text', rawHtml: hugeRawHtml }]));
+  const artifact = store.list()[0];
+  assert.strictEqual(artifact.rawAvailable, false);
+  assert.strictEqual(artifact.rawBytes, null);
+});

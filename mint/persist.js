@@ -333,6 +333,105 @@ async function persist(payload, opts = {}) {
   return { slug, hash, row, liveUrl: liveUrlFor(slug, hash, env), objectKey, r2Result, rowResult };
 }
 
+// ── sealed artifact-store persistence (Kimi K3 MEDIUM-E5) ──────────────────────────────────────────────
+// Verification today anchors ONLY to the in-memory supervised/capture-index.js ArtifactStore; stub
+// persistence stores nothing, so once the process exits no auditor can re-run verify_quote over a minted
+// claim - the bytes are gone and the payload's evidence_ids resolve nowhere. This section adds a real,
+// testable-offline persistence path for the hash-chained artifact store itself, using the SAME
+// injectable-door seam (opts.putFn) the rest of this file already uses for R2 - so it is unit-testable with
+// an in-memory door today and ready for the live R2 writer the moment it is pointed at defaultPutFn. The
+// live destination wiring (Neon/R2 credentials) stays founder-gated exactly like the rest of this file
+// (Rule 23); nothing here reaches a real network path in a test.
+//
+// sealedObjectKey(evidenceId, sha256) -> the content-addressed R2 object key for one sealed artifact.
+// Content-addressed (keyed on the artifact's OWN hash, not a mutable slug) so a re-fetch of the same
+// evidence_id+sha256 is always byte-identical or absent, never silently replaced.
+function sealedObjectKey(evidenceId, sha256) {
+  return 'evidence/' + evidenceId + '/' + sha256 + '.json';
+}
+
+// sealedRecordFor(artifact) -> the JSON-serialisable sealed record for one supervised/capture-index.js
+// artifact. Carries BOTH the normalised bytes and, when captured, the raw bytes + boundary map (capture-
+// index.js's HIGH-E2 raw-durability fields) so a re-verifier can run verifyQuote() AND
+// verifyRawProvenance() against this record alone, with no dependency on the in-memory store that produced
+// it.
+function sealedRecordFor(artifact) {
+  return {
+    evidence_id: artifact.evidence_id,
+    url: artifact.url,
+    lane: artifact.lane,
+    sha256: artifact.sha256,
+    length: artifact.length,
+    fetched_at: artifact.fetched_at,
+    bytes_base64: Buffer.isBuffer(artifact.bytes) ? artifact.bytes.toString('base64') : null,
+    raw_available: Boolean(artifact.rawAvailable),
+    raw_sha256: artifact.rawSha256 || null,
+    raw_bytes_base64: Buffer.isBuffer(artifact.rawBytes) ? artifact.rawBytes.toString('base64') : null,
+    boundaries: Array.isArray(artifact.boundaries) ? artifact.boundaries : [],
+  };
+}
+
+// deriveArtifactChainHead(store) -> the sha256 "chain head" over every artifact's (evidence_id, sha256)
+// pair, SORTED by evidence_id so the head is stable regardless of capture order (never a random/positional
+// hash). This is the value attachChainHead() carries onto the minted payload so a later re-verifier can
+// confirm the sealed store it is replaying against is EXACTLY the snapshot the payload was minted against,
+// not a superset/subset/mixed swap.
+function deriveArtifactChainHead(store) {
+  const rows = store.list().map((a) => a.evidence_id + ':' + a.sha256).sort();
+  return crypto.createHash('sha256').update(rows.join('\n'), 'utf8').digest('hex');
+}
+
+// attachChainHead(payload, chainHead) -> a SHALLOW CLONE of payload carrying the sealed store's chain head
+// under `evidence_chain_head`. Deliberately additive metadata, not a payload/contract/* schema field (this
+// file is not that schema's producer, Rule 1) - a re-verifier reads it to pin which sealed-store snapshot a
+// shipped finding was minted against; it never gates mint-time validation itself.
+function attachChainHead(payload, chainHead) {
+  return Object.assign({}, payload, { evidence_chain_head: chainHead });
+}
+
+/**
+ * persistArtifactStore(store, opts) -> Promise<{ chainHead, results }>. Writes every artifact in a
+ * supervised/capture-index.js ArtifactStore to its own sealed, content-addressed object via opts.putFn
+ * (default: the SAME defaultPutFn() R2 door persist() itself uses - production-ready, founder-gated
+ * exactly like the rest of this file). NEVER throws (Rule 9): one artifact's write failure is recorded in
+ * its own result row, not thrown into the mint. `results` is `[{evidence_id, sha256, objectKey, ok}]`.
+ *
+ * opts.env    env for the door (default process.env; secrets read at call time only, Rule 16).
+ * opts.putFn  injected (objectKey, body) => {ok, status} (tests: in-memory; production: the R2 door).
+ */
+async function persistArtifactStore(store, opts = {}) {
+  const env = opts.env || process.env;
+  const putFn = typeof opts.putFn === 'function' ? opts.putFn : defaultPutFn(env);
+  const results = [];
+  for (const artifact of store.list()) {
+    const objectKey = sealedObjectKey(artifact.evidence_id, artifact.sha256);
+    const putResult = await putFn(objectKey, JSON.stringify(sealedRecordFor(artifact)));
+    results.push({ evidence_id: artifact.evidence_id, sha256: artifact.sha256, objectKey, ok: Boolean(putResult && putResult.ok) });
+  }
+  return { chainHead: deriveArtifactChainHead(store), results };
+}
+
+// replaySealedStore(records) -> an ArtifactStore-SHAPED { get, list } object rehydrated ONLY from sealed
+// records (sealedRecordFor()'s JSON shape) - no dependency on the in-memory captureIndex that produced
+// them. Buffers are rehydrated from their base64 fields. This is the replay path MEDIUM-E5 requires: a
+// re-verifier calls supervised/verify-quote.js's verifyQuote()/verifyRawProvenance() against the object
+// this returns, exactly as an offline re-audit would, with the original process (and its in-memory store)
+// long gone.
+function replaySealedStore(records) {
+  const byId = new Map();
+  for (const r of (records || [])) {
+    byId.set(r.evidence_id, {
+      evidence_id: r.evidence_id, url: r.url, lane: r.lane, sha256: r.sha256, length: r.length, fetched_at: r.fetched_at,
+      bytes: r.bytes_base64 ? Buffer.from(r.bytes_base64, 'base64') : null,
+      rawAvailable: Boolean(r.raw_available),
+      rawSha256: r.raw_sha256 || null,
+      rawBytes: r.raw_bytes_base64 ? Buffer.from(r.raw_bytes_base64, 'base64') : null,
+      boundaries: Array.isArray(r.boundaries) ? r.boundaries : [],
+    });
+  }
+  return { get: (id) => byId.get(id) || null, list: () => Array.from(byId.values()) };
+}
+
 module.exports = {
   persist,
   deriveSlug,
@@ -357,4 +456,11 @@ module.exports = {
   CONFLICT_TARGET,
   UPDATE_COLUMNS,
   LIVE_AUDIT_PAGES_COLUMNS,
+  // sealed artifact-store persistence (MEDIUM-E5)
+  persistArtifactStore,
+  replaySealedStore,
+  deriveArtifactChainHead,
+  attachChainHead,
+  sealedObjectKey,
+  sealedRecordFor,
 };

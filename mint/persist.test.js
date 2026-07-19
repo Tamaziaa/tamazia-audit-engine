@@ -4,6 +4,9 @@ const assert = require('node:assert');
 const persist = require('./persist.js');
 const { ENGINE_VERSION } = require('./version.js');
 const { catalogue_version: CATALOGUE_VERSION } = require('../catalogue/dist/catalogue.v1.json');
+const { buildCaptureIndex } = require('../supervised/capture-index.js');
+const { resolveQuoteSpan } = require('../supervised/quote-resolver.js');
+const { verifyQuote, verifyRawProvenance } = require('../supervised/verify-quote.js');
 
 // A minimal contract-shaped payload carrying ONLY the fields persist reads: meta.domain/sector/country (the
 // row columns), frameworksBinding (the marker's binding count) and findings (the marker's llm_verify signal).
@@ -161,4 +164,71 @@ test('the default R2 door refuses an unconfigured env (no token/account) without
   const res = await putFn('audits/x/y.json', '{}');
   assert.strictEqual(res.ok, false);
   assert.strictEqual(res.error, 'r2_unconfigured');
+});
+
+// ── sealed artifact-store persistence (Kimi K3 MEDIUM-E5) ──────────────────────────────────────────────
+
+test('persistArtifactStore writes one sealed, content-addressed object per artifact via the injected putFn, never the real network', async () => {
+  const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/privacy', text: 'We use cookies before you consent to them.' }] } });
+  const puts = [];
+  const result = await persist.persistArtifactStore(store, { putFn: async (key, body) => { puts.push({ key, body }); return { ok: true, status: 200 }; } });
+  const artifact = store.list()[0];
+  assert.strictEqual(puts.length, 1);
+  assert.strictEqual(puts[0].key, persist.sealedObjectKey(artifact.evidence_id, artifact.sha256));
+  const parsed = JSON.parse(puts[0].body);
+  assert.strictEqual(parsed.evidence_id, artifact.evidence_id);
+  assert.strictEqual(parsed.sha256, artifact.sha256);
+  assert.strictEqual(Buffer.from(parsed.bytes_base64, 'base64').toString('utf8'), artifact.bytes.toString('utf8'));
+  assert.strictEqual(result.results.length, 1);
+  assert.strictEqual(result.results[0].ok, true);
+  assert.match(result.chainHead, /^[0-9a-f]{64}$/);
+});
+
+test('deriveArtifactChainHead is stable regardless of capture order (sorted by evidence_id, not insertion order)', () => {
+  const storeA = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/a', text: 'page a text' }, { url: 'https://x.example/b', text: 'page b text' }] } });
+  const storeB = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/b', text: 'page b text' }, { url: 'https://x.example/a', text: 'page a text' }] } });
+  assert.strictEqual(persist.deriveArtifactChainHead(storeA), persist.deriveArtifactChainHead(storeB));
+});
+
+test('attachChainHead adds evidence_chain_head to a CLONE of the payload without mutating the original', () => {
+  const p = payload('a.example');
+  const withHead = persist.attachChainHead(p, 'deadbeef'.repeat(8));
+  assert.strictEqual(withHead.evidence_chain_head, 'deadbeef'.repeat(8));
+  assert.strictEqual(p.evidence_chain_head, undefined, 'the original payload object must not be mutated');
+  assert.strictEqual(withHead.meta.domain, 'a.example', 'the rest of the payload is carried through unchanged');
+});
+
+test('a failed sealed-artifact write is recorded per-artifact, never thrown into the caller (Rule 9)', async () => {
+  const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/', text: 'some real text' }] } });
+  const result = await persist.persistArtifactStore(store, { putFn: async () => ({ ok: false, status: 500 }) });
+  assert.strictEqual(result.results[0].ok, false);
+});
+
+// THE MEDIUM-E5 PROOF: mint a finding, DROP the in-memory captureIndex entirely, re-verify every shipped
+// finding against the SEALED STORE ALONE (replaySealedStore over the records persistArtifactStore wrote) ->
+// all verify. This is the exact scenario the finding names: "once the process exits no auditor can re-run
+// verify_quote over a minted claim" - proven false here by never touching the original `store`/`quote`
+// objects again after the sealed write, only the plain JSON records captured off the wire.
+test('MEDIUM-E5 PROOF: after dropping the in-memory captureIndex, every shipped finding re-verifies against the sealed store alone', async () => {
+  const rawHtml = '<p>We use cookies before you consent to them, which some visitors will find intrusive.</p>';
+  const text = 'We use cookies before you consent to them, which some visitors will find intrusive.';
+  let store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/privacy', text, rawHtml }] } });
+  const shippedQuote = resolveQuoteSpan(store, 'https://x.example/privacy', 'cookies before you consent');
+  assert.ok(shippedQuote);
+  assert.strictEqual(verifyQuote(store, shippedQuote), true);
+  assert.strictEqual(verifyRawProvenance(store, shippedQuote), true);
+
+  // Seal every artifact to a plain in-memory "object store" (the same shape a real R2 PUT would receive).
+  const sealed = new Map();
+  await persist.persistArtifactStore(store, { putFn: async (key, body) => { sealed.set(key, body); return { ok: true, status: 200 }; } });
+
+  // DROP the in-memory captureIndex - the process-exit scenario the finding describes. Only the plain JSON
+  // records survive (as if fetched back from R2 by evidence_id/sha256 in a fresh process).
+  store = null;
+  const records = Array.from(sealed.values()).map((body) => JSON.parse(body));
+  const replayedStore = persist.replaySealedStore(records);
+
+  // Re-verify the SAME shipped quote against ONLY the sealed store - no reference to the original store.
+  assert.strictEqual(verifyQuote(replayedStore, shippedQuote), true);
+  assert.strictEqual(verifyRawProvenance(replayedStore, shippedQuote), true);
 });

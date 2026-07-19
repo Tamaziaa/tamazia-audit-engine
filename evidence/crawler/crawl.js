@@ -92,6 +92,14 @@ function contentPageFrom(url, res, cap) {
   const klass = extract.pageContentClass(res.status, res.body);
   if (klass !== 'content') return { page: null, klass };
   const page = extract.buildPage(res.finalUrl || url, res.body);
+  // rawHtml: the UNSTRIPPED fetched body, carried alongside the extracted text (additive field, never read
+  // by any existing consumer of a corpus page). Kimi K3 HIGH-E2: the mint-time hash chain
+  // (supervised/capture-index.js) anchors to the NORMALISED text only, which proves the normalised buffer
+  // is untouched but not that it corresponds to what the page actually rendered. capture-index.js uses this
+  // field, when present, to record a SECOND, independent raw-bytes commitment and a raw<->normalised
+  // boundary map; a page with no rawHtml (older bundle/replay input) simply captures without it
+  // (rawAvailable:false) - Rule 8/Rule 9 discipline: additive, never a required floor on this pipeline.
+  page.rawHtml = typeof res.body === 'string' ? res.body : String(res.body);
   const truncated = truncateToCorpusCap(page, cap);
   return { page, klass: 'content', truncated, bodyHash: crypto.createHash('sha1').update(String(res.body)).digest('hex') };
 }

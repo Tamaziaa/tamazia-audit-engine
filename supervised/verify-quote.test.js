@@ -3,7 +3,10 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { buildCaptureIndex } = require('./capture-index.js');
 const { resolveQuoteSpan } = require('./quote-resolver.js');
-const { verifyQuote, verify_quote, verifyQuoteDetailed, REFUSAL_REASONS } = require('./verify-quote.js');
+const {
+  verifyQuote, verify_quote, verifyQuoteDetailed, REFUSAL_REASONS,
+  verifyRawProvenance, verifyRawProvenanceDetailed, RAW_REFUSAL_REASONS,
+} = require('./verify-quote.js');
 
 function storeWithOnePage(text) {
   return buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/', text }] } });
@@ -84,4 +87,59 @@ test('a malformed quote object (missing evidence_id) is rejected without throwin
   const store = storeWithOnePage('text');
   assert.strictEqual(verifyQuote(store, {}), false);
   assert.strictEqual(verifyQuote(store, null), false);
+});
+
+// ── raw-provenance durability (Kimi K3 HIGH-E2) - ADDITIVE checks, never in place of the tests above ─────
+
+// test (a): a normalised span resolves back to a raw-byte range and the raw digest verifies.
+test('verifyRawProvenance PASSES for a real span backed by genuine raw bytes with no phantom-join risk', () => {
+  const rawHtml = '<p>We use cookies before you consent to them, which some visitors will find intrusive.</p>';
+  const text = 'We use cookies before you consent to them, which some visitors will find intrusive.';
+  const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/privacy', text, rawHtml }] } });
+  const quote = resolveQuoteSpan(store, 'https://x.example/privacy', 'cookies before you consent');
+  assert.ok(quote);
+  assert.strictEqual(verifyQuote(store, quote), true); // sanity: existing gate still passes, untouched
+  assert.strictEqual(verifyRawProvenance(store, quote), true);
+  assert.strictEqual(verifyRawProvenanceDetailed(store, quote).ok, true);
+});
+
+// test (b): a phantom-join (two raw nodes with no punctuation between them) is detectable and refused.
+test('verifyRawProvenance REFUSES a span crossing a phantom join (two raw text nodes stitched with no source separator)', () => {
+  const rawHtml = '<div><span>Free</span><span>VPS</span></div>';
+  const text = 'Free VPS';
+  const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/pricing', text, rawHtml }] } });
+  const quote = resolveQuoteSpan(store, 'https://x.example/pricing', 'Free VPS');
+  assert.ok(quote, 'the span must resolve against the normalised text (verifyQuote itself still passes)');
+  assert.strictEqual(verifyQuote(store, quote), true); // the EXISTING gate is untouched and still passes
+  const raw = verifyRawProvenanceDetailed(store, quote);
+  assert.strictEqual(raw.ok, false);
+  assert.strictEqual(raw.reason, RAW_REFUSAL_REASONS.PHANTOM_JOIN_RISK);
+});
+
+test('verifyRawProvenance reports raw_unavailable (never a false pass) when the artifact carries no raw bytes', () => {
+  const store = storeWithOnePage('The quick brown fox jumps over the lazy dog.');
+  const quote = resolveQuoteSpan(store, 'https://x.example/', 'brown fox');
+  assert.strictEqual(verifyQuote(store, quote), true);
+  const raw = verifyRawProvenanceDetailed(store, quote);
+  assert.strictEqual(raw.ok, false);
+  assert.strictEqual(raw.reason, RAW_REFUSAL_REASONS.RAW_UNAVAILABLE);
+});
+
+test('verifyRawProvenance detects a tampered raw artifact (raw bytes flipped after capture) even though the normalised gate still passes', () => {
+  const rawHtml = '<p>We use cookies before you consent to them.</p>';
+  const text = 'We use cookies before you consent to them.';
+  const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/privacy', text, rawHtml }] } });
+  const quote = resolveQuoteSpan(store, 'https://x.example/privacy', 'cookies before you consent');
+  const artifact = store.list()[0];
+  artifact.rawBytes[0] = artifact.rawBytes[0] ^ 0xff; // simulate corruption/tamper of the RAW record only
+  assert.strictEqual(verifyQuote(store, quote), true); // the normalised gate is unaffected - proves independence
+  const raw = verifyRawProvenanceDetailed(store, quote);
+  assert.strictEqual(raw.ok, false);
+  assert.strictEqual(raw.reason, RAW_REFUSAL_REASONS.RAW_HASH_MISMATCH);
+});
+
+test('verifyRawProvenance on an unresolvable evidence_id fails closed with the same NO_ARTIFACT reason verifyQuote uses', () => {
+  const store = storeWithOnePage('real captured text');
+  const fabricated = { evidence_id: 'nope', byte_start: 0, byte_end: 4 };
+  assert.strictEqual(verifyRawProvenanceDetailed(store, fabricated).reason, REFUSAL_REASONS.NO_ARTIFACT);
 });
