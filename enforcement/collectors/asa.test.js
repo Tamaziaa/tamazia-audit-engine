@@ -67,6 +67,22 @@ test('ruleNumbersOf recognises the plural "rules" list form ASA uses for multi-r
   assert.ok(lawIds.length > 1, 'a multi-rule "rules X and Y" citation must not collapse to the single generic UK_CAP_CODE fallback');
 });
 
+test('ruleNumbersOf is ReDoS-safe: an adversarial run of " ," / "   and" separators after "rules N.N" completes in linear time, never exponential backtracking (CodeQL js/redos regression, KNOWN-BAD CALIBRATION FIXTURE)', () => {
+  // The pre-fix separator `(?:\s*,\s*|\s+and\s+)+` backtracked exponentially on these exact inputs
+  // (measured >6s at ~26 repetitions). The fixed pattern must stay well under a generous wall-clock
+  // bound even at a repetition count that would have taken the old pattern longer than the age of the
+  // test run to finish.
+  for (const filler of [' ,', '   and']) {
+    const attack = 'rules 1.1' + filler.repeat(50000) + '!';
+    const started = Date.now();
+    const rows = parse(`<html><body><h1>ASA Ruling on Attack Ltd</h1><p>Ruling on\nAttack Ltd\nUpheld</p><p>1 July 2026</p><p>${attack}</p></body></html>`,
+      ctxFor(attack, 'https://www.asa.org.uk/rulings/attack.html'));
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 1000, `ruleNumbersOf must not backtrack exponentially (took ${elapsed}ms on a ${filler.trim()}-repetition attack)`);
+    assert.equal(rows.length, 1); // still parses the real leading rule number, unaffected
+  }
+});
+
 test('a structurally drifted page (no "Ruling on" heading, no date) yields zero rows, not a guess (KNOWN-BAD CALIBRATION FIXTURE)', () => {
   const brokenHtml = '<html><body><h1>Something else entirely</h1><p>no ruling structure here</p></body></html>';
   const rows = parse(brokenHtml, ctxFor(brokenHtml, 'https://www.asa.org.uk/rulings/broken.html'));

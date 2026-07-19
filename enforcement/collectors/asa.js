@@ -58,7 +58,18 @@ function ruleNumbersOf(text) {
   const found = new Set();
   // A literal regex throughout (never RegExp built from a runtime string): a static, fully-reviewed
   // pattern, not a dynamic one a security scanner would need to treat as unbounded input.
-  const clusterRx = /\brules?\s+(\d{1,2}\.\d{1,2}(?:\s*\([^)]*\))?(?:(?:\s*,\s*|\s+and\s+)+\d{1,2}\.\d{1,2}(?:\s*\([^)]*\))?)*)/gi;
+  //
+  // ReDoS-safe by construction (CodeQL js/redos): the between-numbers separator is a SINGLE token
+  // whose two branches are disjoint on their first character - `,\s*` starts with a literal comma,
+  // `\s+` starts with whitespace - so the engine never has two ways to split the same run of
+  // spaces/commas (the exponential-backtracking shape a `(?:\s*,\s*|\s+and\s+)+` had, where both
+  // alternatives could consume the same leading whitespace and the outer `+` multiplied the
+  // ambiguity). The separator is NOT wrapped in its own `+`; instead every iteration of the outer
+  // `(...)*` must consume a mandatory `\d{1,2}\.\d{1,2}` digit-pair, which anchors each repetition to
+  // real, non-separator content and bounds the total work linearly in the input length. The optional
+  // `(?:and\s+)?` after the separator captures the ", and " / " and " Oxford-comma joins ASA uses,
+  // still starting with the literal 'a', never competing with the whitespace match.
+  const clusterRx = /\brules?\s+(\d{1,2}\.\d{1,2}(?:\s*\([^)]*\))?(?:(?:,\s*|\s+)(?:and\s+)?\d{1,2}\.\d{1,2}(?:\s*\([^)]*\))?)*)/gi;
   const numberRx = /\d{1,2}\.\d{1,2}/g;
   let m = clusterRx.exec(text);
   while (m) {
