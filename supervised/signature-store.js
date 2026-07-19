@@ -23,6 +23,22 @@ function isValidDecision(d) {
   return d === 'ship' || d === 'drop';
 }
 
+// REPORT_SHA256_RE: a report_sha256 must be a 64-char lowercase-hex string (crypto.digest('hex') shape),
+// the SAME commitment shape finding.js's SPAN_HASH_RE uses for a quote span.
+const REPORT_SHA256_RE = /^[0-9a-f]{64}$/;
+
+// assertValidReportSha256(reportSha256) -> throws unless reportSha256 is either absent (legacy signatures,
+// and findings-only mints, carry none) or a 64-char lowercase-hex commitment (Kimi K3 finding HIGH-E3, live
+// audit 2026-07-20: the signature must be able to COMMIT to the exact linted report bytes the founder
+// signed, so a post-signature edit of the report is detectable at the mint gate - see mint-gate.js's
+// checkReport).
+function assertValidReportSha256(reportSha256) {
+  if (reportSha256 === undefined || reportSha256 === null) return;
+  if (typeof reportSha256 !== 'string' || !REPORT_SHA256_RE.test(reportSha256)) {
+    throw new Error('signature-store: report_sha256 must be a 64-char lowercase-hex sha256 of the exact report bytes signed, got ' + JSON.stringify(reportSha256));
+  }
+}
+
 // assertValidOverall(overall) -> throws unless overall is exactly 'SIGN' or 'HOLD'.
 function assertValidOverall(overall) {
   if (overall !== 'SIGN' && overall !== 'HOLD') {
@@ -88,8 +104,14 @@ function recordSignature(store, runId, fields) {
   const f = fields || {};
   assertValidOverall(f.overall);
   assertValidFindingDecisions(f.findingDecisions);
+  assertValidReportSha256(f.report_sha256);
   return asManifestStore(store).append(runId, 'signature', {
     signer: resolvedSigner(f), overall: f.overall, finding_decisions: f.findingDecisions, note: resolvedNote(f),
+    // report_sha256: the founder's commitment to the exact linted report bytes they signed (Kimi K3 finding
+    // HIGH-E3). Absent (null) on a findings-only signature that covers no drafted report; a 64-hex string
+    // when the signature covers a report. mint-gate.js's checkReport re-hashes the report actually being
+    // minted and refuses on any mismatch, so an edit AFTER the founder signed is caught.
+    report_sha256: f.report_sha256 == null ? null : f.report_sha256,
   });
 }
 
@@ -116,4 +138,12 @@ function shippedFindingIds(signature) {
   return new Set(decisionsOf(signature).filter(isShipDecision).map((d) => d.finding_id));
 }
 
-module.exports = { recordSignature, latestSignature, shippedFindingIds, REASON_CODES };
+// signedReportSha256(signature) -> the founder's committed report_sha256 for this signature, or null when
+// the signature covers no drafted report (Kimi K3 finding HIGH-E3). mint-gate.js reads this to decide
+// whether a report must be present and must match at mint time.
+function signedReportSha256(signature) {
+  const h = signature && signature.report_sha256;
+  return typeof h === 'string' && h ? h : null;
+}
+
+module.exports = { recordSignature, latestSignature, shippedFindingIds, signedReportSha256, REASON_CODES };

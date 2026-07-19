@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { createFinding, withMitigation, FINDING_CLASS, deriveFindingId } = require('./finding.js');
+const { createFinding, withMitigation, FINDING_CLASS, deriveFindingId, isFinding } = require('./finding.js');
 const { FindingConstructionError } = require('./errors.js');
 
 // A syntactically-valid 64-char lowercase-hex span_sha256 (shape-valid per SPAN_HASH_RE). createFinding()
@@ -15,9 +15,34 @@ test('createFinding builds a frozen finding with a derived, deterministic findin
   const f = createFinding(VALID);
   assert.ok(Object.isFrozen(f));
   assert.strictEqual(f.rule_id, 'UK_TEST_RULE');
-  assert.strictEqual(f.finding_id, deriveFindingId('UK_TEST_RULE', VALID_QUOTE));
+  assert.strictEqual(f.finding_id, deriveFindingId('UK_TEST_RULE', VALID_QUOTE, FINDING_CLASS.LIKELY, 'UK'));
   assert.deepStrictEqual(f.mitigation_log, []);
   assert.ok(f.engine_version);
+  assert.ok(isFinding(f));
+});
+
+// Kimi K3 finding E1 (live audit 2026-07-20): deriveFindingId's basis previously carried only
+// rule_id + quote, so a finding could be re-derived with a DIFFERENT class or jurisdiction over the exact
+// same evidence and land on the SAME finding_id - a signature recorded for a needs_human finding would
+// silently also cover a rebuilt confirmed finding, and a jurisdiction flip (UK->US) would be invisible to
+// any id-keyed check. class and jurisdiction are now part of the basis, so either change mints a different id.
+test('E1: the SAME quote under a DIFFERENT class mints a DIFFERENT finding_id', () => {
+  const needsHuman = createFinding(Object.assign({}, VALID, { class: FINDING_CLASS.NEEDS_HUMAN }));
+  const confirmed = createFinding(Object.assign({}, VALID, { class: FINDING_CLASS.CONFIRMED }));
+  assert.notStrictEqual(needsHuman.finding_id, confirmed.finding_id);
+});
+
+test('E1: the SAME quote under a DIFFERENT jurisdiction mints a DIFFERENT finding_id', () => {
+  const uk = createFinding(Object.assign({}, VALID, { jurisdiction: 'UK' }));
+  const us = createFinding(Object.assign({}, VALID, { jurisdiction: 'US' }));
+  assert.notStrictEqual(uk.finding_id, us.finding_id);
+});
+
+test('createFinding() output is BRANDED (isFinding true); a field-correct look-alike is not', () => {
+  const f = createFinding(VALID);
+  assert.strictEqual(isFinding(f), true);
+  const lookalike = Object.assign({}, f); // every field copied, but never went through createFinding()
+  assert.strictEqual(isFinding(lookalike), false);
 });
 
 test('a finding is UNCONSTRUCTIBLE without a quote (Kimi spec: no raw-string quote, ever)', () => {
@@ -77,6 +102,33 @@ test('withMitigation appends without mutating the original frozen finding', () =
   assert.strictEqual(f2.mitigation_log.length, 1);
   assert.ok(Object.isFrozen(f2));
   assert.ok(Object.isFrozen(f2.mitigation_log));
+  assert.ok(isFinding(f2), 'the new finding returned by withMitigation must itself be branded');
+});
+
+// Kimi K3 finding E4 (live audit 2026-07-20): withMitigation() froze the mitigation_log ARRAY but not the
+// entry objects inside it, so a caller holding a reference to the object it passed in could mutate a
+// recorded verdict (e.g. flip `verified` or `outcome`) AFTER it was logged - the audit trail was not
+// actually tamper-proof. Entries are now deep-frozen clones, severed from the caller's own reference.
+test('E4: a mitigation_log entry is deep-frozen and severed from the caller\'s own object (mutation after the fact is impossible)', () => {
+  const f = createFinding(VALID);
+  const entry = { source: 'claude-adversarial', outcome: 'unverifiable', artifact_ref: { evidence_id: 'ev1' } };
+  const f2 = withMitigation(f, entry);
+  // mutating the CALLER's original object must not affect the recorded copy (structuredClone severed it).
+  entry.outcome = 'TAMPERED';
+  entry.artifact_ref.evidence_id = 'TAMPERED';
+  assert.strictEqual(f2.mitigation_log[0].outcome, 'unverifiable');
+  assert.strictEqual(f2.mitigation_log[0].artifact_ref.evidence_id, 'ev1');
+  // the logged entry itself, including its nested fields, is frozen (not just the top-level array).
+  assert.ok(Object.isFrozen(f2.mitigation_log[0]));
+  assert.ok(Object.isFrozen(f2.mitigation_log[0].artifact_ref));
+  assert.throws(() => { 'use strict'; f2.mitigation_log[0].outcome = 'nope'; });
+  assert.throws(() => { 'use strict'; f2.mitigation_log[0].artifact_ref.evidence_id = 'nope'; });
+});
+
+test('E4: withMitigation refuses a field-correct look-alike that never went through createFinding()', () => {
+  const real = createFinding(VALID);
+  const lookalike = Object.assign({}, real); // same fields, never branded
+  assert.throws(() => withMitigation(lookalike, { source: 'x', outcome: 'unverifiable' }), FindingConstructionError);
 });
 
 test('the KNOWN-BAD calibration fixture: a fabricated finding with a fake byte range is still SHAPE-valid here (construction only checks shape, not reality) but must fail verify_quote downstream', () => {

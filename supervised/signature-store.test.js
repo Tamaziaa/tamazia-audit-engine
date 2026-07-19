@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { ManifestStore } = require('./manifest-store.js');
-const { recordSignature, latestSignature, shippedFindingIds } = require('./signature-store.js');
+const { recordSignature, latestSignature, shippedFindingIds, signedReportSha256 } = require('./signature-store.js');
 
 function store() {
   return new ManifestStore({ baseDir: fs.mkdtempSync(path.join(os.tmpdir(), 'mintgate-sig-')) });
@@ -70,6 +70,32 @@ test('KNOWN-BAD CALIBRATION FIXTURE: a duplicate finding_id within one findingDe
   );
   // Nothing was ever recorded for this run_id - the rejected call must not have partially appended.
   assert.strictEqual(latestSignature(s, 'run-7'), null);
+});
+
+// Kimi K3 finding HIGH-E3 (live audit 2026-07-20): a signature can now COMMIT to the exact linted report
+// bytes via report_sha256, so mint-gate.js can detect a post-signature edit of the report.
+test('E3: recordSignature stores a valid report_sha256 and signedReportSha256 reads it back', () => {
+  const s = store();
+  const hash = 'a'.repeat(64);
+  recordSignature(s, 'run-e3', { overall: 'SIGN', report_sha256: hash, findingDecisions: [{ finding_id: 'f1', decision: 'ship' }] });
+  const latest = latestSignature(s, 'run-e3');
+  assert.strictEqual(latest.report_sha256, hash);
+  assert.strictEqual(signedReportSha256(latest), hash);
+});
+
+test('E3: a signature with no report_sha256 records null, and signedReportSha256 returns null (findings-only)', () => {
+  const s = store();
+  recordSignature(s, 'run-e3-none', { overall: 'SIGN', findingDecisions: [{ finding_id: 'f1', decision: 'ship' }] });
+  const latest = latestSignature(s, 'run-e3-none');
+  assert.strictEqual(latest.report_sha256, null);
+  assert.strictEqual(signedReportSha256(latest), null);
+});
+
+test('E3: a malformed report_sha256 (not 64-hex) is rejected at the write boundary, never recorded', () => {
+  const s = store();
+  assert.throws(() => recordSignature(s, 'run-e3-bad', { overall: 'SIGN', report_sha256: 'not-a-hash', findingDecisions: [] }), /report_sha256 must be a 64-char/);
+  assert.throws(() => recordSignature(s, 'run-e3-bad', { overall: 'SIGN', report_sha256: 'A'.repeat(64), findingDecisions: [] }), /report_sha256 must be a 64-char/); // uppercase not accepted
+  assert.strictEqual(latestSignature(s, 'run-e3-bad'), null);
 });
 
 test('latestSignature returns null when no signature was ever recorded', () => {
