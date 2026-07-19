@@ -283,8 +283,11 @@ const REGION_TOKENS = Object.freeze([
   { code: 'region:worldwide', rx: /\bworld\s?wide\b|\bglobal(?:ly)?\b|\binternational(?:ly)?\b/i },
 ]);
 
-// Registers whose row is Tier A for a fixed home jurisdiction.
-const REGISTER_HOMES = Object.freeze({ companiesHouse: 'UK', sra: 'UK', cqc: 'UK', fca: 'UK', ico: 'UK' });
+// Registers whose row is Tier A for a fixed home jurisdiction. npi (NPPES) enumerates ONLY US
+// healthcare providers/organisations (evidence/registers/npi.js), so a matched row is exactly the
+// same class of signal as a Companies House or SRA row: an official register entry for that
+// country, with a real identifier (the NPI number) — Tier A per the doctrine at this file's top.
+const REGISTER_HOMES = Object.freeze({ companiesHouse: 'UK', sra: 'UK', cqc: 'UK', fca: 'UK', ico: 'UK', npi: 'US' });
 const ISO_TO_CODE = Object.freeze({ GB: 'UK', UK: 'UK', IE: 'IE', US: 'US', USA: 'US', AE: 'AE', DE: 'DE', FR: 'FR', NL: 'NL', ES: 'ES', IT: 'IT' });
 const REGISTER_ID_FIELDS = ['companyNumber', 'company_number', 'number', 'lei', 'registrationNumber', 'registration_number', 'frn', 'id'];
 const REGISTER_NAME_FIELDS = ['name', 'legalName', 'legal_name', 'title', 'companyName', 'organisationName'];
@@ -408,6 +411,23 @@ function collectRegisterSignals(bundle, state) {
       if (pc) state.ukPostcodes.push({ postcode: pc[0], source: 'registers.' + key, quote: pc[0] });
     }
   }
+}
+
+// collectRdapSignal (WS-Signals, KIMI-K3-DEEP-BLUEPRINT-2026-07-20 §B3/§C): RDAP registrant country
+// is DELIBERATELY not read through collectRegisterSignals/REGISTER_HOMES above — its row
+// (evidence/registers/rdap.js) carries no id/name field at all, so registerIsUsable() correctly
+// never treats it as a register match, and it must NEVER be graded Tier A or B: "RDAP (rdap.org)
+// for registrant country as a weak signal (WHOIS is redacted — demote)". This is the one place a
+// bare country string becomes evidence, and it is capped at Tier C by construction: it feeds
+// serves[] only, exactly like a ccTLD or a bare authority mention, and can never bind on its own or
+// in any combination (Constitution Rule 13).
+function collectRdapSignal(bundle, state) {
+  const rec = bundle && bundle.registers && bundle.registers.rdap;
+  const raw = rec && typeof rec.registrant_country === 'string' ? rec.registrant_country.trim().toUpperCase() : '';
+  if (!raw) return;
+  const code = ISO_TO_CODE[raw] || null;
+  if (!code) return; // an RDAP country code outside the launch jurisdiction set is not fabricated into one
+  addEvidence(state, code, 'C', 'rdap_registrant_country', 'registers.rdap', raw);
 }
 
 function collectDomainSignals(bundle, state) {
@@ -705,7 +725,7 @@ function buildBound(state) {
 function buildServes(state) {
   const serves = [];
   for (const [code, ev] of Object.entries(state.sig)) {
-    const reach = ev.C.filter((e) => e.kind === 'prose_mention' || e.kind === 'bar_admission');
+    const reach = ev.C.filter((e) => e.kind === 'prose_mention' || e.kind === 'bar_admission' || e.kind === 'rdap_registrant_country');
     if (reach.length) serves.push({ jurisdiction: code, confidence: 'weak', evidence: reach });
   }
   for (const [code, evidence] of Object.entries(state.regions)) {
@@ -784,6 +804,7 @@ function resolveJurisdiction(bundle) {
   }
 
   collectRegisterSignals(bundle, state);
+  collectRdapSignal(bundle, state);
   collectDomainSignals(bundle, state);
   collectJsonLdSignals(bundle, state);
   collectGlobalTextSignals(docs, state);

@@ -2,7 +2,10 @@
 // evidence/registers/registers.js: THE orchestrator for evidence/registers/ (P3 Wave 1b).
 //
 // fetchRegisters(identityHints, opts) -> the EvidenceBundle.registers object described in
-// facts/README.md: { companiesHouse?, gleif?, sra?, cqc?, fca?, ico?, notes:[...] }. Each register
+// facts/README.md: { companiesHouse?, gleif?, sra?, cqc?, fca?, ico?, npi?, rdap?, notes:[...] }.
+// npi (NPPES, US healthcare) follows the same C-004 name-match binary semantics as the other five
+// register modules; rdap (rdap.org) is structurally different (domain-keyed, not name-keyed) and its
+// one field is always Tier C only — see evidence/registers/rdap.js's header. Each register
 // key is present ONLY when its module returned a genuine, name-matched row (Constitution C-004); a
 // missing key means "no evidence", never "checked and clean", and never a guess. notes[] carries a
 // loud, structured entry for every register that was skipped, degraded (missing key/config, a fetch
@@ -17,6 +20,8 @@ const { lookupSra } = require('./sra');
 const { lookupCqc } = require('./cqc');
 const { lookupFca } = require('./fca');
 const { lookupIco } = require('./ico');
+const { lookupNpi } = require('./npi');
+const { lookupRdap } = require('./rdap');
 const { domainStemFallback } = require('./lib/name-match');
 
 let canonicalSector = (s) => (s == null ? null : String(s));
@@ -55,6 +60,7 @@ function callArgs(query, hints, opts) {
     query,
     domain: hints && hints.domain,
     sector: hints && hints.sector ? canonicalSector(hints.sector) : null,
+    country: hints && hints.country ? String(hints.country).toUpperCase() : null,
     fetchFn: opts.fetchFn,
     deadlineMs: opts.deadlineMs,
     keys: opts.keys || {},
@@ -63,11 +69,26 @@ function callArgs(query, hints, opts) {
 }
 
 // buildLookups(query, hints, opts) -> [{key, run}], the applicable register calls for this hint set.
-// GLEIF is worldwide and always attempted; the other five are UK-specific and gated by
-// tryUkRegisters (each also self-gates on sector where relevant, e.g. SRA/CQC/FCA).
+// GLEIF and NPI are worldwide-reachable/self-gating and always attempted; RDAP is domain-keyed (not
+// name-keyed) and always attempted when a domain is present; the other five are UK-specific and
+// gated by tryUkRegisters (each also self-gates on sector where relevant, e.g. SRA/CQC/FCA).
 function buildLookups(query, hints, opts) {
   const args = callArgs(query, hints, opts);
-  const lookups = [{ key: 'gleif', run: () => lookupGleif(args) }];
+  const lookups = [
+    { key: 'gleif', run: () => lookupGleif(args) },
+    // NPI (NPPES, US healthcare providers only): self-gates on sector/country inside lookupNpi
+    // (Rule 8: an irrelevant call never fires), so it is always offered here, like GLEIF.
+    { key: 'npi', run: () => lookupNpi(args) },
+  ];
+  if (hints && hints.domain) {
+    // Reuses the shared `args` object (same fetchFn/deadlineMs/log/domain every other lookup
+    // receives from callArgs) rather than re-reading opts/hints directly, so RDAP cannot silently
+    // diverge if callArgs ever normalises these fields (CodeRabbit PR #30).
+    lookups.push({
+      key: 'rdap',
+      run: () => lookupRdap({ domain: args.domain, fetchFn: args.fetchFn, deadlineMs: args.deadlineMs, log: args.log }),
+    });
+  }
   if (tryUkRegisters(hints)) {
     lookups.push(
       { key: 'companiesHouse', run: () => lookupCompaniesHouse(args) },

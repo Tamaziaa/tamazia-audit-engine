@@ -1,0 +1,32 @@
+{
+  "comment": "WS-Signals P3 register calibration for npi.js (Constitution C-004, same doctrine as p3-register-http200-nonmatch.json): NPPES answers a NON-EMPTY, HTTP 200 organisation-search response for the query 'Example Family Health Clinic', but the only candidate is 'UNRELATED WELLNESS SUPPLY CO' -- a real, unrelated organisation with no name overlap. evidence/registers/registers.js must refuse this candidate: no npi row may be returned. Run via: node evidence/registers/registers.js --calibrate. A finding is emitted only when the poison is correctly refused; zero findings fails eval/calibration-known-bad/run.js (earn-your-zero).",
+  "hints": {
+    "domain": "examplefamilyhealthclinic-example.com",
+    "company": "Example Family Health Clinic",
+    "country": "US",
+    "sector": "healthcare"
+  },
+  "keys": {},
+  "fetchResponses": {
+    "npi.registry": {
+      "status": 200,
+      "json": {
+        "result_count": 1,
+        "results": [
+          {
+            "number": "1000000000",
+            "enumeration_type": "NPI-2",
+            "basic": { "organization_name": "UNRELATED WELLNESS SUPPLY CO", "status": "A" },
+            "taxonomies": [{ "code": "332B00000X", "desc": "Durable Medical Equipment & Medical Supplies", "primary": true, "state": "TX", "license": null }]
+          }
+        ]
+      }
+    },
+    "gleif.lei_records": { "status": 200, "json": { "data": [] } },
+    "companies_house.search": { "status": 200, "json": { "items": [] } }
+  },
+  "poison": {
+    "forbidden_registers": ["npi"],
+    "forbidden_names": ["UNRELATED WELLNESS SUPPLY CO"]
+  }
+}
