@@ -1,7 +1,7 @@
-# evidence/registers/ — binary register rows (P3 Wave 1b)
+# evidence/registers/ — binary register rows (P3 Wave 1b; WS-Signals P7 wave adds npi/rdap)
 
 Supplies the pre-fetched `EvidenceBundle.registers` object described in `facts/README.md`:
-`{ companiesHouse?, gleif?, sra?, cqc?, fca?, ico?, notes:[...] }`. facts/identity.js,
+`{ companiesHouse?, gleif?, sra?, cqc?, fca?, ico?, npi?, rdap?, notes:[...] }`. facts/identity.js,
 facts/jurisdiction.js and facts/sector.js stay pure consumers of this bundle (Constitution Rule 1);
 this directory produces no client-facing fact itself.
 
@@ -42,6 +42,8 @@ an injected `keys` object (`keys.companiesHouse`, `keys.cqc = {apiKey, partnerCo
 | `cqc.js` | CQC provider register | `keys.cqc.apiKey` + `keys.cqc.partnerCode` | health family, or unspecified |
 | `fca.js` | FCA Financial Services Register | `keys.fca.email` + `keys.fca.key` | finance family, or unspecified |
 | `ico.js` | ICO Register of Data Controllers | `keys.ico` (mirror endpoint URL) | UK only |
+| `npi.js` | NPPES NPI Registry (CMS, US) | none (public) | healthcare/dental/aesthetics family, or unspecified; US or unspecified country |
+| `rdap.js` | RDAP via rdap.org bootstrap | none (public) | worldwide, always attempted when a domain is present; domain-keyed, NOT name-matched — see below |
 
 **CQC and FCA are founder-blocked in this estate today** (CLAUDE.md: `CQC_API_KEY`/
 `CQC_PARTNER_CODE` and `FCA_API_EMAIL`/`FCA_API_KEY` are blank pending developer-portal
@@ -55,6 +57,31 @@ mirror of that same dataset; until one is configured, this lookup also degrades 
 (`missing_endpoint`). Whether a firm is or is not on the ICO register is therefore currently
 **unknowable** to this evidence layer in production, and no absence is ever asserted without it —
 that determination stays correctly deferred rather than guessed.
+
+## NPI and RDAP (WS-Signals ground-truth-anchoring wave, 2026-07-20)
+
+`npi.js` (NPPES, US healthcare providers/organisations) follows the identical C-004 name-match
+binary semantics as the other five modules and needs no key; it self-gates on sector (healthcare/
+dental/aesthetics, or unspecified) and country (US, or unspecified) so an irrelevant call is never
+made (Rule 8). Its row carries `taxonomy_code`/`taxonomy_desc` (the NUCC code the register itself
+assigns) alongside the full `taxonomies[]` list; `facts/sector.js` reads this to discriminate
+healthcare SUB-sectors (general practice, mental health, pharmacy, optometry, physiotherapy) the
+same way it already reads Companies House SIC codes for the top-level family. NPPES has NO
+free-text company-number field and NO non-US/non-healthcare coverage: a query outside that scope
+correctly returns zero candidates, never a guess. LIVE-CALLED AND CONFIRMED 2026-07-20 (see
+`npi.js`'s header for the exact request and a real response shape).
+
+`rdap.js` is structurally different from every other module in this directory: it is keyed by
+DOMAIN, not by a company-name candidate, so it does not use `lib/lookup-runner.js`'s name-match
+flow at all. It reads the RDAP response's `entities[]` for an explicit `registrant`-role entity and
+extracts a country from that entity's vCard address ONLY; any other role (registrar, admin, tech,
+abuse) is never read as a registrant signal. LIVE-CALLED AND CONFIRMED 2026-07-20 against two real
+domains: both showed NO `registrant`-role entity at all (WHOIS-privacy redaction is the norm post
+GDPR/ICANN Temporary Specification, exactly as predicted) — this module's honest, expected output
+for the overwhelming majority of real domains is therefore `no_match{registrant_redacted}`, not a
+row. `facts/jurisdiction.js` reads a present `registers.rdap.registrant_country` as a Tier-C-ONLY
+signal (weight 1, never establishes on its own or in combination — Constitution Rule 13); it feeds
+`serves[]` only, exactly like a bare authority mention or ccTLD.
 
 ## Orchestration
 

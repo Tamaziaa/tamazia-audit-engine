@@ -452,6 +452,53 @@ test('internals.registerIsUsable requires BOTH a real id and a name', () => {
 });
 
 // ===========================================================================
+// WS-Signals (KIMI-K3-DEEP-BLUEPRINT-2026-07-20 §B3): npi (NPPES, US healthcare) is a Tier-A
+// register-home like companiesHouse/sra/cqc/fca/ico; rdap (rdap.org) is capped at Tier C by
+// construction and must NEVER bind on its own, however many other Tier-C signals agree.
+// ===========================================================================
+
+test('WS-Signals positive: an NPPES-matched npi register row is Tier-A US establishment evidence', () => {
+  const bundle = bundleOf({
+    registers: { npi: { id: '1999999999', name: 'EXAMPLE FAMILY HEALTH CLINIC', taxonomy_code: '207Q00000X' } },
+  });
+  const out = resolveJurisdiction(bundle);
+  const us = findBound(out, 'US');
+  assert.ok(us, 'npi register row must bind US');
+  assert.equal(us.confidence, 'register');
+  assert.ok(us.tier_evidence.some((e) => e.tier === 'A' && e.source === 'registers.npi'));
+});
+
+test('WS-Signals negative: an RDAP registrant_country ALONE never binds a jurisdiction (Tier C only, Rule 13)', () => {
+  const bundle = bundleOf({ registers: { rdap: { registrant_country: 'FR', source: 'rdap' } } });
+  const out = resolveJurisdiction(bundle);
+  assert.equal(boundCodes(out).includes('FR'), false);
+  assert.equal(out.abstained, true);
+});
+
+test('WS-Signals negative: RDAP + a second Tier-C-only signal STILL never binds (Tier C never combines up, C-014/Rule 13)', () => {
+  const bundle = pageBundle('We are proud to serve clients across France and internationally.', {
+    registers: { rdap: { registrant_country: 'FR', source: 'rdap' } },
+  });
+  const out = resolveJurisdiction(bundle);
+  assert.equal(boundCodes(out).includes('FR'), false);
+});
+
+test('WS-Signals: RDAP feeds serves[] (marketing-reach) as a weak signal, never bound[]', () => {
+  const bundle = bundleOf({ registers: { rdap: { registrant_country: 'DE', source: 'rdap' } } });
+  const out = resolveJurisdiction(bundle);
+  const servesDe = out.serves.find((s) => s.jurisdiction === 'DE');
+  assert.ok(servesDe, 'a Tier-C-only RDAP hit should still surface in serves[]');
+  assert.equal(servesDe.confidence, 'weak');
+});
+
+test('WS-Signals: a registrant_country RDAP cannot map (outside the launch code set) is dropped, never fabricated into a jurisdiction', () => {
+  const bundle = bundleOf({ registers: { rdap: { registrant_country: 'ZZ', source: 'rdap' } } });
+  const out = resolveJurisdiction(bundle);
+  assert.equal(out.abstained, true);
+  assert.equal(out.serves.length, 0);
+});
+
+// ===========================================================================
 // DEFECT-3: real-world US/UK address + phone formats bind (repetition class #5, inverted
 // over-abstention). Every case below carries a POSITIVE control (the real firm binds) AND the
 // negative controls that keep the fix from opening a false-binding hole (a .com or a lone domestic
