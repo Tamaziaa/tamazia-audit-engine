@@ -1211,7 +1211,7 @@
   {
    "jurisdiction": "UK",
    "sub_jurisdiction": null,
-   "status": "candidate",
+   "status": "needs_verification",
    "client_useful": true,
    "id": "UK_DATA_SECURITY_TRANSPORT",
    "name": "UK GDPR security of processing (encryption in transit and secure transport of personal data submitted through the website)",
@@ -1278,7 +1278,7 @@
      "date": "2025-03",
      "amount": "GBP 3,070,000",
      "url": "https://ico.org.uk/action-weve-taken/enforcement/2025/03/advanced-computer-software-group-limited/",
-     "summary": "Fined GBP 3.07m on 27 March 2025 for security failings that put the personal data of 79,404 people at risk; a 2022 ransomware attack reached a subsidiary's systems through a customer account with no multi-factor authentication (inadequate Art 32 technical measures)."
+     "summary": "Fined GBP 3.07m on 26 March 2025 for security failings that put the personal data of 79,404 people at risk; a 2022 ransomware attack reached a subsidiary's systems through a customer account with no multi-factor authentication (inadequate Art 32 technical measures)."
     },
     {
      "case": "ICO v DPP Law Ltd",
@@ -1298,7 +1298,7 @@
      "legislation.gov.uk UK GDPR Art 32 (security of processing; the pseudonymisation and encryption of personal data), verified 2026-07-19",
      "legislation.gov.uk UK GDPR Art 83(4) standard-tier penalty (Arts 25 to 39 including Art 32; GBP 8,700,000 or 2%), verified 2026-07-19",
      "ICO guidance 'Encryption and data transfer' (encryption in transit; HTTPS/TLS, not SSL), verified 2026-07-19",
-     "ICO LastPass UK Ltd penalty (Art 5(1)(f) and Art 32(1)(f), 20 November 2025), Advanced (27 March 2025) and DPP Law (16 April 2025) enforcement pages, verified 2026-07-19",
+     "ICO LastPass UK Ltd penalty (Art 5(1)(f) and Art 32(1)(f), 20 November 2025), Advanced (26 March 2025) and DPP Law (16 April 2025) enforcement pages, verified 2026-07-19",
      "DPA 2018 s.57 checked and NOT cited: it is 'data protection by design and default' in Part 3 (law-enforcement processing), not the general-processing security provision; general-processing security is UK GDPR Art 32 given domestic effect by DPA 2018 Part 2"
     ],
     "seed_status": "gap_filled",
