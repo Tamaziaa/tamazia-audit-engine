@@ -1,0 +1,80 @@
+# The reality-validation gate (eval/reality-corpus/, see its README.md).
+#
+# Kept as a SEPARATE workflow from ci.yml deliberately (AGENT-CONTEXT-PACK-2026-07-19.md): the corpus
+# scorecard measures the engine against hand-verified real sites, not against the team's own assumptions
+# (that is what the rest of the fleet in ci.yml does). A truthful red scorecard here is DATA about the
+# engine's current state, not a fleet failure, so this workflow never blocks a merge on the scorecard
+# itself - only on the corpus format being well-formed (--lint). The scorecard step instead reports its
+# numbers loudly (job summary + uploaded JSON artifact) so a PR that makes the honest number WORSE is
+# visible to reviewers even though CI stays green; ratcheting eval/reality-corpus/budgets.json's
+# coverage_adjusted_recall_min upward (with a dated baseline_history[] entry) is how a genuine
+# improvement gets locked in as the new floor.
+name: Reality corpus
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reality-corpus-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  corpus:
+    name: Reality-validation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Corpus format lint (BLOCKING - a malformed corpus file is a bug in this harness's own inputs)
+        run: node eval/reality-corpus/run.js --lint
+
+      - name: Corpus harness unit tests (yaml.js, metrics.js - BLOCKING, these are ordinary node:test suites)
+        run: node --test eval/reality-corpus/
+
+      # catalogue.v1.json is gitignored and required by applicability/connect.js + the breach lane the
+      # same way ci.yml's own "Catalogue compile" step is - see that step's comment for the fresh-clone
+      # order-dependency this fixes (C-201).
+      - name: Catalogue compile (release stamp from the committed RELEASE_STAMP file)
+        run: npm run catalogue
+
+      - name: "Reality-corpus scorecard (INFORMATIONAL - see this workflow's header comment: never blocks the merge, always reported)"
+        id: scorecard
+        continue-on-error: true
+        run: node eval/reality-corpus/run.js --json | tee reality-corpus-result.json
+
+      - name: Human-readable scorecard in the job summary
+        if: always()
+        run: node eval/reality-corpus/run.js >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+
+      - name: Upload scorecard artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reality-corpus-scorecard
+          path: reality-corpus-result.json
+          retention-days: 90
+
+      - name: Report the honest result (never fails the job - see header comment)
+        if: always()
+        run: |
+          if [ "${{ steps.scorecard.outcome }}" = "success" ]; then
+            echo "::notice title=reality-corpus::within budget (eval/reality-corpus/budgets.json)"
+          else
+            echo "::warning title=reality-corpus::at least one budget missed - see the job summary and the uploaded scorecard artifact. This is EXPECTED and does not fail CI (see this workflow's header comment); it must not silently regress the recorded baseline in eval/reality-corpus/budgets.json."
+          fi

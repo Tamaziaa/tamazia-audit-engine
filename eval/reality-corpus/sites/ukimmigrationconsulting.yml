@@ -1,0 +1,36 @@
+# eval/reality-corpus/sites/ukimmigrationconsulting.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/legal-uk.md, Site 2 (human-verified 2026-07-19).
+slug: ukimmigrationconsulting
+domain: ukimmigrationconsulting.com
+role: train
+brand:
+  legal: null
+  trading: "UK Immigration Consulting"
+establishment:
+  - jurisdiction: UK
+    tier: B
+    basis: "postcode-anchored address (794 Cranbrook Road, Ilford IG6 1HZ) + UK-country-code phone (+44 (0) 7896 085 553), two independent Tier-B signal kinds on /contact"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "UK-only advisory, no multi-country audience signals"
+sector_paths:
+  - legal.immigration-advisers
+applicable_law_ids:
+  - UK_OISC_IAA_REGISTRATION
+  - UK_PECR_COOKIES_MARKETING
+labelled_breaches:
+  - law_id: UK_OISC_IAA_REGISTRATION
+    quote_substring: "OISC regulated"
+    url: "https://ukimmigrationconsulting.com/"
+    note: "homepage claims OISC regulation in prose only; no licence/registration number anywhere on homepage, /about-us or /contact. UK_OISC_IAA_REGISTRATION does NOT exist in catalogue/dist/catalogue.v1.json (confirmed by direct id search, 2026-07-20): this is a genuine Layer-1 CATALOGUE gap, not an applicability miss - it matches LAW-COVERAGE-MAP/legal-uk-us.md's own top gap (UK IAA immigration advisers). run.js reports this entry under catalogue_gaps, separately from the applicability-recall denominator, so a future law-researcher pass that adds the record is what closes it, not an engine fix."
+  - law_id: UK_PECR_COOKIES_MARKETING
+    quote_substring: "GTM-M664B3D"
+    url: "https://ukimmigrationconsulting.com/"
+    note: "GTM-M664B3D loads unconditionally at the top of <head> on a Next.js site; 18-signature consent-tool sweep returned zero hits."
+known_clean_laws: []
+known_regression: "wave-1 (engine-v2.1.0-p4): whole audit REFUSED at the jurisdiction gate despite two independent Tier-B signals in the crawled corpus (a genuine facts/jurisdiction.js defect, not by-design conservatism). engine-v2.1.5-p4 (#28) fixed this and jurisdiction now BINDS UK, but the sector door (_rivalFamiliesAtFloor) now abstains instead, so the whole audit still refuses end to end - the same three verified breaches remain unreachable via a different chokepoint."
+source: EMPIRICAL-BREACH-AUDITS/legal-uk.md#site-2-iaaoisc-immigration-adviser
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt embedding the exact verified quotes (OISC prose claim, GTM tag, address, phone) from homepage/about-us/contact; not a full 8-page crawl."

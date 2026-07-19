@@ -1,0 +1,37 @@
+# eval/reality-corpus/sites/seriousaccidents.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/legal-us.md, Site 3 (human-verified 2026-07-19).
+slug: seriousaccidents
+domain: seriousaccidents.com
+role: train
+brand:
+  legal: null
+  trading: "Pines Salomon Personal Injury Lawyers"
+establishment:
+  - jurisdiction: US
+    tier: A
+    basis: "offices in San Diego and La Jolla, CA; correctly bound US/CA on engine-v2.1.5-p4"
+audience:
+  - jurisdiction: US
+    tier: C
+    basis: "California personal-injury practice"
+sector_paths:
+  - legal.attorneys
+labelled_breaches:
+  - law_id: CA_RPC_CH7
+    quote_substring: "you don't pay unless we win"
+    url: "https://seriousaccidents.com/"
+    note: "homepage contingency claim + full-text FAQ check; zero cost-liability disclosure anywhere on-site (CA Rules of Professional Conduct Ch.7 Rule 7.1 Comment [3])."
+  - law_id: CA_RPC_CH7
+    quote_substring: "Case Results"
+    url: "https://seriousaccidents.com/case-results/"
+    note: "11 bare dollar-figure verdicts, zero case context, zero disclaimer anywhere on-site including the dedicated Disclaimer page (Rule 7.1 Comment [4])."
+applicable_law_ids:
+  - CA_RPC_CH7
+  - CA_BPC_6157
+  - US_ABA_FEE_ADVERTISING
+known_clean_laws: []
+known_regression: "wave-1: sector misclassified as hospitality/hotel ('Hotels Nearby'/'Resort' mentions in the office-directions page and premises-liability blog content outweigh 10x 'law firm' + dozens of attorney/lawsuit mentions in the same crawl). jurisdiction correctly bound US/CA in BOTH waves - this site is the corpus's proof that the jurisdiction-misdirection bug class does not reproduce on US sites (wave-1's failure here is pure sector, not jurisdiction). engine-v2.1.5-p4: the misclassification became a hard sector-abstain refusal (_rivalFamiliesAtFloor); even with a sector fix, CA_RPC_CH7 Comment [4] would still be excluded at gate-6 (established_in nexus), though CA_BPC_6157/US_ABA_FEE_ADVERTISING give partial redundancy NY/FL lack."
+source: EMPIRICAL-BREACH-AUDITS/legal-us.md#site-3-california-personal-injury-california-rules-of-professional-conduct-ch7
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt: homepage contingency-fee claim, office-directions page hotel/resort mentions, and /case-results/ bare-dollar-figure verdicts, transcribed from the audit's direct quotes."

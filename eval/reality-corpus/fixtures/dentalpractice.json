@@ -1,0 +1,21 @@
+{
+  "domain": "thedentalpracticeuk.com",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://thedentalpracticeuk.com/",
+        "title": "The Dental Practice UK, Brighton",
+        "text": "The Dental Practice UK, trading name of The Denture Clinic Ltd, Brighton. WE ARE DENTURE SPECIALISTS. Managing Director GDC No.152939. Managing Director GDC No.146040. Our dentists and dental hygienists provide chrome dentures, denture repair, implant-retained dentures and partial dentures."
+      },
+      {
+        "url": "https://thedentalpracticeuk.com/chrome-dentures",
+        "title": "Chrome Dentures",
+        "text": "Chrome dentures fitted by our dental team in Brighton."
+      }
+    ],
+    "footerText": "The Dental Practice UK, The Denture Clinic Ltd, Brighton. GDC No.152939, GDC No.146040."
+  },
+  "registers": {}
+}

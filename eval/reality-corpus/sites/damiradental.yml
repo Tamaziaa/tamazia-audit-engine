@@ -1,0 +1,34 @@
+# eval/reality-corpus/sites/damiradental.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md, "fresh" site (human-verified 2026-07-19).
+# THE POSITIVE CONTROL: the only site in this corpus where the whole pipeline (classify -> gate-4 bind
+# -> gate-6 bind -> assess -> fire) was proven to run end to end on engine-v2.1.5-p4, without abstaining.
+slug: damiradental
+domain: damiradental.co.uk
+role: train
+brand:
+  legal: null
+  trading: "Damira Dental"
+establishment:
+  - jurisdiction: UK
+    tier: A
+    basis: "self-identifying dental chain that publishes readable establishment evidence (passes gate-6, unlike thedentalpracticeuk.com)"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "UK dental chain"
+sector_paths:
+  - healthcare.dental
+labelled_breaches:
+  - law_id: UK_PECR_COOKIES_MARKETING
+    quote_substring: null
+    url: "https://damiradental.co.uk/"
+    note: "RETEST-2026-07-19.md reports '14 UK_PECR_COOKIES_MARKETING violations at voice_tier: confident, each on a real captured network_event' but does not transcribe the specific cookie/property id for this site (only an aggregate count). quote_substring is deliberately left null: this entry is EXCLUDED from breach coverage-adjusted recall scoring (no quote-level label to verify against) and is used only as a sector/jurisdiction/false-accusation reference point, not a precision claim."
+applicable_law_ids:
+  - UK_PECR_COOKIES_MARKETING
+  - UK_GDC_ADVERTISING
+  - UK_CQC_REGISTRATION
+known_clean_laws: []
+known_regression: "none - this is the proven-healthy end-to-end path (RETEST-2026-07-19.md section 1): dental bound at gate-4 AND gate-6 (unlike thedentalpracticeuk.com), GDC/CQC/MHRA-family records correctly BOUND and assessed, sector-specific records correctly held at needs_review (no false violation on a compliant point), plus 14 PECR confident + 26 accessibility findings fired. Kept in the corpus specifically so the reality-corpus gate has at least one site the current engine is expected to pass cleanly - a corpus of only known failures cannot distinguish 'the gate works' from 'everything always fails'."
+source: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md#1-the-correct-catches-and-verified-wins-stated-first-founder-rule
+snapshot_source: manual-transcription
+snapshot_note: "Minimal hand-built excerpt (dental self-identity in domain/title, an unconditional analytics tag placeholder, GDC/CQC self-description text) standing in for the real crawl RETEST-2026-07-19.md ran; exact page bytes were not re-transcribed into this file, only the aggregate outcome. This is the corpus's weakest-evidenced fixture and is flagged as such rather than presented with false precision."

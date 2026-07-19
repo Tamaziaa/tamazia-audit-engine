@@ -1,0 +1,36 @@
+# eval/reality-corpus/sites/conveyancingdirect.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/legal-uk.md, Site 3 candidate notes (human-verified 2026-07-19).
+# NEGATIVE MEMBER: a near-clean UK conveyancing firm. Considered and DROPPED as a Site-3 candidate
+# specifically because it is well-run (working cookie consent + full CLC/Companies-House disclosure), so
+# it did not clear the audit's own two-provable-breaches bar. Kept here as a false-accusation control:
+# the engine must NOT invent a PECR or trading-disclosure breach against this firm.
+slug: conveyancingdirect
+domain: conveyancingdirect.net
+role: negative-near-clean
+brand:
+  legal: null
+  trading: "Conveyancing Direct"
+establishment:
+  - jurisdiction: UK
+    tier: A
+    basis: "CLC-regulated conveyancer; displays full CLC regulatory information and Companies House trading-disclosure information on-page (legal-uk.md Site-3 candidate notes)"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "UK-only conveyancing firm"
+sector_paths:
+  - legal.conveyancers
+labelled_breaches: []
+applicable_law_ids:
+  - UK_PECR_COOKIES_MARKETING
+  - UK_TRADING_DISCLOSURES
+known_clean_laws:
+  - UK_PECR_COOKIES_MARKETING
+  - UK_TRADING_DISCLOSURES
+false_accusation_regression:
+  law_id: UK_PECR_COOKIES_MARKETING
+  note: "runs a genuine cookie-consent platform (Cookie-Script, per legal-uk.md's own candidate-screening notes: 'Both run genuine cookie-consent platforms'); a pre-consent tracking finding against this firm would be a false accusation."
+known_regression: "not independently re-run through the engine in the source audit (it was screened and dropped before a mint was attempted, so this file has no direct engine-vs-manual diff to cite). Included as a corpus negative anyway because the screening notes are specific and verifiable (working Cookie-Script CMP + full CLC/Companies-House disclosure block), which is exactly the shape of evidence a false-accusation control needs: a real, named UK legal-services firm that is clean on the two laws every other legal-uk.md site in this corpus breaches."
+source: EMPIRICAL-BREACH-AUDITS/legal-uk.md#site-3-fca-claims-management-firm (candidate-selection notes, same paragraph)
+snapshot_source: manual-transcription
+snapshot_note: "Minimal hand-built excerpt: CLC regulatory statement, Companies House disclosure block, and a Cookie-Script consent-banner marker, standing in for a full crawl that was never performed (the site was screened, not minted, in the source audit)."

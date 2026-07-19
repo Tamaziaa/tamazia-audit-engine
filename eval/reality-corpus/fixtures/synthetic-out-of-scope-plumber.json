@@ -1,0 +1,21 @@
+{
+  "domain": "example-plumber.invalid",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "synthetic",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://example-plumber.invalid/",
+        "title": "Example Plumbing Services",
+        "text": "Example Plumbing Services Ltd, your local plumber and heating engineer. We fix boilers, unblock drains, and install central heating across the local area. Company Number 09876543, registered office 12 High Street. Emergency plumber call-out available."
+      },
+      {
+        "url": "https://example-plumber.invalid/services/",
+        "title": "Our Services",
+        "text": "Boiler repair, drain unblocking, central heating installation, emergency plumbing call-outs."
+      }
+    ],
+    "footerText": "Example Plumbing Services Ltd, Company Number 09876543, 12 High Street."
+  },
+  "registers": {}
+}

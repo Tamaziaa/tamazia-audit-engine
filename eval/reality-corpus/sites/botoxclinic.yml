@@ -1,0 +1,37 @@
+# eval/reality-corpus/sites/botoxclinic.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/healthcare-uk.md, Site 1 (human-verified 2026-07-19).
+slug: botoxclinic
+domain: botoxandfillerscliniclondon.co.uk
+role: train
+brand:
+  legal: null
+  trading: "Botox Clinic London"
+establishment:
+  - jurisdiction: UK
+    tier: C
+    basis: "Islington, London clinic; ccTLD .co.uk and address text only"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "UK-only aesthetics clinic marketing"
+sector_paths:
+  - healthcare.aesthetics
+labelled_breaches:
+  - law_id: UK_MHRA_POM_AD_BAN
+    quote_substring: "Botox 1 Area £160"
+    url: "https://botoxandfillerscliniclondon.co.uk/pricing/"
+    note: "a prescription-only medicine (Botox, brand name for botulinum toxin type A) advertised to the general public by name with a public price, no professional gate (MHRA reg 284)."
+  - law_id: UK_CAP_1212_COSMETIC
+    quote_substring: "clinically proven"
+    url: "https://botoxandfillerscliniclondon.co.uk/"
+    note: "injectable cosmetic treatment marketed direct to consumer without the required responsible-marketing safeguards (CAP Code rule 12.12); 'clinically proven' health_claims predicate corroborated on six separate location pages."
+applicable_law_ids:
+  - UK_MHRA_POM_AD_BAN
+  - UK_CAP_1212_COSMETIC
+  - UK_BOTOX_FILLER_U18
+known_clean_laws: []
+known_regression: "facts/sector.js CORRECTLY resolves sector: aesthetics, sub_sector: injectables, family healthcare (corroborated, 8 cues) - classification is sound. Every aesthetics-relevant record (UK_MHRA_POM_AD_BAN, UK_CAP_1212_COSMETIC, UK_BOTOX_FILLER_U18, UK_CQC_REGISTRATION, UK_ASA_CAP12_HEALTH, UK_GMC_GMP_2024) is EXCLUDED at applicability gate-4 because those records restrict sub_sector to the coarse PARENT label 'aesthetics', while facts/sector.js can only ever emit a LEAF key (injectables/laser-skin/cosmetic-surgery) - a guaranteed exclusion for every real Botox/filler clinic, not a probabilistic miss (parent-vs-leaf tag mismatch, P1-6 in the Kimi blueprint). engine-v2.1.5-p4 additionally now ABSTAINS the whole sector door for this exact site (aesthetics 8 / healthcare 7 / hospitality 6, _rivalFamiliesAtFloor), so the miss compounds into a full refusal."
+source: EMPIRICAL-BREACH-AUDITS/healthcare-uk.md#site-1-aesthetics-clinic-botox-brand-name-advertising
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt: pricing-page price list, homepage 'clinically proven' claim, practitioner-credential text with no GMC/NMC number, transcribed from the audit's direct quotes (not the full 109-page crawl)."

@@ -1,0 +1,37 @@
+# eval/reality-corpus/sites/dentalpractice.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/healthcare-uk.md, Site 3 (human-verified 2026-07-19).
+slug: dentalpractice
+domain: thedentalpracticeuk.com
+role: train
+brand:
+  legal: "The Denture Clinic Ltd"
+  trading: "The Dental Practice UK"
+establishment:
+  - jurisdiction: UK
+    tier: A
+    basis: "Brighton practice; two named directors carry GDC registration numbers (152939, 146040)"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "Brighton-local dental practice"
+sector_paths:
+  - healthcare.dental
+labelled_breaches:
+  - law_id: UK_GDC_ADVERTISING
+    quote_substring: "WE ARE DENTURE SPECIALISTS"
+    url: "https://thedentalpracticeuk.com/"
+    note: "zero complaints-procedure mentions anywhere in the 107-page crawl (GDC advertising duty: practice owner and complaints procedure identifiable)."
+applicable_law_ids:
+  - UK_GDC_ADVERTISING
+  - UK_GDC_SPECIALIST_TITLE
+  - UK_PECR_COOKIES_MARKETING
+known_clean_laws:
+  - UK_GDC_SPECIALIST_TITLE
+false_accusation_regression:
+  law_id: UK_GDC_SPECIALIST_TITLE
+  note: "GDC 152939/146040 registration numbers are genuinely displayed and correctly compliant; the engine must not invent a specialist-title violation from these numbers alone. 'Denture specialists' is flagged as a plausible-but-not-slam-dunk candidate in the source audit, not an established breach - keep at needs-review, never state:violation, until independently confirmed."
+known_regression: "facts/sector.js correctly resolves sector: dental, sub_sector: general-dental (corroborated, 15 cues plus domain-self-identity). Every dental-specific record (UK_GDC_ADVERTISING, UK_GDC_SPECIALIST_TITLE, UK_CQC_REGISTRATION, UK_CQC_20A_RATING, UK_NHS_BRANDING) is EXCLUDED at gate-4 because those records restrict sub_sector to the coarse parent label 'dental', which no real firm running the leaf classifier ('general-dental'/'orthodontics'/'cosmetic-dentistry') can ever match - the same parent-vs-leaf class as botoxclinic.yml, on the dental branch of the tree. On engine-v2.1.5-p4 (#24 sub-sector binding fix) this site now RUNS and BINDS dental correctly and fires 8 PECR confident + accessibility findings, but UK_GDC_ADVERTISING is excluded one gate later at gate-6 (established_in nexus): dental bound at gate-4, but the specific GDC advertising record wants stronger establishment evidence than this firm publishes."
+source: EMPIRICAL-BREACH-AUDITS/healthcare-uk.md#site-3-dental-practice-gdc-website-duties
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt: 'WE ARE DENTURE SPECIALISTS' claim, GDC registration numbers for both named directors, absence of any complaints-procedure text, transcribed from the audit's direct quotes (not the full 107-page crawl)."

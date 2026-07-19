@@ -1,0 +1,36 @@
+# eval/reality-corpus/sites/vanfamilymedical.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/healthcare-us.md, Site 2 (human-verified 2026-07-19).
+slug: vanfamilymedical
+domain: vanfamilymedical.com
+role: train
+brand:
+  legal: null
+  trading: "Van Family Medical"
+establishment:
+  - jurisdiction: US
+    tier: A
+    basis: "Head Office / 488 West Main Ste. 101 Van, Texas 75790 / 903-963-6850, explicit homepage footer address + ZIP + area-code phone"
+audience:
+  - jurisdiction: US
+    tier: C
+    basis: "footer states service across 11 US states (telehealth)"
+sector_paths:
+  - healthcare.telemedicine
+labelled_breaches:
+  - law_id: US_HIPAA_NPP
+    quote_substring: "Page not found"
+    url: "https://vanfamilymedical.com/privacy-policy/"
+    note: "/privacy-policy/ returns a genuine 404; no privacy, HIPAA or 'notice' link exists anywhere in the homepage footer or navigation (checked by direct grep, zero hits) - no HIPAA Notice of Privacy Practices anywhere on the site. US_HIPAA_NPP does NOT exist in catalogue/dist/catalogue.v1.json (confirmed by direct id search, 2026-07-20; the compiled us-healthcare pack has US_HIPAA_MKT and US_HIPAA_TRACKING but no dedicated Notice-of-Privacy-Practices duty record). Treated as a Layer-1 catalogue gap in run.js's reporting, not counted against applicability recall."
+  - law_id: US_FTC_HBNR
+    quote_substring: "googletagmanager.com/gtag/js?id=G-0GZWWGJH71"
+    url: "https://vanfamilymedical.com/"
+    note: "two live Google tags (G-0GZWWGJH71, G-MHFV2XQKQ8) fire in raw homepage HTML; no cookie-consent banner markup or CMP script found anywhere in source."
+applicable_law_ids:
+  - US_HIPAA_NPP
+  - US_FTC_HBNR
+known_clean_laws: []
+known_regression: "GRANULARITY NOTE (found while building this corpus, 2026-07-20): facts/jurisdiction.js emits only country-level codes ('US', 'UK'), never a sub_jurisdiction/state axis, even when the tier-B evidence (a Texas postcode, an area-code phone) is state-specific - this is the Kimi K3 blueprint's JurisdictionAxes gap (section 2.3: 'a real tree ... { country, sub_jurisdiction (state/emirate/canton), regulator, profession }'), not yet built. establishment[].jurisdiction is therefore labelled 'US' in this file, not 'US-TX', to avoid this corpus scoring a granularity gap as a wrong-attach false positive; the state-level gap itself is real and is exactly why FL_BAR/CA_RPC/NY_RPC-family records (state-scoped) cannot yet attach even once jurisdiction binds at country level - see avidlawyers.yml/ask4sam.yml/seriousaccidents.yml's gate-6 established_in notes. sector correctly resolves healthcare/telemedicine, corroborated, correctly in scope. wave-1: whole audit REFUSED at the jurisdiction gate ('no bound jurisdiction resolved') despite an explicit, unambiguous US street address with a full ZIP code and area-code phone number on the firm's own homepage footer - a genuine facts/jurisdiction.js defect (the sentence-level office-address detector never saw this address as address-context, and the phone number did not match the international-prefix-only phone detector), not a correctly-scoped-out site. engine-v2.1.5-p4 (#28) fixes this and US/TX now binds Tier-A from this exact address; the residual miss is Layer 3 (evidence): the pre-consent tracker-observation lane captured zero events on every real tracker-bearing page tested even after the bare-domain fix, root cause not fully isolated (defect C in healthcare-us.md)."
+source: EMPIRICAL-BREACH-AUDITS/healthcare-us.md#site-2-telehealth-and-family-medicine-clinic-tracking-pixels--no-hipaa-notice-of-privacy-practices
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt: homepage footer address/phone block, two GA4/GTM tag script tags, 404 /privacy-policy/ page, transcribed from the audit's direct quotes (not the full 81-page crawl)."

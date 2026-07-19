@@ -1,0 +1,26 @@
+{
+  "domain": "botoxandfillerscliniclondon.co.uk",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://botoxandfillerscliniclondon.co.uk/",
+        "title": "Botox Clinic London | Botox & Dermal Fillers in Islington, London",
+        "text": "Welcome to our Botox and Fillers Clinic in London. £10 consultation fee. Our Medical Aesthetic Practitioner has over 23 years of international experience in injectables and dermal fillers. Botox is clinically proven for wrinkle reduction."
+      },
+      {
+        "url": "https://botoxandfillerscliniclondon.co.uk/pricing/",
+        "title": "Pricing",
+        "text": "Botox 1 Area £160. Botox 2 Areas £200. Botox 3 Areas £250. Dermal filler pricing available on consultation."
+      },
+      {
+        "url": "https://botoxandfillerscliniclondon.co.uk/lip-fillers-london-guide",
+        "title": "Lip Fillers Guide",
+        "text": "Lip filler and dermal filler treatments, clinically proven, delivered by our injectables team."
+      }
+    ],
+    "footerText": "Botox Clinic London, Islington, London. Injectables and dermal fillers."
+  },
+  "registers": {}
+}
