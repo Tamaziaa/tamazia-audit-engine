@@ -1,0 +1,693 @@
+{
+ "cell": "uk-real-estate",
+ "jurisdiction": "UK",
+ "generated": "2026-07-19",
+ "records": [
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "sales"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_ESTATE_AGENTS_ACT_1979_REDRESS",
+   "name": "Estate Agents Act 1979: estate-agency redress-scheme membership and NTSELAT prohibition and warning orders",
+   "citation": {
+    "act": "Estate Agents Act 1979, as read with the Estate Agents (Redress Scheme) Order 2008 (SI 2008/1712) and the Estate Agents (Redress Scheme) (Penalty Charge) Regulations 2008 (SI 2008/1713)",
+    "section": "s.23A (requirement to belong to an approved redress scheme), s.23B (enforcement), s.3 (prohibition orders), s.4 (warning orders), s.18 (information to clients), s.21 (personal interest)",
+    "url": "https://www.legislation.gov.uk/ukpga/1979/38/contents"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "business carries on estate agency work in relation to residential property in the United Kingdom (introducing or negotiating the sale of an interest in land, per s.1 Estate Agents Act 1979)",
+    "the website advertises properties for sale or holds the business out as an estate agent"
+   ],
+   "excluded_when": [
+    "activity that is not estate agency work within s.1 Estate Agents Act 1979 (for example a bare property portal that only publishes third-party listings, or a solicitor doing incidental work)",
+    "lettings and property management work only, which is governed by the separate lettings/management redress order 2014 rather than the estate-agency redress order 2008"
+   ],
+   "website_obligations": [
+    {
+     "duty": "State on the website which government-approved redress scheme for estate agency work the business belongs to (The Property Ombudsman or the Property Redress Scheme)",
+     "elements": [
+      "name of the approved estate-agency redress scheme shown",
+      "the named scheme currently covers estate agency work"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Be a current member of an approved redress scheme for estate agency work throughout trading, as the Estate Agents (Redress Scheme) Order 2008 requires",
+     "elements": [
+      "business appears as a current member of an approved estate-agency redress scheme",
+      "not trading while unregistered with any approved scheme"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Give clients clear information about charges and terms of business and disclose any personal interest in a transaction (s.18 and s.21)",
+     "elements": [
+      "fees and charges to the client explained",
+      "any personal or connected-party interest in a property disclosed"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 1000,
+    "typical_high": 1000,
+    "statutory_max": 1000,
+    "currency": "GBP",
+    "basis": "Failure to belong to an approved estate-agency redress scheme carries a fixed penalty charge of GBP 1,000 under the Estate Agents (Redress Scheme) (Penalty Charge) Regulations 2008 (reg 2), issued under s.23B Estate Agents Act 1979. Separately the lead enforcement authority (NTSELAT) can make a prohibition order under s.3 barring an unfit person from estate agency work, or a warning order under s.4; these are non-monetary but end the ability to trade.",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "National Trading Standards Estate and Letting Agency Team (NTSELAT), the lead enforcement authority under the Estate Agents Act 1979, and local weights and measures authorities (Trading Standards)",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Redress-scheme membership is the single most basic estate-agency compliance signal and the first thing a Trading Standards or NTSELAT check looks for; an agent trading with no named approved scheme is an immediate GBP 1,000 fixed-penalty target and, if judged unfit, can be prohibited from the trade entirely.",
+    "regulator_asks_first": "Which approved redress scheme (The Property Ombudsman or Property Redress Scheme) does the site name, is the membership current, and are client charges and any personal interest disclosed as s.18 and s.21 require?",
+    "relevance_hook": "Buyers and sellers increasingly check for a named ombudsman before instructing; the same footer line that satisfies the regulator reassures the client."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/1979/38/contents",
+     "https://www.legislation.gov.uk/uksi/2008/1712/made",
+     "https://www.legislation.gov.uk/uksi/2008/1713/made",
+     "https://www.gov.uk/government/publications/lettings-agents-and-property-managers-redress-schemes"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "lettings",
+    "property-management"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_LETTINGS_REDRESS_2014",
+   "name": "Lettings and property management redress-scheme membership (Redress Schemes Order 2014 under the Enterprise and Regulatory Reform Act 2013)",
+   "citation": {
+    "act": "The Redress Schemes for Lettings Agency Work and Property Management Work (Requirement to Belong to a Scheme etc) (England) Order 2014 (SI 2014/2359), made under ss.83 to 88 of the Enterprise and Regulatory Reform Act 2013",
+    "section": "art.3 (requirement to belong: lettings agency work), art.5 (requirement to belong: property management work), art.8 (monetary penalty up to GBP 5,000)",
+    "url": "https://www.legislation.gov.uk/uksi/2014/2359/contents/made"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "business engages in lettings agency work or property management work in relation to dwelling-houses in England (Enterprise and Regulatory Reform Act 2013 ss.83 to 84)",
+    "the website advertises properties to let or offers letting or managing-agent services"
+   ],
+   "excluded_when": [
+    "work excluded from lettings agency work by art.4 or from property management work by art.6 of the 2014 Order (for example an employer letting to its own employee, or things done under a legal-aid or social-housing arrangement)",
+    "a property owner letting or managing only their own property, who is not acting as an agent",
+    "estate-agency (sales) work, which is governed by the separate estate-agents redress order 2008"
+   ],
+   "website_obligations": [
+    {
+     "duty": "State on the website which government-approved redress scheme the letting or managing agent belongs to (The Property Ombudsman or the Property Redress Scheme)",
+     "elements": [
+      "name of the approved lettings/management redress scheme shown",
+      "membership stated to be current"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Be a current member of an approved redress scheme for the lettings and property management work carried on, as articles 3 and 5 require",
+     "elements": [
+      "agent appears as a current member of an approved redress scheme",
+      "not carrying on lettings or management work while unregistered with any approved scheme"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": 2000,
+    "typical_high": 5000,
+    "statutory_max": 5000,
+    "currency": "GBP",
+    "basis": "A local enforcement authority may impose a monetary penalty of up to GBP 5,000 for failing to belong to an approved redress scheme (art.8(2) of the 2014 Order). Enforcement authorities commonly issue toward the top of that range for a clear non-membership: in the Aegon House appeal the First-tier Tribunal considered a GBP 4,250 penalty. There is a right of appeal to the First-tier Tribunal (Property Chamber).",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Local weights and measures authorities (Trading Standards) as enforcement authorities under the 2014 Order, overseen by NTSELAT as lead enforcement authority",
+    "register_url": "https://www.gov.uk/government/publications/lettings-agents-and-property-managers-redress-schemes"
+   },
+   "enforcement": [
+    {
+     "case": "Peoples Property Management Ltd v London Borough of Tower Hamlets (First-tier Tribunal, Property Chamber), case ref LON/00BG/HLP/2025/0001",
+     "date": "2026-02-06",
+     "amount": "GBP 4,250",
+     "url": "https://assets.publishing.service.gov.uk/media/6985fbbbd3f57710b50a9b42/260206_Aegon_House_decision.pdf",
+     "summary": "The First-tier Tribunal heard an appeal against a GBP 4,250 monetary penalty imposed by Tower Hamlets Trading Standards under article 8 of the 2014 Order for breach of the article 5 requirement to belong to an approved redress scheme for property management work."
+    }
+   ],
+   "intel": {
+    "why_matters": "Since 1 October 2014 every lettings and managing agent in England must belong to an approved redress scheme, and the website is the easiest place for an enforcement officer to confirm it; a missing or lapsed scheme name is a straightforward penalty of up to GBP 5,000, as the Tower Hamlets appeal shows.",
+    "regulator_asks_first": "Does the site name a current approved redress scheme (The Property Ombudsman or Property Redress Scheme) for the letting and management work actually carried on?",
+    "relevance_hook": "Landlords choosing an agent look for the ombudsman badge as a trust signal; the same statement clears the Trading Standards check."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2014/2359/contents/made",
+     "https://www.legislation.gov.uk/ukpga/2013/24/section/83",
+     "https://www.gov.uk/government/publications/lettings-agents-and-property-managers-redress-schemes",
+     "https://assets.publishing.service.gov.uk/media/6985fbbbd3f57710b50a9b42/260206_Aegon_House_decision.pdf"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "lettings",
+    "property-management"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "id": "UK_CMP_REGS_2019",
+   "name": "Client money protection scheme membership and certificate display for property agents (CMP Regulations 2019)",
+   "citation": {
+    "act": "The Client Money Protection Schemes for Property Agents (Requirement to Belong to a Scheme etc.) Regulations 2019 (SI 2019/386)",
+    "section": "reg 3 (requirement to belong to a CMP scheme), reg 4 (transparency requirements including publishing the certificate on the website), reg 6 (penalty up to GBP 30,000), reg 7 (penalty up to GBP 5,000)",
+    "url": "https://www.legislation.gov.uk/uksi/2019/386/contents/made"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "property agent carries on letting agency work or property management work in England and holds client money (reg 3)",
+    "the agent has a website on which the certificate of client money protection membership can be published (reg 4(1)(c))"
+   ],
+   "excluded_when": [
+    "a property agent who does not hold client money in the course of the work (reg 3 bites only on agents holding client money)",
+    "estate-agency (sales) work that does not involve holding client money on behalf of clients"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a copy of the client money protection scheme certificate on the website, as reg 4(1)(c) requires",
+     "elements": [
+      "current CMP certificate published on the website",
+      "certificate names the approved or designated CMP scheme the agent belongs to"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Be a member of an approved or designated client money protection scheme while holding client money (reg 3)",
+     "elements": [
+      "agent appears as a current member of an approved or designated CMP scheme",
+      "client money held is covered by the scheme"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": 5000,
+    "typical_high": 30000,
+    "statutory_max": 30000,
+    "currency": "GBP",
+    "basis": "Breach of the requirement to belong to a client money protection scheme (reg 3) carries a penalty of up to GBP 30,000 (reg 6); breach of the transparency requirements, including publishing the certificate on the website (reg 4), carries a penalty of up to GBP 5,000 (reg 7). The MHCLG enforcement guidance directs authorities to set a proportionate penalty by severity and track record, so the GBP 30,000 maximum is reserved for the most serious client-money failures.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Local authorities in England as enforcement authorities under the CMP Regulations 2019, overseen by NTSELAT as lead enforcement authority",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "The MHCLG enforcement guidance tells councils to check agents’ websites for the client money protection certificate; an agent that holds deposits and rent but shows no certificate is exposed to a GBP 5,000 transparency penalty, and to GBP 30,000 if it belongs to no scheme at all.",
+    "regulator_asks_first": "If the agent holds client money, is a current CMP certificate published on the website naming an approved or designated scheme?",
+    "relevance_hook": "Landlords and tenants handing over deposits want proof their money is protected; publishing the certificate answers that and the regulator in one step."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2019/386/contents/made",
+     "https://www.legislation.gov.uk/uksi/2019/386/regulation/4/made",
+     "https://www.legislation.gov.uk/uksi/2019/386/regulation/6/made",
+     "https://www.legislation.gov.uk/uksi/2019/386/regulation/7/made",
+     "https://assets.publishing.service.gov.uk/media/6181020dd3bf7f55fbc3ac55/CMP_enforcement_guidance.pdf"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "lettings",
+    "property-management"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_CRA_2015_LETTING_FEES",
+   "name": "Letting agent duty to publicise fees, client money protection and redress membership on the website (Consumer Rights Act 2015)",
+   "citation": {
+    "act": "Consumer Rights Act 2015, Part 3 Chapter 3 (letting agents), as amended by the Tenant Fees Act 2019",
+    "section": "s.83 (duty to publicise fees, including s.83(3) on the website and s.83(6) to (7) CMP and redress statements), s.87 (enforcement, financial penalty up to GBP 5,000)",
+    "url": "https://www.legislation.gov.uk/ukpga/2015/15/section/83"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "business engages in letting agency or property management work in relation to dwelling-houses in England and Wales (Consumer Rights Act 2015 s.83 and s.84)",
+    "the agent has a website (the s.83(3) publication duty bites where the agent has a website)"
+   ],
+   "excluded_when": [
+    "work excluded from letting agency work by order under the Act (the same art.4 exclusions applied for the purposes of s.83, for example an employer letting to its own employee)",
+    "a landlord letting only their own property, who is not acting as a letting agent",
+    "pure estate-agency (sales) work, which is not letting agency work under s.83"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Publish a list of the agent’s relevant fees on the website, with a description of each fee, whether it is per dwelling or per tenant, and the amount inclusive of tax (s.83(3) and s.83(4))",
+     "elements": [
+      "a list of tenant and landlord fees published on the website",
+      "each fee described so a payer understands what it covers",
+      "each amount shown inclusive of any applicable tax"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Publish with the list of fees a statement of whether the agent is a member of a client money protection scheme and, if so, its name (s.83(6))",
+     "elements": [
+      "statement of client money protection scheme membership shown with the fee list",
+      "name of the CMP scheme given"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Publish with the list of fees a statement that the agent is a member of a redress scheme and its name (s.83(7))",
+     "elements": [
+      "statement of redress scheme membership shown with the fee list",
+      "name of the redress scheme given"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 1000,
+    "typical_high": 5000,
+    "statutory_max": 5000,
+    "currency": "GBP",
+    "basis": "A local weights and measures authority (Trading Standards) may impose a financial penalty which must not exceed GBP 5,000 for a breach of the s.83 duty (s.87(7)). Each distinct breach (the fee list, the CMP statement, the redress statement) can carry its own penalty, so the exposure compounds where several duties are missed; authorities set a proportionate amount within the GBP 5,000 cap.",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Local weights and measures authorities (Trading Standards) under s.87 Consumer Rights Act 2015, overseen by NTSELAT as lead enforcement authority",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "The letting-agent fee page is a defined statutory duty with its own GBP 5,000 penalty per breach, and s.83(3) makes it explicit that the list must appear on the website; a thin or missing fee page also fails the client money protection and redress statements that must sit alongside it.",
+    "regulator_asks_first": "Does the website carry a complete list of tenant and landlord fees (tax-inclusive), plus statements naming the CMP scheme and the redress scheme the agent belongs to?",
+    "relevance_hook": "Prospective tenants compare agents on total cost; a clear tax-inclusive fee list wins the enquiry and satisfies s.83 at the same time."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2015/15/section/83",
+     "https://www.legislation.gov.uk/ukpga/2015/15/section/87"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "lettings"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "id": "UK_TENANT_FEES_ACT_2019",
+   "name": "Tenant Fees Act 2019: ban on prohibited tenant payments and deposit caps advertised by letting agents",
+   "citation": {
+    "act": "Tenant Fees Act 2019",
+    "section": "s.1 to s.3 and Schedule 1 (prohibited and permitted payments, holding deposit and tenancy deposit caps), s.8 (financial penalties), s.12 (offences), s.24 to s.26 (lead enforcement authority)",
+    "url": "https://www.legislation.gov.uk/ukpga/2019/4/contents"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "letting agent acts in connection with an assured tenancy (an assured shorthold tenancy before the Renters' Rights Act 2025 conversion of assured shortholds to assured tenancies in force from 1 May 2026), a licence to occupy or student accommodation of housing in England (Tenant Fees Act 2019 s.2 and s.28, as amended by the Renters' Rights Act 2025)",
+    "the website advertises properties to let or sets out the payments a tenant will be asked to make"
+   ],
+   "excluded_when": [
+    "a permitted payment under Schedule 1 (rent, a capped tenancy deposit, a capped holding deposit, default fees, and payments for variation, assignment, early termination, council tax, utilities and communication services)",
+    "tenancies of housing outside England, which are outside the Act",
+    "a landlord dealing directly and not through a letting agent (though the parallel s.1 prohibition still binds the landlord)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "A letting agent must not require a tenant or a person acting for a tenant or guarantor to make a prohibited payment as a condition of a tenancy; only permitted payments under Schedule 1 may be charged",
+     "elements": [
+      "no administration, referencing, credit-check, inventory, check-out or renewal fees charged to tenants",
+      "no requirement to buy a product or service from a third party for a fee",
+      "holding deposit not exceeding one week’s rent",
+      "tenancy deposit not exceeding five weeks’ rent (or six weeks’ where the annual rent is 50,000 pounds or more)"
+     ],
+     "evidence_type": "absence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 1000,
+    "typical_high": 5000,
+    "statutory_max": 30000,
+    "currency": "GBP",
+    "basis": "A first breach is a civil matter with a financial penalty of up to GBP 5,000 (s.8(2)). A further breach within five years of a penalty or conviction is a criminal offence (s.12) for which the authority may impose a financial penalty of up to GBP 30,000 as an alternative to prosecution (s.8(3)), or prosecute for an unlimited fine. The GBP 30,000 figure applies only to repeat offenders, so it is not the typical first-breach exposure.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Local weights and measures authorities and district councils as enforcement authorities under the Tenant Fees Act 2019, with NTSELAT as the lead enforcement authority (s.24)",
+    "register_url": "https://www.gov.uk/government/publications/tenant-fees-act-amended-by-the-renters-rights-act-2025/tenant-fees-act-2019-statutory-guidance-for-enforcement-authorities"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "The website is where prohibited fees are most visibly advertised; a fees line that still lists referencing, admin or check-out charges to tenants, or a holding deposit over one week’s rent, is a self-evidencing breach that Trading Standards can penalise up to GBP 5,000 without needing a complaint.",
+    "regulator_asks_first": "Does any tenant-facing fee or deposit on the site fall outside the Schedule 1 permitted list, for example an admin or referencing fee, or a holding deposit above one week’s rent?",
+    "relevance_hook": "Tenants and campaigners actively screenshot non-compliant fee lists; removing banned fees protects both the penalty risk and the agency’s reputation."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2019/4/contents",
+     "https://www.legislation.gov.uk/ukpga/2019/4/section/8",
+     "https://www.legislation.gov.uk/ukpga/2019/4/schedule/1",
+     "https://www.gov.uk/government/publications/tenant-fees-act-amended-by-the-renters-rights-act-2025/tenant-fees-act-2019-statutory-guidance-for-enforcement-authorities"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "sales",
+    "lettings"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_MATERIAL_INFORMATION_DMCCA_2024",
+   "name": "Material information in property listings: misleading omissions under the Digital Markets, Competition and Consumers Act 2024",
+   "citation": {
+    "act": "Digital Markets, Competition and Consumers Act 2024, Part 4 Chapter 1 (unfair commercial practices), in force from 6 April 2025 by SI 2025/272, replacing the Consumer Protection from Unfair Trading Regulations 2008",
+    "section": "s.226 (misleading actions), s.227 (misleading omissions), s.230 (omission of material information from an invitation to purchase), s.237 (offences), s.240 (penalty for offences)",
+    "url": "https://www.legislation.gov.uk/ukpga/2024/13/section/227"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "estate or letting agent publishes property listings or particulars to consumers (a commercial practice within the Digital Markets, Competition and Consumers Act 2024)",
+    "a property listing on the website omits information the average consumer needs to take an informed transactional decision (s.227)"
+   ],
+   "excluded_when": [
+    "business-to-business dealings that are not a consumer commercial practice under the Act",
+    "a portal republishing an agent’s own listing, where the material-information duty rests with the agent who supplied it"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Include the material information a consumer needs in every property listing; omitting it is a misleading omission under s.227 and the material-information rules NTSELAT and the CMA apply to property listings",
+     "elements": [
+      "Part A basics present: asking price or rent, tenure or lease information, and council tax band or rating",
+      "for leasehold or shared-ownership, lease length, ground rent and service charge shown",
+      "known material issues that would affect a decision (for example flood risk, non-standard construction, restrictive covenants) disclosed"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Do not make misleading statements about a property in listings or particulars (s.226 misleading actions)",
+     "elements": [
+      "no false or misleading description of size, condition, tenure, price or fees",
+      "photographs and descriptions not presented in a way that deceives the average consumer"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "A trader that engages in a misleading action or omission commits an offence under s.237; on conviction the penalty is a fine (unlimited on indictment or on summary conviction in England and Wales) and, for some routes, imprisonment of up to two years (s.240). In parallel the Competition and Markets Authority has direct civil enforcement powers under Part 3 and can impose monetary penalties of up to GBP 300,000 or 10 per cent of global annual turnover, whichever is higher. Because the criminal route carries no fixed ceiling, no single statutory maximum is stated here.",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Competition and Markets Authority (direct consumer-protection enforcement from 6 April 2025) and local weights and measures authorities (Trading Standards), with NTSELAT guidance for property listings",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "From 6 April 2025 the unfair-commercial-practices regime moved into the DMCCA and the CMA gained direct fining powers; property listings are a named priority because omitting material information such as tenure, council tax band or a known defect is treated as a misleading omission even where the agent did not intend to deceive.",
+    "regulator_asks_first": "Does every listing carry the Part A material information (price or rent, tenure, council tax band) and disclose anything a buyer or tenant would need to know before enquiring?",
+    "relevance_hook": "Complete listings convert better and cut abortive viewings; they are also the exact thing the CMA and Trading Standards now test for a misleading omission."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2024/13/section/227",
+     "https://www.legislation.gov.uk/ukpga/2024/13/section/237",
+     "https://www.legislation.gov.uk/ukpga/2024/13/section/240",
+     "https://www.gov.uk/government/publications/unfair-commercial-practices-cma207/unfair-commercial-practices",
+     "NTSELAT material information in property listings guidance Parts A, B and C (withdrawn 9 May 2025 pending CMA guidance; the underlying s.227 duty is unchanged)"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "sales",
+    "lettings"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "id": "UK_MLR_2017_ESTATE_AGENCY",
+   "name": "Anti-money-laundering registration and HMRC supervision for estate agency and high-value lettings businesses (Money Laundering Regulations 2017)",
+   "citation": {
+    "act": "The Money Laundering, Terrorist Financing and Transfer of Funds (Information on the Payer) Regulations 2017 (SI 2017/692)",
+    "section": "reg 8 (relevant persons include estate agents), reg 7 (HMRC is the supervisory authority for estate agents), reg 13 (meaning of estate agent), regs 54 to 56 (requirement to be registered)",
+    "url": "https://www.legislation.gov.uk/uksi/2017/692/regulation/8/made"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "business carries on estate agency work in the United Kingdom within the meaning of s.1 Estate Agents Act 1979 (reg 8(2)(f) and reg 13), and so is a relevant person that must register with HMRC for anti-money-laundering supervision",
+    "or the business carries on letting agency work at or above the high-value threshold (a monthly rent equivalent to 10,000 euros or more), which is also within the regulations"
+   ],
+   "excluded_when": [
+    "a letting agency business whose lettings are all below the high-value threshold (a monthly rent under the 10,000 euros equivalent) and which does no estate-agency sales work, so is not a relevant person for these purposes",
+    "a business already supervised for anti-money-laundering by the FCA or a professional body listed in Schedule 1 rather than by HMRC"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Be registered with HMRC as a supervised estate agency (or high-value letting agency) business for anti-money-laundering before carrying on that work (regs 54 to 56), and hold that supervision throughout trading",
+     "elements": [
+      "business is on the HMRC anti-money-laundering supervised register for estate agency or high-value lettings",
+      "registration is current, not lapsed or refused"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Where the website states or implies anti-money-laundering supervision, name the correct supervisor (HMRC for estate agents) so the claim matches the register",
+     "elements": [
+      "any anti-money-laundering supervision statement names HMRC as supervisor for the estate agency work",
+      "no claim of supervision that the register does not support"
+     ],
+     "evidence_type": "register"
+    }
+   ],
+   "penalty": {
+    "typical_low": 1500,
+    "typical_high": 50000,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "HMRC imposes civil penalties for failing to register or comply, calculated by reference to the breach rather than a fixed statutory ceiling; across HMRC’s published estate-agency penalties individual amounts range from about GBP 1,500 to over GBP 50,000, with the largest published estate-agency penalties reaching six figures. Trading without registering is also a criminal offence. Because the civil penalty is calculated case by case there is no single statutory maximum.",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "HM Revenue and Customs (HMRC) as the anti-money-laundering supervisory authority for estate agency businesses",
+    "register_url": "https://www.gov.uk/government/publications/businesses-not-complying-with-money-laundering-regulations-in-2018-to-2019"
+   },
+   "enforcement": [
+    {
+     "case": "HMRC crackdown on unlawful estate agents for anti-money-laundering registration failures",
+     "date": "2022-10-11",
+     "amount": "GBP 519,645 across 68 estate agency businesses in the batch",
+     "url": "https://www.gov.uk/government/news/hmrc-cracks-down-on-unlawful-estate-agents",
+     "summary": "HMRC penalised 68 estate agency businesses a total of GBP 519,645 for failing to register for anti-money-laundering supervision, and separately secured a prosecution in which a company director was banned from acting as an estate agent for two years."
+    },
+    {
+     "case": "HMRC public register of businesses that have not complied with the Money Laundering Regulations (2025 to 2026)",
+     "date": "2026-02",
+     "amount": "Individual estate agency penalties into the tens of thousands of pounds (the highest in the period to 30 September 2025 about GBP 26,200); the register lists penalised businesses individually and states no sector total",
+     "url": "https://www.gov.uk/government/publications/businesses-not-complying-with-money-laundering-regulations-in-2018-to-2019/businesses-that-have-not-complied-with-the-money-laundering-regulations-2025-to-2026",
+     "summary": "HMRC’s public non-compliance register lists estate agency businesses penalised under the Money Laundering Regulations in the period to 30 September 2025, most for failing to register on time; individual penalties run into the tens of thousands of pounds."
+    }
+   ],
+   "intel": {
+    "why_matters": "Estate agency businesses are the property sector’s biggest anti-money-laundering enforcement target: HMRC penalised hundreds of agents in each recent year, publishes the names, and can prosecute and ban directors, so an agent that is not on the HMRC supervised register is running a live and public risk.",
+    "regulator_asks_first": "Is the estate agency business (or high-value letting agency) currently registered with HMRC for anti-money-laundering supervision, and does any supervision claim on the site match the register?",
+    "relevance_hook": "Registration status is public; being able to show current HMRC supervision reassures vendors and buyers that the agency handles transaction money lawfully."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2017/692/regulation/8/made",
+     "https://www.legislation.gov.uk/uksi/2017/692/regulation/7/made",
+     "https://www.legislation.gov.uk/uksi/2017/692/regulation/13/made",
+     "https://www.legislation.gov.uk/uksi/2017/692/regulation/56/made",
+     "https://www.gov.uk/government/news/hmrc-cracks-down-on-unlawful-estate-agents",
+     "https://www.gov.uk/government/publications/businesses-not-complying-with-money-laundering-regulations-in-2018-to-2019/businesses-that-have-not-complied-with-the-money-laundering-regulations-2025-to-2026"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "sales",
+    "lettings"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_EPC_LISTINGS_2012",
+   "name": "Energy performance certificate rating in property advertisements (Energy Performance of Buildings Regulations 2012)",
+   "citation": {
+    "act": "The Energy Performance of Buildings (England and Wales) Regulations 2012 (SI 2012/3118)",
+    "section": "reg 11 (statement of energy performance indicator in any advertisement of a sale or rental in commercial media), reg 6 (duty to make an EPC available), reg 34 to 38 (enforcement and penalty charges)",
+    "url": "https://www.legislation.gov.uk/uksi/2012/3118/regulation/11/made"
+   },
+   "sector": [
+    "real-estate"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "a building or building unit in England or Wales that has a valid energy performance certificate is offered for sale or rent on or after 9 January 2013 (reg 11(1) and 11(2))",
+    "the agent advertises that sale or rental in commercial media, including the agency website and property portals"
+   ],
+   "excluded_when": [
+    "buildings exempt from the requirement for an energy performance certificate (for example certain listed buildings, places of worship, temporary and low-energy-demand buildings under reg 5)",
+    "a property for which no valid energy performance certificate yet exists, where the primary duty is to commission one under reg 6 rather than to state a rating that does not exist"
+   ],
+   "website_obligations": [
+    {
+     "duty": "State the energy performance certificate asset rating for the property in any advertisement of the sale or rental in commercial media, as reg 11(2) requires",
+     "elements": [
+      "EPC asset rating (energy efficiency band A to G) shown in the listing where a valid EPC exists",
+      "rating shown wherever the property is advertised, including the website and any portal"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "Reg 11 imposes the advertisement duty but is not itself listed among the breaches that attract a penalty charge notice (regs 36 and 38 cover regs 6, 7, 14, 18, 20, 21 and 35, not reg 11), so there is no fixed financial penalty for omitting the rating from an advertisement alone. Trading Standards enforce the wider regime under reg 34: the related failure to make an EPC available for a dwelling carries a GBP 200 penalty charge (reg 38(1)(a)), and failure to produce an EPC on request under reg 35 also carries GBP 200.",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Local weights and measures authorities (Trading Standards) as enforcement authorities under Part 5 of the Energy Performance of Buildings (England and Wales) Regulations 2012",
+    "register_url": null
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Every property portal now shows an EPC band because reg 11 requires the asset rating in any advertisement where a valid certificate exists; a listing with no EPC rating is a visible, easily audited gap even though the advertisement duty itself carries no direct fine, and it points to the underlying EPC-availability duty that does.",
+    "regulator_asks_first": "Does every for-sale and to-let listing that has a valid EPC show the asset rating band, on the website and on any portal?",
+    "relevance_hook": "Buyers and tenants filter and compare on the EPC band; showing it is expected by the market and required by reg 11 for advertised properties."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/uksi/2012/3118/regulation/11/made",
+     "https://www.legislation.gov.uk/uksi/2012/3118/regulation/34/made",
+     "https://www.legislation.gov.uk/uksi/2012/3118/regulation/38/made"
+    ],
+    "seed_status": "not_in_seed",
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
+   }
+  }
+ ]
+}
