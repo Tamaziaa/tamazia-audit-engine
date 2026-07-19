@@ -1,0 +1,35 @@
+# eval/reality-corpus/sites/ask4sam.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/legal-us.md, Site 1 (human-verified 2026-07-19).
+slug: ask4sam
+domain: ask4sam.net
+role: train
+brand:
+  legal: "Silberstein & Miklos, P.C."
+  trading: "ASK4SAM"
+establishment:
+  - jurisdiction: US
+    tier: A
+    basis: "offices across the Bronx, Brooklyn, Queens, Manhattan, Nassau and Suffolk counties; New York personal-injury/medical-malpractice practice"
+audience:
+  - jurisdiction: US
+    tier: C
+    basis: "five-boroughs-of-New-York-City-only marketing, no multi-state audience signal"
+sector_paths:
+  - legal.attorneys
+labelled_breaches:
+  - law_id: NY_RPC_7_1
+    quote_substring: "$1 Billion Recovered"
+    url: "https://ask4sam.net/"
+    note: "hero claims '$1 Billion Recovered'; zero matches for 'attorney advertising' on homepage, /disclaimer/ or /testimonials/ (NY Rule of Professional Conduct 7.1 attorney-advertising label)."
+  - law_id: NY_RPC_7_1
+    quote_substring: "Real client results from real cases"
+    url: "https://ask4sam.net/testimonials/"
+    note: "quote_substring is the TRIGGERING page text (the results/testimonials claim itself, present and captured in the fixture), not the missing disclaimer - the required disclaimer text is by definition absent from the page, so it can never appear as evidence in a violation finding and must not be used as the match target (CodeRabbit PR #32). The absence claim (zero matches for the required NY RPC 7.1 disclaimer across homepage/disclaimer/testimonials) is the note's own coverage statement, not a machine-matchable quote."
+applicable_law_ids:
+  - NY_RPC_7_1
+known_clean_laws: []
+known_regression: "sector: 'attorney'/'attorneys' appear 366/172 times, 'lawyer'/'lawyers' 322/119 times, 'personal injury' 32 times on the live homepage, yet facts/vocabulary.js's law-firms detector is British-only (solicitor/conveyancing/probate/'law firm') so facts/sector.js resolved this firm to healthcare/telemedicine (driven by medical-malpractice-adjacent blog content). No domain-self-identity override applies ('ask4sam' does not contain a legal-sector token). jurisdiction: as of engine-v2.1.5-p4 (#28) US/NY now BINDS correctly from the crawled address text (wave-1 abstained here too); the sector miss is the sole remaining blocker for this site, and the sector door now hard-REFUSES the whole audit (_rivalFamiliesAtFloor) rather than merely misclassifying."
+source: EMPIRICAL-BREACH-AUDITS/legal-us.md#site-1-new-york-personal-injury--medical-malpractice-ny-rule-71
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt: homepage hero claim, testimonials-page text, and repeated 'attorney'/'lawyer' vocabulary density approximated from the audit's direct word counts (not the full site crawl)."

@@ -11,7 +11,7 @@
     "lint": "eslint . --no-error-on-unmatched-pattern",
     "circular": "madge --circular --extensions js --exclude \"node_modules|docs|reports\" .",
     "dup": "jscpd .",
-    "depcruise": "depcruise --config .dependency-cruiser.cjs applicability breach catalogue eval evidence facts llm mint payload render-proof tools enforcement",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs applicability breach catalogue eval evidence facts llm mint payload render-proof taxonomy tools enforcement",
     "sweep": "node tools/sweep/run.js",
     "calibrate": "node eval/calibration-known-bad/run.js --strict",
     "catalogue": "node catalogue/compile.js --stamp-file RELEASE_STAMP",
@@ -19,6 +19,7 @@
     "test": "node --test"
   },
   "devDependencies": {
+    "acorn": "^8.11.3",
     "dependency-cruiser": "^17.0.1",
     "eslint": "^9.39.2",
     "jscpd": "^4.0.5",

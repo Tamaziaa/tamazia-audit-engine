@@ -1,0 +1,47 @@
+{
+  "name": "ws-runtime-audit-complete",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ws-runtime-audit-complete",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Audit Complete Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ws-runtime-audit-complete"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "note",
+              "value": "STAGED: no destination configured yet. Founder wires the real notification node here (see runtime/n8n/README.md)."
+            },
+            { "name": "jobId", "value": "={{$json.body.jobId}}" },
+            { "name": "status", "value": "={{$json.body.status}}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "no-destination-placeholder",
+      "name": "No destination configured yet",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Audit Complete Webhook": {
+      "main": [[{ "node": "No destination configured yet", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

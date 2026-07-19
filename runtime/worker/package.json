@@ -1,0 +1,16 @@
+{
+  "name": "tamazia-runtime-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker intake API for the Tamazia audit engine runtime (staged, not bound to the live route). See ../../DEPLOY-RUNBOOK.md.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler dev",
+    "deploy:staging": "wrangler deploy --env staging",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

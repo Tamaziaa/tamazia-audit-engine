@@ -148,6 +148,54 @@ No agent, script or session reports a change done until verified at the end agai
 
 ---
 
+## Part II.b: The WS0 verdict-lattice rules (payload v1.2 foundation)
+
+These six rules are the keystone every other workstream branches off (Kimi deep blueprint 2.2/2.3/2b). They make incapacity and fabrication UNREPRESENTABLE at the type level: the "types" are the runtime-validated constructors in `payload/contract/v1_2.js`, the shared `taxonomy/index.js`, the mint-time gate `mint/quote-verify-gate.js`, and the lint gates that hold the vocabulary and lane contracts. They are additive: the v1.1 render-contract path is untouched and still validates.
+
+### Rule 18: Clean is constructible only with a coverage manifest
+A `Clean` verdict has exactly ONE constructor, and it requires a complete `CoverageManifest` whose `checks_run` and `checks_unrun` partition `checks_planned` (every planned check is either run or declared unrun with a reason). Constructing `Clean` without one throws. Incapacity is therefore no longer representable as health: if a lane threw, its checks land in `checks_unrun`, so `Clean` is unconstructible for them and the only available verdict is `Unknown{lane_unavailable}`.
+
+**Why:** the first real run of the current engine minted a blank-page audit as "clean" because empty evidence flowed through as success (Kimi blueprint 2.2 / P0-1; digest-findings-bible blank-page fabrication).
+
+**Enforced by:** `payload/contract/v1_2.js` (`Clean` requires a branded `CoverageManifest`; the manifest constructor proves the run/unrun union equals planned); `payload/contract/decode.js` `validateV1_2` re-runs the union invariant on a decoded payload; proven by `payload/contract/v1_2.test.js`.
+
+### Rule 19: No claim without a resolvable evidence reference, re-verified at mint
+Every breach claim references its evidence by an offset triple (`Quote{evidence_id, byte_start, byte_end}`, never a string), its law by a `LawRef` and its penalty by a `PenaltyRef`, each validated against the hash-pinned catalogue at construction. At mint, a pure non-LLM gate re-verifies every quote against the fetched bytes and re-resolves every law/penalty, and refuses to persist any payload that fails.
+
+**Why:** every breach Tamazia ever sent was an unverified regex match; a fabricated quote or an invented penalty reaching a firm's inbox is the catastrophic failure (Kimi blueprint 2.2 / P0-2).
+
+**Enforced by:** `payload/contract/v1_2.js` (Quote/LawRef/PenaltyRef reject anything unresolvable), `payload/contract/verify-quote.js` (`verifyQuote` recomputes the byte hash and slices the offsets), and `mint/quote-verify-gate.js` (`assertMintablePayload`, wired into `mint/index.js` before persist, additive to `mint/post-write-assertions.js`); proven by `payload/contract/v1_2.test.js`, `payload/contract/verify-quote.test.js`, `mint/quote-verify-gate.test.js`.
+
+### Rule 20: Green requires reality-corpus budgets, not merely a green fleet
+A green build means the engine was measured against a hand-labelled reality corpus and is inside its recall/precision budgets, not merely that the unit fleet passed. Oracles measure the map; only the corpus measures the territory.
+
+**Why:** a margin-blind abstain gate passed 1,699 unit tests, two reviewers and CodeScene, and destroyed 8 of 11 real audits (caution.md #258; Kimi §3).
+
+**Enforced by:** PLANNED (a later workstream, P0-19/P1-10): `eval/reality-corpus/` replay in CI with per-family budgets and a zero-false-accusation gate, which becomes a machine-checkable merge blocker. Until that gate lands this rule is NOT yet machine-enforced: no review note or agent may self-certify it (CI is the only arbiter of completion), and the structural Rules 18/19/21 cover only fabrication, not the empirical budgets.
+
+### Rule 21: Every UNKNOWN carries a reason code and a resolution path
+An `Unknown` verdict requires both a `reason_code` and a `missing` field naming what fact or coverage would resolve it; a `checks_unrun` entry requires a reason. An abstention that does not say why, and what would change it, is unconstructible.
+
+**Why:** silent partial coverage and reasonless abstention are how "none missed" became unprovable and how the report abstained into uselessness (Kimi blueprint 2.3 / P0-1, P0-3).
+
+**Enforced by:** `payload/contract/v1_2.js` (`Unknown` and `CoverageManifest.checks_unrun` require their reasons); proven by `payload/contract/v1_2.test.js`.
+
+### Rule 22: Vocabulary has one door (the taxonomy is a single shared package)
+The sector PATH tree and the jurisdiction AXES have exactly one producer, `taxonomy/index.js` (deriving its sector names from `facts/vocabulary.js`). Every layer imports it; a module that declares its own sector-path literal or jurisdiction-axis vocabulary is a second door and fails the gate. Sector matching is ancestor-or-equal on real tree paths (`sectorPathMatches`), so the aesthetics-vs-injectables class of miss cannot recur.
+
+**Why:** two flat, stringly sector vocabularies with exact-string matching left 9 of 12 healthcare tags unable to bind; a firm resolved to leaf `injectables` could never match a law tagged at parent `aesthetics` (Kimi blueprint 2.3 / P1-6).
+
+**Enforced by:** `tools/taxonomy-onedoor/check.js` (blocking, self-tested, with the calibration fixture `eval/calibration-known-bad/fixtures/ws0-taxonomy-stray-literal.js`), proven by `tools/taxonomy-onedoor/check.test.js` and wired into `eval/calibration-known-bad/run.js`. (The invariant-c sibling gate `tools/lane-empty-gate/check.js`, which bans an empty-array lane error path, enforces Rule 19's evidence-integrity leg, not this rule; see the Rule 19 row.)
+
+### Rule 23: The builder never executes production
+Claude Code is the BUILDER (how the engine's code is written), never the production RUNTIME. No agent mints against live Neon/R2 without an explicit, human-authorised, stubbed-by-default seam; the engine version gate (Rule 15) is the lock, and SEND stays founder-only and off.
+
+**Why:** a rogue pre-gate cron minted on a stale version for days; an unstubbed test mint can write production rows the moment the DB version flag matches (Kimi §D / round-2 platform section; AGENT-CONTEXT-PACK rule 5).
+
+**Enforced by:** Rule 15's `engine_flags.required_engine_version` DB trigger and `mint/persist.js` idempotency key; the ENGINE_VERSION bump on every scan-logic change (a WS0 payload minted under `engine-v2.2.0-ws0` will not match a production flag pinned to an older version, so an accidental live mint fails closed); `tools/mint-reconciler/reconcile.js`.
+
+---
+
 ## Part III: The gate map (rule → enforcing file)
 
 **Legend:** files LIVE today: `tools/one-door/check.js`, `tools/swallow-gate/check.js`, `tools/fact-lineage/check.js`, `tools/sweep/*`, `eval/calibration-known-bad/run.js`, `eval/golden/run.js`, `eval/reference-set/verify.js`, `payload/contract/index.js`, `payload/schema/payload.schema.json`, and workflows `ci.yml`, `sweep.yml`, `codeql.yml`, `semgrep.yml`. Every other file in this table is **PLANNED (P1+)**: it is the committed name the owning phase must land, and this table is the contract for it. A planned gate is not an excuse — the rule binds from day one; until its dedicated file lands, the closest live gate (sweep/ci) covers what it can and the rest is enforced in review.
@@ -171,5 +219,11 @@ No agent, script or session reports a change done until verified at the end agai
 | 15 No cache + version gate | engine-version guard + DB trigger | `.github/workflows/engine-version-guard.yml` (planned P4), `mint/` DB gate (planned P4) |
 | 16 No secrets | secret scan + fixture linter | Semgrep p/secrets pack (live, `.github/workflows/semgrep.yml`); `.github/workflows/secret-scan.yml` gitleaks lane + `eval/golden/` fixture linter (planned P1) |
 | 17 Done = ground truth | reconciler + truth-pack + CI status | `tools/mint-reconciler/reconcile.js`, `render-proof/truth-pack.spec.js` (planned P4); CI status on the merge commit (live) |
+| 18 Clean requires a coverage manifest | typed constructor + decoder | `payload/contract/v1_2.js` (live, WS0), `payload/contract/decode.js` (live) |
+| 19 No claim without resolvable evidence, re-verified at mint | typed refs + mint quote-verify gate + empty-lane lint | `payload/contract/v1_2.js`, `payload/contract/verify-quote.js`, `mint/quote-verify-gate.js`, `tools/lane-empty-gate/check.js` (all live, WS0) |
+| 20 Green requires reality-corpus budgets | corpus replay CI gate | `eval/reality-corpus/` (planned, P0-19/P1-10); today only the fleet + Rules 18/19/21 (this rule is not yet machine-enforced) |
+| 21 Every UNKNOWN carries reason + resolution | typed constructor | `payload/contract/v1_2.js` (live, WS0) |
+| 22 Vocabulary has one door | shared taxonomy + vocabulary one-door gate | `taxonomy/index.js`, `tools/taxonomy-onedoor/check.js` (both live, WS0) |
+| 23 The builder never executes production | engine-version DB gate + reconciler | `mint/version.js` + `mint/persist.js` DB trigger (live), `tools/mint-reconciler/reconcile.js` (planned P4) |
 
 Also always-on (the 12-tool sweep, per PRD §7): CodeQL (`.github/workflows/codeql.yml`, live), Semgrep (`.github/workflows/semgrep.yml`, live), CodeRabbit and CodeScene (GitHub Apps, least-privilege, cannot write code; founder enables per docs/FOUNDER-ACTIONS.md), madge + dependency-cruiser (live in `.github/workflows/ci.yml`), jscpd and ESLint (live in `.github/workflows/ci.yml`), the sweep orchestrator (`.github/workflows/sweep.yml`, live nightly), the domain gates (`.github/workflows/domain-gates.yml`, planned P3), and the Playwright render lane (`.github/workflows/render-truth.yml`, planned P4). SARIF fan-in, fingerprint dedupe, DSU clustering and the numbered ledger live in `tools/sweep/`. ACT (two or more independent tools agree) blocks all progress until fixed; a single-tool finding is a lead, never auto-fixed.

@@ -213,6 +213,98 @@ test('telemedicine precedence: telehealth-led care resolves telemedicine, not ge
 });
 
 // ---------------------------------------------------------------------------------------------
+// WS-Signals: NPI (NPPES) taxonomy decisively sets/overrides the healthcare SUB-sector
+// (KIMI-K3-DEEP-BLUEPRINT-2026-07-20 §B2: "these are Tier-A/A- deterministic sector facts that
+// OVERRIDE the text classifier"). registers.npi is matched on the register's own self-reported
+// taxonomy description text (facts/sector.js's _npiSubSector), never a hand-guessed NUCC code.
+// ---------------------------------------------------------------------------------------------
+
+// Deliberately drops HOSPITAL_TEXT's "general practice ... GP appointments" clause so the
+// text-only sub-sector resolves 'hospital-care' unambiguously (proven below), leaving a clean
+// baseline for the NPI-override test to actually exercise a genuine text-vs-register disagreement.
+const HOSPITAL_ONLY_TEXT = 'Welcome to Harbourview Hospital, a leading private hospital and medical centre. Our oncology department provides cancer care to patients across the region. The clinic is CQC registered.';
+
+test('baseline: HOSPITAL_ONLY_TEXT resolves hospital-care from text alone, with no register present', () => {
+  const r = resolve(bundleOf(HOSPITAL_ONLY_TEXT));
+  assert.equal(r.value.sector, 'healthcare');
+  assert.equal(r.value.sub_sector, 'hospital-care');
+});
+
+test('NPI taxonomy OVERRIDES a weaker text-derived sub-sector (Family Medicine -> general-practice)', () => {
+  const r = resolve(bundleOf(HOSPITAL_ONLY_TEXT, {
+    registers: { npi: { id: '1999999999', name: 'HARBOURVIEW CLINIC', taxonomy_code: '207Q00000X', taxonomy_desc: 'Family Medicine' } },
+  }));
+  assert.equal(r.value.sector, 'healthcare');
+  // HOSPITAL_ONLY_TEXT alone resolves 'hospital-care' via text cues; the register decisively wins.
+  assert.equal(r.value.sub_sector, 'general-practice');
+  assert.ok(r.evidence.some((e) => e.source === 'npi' && /overrides/i.test(e.quote)));
+});
+
+test('NPI taxonomy sets the sub-sector when the text alone gave none (Psychiatry -> mental-health)', () => {
+  const r = resolve(bundleOf('Welcome to our practice. CQC registered.', {
+    registers: {
+      cqc: { matched: true },
+      npi: { id: '1888888888', name: 'EXAMPLE BEHAVIORAL HEALTH', taxonomy_code: '2084P0800X', taxonomy_desc: 'Psychiatry' },
+    },
+  }));
+  assert.equal(r.value.sector, 'healthcare');
+  assert.equal(r.value.sub_sector, 'mental-health');
+});
+
+test('NPI taxonomy is IGNORED outside the healthcare family (a law firm with a stray npi row is not re-classified)', () => {
+  const r = resolve(bundleOf(LAW_TEXT, {
+    registers: { npi: { id: '1777777777', name: 'IRRELEVANT ORG', taxonomy_code: '207Q00000X', taxonomy_desc: 'Family Medicine' } },
+  }));
+  assert.equal(r.value.sector, 'law-firms');
+  assert.equal(r.value.sub_sector, 'solicitors');
+});
+
+test('an ambiguous/unmatched NPI taxonomy description never overrides the text-derived sub-sector (deny by default)', () => {
+  const r = resolve(bundleOf(HOSPITAL_ONLY_TEXT, {
+    registers: { npi: { id: '1666666666', name: 'HARBOURVIEW CLINIC', taxonomy_code: '261QM1300X', taxonomy_desc: 'Clinic/Center, Multi-Specialty' } },
+  }));
+  assert.equal(r.value.sector, 'healthcare');
+  assert.equal(r.value.sub_sector, 'hospital-care'); // the text-derived sub-sector stands unmodified
+});
+
+test('_npiSubSector: falls back through secondary taxonomies when the primary one is unmatched', () => {
+  const registers = {
+    npi: {
+      taxonomy_desc: 'Clinic/Center, Multi-Specialty',
+      taxonomies: [
+        { code: '261QM1300X', desc: 'Clinic/Center, Multi-Specialty', primary: true },
+        { code: '152W00000X', desc: 'Optometrist', primary: false },
+      ],
+    },
+  };
+  const result = sector._npiSubSector(registers);
+  assert.ok(result);
+  assert.equal(result.sub, 'optometry');
+});
+
+test('_npiSubSector: absent register, or absent registers.npi, returns null', () => {
+  assert.equal(sector._npiSubSector({}), null);
+  assert.equal(sector._npiSubSector(null), null);
+});
+
+// CodeRabbit PR #30 (facts/sector.js:387): flagged _NPI_DESC_SUBSECTOR's literal sub-sector ids as
+// duplicating facts/vocabulary.js's CANONICAL_SUB_SECTORS/SUB_SECTOR_SYNONYMS union, risking silent
+// drift if a sub-sector id is ever renamed there. A full data-source migration was judged out of
+// scope for a resolver-decomposition PR (Rule: decompose for complexity, never change resolver
+// behaviour), so this test closes the drift risk instead: every id the table can emit must be a
+// real canonical sub-sector per the real vocabulary. It fails loudly, not silently, on drift.
+test('_NPI_DESC_SUBSECTOR: every sub-sector id it can emit is canonical per facts/vocabulary.js', () => {
+  if (!REAL_VOCAB) {
+    console.warn('[sector.test] skipped: facts/vocabulary.js not present');
+    return;
+  }
+  assert.ok(sector._NPI_DESC_SUBSECTOR.length > 0);
+  for (const [, sub] of sector._NPI_DESC_SUBSECTOR) {
+    assert.ok(REAL_VOCAB.isCanonicalSubSector(sub), sub + ' is not a canonical sub-sector in facts/vocabulary.js (drift)');
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
 // Register cross-check (C-004, C-014, C-016)
 // ---------------------------------------------------------------------------------------------
 
@@ -684,4 +776,107 @@ test('DEFECT-7 negative: an insurer offering "litigation support" and "legal cou
   assert.equal(r.value && r.value.sector, 'finance',
     'an insurer with two incidental legal phrases must stay finance: its own insurance vocabulary out-scores the legal cues');
   assert.notEqual(r.value && r.value.sector, 'law-firms');
+});
+
+// ---------------------------------------------------------------------------------------------
+// WINNER-DOMINANCE doctrine (the fix for the #28 sector over-abstention). The multidisciplinary-conflict
+// gate (`_rivalFamiliesAtFloor`) must respect the winner's dominance: a dominant family classifies over
+// incidental rivals, and only a GENUINE tie abstains. Dominance is graded on TWO axes and each is locked by
+// a NEGATIVE control that exercises it in isolation: the RATIO axis (a high-count near-tie like 8/6 abstains)
+// and the ABSOLUTE-floor axis (a thin winner like knightsbridge 6/2/2, dominant proportionally at ratio 3.0
+// but only 6 cues, abstains). The synthetic `_textWinner` legs carry the REAL empirical scores and are
+// dependency-free (always run); the real-vocabulary legs verify the end-to-end path (a POSITIVE control
+// classifies, a NEGATIVE conglomerate control abstains).
+// ---------------------------------------------------------------------------------------------
+
+// A candidate as _scoreSectors emits it (already sorted by distinct desc when passed to _textWinner).
+function cand(family, distinct) { return { family, sector: family, depth: 0, distinct, cues: [] }; }
+function winnerFamily(cands) {
+  const w = sector._textWinner(cands, 2, new Set());
+  return w.winner ? w.winner.family : null;
+}
+
+test('winner-margin POSITIVE (londondoctors 32/7/5): a dominant winner classifies despite 2+ rival families at floor', () => {
+  // The exact smoking-gun scores from the empirical re-test: healthcare 32 vs the nearest rival 7, with
+  // hospitality(7)/education(5) both at the floor. #28 abstained here (ignored the 4.5x margin); the fix
+  // classifies to the dominant winner.
+  assert.equal(winnerFamily([cand('healthcare', 32), cand('hospitality', 7), cand('education', 5)]), 'healthcare');
+});
+
+test('winner-margin POSITIVE (ask4sam 19/12/3): the tightest correct winner still clears the dominance threshold', () => {
+  // law-firms 19 vs the incidental healthcare 12 (ratio 1.58, > the 1.5 floor), finance 3 also at floor.
+  assert.equal(winnerFamily([cand('law-firms', 19), cand('healthcare', 12), cand('finance', 3)]), 'law-firms');
+});
+
+test('winner-margin POSITIVE (vanfamily 8/3/2): a clear winner over two thin rival families classifies', () => {
+  assert.equal(winnerFamily([cand('healthcare', 8), cand('hospitality', 3), cand('finance', 2)]), 'healthcare');
+});
+
+test('winner-margin BOUNDARY (7/4/2): the absolute floor met exactly (7 cues) with a dominant ratio classifies', () => {
+  // 7 is the DOMINANCE_MIN_CUES floor; 7 vs 4 is ratio 1.75. Both axes satisfied, so it classifies. One cue
+  // fewer (the 6/2/2 knightsbridge shape below) fails the absolute floor and abstains.
+  assert.equal(winnerFamily([cand('law-firms', 7), cand('finance', 4), cand('real-estate', 2)]), 'law-firms');
+});
+
+test('winner-margin NEGATIVE conglomerate (7/6/6): comparable top-two abstains via the RATIO axis (C-007)', () => {
+  // A genuine multidisciplinary firm: the winner clears the absolute floor (7) but does NOT dominate
+  // proportionally (7 vs 6, ratio 1.17 < 1.5). This is the constructed negative control the fix must
+  // preserve; picking a side here would be a guess.
+  assert.equal(winnerFamily([cand('finance', 7), cand('law-firms', 6), cand('accounting', 6)]), null);
+});
+
+test('winner-margin NEGATIVE near-tie (botoxclinic 8/6): abstains via the RATIO axis (ratio 1.33 < 1.5)', () => {
+  // The winner clears the absolute floor (8) but 8 vs 6 is too close to call. This is the ratio axis alone.
+  assert.equal(winnerFamily([cand('aesthetics', 8), cand('hospitality', 6), cand('finance', 2)]), null);
+});
+
+test('winner-margin NEGATIVE knightsbridge (6/2/2): a thin winner dominating by ratio 3.0 abstains via the ABSOLUTE floor', () => {
+  // The real reference-set regression this fix had to avoid: knightsbridge.ae self-declares as a
+  // multidisciplinary conglomerate (lawyers, wealth planners, real estate, corporate services, immigration
+  // advisory) and scores law-firms 6 vs finance 2 - a ratio of 3.0, MORE dominant proportionally than a real
+  // law firm, yet a genuine conglomerate the reference set binds to professional-services. A ratio-only rule
+  // would misclassify it law-firms; the absolute floor (winner 6 < 7 distinct cues) correctly abstains.
+  assert.equal(winnerFamily([cand('law-firms', 6), cand('finance', 2), cand('hospitality', 2)]), null);
+});
+
+test('winner-margin NEGATIVE thin low-count (3/2/2): the ABSOLUTE floor blocks a 1.5-ratio thin winner', () => {
+  // 3 vs 2 clears the ratio (1.5) but a three-cue winner is not a substantial single-sector body of content;
+  // the absolute floor blocks it. Without this axis a sparse crawl would over-classify.
+  assert.equal(winnerFamily([cand('finance', 3), cand('law-firms', 2), cand('real-estate', 2)]), null);
+});
+
+test('winner-margin: a two-family near-tie (one rival family only) is unaffected by the conflict gate', () => {
+  // conflict.size < 2, so the gate never engages: a 6/5 two-family near-tie classifies the top exactly as
+  // it did before #28 (the fix narrows the conflict gate, it does not widen it).
+  assert.equal(winnerFamily([cand('law-firms', 6), cand('finance', 5)]), 'law-firms');
+});
+
+test('winner-margin: an exact cross-family tie still abstains (the two-cue floor guard is untouched)', () => {
+  assert.equal(winnerFamily([cand('law-firms', 4), cand('finance', 4), cand('accounting', 4)]), null);
+});
+
+test('winner-margin real-vocab POSITIVE: a dominant healthcare clinic with incidental cafe/teaching words resolves healthcare', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  // Mirrors londondoctorsclinic on the REAL vocabulary: healthcare dominates while hospitality and
+  // education each clear the floor. #28 refused this whole class at the sector door; the fix classifies it.
+  const r = sector.resolveSector(realBundle('ldnclinic.co.uk',
+    'Our GP clinic and medical centre provide general practice care. Book a private GP appointment at our '
+    + 'clinic for physiotherapy, mental health counselling and pharmacy services. As a teaching practice we '
+    + 'are affiliated with the university and the Royal College. Our on-site cafe serves a dining menu for '
+    + 'patients and visitors.'));
+  assert.ok(r.value, 'a dominant healthcare clinic must resolve, not abstain at the sector door');
+  assert.equal(sector.familyOf(REAL_VOCAB.TREE || REAL_VOCAB.tree, r.value.sector), 'healthcare');
+});
+
+test('winner-margin real-vocab NEGATIVE: a genuine law + finance + accounting conglomerate still abstains (C-007)', (t) => {
+  if (!REAL_VOCAB_PRESENT) { t.skip('facts/vocabulary.js absent'); return; }
+  // Comparable families (law-firms 5 / finance 4 / accounting 3): the top does not dominate, so the engine
+  // must decline to pick a side. This is the negative control the winner-margin fix preserves.
+  const r = sector.resolveSector(realBundle('meridiangroup.example',
+    'Meridian Group is a law firm, a wealth management practice and a chartered accountancy firm. Our '
+    + 'solicitors provide legal advice, conveyancing and probate. Our advisers offer wealth management, '
+    + 'investment management, insurance and IFA services. Our accountants handle bookkeeping as chartered '
+    + 'accountants.'));
+  assert.equal(r.value, null, 'a genuine comparable-families conglomerate must abstain, never guess a side');
+  assert.equal(r.confidence, 'abstain');
 });

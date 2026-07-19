@@ -30,7 +30,7 @@ const path = require('path');
 const { runGateCli, ROOT } = require('../lib/gate-cli');
 const safePath = require('../lib/safe-path');
 
-const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof', 'tools', 'enforcement'];
+const SCAN_DIRS = ['catalogue', 'evidence', 'facts', 'applicability', 'breach', 'llm', 'payload', 'mint', 'render-proof', 'taxonomy', 'tools', 'enforcement'];
 
 const RECORDER = /\b(?:_warn|warn|_record|record[A-Z_]\w*|addWarning|logWarning|manifest\.[A-Za-z_$]*(?:record|add|warn|note)\w*|logger?\.(?:warn|error)|console\.(?:warn|error)|log\.(?:warn|error)|report(?:Error|Failure|Warning)\w*|captureException)\s*\(/;
 const JUSTIFY = /FAIL-OPEN:/;

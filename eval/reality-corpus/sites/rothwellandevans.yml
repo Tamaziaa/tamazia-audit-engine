@@ -1,0 +1,37 @@
+# eval/reality-corpus/sites/rothwellandevans.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/legal-uk.md, Site 1 (human-verified 2026-07-19).
+slug: rothwellandevans
+domain: rothwellandevans.co.uk
+role: train
+brand:
+  legal: "Rothwell and Evans Limited"
+  trading: "Rothwell & Evans Solicitors"
+establishment:
+  - jurisdiction: UK
+    tier: A
+    basis: "SRA registration 565285/566624 + Companies House number 07743894 on-page"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "no multi-country audience signals found; UK-only high-street firm"
+sector_paths:
+  - legal.solicitors
+applicable_law_ids:
+  - UK_SRA_TRANSPARENCY
+  - UK_PECR_COOKIES_MARKETING
+  - UK_TRADING_DISCLOSURES
+labelled_breaches:
+  - law_id: UK_SRA_TRANSPARENCY
+    quote_substring: "domestic-conveyancing"
+    url: "https://rothwellandevans.co.uk/conveyancing/domestic-conveyancing/"
+    note: "SRA Transparency Rules require published cost information for residential conveyancing and uncontested probate; zero pricing/fees content across the full 49-page crawl."
+  - law_id: UK_PECR_COOKIES_MARKETING
+    quote_substring: "google-analytics.com/analytics.js"
+    url: "https://rothwellandevans.co.uk/"
+    note: "UA-137048680-1 loads unconditionally in <head>; zero consent-management-platform signature anywhere on the page (11-signature sweep)."
+known_clean_laws: []
+known_regression: "sector misclassified as real-estate (facts/sector.js text scoring outweighs the on-page SRA registration statement); excludes the entire SRA-specific record family. As of engine-v2.1.5-p4 the audit now ABSTAINS the whole sector door instead (_rivalFamiliesAtFloor margin-blind conflict gate), so even the PECR catch this site previously produced is lost."
+source: EMPIRICAL-BREACH-AUDITS/legal-uk.md#site-1-sra-solicitor-transparency-covered-practice-area
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Page text below is a hand-built excerpt embedding the exact verified quotes and on-page facts (SRA number, company number, GA tag, address absence-of-pricing signal); it is NOT a full 49-page crawl. Absence-shaped breaches (no pricing page) are represented as an explicit crawled-page set with no pricing content, not a full-site guarantee."

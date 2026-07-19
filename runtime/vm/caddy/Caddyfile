@@ -1,0 +1,21 @@
+# runtime/vm/caddy/Caddyfile - staged. Caddy terminates TLS for whatever hostname the founder
+# eventually points at this VM (never tamazia.co.uk in the staged build - that stays on Cloudflare
+# Pages). Replace {$RUNTIME_HOSTNAME} with the real hostname when the founder assigns one; until
+# then this Caddyfile is not deployed to any live host.
+
+{$RUNTIME_HOSTNAME:runtime.staging.internal} {
+	encode gzip
+
+	handle /healthz {
+		reverse_proxy worker:3500
+	}
+
+	handle {
+		reverse_proxy worker:3500
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

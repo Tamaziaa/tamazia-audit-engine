@@ -1,0 +1,40 @@
+# eval/reality-corpus/sites/londondoctors.yml
+# Source: Tamazia-Remix/EMPIRICAL-BREACH-AUDITS/healthcare-uk.md, Site 2 (human-verified 2026-07-19).
+# THIS IS THE NAMED SECTOR-ABSTAIN REGRESSION FIXTURE (AGENT-CONTEXT-PACK / RETEST-2026-07-19.md):
+# an unambiguously healthcare GP group must classify sector:"healthcare", never abstain.
+slug: londondoctors
+domain: londondoctorsclinic.co.uk
+role: train
+brand:
+  legal: "The Doctors Clinic Group Ltd"
+  trading: "London Doctors Clinic"
+establishment:
+  - jurisdiction: UK
+    tier: A
+    basis: "company no. 08841773; 18 London locations; CQC-registered, provider ID 1-2378030568"
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "London-based GP group plus an online-GP arm"
+sector_paths:
+  - healthcare.gp-clinic
+labelled_breaches:
+  - law_id: UK_CQC_20A_RATING
+    quote_substring: "cqc.org.uk/provider/1-2378030568/services"
+    url: "https://londondoctorsclinic.co.uk/"
+    note: "footer CQC link is an icon only, no rating word anywhere on the page; the live CQC provider page shows a current rating of 'Good' (rating-state--good), withheld from the firm's own site (CQC Reg 20A rating-display duty)."
+applicable_law_ids:
+  - UK_CQC_20A_RATING
+  - UK_CQC_REGISTRATION
+  - UK_GMC_GMP_2024
+  - UK_NHS_BRANDING
+known_clean_laws:
+  - UK_CQC_REGISTRATION
+false_accusation_regression:
+  law_id: UK_CQC_REGISTRATION
+  note: "the firm is genuinely CQC-registered (provider ID 1-2378030568, confirmed live) and the complaints route (/contact/#complaints) genuinely exists in the footer; a finding asserting the firm is unregistered, or asserting a missing complaints route, would be a false accusation. (No standalone 'complaints route' catalogue record exists for GP clinics as of catalogue.v1.json 2026-07-20; UK_CQC_REGISTRATION is the closest real record this firm is verifiably clean on.)"
+known_regression: "ON THE REAL LIVE SITE (RETEST-2026-07-19.md, full crawl): facts/sector.js correctly resolves sector: healthcare, sub_sector: telemedicine (corroborated, 32 cues) on the pre-#28 engine; UK_CQC_20A_RATING is EXCLUDED because that one record's sub_sector array omits 'telemedicine' even though its closest sibling UK_CQC_REGISTRATION includes it. AS OF engine-v2.1.5-p4 (#28) the LIVE site regressed further: healthcare scores 32 distinct cues against the nearest rival's 7, yet facts/sector.js's new _rivalFamiliesAtFloor multidisciplinary-conflict gate ABSTAINS anyway because hospitality (7), education (5) and finance (4) each independently clear a two-cue floor on the full 18-location, multi-page site, ignoring the winner's dominant margin. THIS IS THE NAMED REGRESSION the reality-corpus gate exists to catch: an unambiguous GP group with a 25-point margin over its nearest rival must never abstain sector classification. KNOWN CORPUS LIMITATION: this file's hand-built eval/reality-corpus/fixtures/londondoctors.json snapshot is a small excerpt (a handful of pages), not the real 18-location, many-page crawl, so it does not carry enough incidental rival-family vocabulary density to reproduce the exact _rivalFamiliesAtFloor trigger observed live; on the current snapshot this site resolves sector:CORRECT rather than ABSTAIN (see eval/reality-corpus/README.md's replay-mode limitation). The regression IS reproduced corpus-wide today by housingdisrepairteam.yml and ukimmigrationconsulting.yml (both abstain on their snapshots), which is what currently trips the sector_refusal_rate hard budget in budgets.json. Capturing a real snapshot for this site (tracked as a follow-up, not silently dropped) is expected to make THIS file reproduce the exact live abstain too."
+source: EMPIRICAL-BREACH-AUDITS/healthcare-uk.md#site-2-cqc-registered-provider-rating-not-displayed-reg-20a
+source_retest: EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md
+snapshot_source: manual-transcription
+snapshot_note: "Hand-built excerpt: footer CQC icon link with no rating text, 'London Doctors Clinic is regulated by the Care Quality Commission' self-description, /contact/#complaints route, transcribed from the audit's direct quotes."
