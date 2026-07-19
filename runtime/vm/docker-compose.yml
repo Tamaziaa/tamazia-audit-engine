@@ -101,6 +101,11 @@ services:
       context: ./cron
     init: true
     restart: unless-stopped
+    # Runs as the non-root `tamazia` user (see runtime/vm/cron/Dockerfile); busybox crond still
+    # needs CAP_SETUID+CAP_SETGID to do its per-job privilege check, so those two are granted back
+    # explicitly after dropping every other capability root would otherwise carry.
+    cap_drop: [ALL]
+    cap_add: [SETGID, SETUID]
     environment: *worker-env
     depends_on:
       - worker

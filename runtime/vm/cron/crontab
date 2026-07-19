@@ -1,12 +1,16 @@
 # runtime/vm/cron/crontab - installed at /etc/crontabs/tamazia inside the cron container.
 # Times are UTC (container default).
+#
+# No `su-exec` prefix on these lines: crond itself already drops to the `tamazia` account (the
+# crontab's filename) before it execs the shell below, so each job starts life as `tamazia`
+# already - see the ownership/capability note in runtime/vm/cron/Dockerfile.
 
 # Citator nightly: refresh enforcement-action citations against official sources.
-17 2 * * * su-exec tamazia node /app/runtime/vm/cron/jobs/citator-nightly.js >> /proc/1/fd/1 2>>/proc/1/fd/2
+17 2 * * * node /app/runtime/vm/cron/jobs/citator-nightly.js >> /proc/1/fd/1 2>>/proc/1/fd/2
 
 # Canary audits: mint a small, known-answer set of audits and diff against expected findings, to
 # catch a silent pipeline regression before it reaches a real submitter.
-0 6 * * * su-exec tamazia node /app/runtime/vm/cron/jobs/canary-audits.js >> /proc/1/fd/1 2>>/proc/1/fd/2
+0 6 * * * node /app/runtime/vm/cron/jobs/canary-audits.js >> /proc/1/fd/1 2>>/proc/1/fd/2
 
 # Corpus replay: nightly holdout eval against the hand-labelled corpus (P0-19).
-30 6 * * * su-exec tamazia node /app/runtime/vm/cron/jobs/corpus-replay.js >> /proc/1/fd/1 2>>/proc/1/fd/2
+30 6 * * * node /app/runtime/vm/cron/jobs/corpus-replay.js >> /proc/1/fd/1 2>>/proc/1/fd/2

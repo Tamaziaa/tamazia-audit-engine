@@ -27,63 +27,94 @@ function newJobId() {
   return crypto.randomUUID();
 }
 
-async function handleIntake(request, env) {
-  let payload;
+// parseIntakePayload(request) -> { payload, error }. `error` is a ready-to-return 400 Response
+// when the body is not valid JSON; `payload` is the parsed body otherwise (error is then null).
+async function parseIntakePayload(request) {
   try {
-    payload = await request.json();
+    return { payload: await request.json(), error: null };
   } catch (err) {
-    return jsonResponse({ error: 'invalid_json', detail: String(err) }, 400);
+    return { payload: null, error: jsonResponse({ error: 'invalid_json', detail: String(err) }, 400) };
+  }
+}
+
+// isWellFormedUrl(url) -> true when `url` parses as an absolute URL, so a malformed value is
+// rejected before it ever reaches a queue consumer or the browser lane on the VM.
+function isWellFormedUrl(url) {
+  try {
+    new URL(url); // only whether this throws matters here
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// checkTurnstile(request, env, token) -> a 403 Response when Turnstile is configured and the
+// token fails verification, else null (pass - including the "not configured yet" staging
+// default: TURNSTILE_SECRET_KEY not yet provisioned in this environment, so the gate is a no-op
+// rather than a hard failure, keeping the staged Worker testable by curl before the founder wires
+// the Turnstile site key. Recorded here, not silently assumed: see DEPLOY-RUNBOOK.md "founder
+// actions").
+async function checkTurnstile(request, env, token) {
+  if (!env.TURNSTILE_SECRET_KEY) {
+    return null;
+  }
+  const remoteIp = request.headers.get('cf-connecting-ip') || undefined;
+  const verdict = await verifyTurnstileToken(token, env.TURNSTILE_SECRET_KEY, remoteIp);
+  if (verdict.success) {
+    return null;
+  }
+  return jsonResponse({ error: 'turnstile_failed', reason: verdict.reason }, 403);
+}
+
+// buildIntakeJob(url) -> the queue payload for a newly accepted audit request.
+function buildIntakeJob(url) {
+  return {
+    jobId: newJobId(),
+    url,
+    enqueuedAt: new Date().toISOString(),
+    // Typed step-function contract placeholder (binds to WS0 payload v1.2 once that lands):
+    // intake -> evidence -> facts -> applicability -> breach -> payload -> render -> mint.
+    pipelineVersion: 'ws-runtime-v0',
+  };
+}
+
+// intakeAcceptedBody(job, env) -> the 202 response body, including a signed status URL when a
+// report-link HMAC secret is provisioned.
+async function intakeAcceptedBody(job, env) {
+  const sig = env.REPORT_HMAC_SECRET ? await signJobId(job.jobId, env.REPORT_HMAC_SECRET) : null;
+  return {
+    jobId: job.jobId,
+    status: 'queued',
+    statusUrl: sig ? `/status/${job.jobId}?sig=${sig}` : `/status/${job.jobId}`,
+  };
+}
+
+async function handleIntake(request, env) {
+  const { payload, error: parseError } = await parseIntakePayload(request);
+  if (parseError) {
+    return parseError;
   }
 
   const { url, turnstileToken } = payload || {};
   if (!url || typeof url !== 'string') {
     return jsonResponse({ error: 'missing_url' }, 400);
   }
-  try {
-    // Reject anything that is not a well-formed absolute URL before it ever reaches a queue
-    // consumer or the browser lane on the VM.
-    new URL(url);
-  } catch {
+  if (!isWellFormedUrl(url)) {
     return jsonResponse({ error: 'malformed_url' }, 400);
   }
 
-  if (env.TURNSTILE_SECRET_KEY) {
-    const remoteIp = request.headers.get('cf-connecting-ip') || undefined;
-    const verdict = await verifyTurnstileToken(turnstileToken, env.TURNSTILE_SECRET_KEY, remoteIp);
-    if (!verdict.success) {
-      return jsonResponse({ error: 'turnstile_failed', reason: verdict.reason }, 403);
-    }
+  const turnstileFailure = await checkTurnstile(request, env, turnstileToken);
+  if (turnstileFailure) {
+    return turnstileFailure;
   }
-  // else: TURNSTILE_SECRET_KEY not yet provisioned in this environment (staging default) - the
-  // gate is a no-op rather than a hard failure so the staged Worker stays testable by curl before
-  // the founder wires the Turnstile site key. Recorded here, not silently assumed: see
-  // DEPLOY-RUNBOOK.md "founder actions".
 
-  const jobId = newJobId();
-  const enqueuedAt = new Date().toISOString();
-
-  const job = {
-    jobId,
-    url,
-    enqueuedAt,
-    // Typed step-function contract placeholder (binds to WS0 payload v1.2 once that lands):
-    // intake -> evidence -> facts -> applicability -> breach -> payload -> render -> mint.
-    pipelineVersion: 'ws-runtime-v0',
-  };
-
-  if (env.AUDIT_QUEUE) {
-    await env.AUDIT_QUEUE.send(job);
-  } else {
+  const job = buildIntakeJob(url);
+  if (!env.AUDIT_QUEUE) {
     return jsonResponse({ error: 'queue_not_bound' }, 500);
   }
+  await env.AUDIT_QUEUE.send(job);
 
-  const sig = env.REPORT_HMAC_SECRET ? await signJobId(jobId, env.REPORT_HMAC_SECRET) : null;
-
-  return jsonResponse({
-    jobId,
-    status: 'queued',
-    statusUrl: sig ? `/status/${jobId}?sig=${sig}` : `/status/${jobId}`,
-  }, 202);
+  return jsonResponse(await intakeAcceptedBody(job, env), 202);
 }
 
 async function handleStatus(request, env, jobId) {
