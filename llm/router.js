@@ -13,9 +13,11 @@
 // quorum). `call` does the transport; on failure it may throw or return { ok:false, error }.
 //
 // Exports:
-//   route(task, { providers, deadlineMs, log, validate }) -> a routed response (first success)
-//   quorum(task, { providers, n, vetoRule, validate, deadlineMs, log }) -> a jury verdict
-//   orderProviders, distinctFamilyProviders, defaultVeto, FAMILY_ORDER, DEFAULT_DEADLINE_MS
+//   route(task, { providers, deadlineMs, log, validate, anchorFamily }) -> a routed response (first success)
+//   quorum(task, { providers, n, vetoRule, validate, deadlineMs, log, anchorFamily }) -> a jury verdict
+//   orderProviders, distinctFamilyProviders, familyOf, hoistFamilyFirst, anchoredDistinctFamilies,
+//   selectJurors, defaultVeto, makeOpenRouterProvider, openRouterAbsence, OPENROUTER_FAMILY,
+//   FAMILY_ORDER, DEFAULT_DEADLINE_MS
 //
 // Design pointers earned by the old estate:
 //   - E-238 / caution.md C-138: exhausted free tiers once burned 30s x 3 retries x 3 gate attempts
@@ -25,6 +27,18 @@
 //   - caution.md C-040 / Rule 9: every external step is wrapped in a hard Promise.race deadline.
 //     `deadlineMs` is a CAP (Rule 8: never a floor - there is no minimum wait anywhere in this file).
 //   - caution.md C-133 / Rule 12 gate 5: a quorum is drawn from genuinely distinct provider FAMILIES.
+//   - Ministral anchor (founder decision 2026-07-19, delegated): route() and quorum() take an OPTIONAL
+//     `anchorFamily` so Gate-3 entailment can PREFER, and the Gate-5 jury can REQUIRE, one specific
+//     family - 'mistral' (Ministral-8b) - as the reliable leg. anchorFamily ABSENT leaves the free-first
+//     ordering and the distinct-family jury selection byte-for-byte as before (every existing caller is
+//     unaffected). This is pure ordering/selection; it opens no socket.
+//   - The OpenRouter/Ministral provider FACTORY lives in ./providers/openrouter.js (a fetch-capable,
+//     key-reading module kept OUT of this network-free shell, so router.js's body never opens a socket or
+//     names a key). It is re-exported below so the routing layer OWNS it and it is reachable (Rule 5).
+
+// The OpenRouter/Ministral provider factory (network-free by injection; see its header). Re-exported from
+// the routing layer so it is reachable; requiring it is inert (it opens no socket at load time).
+const { makeOpenRouterProvider, openRouterAbsence, OPENROUTER_FAMILY } = require('./providers/openrouter.js');
 
 // Free-first family ranking, ported from the proven chain order in cowork-os src/lib/llm/router.js
 // (Cloudflare Workers AI -> Groq -> NIM -> Gemini -> ... -> paid last). This is the ONE place the
@@ -87,6 +101,13 @@ function orderProviders(list) {
     .map((x) => x.p);
 }
 
+// familyOf(p): a provider's trimmed, non-empty family, or '' when absent. The ONE door for reading the
+// independence key (caution.md C-133), shared by distinctFamilyProviders and the anchor helpers so the
+// "empty family is not a real family" rule cannot drift between them.
+function familyOf(p) {
+  return (p && typeof p.family === 'string') ? p.family.trim() : '';
+}
+
 // distinctFamilyProviders(ordered, n): the first provider of each distinct family, up to n. This is
 // the structural independence guarantee for a quorum (caution.md C-133): two models from the same
 // family can never both sit on the jury. A provider with no explicit, non-empty `family` cannot
@@ -97,13 +118,57 @@ function distinctFamilyProviders(ordered, n) {
   const seen = new Set();
   const jurors = [];
   for (const p of ordered) {
-    const fam = (p && typeof p.family === 'string') ? p.family.trim() : '';
+    const fam = familyOf(p);
     if (!fam || seen.has(fam)) continue;
     seen.add(fam);
     jurors.push(p);
     if (jurors.length >= n) break;
   }
   return jurors;
+}
+
+// hoistFamilyFirst(ordered, anchorFamily): the same providers, stable, with every provider of anchorFamily
+// moved to the FRONT (Ministral-primary for Gate-3, founder decision). Pure; a new array, never mutates
+// the input. An absent/empty anchorFamily returns the list unchanged, so the free-first default stands.
+function hoistFamilyFirst(ordered, anchorFamily) {
+  const fam = anchorFamily ? String(anchorFamily).trim() : '';
+  if (!fam) return ordered.slice();
+  const anchor = [];
+  const rest = [];
+  for (const p of ordered) {
+    if (familyOf(p) === fam) anchor.push(p); else rest.push(p);
+  }
+  return anchor.concat(rest);
+}
+
+// anchoredDistinctFamilies(ordered, n, anchorFamily): distinct-family jurors that MUST include the anchor
+// family (Rule 12 gate 5 as the founder anchored it: the jury is convened only around Ministral). Returns
+// { jurors, anchorMissing }. When no provider carries the anchor family, anchorMissing is true and the
+// caller rejects fail-closed (a violation never ships on a jury the reliable leg could not join). The
+// anchor is always juror[0]; the remaining slots are filled by the first provider of each OTHER family.
+function anchoredDistinctFamilies(ordered, n, anchorFamily) {
+  const fam = String(anchorFamily).trim();
+  const anchorProvider = fam ? ordered.find((p) => familyOf(p) === fam) : null;
+  if (!anchorProvider) return { jurors: [], anchorMissing: true };
+  const seen = new Set([fam]);
+  const jurors = [anchorProvider];
+  for (const p of ordered) {
+    const f = familyOf(p);
+    if (!f || seen.has(f)) continue;
+    seen.add(f);
+    jurors.push(p);
+    if (jurors.length >= n) break;
+  }
+  return { jurors, anchorMissing: false };
+}
+
+// selectJurors(providers, n, anchorFamily): the jury panel. With no anchorFamily it is the historical
+// free-first distinct-family selection (byte-for-byte unchanged for every existing caller); with an
+// anchorFamily it is the anchored selection above.
+function selectJurors(providers, n, anchorFamily) {
+  const ordered = orderProviders(providers);
+  if (!anchorFamily) return { jurors: distinctFamilyProviders(ordered, n), anchorMissing: false };
+  return anchoredDistinctFamilies(ordered, n, anchorFamily);
 }
 
 // withDeadline(promise, ms, onTimeout): resolve { timedOut:false, value } when `promise` settles
@@ -214,9 +279,11 @@ function logged(base, outcome, log) {
 // first success. `validate` (llm/gate.js) is optional but recommended: it makes a hallucinated
 // response lose to the next provider instead of winning. Exhaustion returns an abstain, never a guess.
 async function route(task, opts = {}) {
-  const { providers = [], deadlineMs = DEFAULT_DEADLINE_MS, log = null, validate = null } = opts;
+  const { providers = [], deadlineMs = DEFAULT_DEADLINE_MS, log = null, validate = null, anchorFamily = null } = opts;
   assertDeadline(deadlineMs);
-  const ordered = orderProviders(providers);
+  // anchorFamily (optional) hoists one family to the front of the free-first order (Ministral-primary for
+  // Gate 3); absent, the ordering is the historical free-first, unchanged.
+  const ordered = hoistFamilyFirst(orderProviders(providers), anchorFamily);
   const attempts = [];
   if (!ordered.length) return { ok: false, reason: 'no_providers', text: '', attempts };
   for (const provider of ordered) {
@@ -290,13 +357,20 @@ function isCuratedFact(task) {
   return Boolean(task && task.curated);
 }
 async function quorum(task, opts = {}) {
-  const { providers = [], n = 2, vetoRule = defaultVeto, validate = null, deadlineMs = DEFAULT_DEADLINE_MS, log = null } = opts;
+  const { providers = [], n = 2, vetoRule = defaultVeto, validate = null, deadlineMs = DEFAULT_DEADLINE_MS, log = null, anchorFamily = null } = opts;
   assertDeadline(deadlineMs);
   assertValidJurorCount(n);
   if (isCuratedFact(task)) {
     return { ok: true, verdict: 'immune', votes: [], reason: 'curated fact: the jury may never veto a catalogue fact (Rule 12 gate 5 immunity)' };
   }
-  const jurors = distinctFamilyProviders(orderProviders(providers), n);
+  // anchorFamily (optional) REQUIRES the reliable leg (Ministral) on the jury: absent from the estate, the
+  // jury cannot be convened and the finding demotes (a violation never ships on a jury the anchor could not
+  // join). No anchorFamily => the historical free-first distinct-family selection, unchanged.
+  const selection = selectJurors(providers, n, anchorFamily);
+  if (selection.anchorMissing) {
+    return { ok: false, verdict: 'reject', reason: 'anchor_family_absent:' + String(anchorFamily), votes: [] };
+  }
+  const jurors = selection.jurors;
   if (jurors.length < n) {
     return { ok: false, verdict: 'reject', reason: 'insufficient_independent_families:' + jurors.length + '<' + n, votes: [] };
   }
@@ -318,9 +392,18 @@ module.exports = {
   quorum,
   orderProviders,
   distinctFamilyProviders,
+  familyOf,
+  hoistFamilyFirst,
+  anchoredDistinctFamilies,
+  selectJurors,
   withDeadline,
   interpretResponse,
   defaultVeto,
+  // Re-exported from ./providers/openrouter.js so the routing layer owns the Ministral provider factory
+  // (Rule 5 reachability) while this file's body opens no socket:
+  makeOpenRouterProvider,
+  openRouterAbsence,
+  OPENROUTER_FAMILY,
   FAMILY_ORDER,
   PAID_FAMILIES,
   DEFAULT_DEADLINE_MS,

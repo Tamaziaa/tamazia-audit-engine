@@ -197,3 +197,85 @@ test('defaultVeto: an explicit veto flag and a non-violation verdict both veto; 
   assert.equal(router.defaultVeto({ value: { verdict: 'needs-review' } }).veto, true);
   assert.equal(router.defaultVeto({ value: { verdict: 'violation' } }).veto, false);
 });
+
+// ---- the Ministral anchor (founder decision 2026-07-19): route() prefers it, quorum() requires it ----
+
+test('hoistFamilyFirst moves the anchor family to the FRONT of a free-first order (Ministral primary)', () => {
+  const ordered = router.orderProviders([ok('m', 'mistral'), ok('g', 'groq'), ok('cf', 'cloudflare')]);
+  const hoisted = router.hoistFamilyFirst(ordered, 'mistral').map((p) => p.name);
+  assert.equal(hoisted[0], 'm', 'mistral (paid, normally last free-first) is hoisted to the front');
+  assert.deepEqual(hoisted.slice(1).sort(), ['cf', 'g'], 'the rest keep their free-first order');
+});
+
+test('hoistFamilyFirst with no anchor returns the list unchanged (free-first default stands)', () => {
+  const ordered = router.orderProviders([ok('g', 'groq'), ok('cf', 'cloudflare')]);
+  assert.deepEqual(router.hoistFamilyFirst(ordered, null).map((p) => p.name), ordered.map((p) => p.name));
+});
+
+test('route with anchorFamily tries Ministral FIRST even though it is paid and free providers are listed', async () => {
+  const ministral = ok('ministral', 'mistral', 'M'); // paid family -> normally sorts LAST free-first
+  const free = ok('free', 'groq', 'FREE');
+  const r = await router.route({}, { providers: [free, ministral], deadlineMs: 500, anchorFamily: 'mistral' });
+  assert.equal(r.provider, 'ministral', 'the anchor is tried first');
+  assert.equal(free.calls, 0, 'the anchor succeeded, so the free provider is never called');
+});
+
+test('route with anchorFamily falls over a failing Ministral to the free chain (Ministral primary, free fallback)', async () => {
+  const ministral = throws('ministral', 'mistral');
+  const free = ok('free', 'groq', 'FREE');
+  const r = await router.route({}, { providers: [free, ministral], deadlineMs: 500, anchorFamily: 'mistral' });
+  assert.equal(r.provider, 'free', 'a failing anchor falls over to the free chain');
+  assert.equal(ministral.calls, 1, 'the anchor is tried exactly once - no retry storm');
+});
+
+test('anchoredDistinctFamilies always includes the anchor; anchor absent -> anchorMissing (fail-closed)', () => {
+  const ordered = router.orderProviders([ok('g', 'groq'), ok('gem', 'gemini'), ok('m', 'mistral'), ok('cf', 'cloudflare')]);
+  const sel = router.anchoredDistinctFamilies(ordered, 3, 'mistral');
+  assert.equal(sel.anchorMissing, false);
+  assert.equal(sel.jurors[0].family, 'mistral', 'the anchor is juror[0]');
+  assert.equal(sel.jurors.length, 3);
+  const noAnchor = router.anchoredDistinctFamilies(router.orderProviders([ok('g', 'groq'), ok('gem', 'gemini')]), 3, 'mistral');
+  assert.equal(noAnchor.anchorMissing, true, 'no mistral provider -> anchorMissing');
+  assert.equal(noAnchor.jurors.length, 0);
+});
+
+test('C-133 config: a >=3-family jury anchored by Ministral is genuinely distinct across families', () => {
+  const estate = [violationVote('m', 'mistral'), violationVote('g', 'groq'), violationVote('gem', 'gemini'), violationVote('cf', 'cloudflare')];
+  const sel = router.selectJurors(estate, 3, 'mistral');
+  const families = sel.jurors.map((p) => p.family);
+  assert.equal(families.length, 3, 'exactly 3 jurors');
+  assert.equal(new Set(families).size, 3, 'all 3 families are distinct (C-133 independence)');
+  assert.ok(families.includes('mistral'), 'the jury is anchored by Ministral');
+});
+
+test('quorum with anchorFamily: a 3-family Ministral-anchored unanimous jury ACCEPTS', async () => {
+  const providers = [violationVote('m', 'mistral'), violationVote('g', 'groq'), violationVote('gem', 'gemini')];
+  const r = await router.quorum({}, { providers, n: 3, anchorFamily: 'mistral', validate: verdictValidate });
+  assert.equal(r.ok, true);
+  assert.equal(r.verdict, 'accept');
+  assert.equal(r.votes.length, 3);
+  assert.ok(r.votes.some((v) => v.family === 'mistral'), 'the anchor voted');
+});
+
+test('quorum with anchorFamily: the anchor ABSENT rejects fail-closed (a violation never ships un-anchored)', async () => {
+  const providers = [violationVote('g', 'groq'), violationVote('gem', 'gemini'), violationVote('cf', 'cloudflare')];
+  const r = await router.quorum({}, { providers, n: 3, anchorFamily: 'mistral', validate: verdictValidate });
+  assert.equal(r.ok, false);
+  assert.equal(r.verdict, 'reject');
+  assert.ok(r.reason.startsWith('anchor_family_absent'), 'the missing anchor is the named reason');
+});
+
+test('quorum with anchorFamily: any single veto still rejects even with the anchor present', async () => {
+  const providers = [violationVote('m', 'mistral'), violationVote('g', 'groq'), reviewVote('gem', 'gemini')];
+  const r = await router.quorum({}, { providers, n: 3, anchorFamily: 'mistral', validate: verdictValidate });
+  assert.equal(r.ok, false);
+  assert.equal(r.verdict, 'reject');
+  assert.ok(r.reason.includes('veto'));
+});
+
+test('quorum with anchorFamily: a curated fact is STILL immune (the anchor changes nothing about immunity)', async () => {
+  const providers = [violationVote('m', 'mistral'), violationVote('g', 'groq'), violationVote('gem', 'gemini')];
+  const r = await router.quorum({ curated: true }, { providers, n: 3, anchorFamily: 'mistral', validate: verdictValidate });
+  assert.equal(r.ok, true);
+  assert.equal(r.verdict, 'immune');
+});
