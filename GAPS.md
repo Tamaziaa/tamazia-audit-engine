@@ -140,20 +140,41 @@ logic, calibration + suite run by hand), never taken on faith:
   entry; `--strict` run confirmed green with and without the dist artifact. Fully CI-repeatable.
   `applicability/conflicts.js` (the C-073 family-dedupe door, shared by the counts) landed alongside it.
 
+## Closed this phase (P4 W4, 2026-07-19)
+
+One row flips from `gap` to `guarded` this pass, verified before flipping (file exists, node:test suite
+green, selfTest() proven both directions by hand), never taken on faith:
+
+- **cache-version -> `.github/workflows/engine-version-guard.yml`.** The workflow exists (PR-triggered on
+  `pull_request` against `main`, full-history checkout so a real `git merge-base` is possible) and invokes
+  `tools/engine-version-guard/check.js <base-sha>`, which does the real work: `git diff --name-only` against
+  the merge base, classified against the Rule-15 scan-logic surface (`evidence/**`, `facts/**`,
+  `applicability/**`, `breach/**`, `llm/**` production `.js` excluding `*.test.js`, plus
+  `catalogue/compile.js` and `payload/composer/**`), and a FAIL when any of that surface changed while
+  `mint/version.js`'s `ENGINE_VERSION` is byte-identical at the merge base and HEAD. `selfTest()` proves,
+  in memory and before any git command runs, that the guard sees bump-missing (fails), bump-present
+  (passes) AND a test-only change (passes) - 12 self-test cases including near-miss fixtures for the
+  C-019 prefix-without-delimiter class (`evidence-old/` is not `evidence/`). `node --test
+  tools/engine-version-guard/` passes in full (17 tests), including three end-to-end cases run against a
+  hermetic scratch git repo (real `git merge-base`/`git diff`/`git show`, never mocked) proving each of the
+  three directions through the actual git plumbing, not just the pure decision function. Manually verified
+  a fourth way: a full scratch clone of this worktree, three temp branches off the same base (scan-logic
+  change with no bump / with a bump / test-only), the real CLI invoked in each - exit 1, exit 0, exit 0
+  respectively (commands recorded in the W4 self-report). Fully CI-repeatable.
+
 ## Phase-owned gaps (rebuild the ranked list with `node tools/history-regression/check.js`)
 
-6 phase-owned gap classes remain, all P4. `applicability-leak` closed in P4 T0 (above). The P3 wave already
-closed `deadline-hang` and `module-scope-state` (their gates - `tools/domain-gates/deadline-audit.js` and
-`tools/no-module-state/check.js` - are live and marked `guarded` in the ledger), so they are no longer
-listed here; the checker confirms exactly the six below.
+4 phase-owned gap classes remain, all P4, all render-proof/truth-pack.spec.js-gated (T3b). `applicability-leak`
+closed in P4 T0, `phantom-data` closed in P4 T1, and `cache-version` closed in P4 W4 (above). The P3 wave
+already closed `deadline-hang` and `module-scope-state` (their gates - `tools/domain-gates/deadline-audit.js`
+and `tools/no-module-state/check.js` - are live and marked `guarded` in the ledger), so none of those five
+are listed here; the checker confirms exactly the four below.
 
 | Phase | Class | Planned gate | Past severity |
 |---|---|---|---|
 | P4 | exposure-error | render-proof/truth-pack.spec.js | P0 |
 | P4 | consistency-error | render-proof/truth-pack.spec.js | P0 |
 | P4 | render-security-freshness | render-proof/truth-pack.spec.js | P0 |
-| P4 | phantom-data | mint/post-write-assertions.js | P0 |
-| P4 | cache-version | .github/workflows/engine-version-guard.yml | P0 |
 | P4 | coverage-truth | render-proof/truth-pack.spec.js | P1 |
 
 This table is derived from the ledger; the checker is the source of truth. If a planned gate above
@@ -165,4 +186,13 @@ now exists, the checker fails with `gap-gate-landed` until the class is flipped 
 `status: "guarded"` in `tools/history-regression/taxonomy.js`, and `docs/failure-ledger/crossref.json`
 was rebuilt with `node tools/history-regression/build-crossref.js` so the two ledgers agree.
 `node tools/history-regression/check.js` exits 0 (37 guarded classes, 6 gap classes, 0 integrity
-violations); the six remaining gaps are the P4 render/mint/version classes listed above.
+violations); the six remaining gaps at that point were the P4 render/mint/version classes.
+
+**Update (P4 W4, 2026-07-19):** `phantom-data` was also closed in the same-day P4 T1 pipeline commit
+(`mint/post-write-assertions.js` landed) but this table was not updated then - a stale row corrected here
+rather than left to mislead the next reader (this table's own header names the checker, not this file, as
+the source of truth; the row was documentation drift, not a ledger error, and `tools/history-regression/
+check.js` was green throughout because it reads `docs/failure-ledger/crossref.json`, not this table). With
+`cache-version` now also closed, `node tools/history-regression/check.js` exits 0 with **39 guarded
+classes, 4 gap classes**, 0 integrity violations; the four remaining gaps are exactly the render-proof
+classes listed above, all T3b-owned.
