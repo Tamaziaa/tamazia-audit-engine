@@ -187,6 +187,13 @@ const CALIBRATIONS = [
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p3-required-disclosure-breach.js'],
   },
   {
+    name: 'proposer-prohibition-fires',
+    description:
+      'a prohibition (absence obligation) must match the VIOLATING language, not the law prose (hidden-defects.md RANK 1, the "paper tiger"): propose.js MUST fire UK_MHRA_POM_AD_BAN on the Title-Case heading "Book Botox Today" via the shipped record\'s curated prohibited_phrases (also RANK 2, the isProse-heading escape), and MUST NOT fire on the compliant negated "we do not offer Botox" (the negation guard, the Botox-U18 class, caution.md C-048/C-060, Rule 3); self-driving fixture drives breach/proposers/propose.js against the shipped UK_MHRA_POM_AD_BAN record',
+    fixtures: ['p6-proposer-prohibition-fires.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-proposer-prohibition-fires.js'],
+  },
+  {
     name: 'host-substring',
     description:
       'a URL/host compared by substring or token instead of a parsed host (GAPS.md host-substring; the Mills & Reeve nexus class, caution.md C-009)',

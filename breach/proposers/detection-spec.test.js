@@ -140,14 +140,40 @@ test('a quoted phrase becomes an anchored-regex; an absence phrase is negation-g
   assert.ok(new RegExp(anchored.value, 'i').test('we offer no win no fee representation'));
 });
 
-test('presence derives a distinctive token-set (lenient present-check), absence a strict one', () => {
+test('presence derives a distinctive token-set (lenient present-check); a prohibition derives NO descriptive token-set (RANK 1 paper-tiger fix)', () => {
   const pres = ds.patternsFromElement('registered office address published clearly', 'presence', 'any');
   const presTs = pres.patterns.find((p) => p.kind === 'token-set');
   assert.ok(presTs && presTs.value.mode === 'all' && presTs.value.tokens.length >= 2);
   assert.strictEqual(presTs.negation_guarded, false);
+  // The descriptive-token fallback for a prohibition is DISABLED (hidden-defects.md RANK 1, the "paper
+  // tiger"): patterning on the LAW'S OWN descriptive words ([unfounded,sparkle,guarantee]) described the
+  // offence but never matched a real violation. An absence element with no QUOTED phrase now derives no
+  // token-set at all, so with no prohibited_phrases either it is unpatternable and propose.js abstains
+  // (precision floor: a missed prohibition is recoverable, a false accusation is not - C-078/C-082).
   const abs = ds.patternsFromElement('unfounded miracle sparkle guarantee claims', 'absence', 'any');
-  const absTs = abs.patterns.find((p) => p.kind === 'token-set');
-  assert.ok(absTs && absTs.negation_guarded === true, 'an absence token-set is negation-guarded');
+  assert.strictEqual(abs.patterns.find((p) => p.kind === 'token-set'), undefined, 'a prohibition derives no descriptive token-set from the law prose');
+  assert.strictEqual(abs.unpatternable, true, 'no quoted phrase + no prohibited_phrases => unpatternable');
+});
+
+test('prohibited_phrases[] on an absence obligation compile to prose-exempt, negation-guarded anchored-regex (the curated prohibition matcher, DEFECT-5)', () => {
+  const record = { id: 'FAKE_ACT_2099_PROHIB', website_obligations: [
+    { duty: 'Do not name the prohibited medicine in public copy', elements: ['no prohibited medicine named'], evidence_type: 'absence', prohibited_phrases: ['Botox', 'anti-wrinkle injections'] },
+  ] };
+  const spec = ds.compileRecordSpecs(record)[0];
+  const anchored = spec.patterns.filter((p) => p.kind === 'anchored-regex');
+  assert.ok(anchored.length >= 2, 'each prohibited phrase yields an anchored-regex');
+  const botox = anchored.find((p) => /Botox/i.test(p.value));
+  assert.ok(botox, 'the Botox phrase is patterned as an anchored-regex');
+  assert.strictEqual(botox.prose_exempt, true, 'a curated prohibited phrase matches headings/short strings (prose-exempt, RANK 2)');
+  assert.strictEqual(botox.negation_guarded, true, 'a curated prohibited phrase is negation-guarded (C-048/C-060)');
+  assert.ok(new RegExp(botox.value, 'i').test('Book your Botox treatment today'), 'the anchored Botox pattern matches the violating heading');
+  assert.strictEqual(ds.validateSpec(spec).valid, true, 'a spec carrying prohibited_phrases is valid + anchored');
+  // A non-absence obligation ignores prohibited_phrases entirely (only a PROHIBITION carries them).
+  const presRec = { id: 'FAKE_ACT_2099_PRES', website_obligations: [
+    { duty: 'Publish the notice', elements: ["'privacy notice' present"], evidence_type: 'presence', prohibited_phrases: ['Botox'] },
+  ] };
+  const presSpec = ds.compileRecordSpecs(presRec)[0];
+  assert.ok(!presSpec.patterns.some((p) => /Botox/i.test(p.value || '')), 'prohibited_phrases only apply to a prohibition (absence)');
 });
 
 test('a findability presence element on a specific page-class yields an anchored url-path', () => {

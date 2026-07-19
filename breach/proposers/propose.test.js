@@ -9,7 +9,7 @@ const ds = require('./detection-spec.js');
 const coverageContract = require('../../evidence/crawler/coverage-contract.js');
 // The real DOM-lane predicates, so the dom_node tests below carry the AUTHENTIC finding tier the lane
 // stamps (W6), never a hand-typed one - the test proves the real wiring, not a fixture's assumption.
-const { formNode, imgNode } = require('../../evidence/browser/dom-assert.js');
+const { formNode, imgNode, controlNode, htmlNode } = require('../../evidence/browser/dom-assert.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const FIXTURES = path.join(REPO_ROOT, 'eval', 'calibration-known-bad', 'fixtures');
@@ -430,4 +430,109 @@ test('A3: the committed synthetic fixture proposes exactly 1 verified presence-b
   const token = fx.expected.known_breaches[0].match_any[0];
   assert.ok(c.artifact.text.includes(token), 'the known_breach match token is a discriminating substring of the quote');
   assert.strictEqual(verifyCandidate(c, b).verified, true, 'the synthetic presence-breach verifies end-to-end (Gate-2 quote re-match)');
+});
+
+// ═══ DEFECT-4: the token router matches WHOLE TOKENS, never substrings (healthcare-us.md defect B, C-059) ═══
+// The old router did `token.includes(concept)`, so "health".includes("alt")===true routed an accessibility
+// DOM node (html-has-lang) to US_FTC_HBNR, manufacturing a health-data-tracking VIOLATION out of a missing
+// <html lang> - a WRONGLY-SHOWN false accusation reproduced on three real sites. The router now matches whole
+// token to whole token (exact or single-'s' plural), so an accessibility node reaches ONLY accessibility duties.
+test('DEFECT-4(c): a genuine accessibility DOM node routes ONLY to accessibility duties, NEVER to a health-data record ("health" no longer matches "alt")', () => {
+  // Real dom-assert predicates, so the nodes carry the tier the lane truly stamps (not a hand-typed one).
+  const langNode = htmlNode({ selector: 'html', snippet: '<html>', lang: '' });                 // genuine html-has-lang violation
+  const labelNode = controlNode({ selector: 'input#q', snippet: '<input id="q">', controlType: 'text', hasLabelElement: false, hasAriaLabel: false, hasAriaLabelledby: false }); // genuine missing-label violation
+  const b = bundle({ browser: { lane: { ran: true, reason: null }, observed: [], consentControl: { found: false, healthy: null, url: null },
+    domLane: { ran: true, reason: null }, domNodes: [langNode, labelNode] } });
+  // Two synthetic behavioural duties: one whose tokens include the WORD "health" (mirrors US_FTC_HBNR),
+  // one genuinely about accessibility. Under the old substring router the health duty spuriously "concerned"
+  // the accessibility node via "health".includes("alt").
+  const cat = { records: [
+    { id: 'FAKE_HBNR_2099', regulator: {}, citation: {}, website_obligations: [
+      { duty: 'Disclose to consumers any identifiable health data shared with third-party pixels or SDKs',
+        elements: ['no undisclosed transmission of identifiable health information to tracking pixels'], evidence_type: 'behavioural' } ] },
+    { id: 'FAKE_ACCESS_2099', regulator: {}, citation: {}, website_obligations: [
+      { duty: 'The website must be accessible to screen reader users with disabilities',
+        elements: ['content is accessible to disabled and screen reader users'], evidence_type: 'behavioural' } ] },
+  ] };
+  const doms = fired(propose(b, cat, coverageFor(b, cat)), KIND.BEHAVIOURAL).filter((c) => c.artifact && c.artifact.type === 'dom_node');
+  assert.strictEqual(doms.filter((c) => c.record_id === 'FAKE_HBNR_2099').length, 0, 'the health-data duty NEVER cites an accessibility node (the substring false accusation is gone)');
+  assert.ok(doms.some((c) => c.record_id === 'FAKE_ACCESS_2099'), 'the genuine accessibility duty STILL routes the accessibility nodes (whole-token match preserved)');
+});
+
+test('DEFECT-4(c): the REAL US_FTC_HBNR record no longer manufactures a violation from an html-has-lang node', () => {
+  const catalogueArtifact = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+  const langNode = { rule_id: 'html-has-lang', selector: 'html', snippet: '<html>', wcag_sc: '3.1.1', state: 'violation', tier: 'deterministic' };
+  const b = bundle({ browser: { lane: { ran: true, reason: null }, observed: [], consentControl: { found: false, healthy: null, url: null },
+    domLane: { ran: true, reason: null }, domNodes: [langNode] } });
+  const cov = coverageContract.coverageFor(catalogueArtifact.records, b.corpus.pages, { truncated: false });
+  const hbnr = propose(b, catalogueArtifact, cov).filter((c) => c.record_id === 'US_FTC_HBNR' && !c.suppressed_reason && c.artifact && c.artifact.type === 'dom_node');
+  assert.strictEqual(hbnr.length, 0, 'US_FTC_HBNR never cites an accessibility DOM node as health-data-tracking evidence (healthcare-us.md defect B fixed)');
+});
+
+test('DEFECT-4(d): a correctly-labelled control emits NO missing-label violation, so it produces no candidate at all', () => {
+  // A control WITH an associated <label for>/aria-label passes the dom-assert predicate (returns null): no
+  // violation node, so the proposer has nothing to route - the "missing label" false positive is silent.
+  assert.strictEqual(controlNode({ selector: 'input#name', snippet: '<input id="name">', controlType: 'text', hasLabelElement: true, hasAriaLabel: false, hasAriaLabelledby: false }), null, 'a labelled control is not a violation node');
+  const b = bundle({ browser: { lane: { ran: true, reason: null }, observed: [], consentControl: { found: false, healthy: null, url: null },
+    domLane: { ran: true, reason: null }, domNodes: [] } }); // labelled control -> no node at all
+  const cat = { records: [{ id: 'FAKE_ACCESS_2099', regulator: {}, citation: {}, website_obligations: [
+    { duty: 'The website must be accessible to disabled users', elements: ['content is accessible to disabled and screen reader users'], evidence_type: 'behavioural' } ] }] };
+  const doms = fired(propose(b, cat, coverageFor(b, cat)), KIND.BEHAVIOURAL).filter((c) => c.artifact && c.artifact.type === 'dom_node');
+  assert.strictEqual(doms.length, 0, 'a correctly-labelled form yields no missing-label finding');
+});
+
+// ═══ DEFECT-5: a prohibition matches the VIOLATING language (curated prohibited_phrases), not the law prose;
+// it fires on Title-Case headings isProse rejects; and the negation guard protects a compliant declaration. ═══
+test('DEFECT-5(a): "Book your Botox treatment" FIRES the REAL UK_MHRA_POM_AD_BAN prohibition with the phrase as the verified artifact', () => {
+  const { verifyCandidate } = require('../verifiers/quote-match.js');
+  const catalogueArtifact = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+  const b = bundle();
+  b.corpus.pages[0].text = 'Book your Botox treatment today. Our expert team welcomes new clients across the whole city every week.';
+  const cov = coverageContract.coverageFor(catalogueArtifact.records, b.corpus.pages, { truncated: false });
+  const pom = fired(propose(b, catalogueArtifact, cov), KIND.PRESENCE_BREACH).filter((c) => c.record_id === 'UK_MHRA_POM_AD_BAN');
+  assert.strictEqual(pom.length, 1, 'the POM advertising ban fires exactly once on the public Botox advertisement');
+  assert.strictEqual(pom[0].artifact.type, 'quote');
+  assert.ok(/Botox/.test(pom[0].artifact.text), 'the artifact quote carries the prohibited phrase');
+  assert.ok(b.corpus.pages[0].text.includes(pom[0].artifact.text), 'the quote is a verbatim substring of the page (Gate-2 re-matchable)');
+  assert.strictEqual(verifyCandidate(pom[0], b).verified, true, 'the presence-breach verifies end-to-end');
+});
+
+test('DEFECT-5(a2): the prohibition fires even when the Botox claim is a Title-Case HERO HEADING isProse rejects (RANK 2)', () => {
+  const catalogueArtifact = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+  const heading = 'Book Botox Today';                                 // 3 words, Title-Case: isProse === false
+  assert.strictEqual(ds.isProse(heading), false, 'the heading is exactly the short Title-Case string isProse rejects');
+  const b = bundle();
+  b.corpus.pages[0].text = heading + '\nWelcome to our clinic serving clients across the whole city area here today.';
+  const cov = coverageContract.coverageFor(catalogueArtifact.records, b.corpus.pages, { truncated: false });
+  const pom = fired(propose(b, catalogueArtifact, cov), KIND.PRESENCE_BREACH).filter((c) => c.record_id === 'UK_MHRA_POM_AD_BAN');
+  assert.strictEqual(pom.length, 1, 'the curated prohibited phrase matches the heading a prose-gated matcher would have missed');
+  assert.strictEqual(pom[0].artifact.text, heading, 'the heading itself is the quoted evidence');
+});
+
+test('DEFECT-5(b): a compliant NEGATED Botox statement does NOT fire (negation guard, C-048/C-060 Botox-U18 class)', () => {
+  const catalogueArtifact = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+  const b = bundle();
+  b.corpus.pages[0].text = 'We do not offer Botox or any other prescription-only medicine to members of the public here.';
+  const cov = coverageContract.coverageFor(catalogueArtifact.records, b.corpus.pages, { truncated: false });
+  const cands = propose(b, catalogueArtifact, cov);
+  assert.strictEqual(fired(cands, KIND.PRESENCE_BREACH).filter((c) => c.record_id === 'UK_MHRA_POM_AD_BAN').length, 0, 'a compliant "we do not offer Botox" is NEVER read as the prohibited claim being present');
+  assert.ok(cands.some((c) => c.record_id === 'UK_MHRA_POM_AD_BAN' && c.suppressed_reason && /negated|review|self-declaration|C-048/i.test(c.suppressed_reason)), 'the guarded near-miss is recorded, not silent (C-037)');
+});
+
+test('DEFECT-5: the REAL CA_BPC_6157 outcome-guarantee prohibition fires on "We guarantee you will win" and is negation-guarded', () => {
+  const catalogueArtifact = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+  const win = bundle();
+  win.corpus.pages[0].text = 'We guarantee you will win your case or you pay us nothing at all for our representation.';
+  const covWin = coverageContract.coverageFor(catalogueArtifact.records, win.corpus.pages, { truncated: false });
+  const fires = fired(propose(win, catalogueArtifact, covWin), KIND.PRESENCE_BREACH).filter((c) => c.record_id === 'CA_BPC_6157');
+  assert.strictEqual(fires.length, 1, 'the outcome-guarantee ban fires on the guarantee-you-will-win claim it previously MISSED');
+  assert.ok(/guarantee you will win/i.test(fires[0].artifact.text), 'the artifact carries the offending guarantee phrase');
+  // The negation guard: a compliant sentence that CONTAINS a prohibited phrase ("guaranteed results") but
+  // NEGATES it ("we do not offer ...") must not fire - the phrase is present as a disclaimer, not a claim.
+  const compliant = bundle();
+  compliant.corpus.pages[0].text = 'We do not offer guaranteed results of any kind; every case turns on its own particular facts here.';
+  const covOk = coverageContract.coverageFor(catalogueArtifact.records, compliant.corpus.pages, { truncated: false });
+  const compCands = propose(compliant, catalogueArtifact, covOk);
+  assert.strictEqual(fired(compCands, KIND.PRESENCE_BREACH).filter((c) => c.record_id === 'CA_BPC_6157').length, 0, 'a negated "we do not offer guaranteed results" never fires (negation guard, C-048/C-060)');
+  assert.ok(compCands.some((c) => c.record_id === 'CA_BPC_6157' && c.suppressed_reason && /negated|review|self-declaration|C-048/i.test(c.suppressed_reason)), 'the guarded near-miss is recorded, not silent');
 });
