@@ -43,6 +43,7 @@ const { enrichVerifiedCandidates } = require('../breach/enrich.js');
 const { adjudicate } = require('../breach/adjudicator/adjudicate.js');
 const { compose } = require('../payload/composer/compose.js');
 const { validatePayload } = require('../payload/contract');
+const { assertMintablePayload } = require('./quote-verify-gate.js');
 const { buildChain } = require('../llm/providers/chain.js');
 const { buildLlmCall } = require('./llm-seam.js');
 const { persist } = require('./persist.js');
@@ -175,6 +176,13 @@ async function mint(url, opts = {}) {
   const payload = buildPayload(bundle, facts, app, findings, cfg, stageManifest);
   const missing = validatePayload(payload);
   if (missing.length) throw new Error('mint: compose produced a contract-invalid payload (construction bug, failing closed): ' + missing.join(', '));
+
+  // WS0 mint-time quote-verification gate (P0-2), defence-in-depth BEFORE the write and additive to the
+  // post-write assertions below. A v1.1 payload (what compose emits today) passes straight through; a v1.2
+  // lattice payload is refused if it carries an unverifiable quote, an unresolvable law_id, or a penalty
+  // absent from the hash-pinned catalogue. The catalogue + evidence store are threaded through opts so a
+  // future v1.2 compose is verified; today this is a proven no-op on the v1.1 path (Rule 19).
+  assertMintablePayload(payload, { catalogue, evidenceStore: opts.evidenceStore });
 
   const persisted = await persist(payload, { env: cfg.env, generatedAt: cfg.generatedAt, table: opts.table, sqlFn: opts.sqlFn, putFn: opts.putFn });
   const postWrite = await assertMinted({
