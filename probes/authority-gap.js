@@ -16,6 +16,25 @@ const OPR_DEADLINE_MS = 12000;
 
 function cleanD(d) { return String(d || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase(); }
 
+// isValidOprRow(row) -> true for a response row this probe can trust: a named domain OpenPageRank
+// actually scored (status_code 200; a non-200 row carries no usable rank).
+function isValidOprRow(row) { return !!(row && row.domain && row.status_code === 200); }
+
+function oprRowToEntry(row) { return { dr: Number(row.page_rank_decimal) || 0, rank: row.rank ? Number(row.rank) : null }; }
+
+// oprResponseToMap(r) -> { [domain]: {dr, rank}, _last_updated }. `_last_updated` is read from the body
+// whenever the body parsed, even on a non-ok HTTP status (matches the original: the freshness stamp is
+// not gated on r.ok, only the per-domain rows are).
+function oprResponseToMap(r) {
+  const out = {};
+  const rows = (r.ok && Array.isArray(r.json && r.json.response)) ? r.json.response : [];
+  for (const row of rows) {
+    if (isValidOprRow(row)) out[row.domain.toLowerCase()] = oprRowToEntry(row);
+  }
+  out._last_updated = (r.json && r.json.last_updated) || null;
+  return out;
+}
+
 // fetchOPR(domains, key) -> { [domain]: {dr, rank} }. Up to 100 domains in one call, exactly as the old
 // producer batched it.
 async function fetchOPR(domains, key) {
@@ -23,14 +42,7 @@ async function fetchOPR(domains, key) {
   if (!uniq.length || !key) return {};
   const qs = uniq.map((d) => 'domains[]=' + encodeURIComponent(d)).join('&');
   const r = await fetchJson('https://openpagerank.com/api/v1.0/getPageRank?' + qs, { headers: { 'API-OPR': key }, deadlineMs: OPR_DEADLINE_MS });
-  const out = {};
-  if (r.ok && Array.isArray(r.json && r.json.response)) {
-    for (const row of r.json.response) {
-      if (row && row.domain && row.status_code === 200) out[row.domain.toLowerCase()] = { dr: Number(row.page_rank_decimal) || 0, rank: row.rank ? Number(row.rank) : null };
-    }
-  }
-  out._last_updated = (r.json && r.json.last_updated) || null;
-  return out;
+  return oprResponseToMap(r);
 }
 
 const da100 = (dr) => Math.round((Number(dr) || 0) * 10);

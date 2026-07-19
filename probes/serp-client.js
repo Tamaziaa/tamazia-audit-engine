@@ -33,6 +33,13 @@ async function viaBrave(query, country, num, env) {
   return { ads: [], organic, provider: 'brave' };
 }
 
+function serperAds(json) {
+  return (json.ads || []).map((a) => ({ title: a.title, url: a.link, domain: rootDomain(a.link || '') }));
+}
+function serperOrganic(json) {
+  return (json.organic || []).map((o, i) => ({ title: o.title, url: o.link, domain: rootDomain(o.link || ''), rank: o.position || i + 1 }));
+}
+
 // viaSerper(query, country, num, env) -> {ads, organic, provider} | null. google.serper.dev (paid
 // backstop, SERPER_KEY - the key the founder brief names explicitly).
 async function viaSerper(query, country, num, env) {
@@ -45,17 +52,17 @@ async function viaSerper(query, country, num, env) {
   });
   if (!r.ok) return null;
   const j = r.json || {};
-  const ads = (j.ads || []).map((a) => ({ title: a.title, url: a.link, domain: rootDomain(a.link || '') }));
-  const organic = (j.organic || []).map((o, i) => ({ title: o.title, url: o.link, domain: rootDomain(o.link || ''), rank: o.position || i + 1 }));
-  return { ads, organic, provider: 'serper' };
+  return { ads: serperAds(j), organic: serperOrganic(j), provider: 'serper' };
 }
+
+function hasResults(r) { return !!(r && (r.organic.length || r.ads.length)); }
 
 // search(query, country, num, {env}) -> {ads, organic, provider} | {error, hint}. Free-first
 // (Brave), then the paid backstop (Serper). Never throws.
 async function search(query, country = 'UK', num = 20, { env = process.env } = {}) {
   for (const fn of [viaBrave, viaSerper]) {
     const r = await fn(query, country, num, env);
-    if (r && (r.organic.length || r.ads.length)) return r;
+    if (hasResults(r)) return r;
   }
   return { error: 'no_serp_result', hint: 'Set BRAVE_API_KEY (free) or SERPER_KEY to run a live SERP probe.' };
 }

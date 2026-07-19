@@ -48,6 +48,15 @@ async function askNames(prompt, { providers, deadlineMs, log }) {
   return { ok: names.length > 0, names: names.filter((n) => n && n.length > 1 && n.length < 60 && !AGG.test(n)), provider: res.provider };
 }
 
+function groundedSourcesFrom(candidate) {
+  const gm = candidate.groundingMetadata || {};
+  return (gm.groundingChunks || []).map((x) => x.web && { uri: x.web.uri, title: x.web.title }).filter(Boolean);
+}
+
+function sourceHostname(source) {
+  try { return new URL(source.uri).hostname.replace(/^www\./, ''); } catch (_e) { return ''; }
+}
+
 // groundedCitations(query, domain, env) -> { sources, source_domains, you_cited } | null (no key / no
 // grounding data). The one direct-fetch call in this file (see file header).
 async function groundedCitations(query, domain, env) {
@@ -57,11 +66,10 @@ async function groundedCitations(query, domain, env) {
   const r = await fetchJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), deadlineMs: 12000 });
   if (!r.ok) return null;
   const cand = (r.json.candidates || [])[0] || {};
-  const gm = cand.groundingMetadata || {};
-  const sources = (gm.groundingChunks || []).map((x) => x.web && { uri: x.web.uri, title: x.web.title }).filter(Boolean);
+  const sources = groundedSourcesFrom(cand);
   if (!sources.length) return null;
   const dom = String(domain || '').replace(/^www\./, '').toLowerCase();
-  const domains = sources.map((s) => { try { return new URL(s.uri).hostname.replace(/^www\./, ''); } catch (_e) { return ''; } }).filter(Boolean);
+  const domains = sources.map(sourceHostname).filter(Boolean);
   const youCited = dom ? sources.some((s) => isSameHost(s.uri, dom)) : null;
   return { sources: sources.slice(0, 8), source_domains: domains.slice(0, 8), you_cited: youCited };
 }
@@ -71,31 +79,73 @@ async function groundedCitations(query, domain, env) {
 // top_competitors, grounded } | { ok:false, reason }. `fetchImpl` is forwarded to buildChain() (its own
 // injected-transport seam, llm/providers/chain.js) so node:test can drive this probe over a fake
 // transport without monkey-patching the router module - the SAME injection pattern the mint itself uses.
+// sampleNames(prompt, providers, log, count) -> the runs that resolved a usable {names} answer, in
+// sample order (sequential, one router call at a time - the same rate the original for-loop called at).
+async function sampleNames(prompt, providers, log, count) {
+  const runs = [];
+  for (let i = 0; i < count; i++) {
+    const r = await askNames(prompt, { providers, log });
+    if (r.ok) runs.push(r);
+  }
+  return runs;
+}
+
+// firmHitPredicate(firmKey) -> a (run) => boolean testing whether that sample's named list included the
+// firm itself (a short/empty firmKey never matches, so a firm with no resolvable name is honestly absent).
+function firmHitPredicate(firmKey) {
+  return (r) => r.names.some((n) => firmKey && firmKey.length >= 4 && normName(n).includes(firmKey));
+}
+
+// shareOfVoiceFromRuns(runs, hit) -> { byProvider, sov }: the per-provider hit-rate map, and the overall
+// share-of-voice as the median hit-rate across providers (never a single provider's own bias).
+function shareOfVoiceFromRuns(runs, hit) {
+  const byProvider = {};
+  runs.forEach((r) => { (byProvider[r.provider] = byProvider[r.provider] || []).push(hit(r) ? 1 : 0); });
+  const fractions = Object.values(byProvider).map((hits) => 100 * hits.reduce((a, b) => a + b, 0) / hits.length);
+  return { byProvider, sov: runs.length ? clamp100(median(fractions)) : null };
+}
+
+function shouldSkipCompetitorName(k, seen, firmKey) {
+  return !k || (firmKey && k.includes(firmKey)) || seen.has(k);
+}
+
+// competitorFrequencyFromRuns(runs, firmKey) -> { [normName]: {name, count} }, one tally per run at
+// most per distinct competitor name (a name repeated within one run's own list counts once for that run).
+function competitorFrequencyFromRuns(runs, firmKey) {
+  const freq = {};
+  runs.forEach((r) => {
+    const seen = new Set();
+    r.names.forEach((n) => {
+      const k = normName(n);
+      if (shouldSkipCompetitorName(k, seen, firmKey)) return;
+      seen.add(k);
+      freq[k] = freq[k] || { name: n, count: 0 };
+      freq[k].count++;
+    });
+  });
+  return freq;
+}
+
+function topCompetitorsFromFreq(freq, runsLength, fallbackN) {
+  return Object.values(freq).sort((a, b) => b.count - a.count).slice(0, 3).map((c) => ({ name: c.name, in_runs: c.count, of: runsLength || fallbackN }));
+}
+
 async function geoProbeShareOfVoice({ query, company, domain, env = process.env, samples = 5, log, fetchImpl } = {}) {
   if (!query) return { ok: false, reason: 'no_query' };
   const chain = buildChain({ env, log, fetchImpl });
   if (!chain.providers.length) return { ok: false, reason: 'no_providers' };
   const prompt = 'A buyer asks for the best providers for "' + query + '". List up to 6 specific firms or providers by name. Reply with strict JSON: {"names": ["...", "..."]}.';
-  const runs = [];
   const N = Math.max(1, Math.min(8, samples));
-  for (let i = 0; i < N; i++) {
-    const r = await askNames(prompt, { providers: chain.providers, log });
-    if (r.ok) runs.push(r);
-  }
+  const runs = await sampleNames(prompt, chain.providers, log, N);
   const grounded = await groundedCitations(query, domain, env).catch(() => null);
   if (!runs.length && !grounded) return { ok: false, reason: 'all_providers_unavailable' };
 
   const firmKey = normName(company);
-  const hit = (r) => r.names.some((n) => firmKey && firmKey.length >= 4 && normName(n).includes(firmKey));
+  const hit = firmHitPredicate(firmKey);
   const firmAppears = runs.filter(hit).length;
-  const byProvider = {};
-  runs.forEach((r) => { (byProvider[r.provider] = byProvider[r.provider] || []).push(hit(r) ? 1 : 0); });
-  const fractions = Object.values(byProvider).map((hits) => 100 * hits.reduce((a, b) => a + b, 0) / hits.length);
-  const sov = runs.length ? clamp100(median(fractions)) : null;
-
-  const freq = {};
-  runs.forEach((r) => { const seen = new Set(); r.names.forEach((n) => { const k = normName(n); if (!k || (firmKey && k.includes(firmKey))) return; if (seen.has(k)) return; seen.add(k); freq[k] = freq[k] || { name: n, count: 0 }; freq[k].count++; }); });
-  const topCompetitors = Object.values(freq).sort((a, b) => b.count - a.count).slice(0, 3).map((c) => ({ name: c.name, in_runs: c.count, of: runs.length || N }));
+  const { byProvider, sov } = shareOfVoiceFromRuns(runs, hit);
+  const freq = competitorFrequencyFromRuns(runs, firmKey);
+  const topCompetitors = topCompetitorsFromFreq(freq, runs.length, N);
 
   return {
     ok: true, provider: runs[0] ? runs[0].provider : null, providers_used: Object.keys(byProvider),

@@ -77,6 +77,30 @@ function jsonLdHasType(jsonLd, typeRx) {
   return blocks.some(walk);
 }
 
+function isFetchUsable(r) { return !!(r && r.ok && r.text); }
+function fetchFailureReason(r) { return (r && r.error) ? r.error : 'unreachable'; }
+
+// corpusDerivedSignals(home, rawText) -> the signals that ARE representable off the crawler's corpus
+// (Rule 1: no re-derivation once the crawler already produced them), falling back to the raw fetch's
+// own markup only for the one boolean the corpus does not carry when no corpus page exists.
+function corpusDerivedSignals(home, rawText) {
+  const jsonLdPresent = home ? (Array.isArray(home.jsonLd) && home.jsonLd.length > 0) : /application\/ld\+json/i.test(rawText);
+  const hasOrgSchema = home ? jsonLdHasType(home.jsonLd, /Organization|LocalBusiness|LegalService|ProfessionalService|Corporation/i) : false;
+  const wordCount = home && home.text ? home.text.split(/\s+/).filter(Boolean).length : null;
+  const titleLen = home && home.title ? home.title.length : null;
+  return { jsonLdPresent, hasOrgSchema, wordCount, titleLen };
+}
+
+function shapeOnpageResult({ headerSig, markupSig, corpusSig }) {
+  return {
+    ok: true,
+    onpage: Object.assign({ state: 'measured', json_ld: corpusSig.jsonLdPresent, has_org_schema: corpusSig.hasOrgSchema, word_count: corpusSig.wordCount, title_len: corpusSig.titleLen }, markupSig),
+    security: Object.assign({ state: 'measured' }, headerSig),
+    a11y: { state: 'measured', h1_count: markupSig.h1_count, lang_declared: markupSig.lang, viewport: markupSig.viewport },
+    tech: { state: 'measured', canonical: markupSig.canonical, favicon: markupSig.favicon, json_ld: corpusSig.jsonLdPresent },
+  };
+}
+
 // onpageSignalsProbe({domain, corpus, env, fetchFn}) -> { ok:true, onpage, security, a11y, tech } or
 // { ok:false, reason }. fetchFn is injectable for tests (defaults to the deadline-wrapped real fetch).
 async function onpageSignalsProbe({ domain, corpus, fetchFn } = {}) {
@@ -84,22 +108,14 @@ async function onpageSignalsProbe({ domain, corpus, fetchFn } = {}) {
   if (!dom) return { ok: false, reason: 'no_domain' };
   const doFetch = typeof fetchFn === 'function' ? fetchFn : (url) => fetchDeadlined(url, { deadlineMs: FETCH_DEADLINE_MS });
   const r = await doFetch('https://' + dom);
-  if (!r || !r.ok || !r.text) return { ok: false, reason: r && r.error ? r.error : 'unreachable' };
+  if (!isFetchUsable(r)) return { ok: false, reason: fetchFailureReason(r) };
 
   const headerSig = extractHeaderSignals(r.headers);
   const markupSig = extractMarkupSignals(r.text);
   const home = homePageFromCorpus(corpus, dom);
-  const jsonLdPresent = home ? (Array.isArray(home.jsonLd) && home.jsonLd.length > 0) : /application\/ld\+json/i.test(r.text);
-  const hasOrgSchema = home ? jsonLdHasType(home.jsonLd, /Organization|LocalBusiness|LegalService|ProfessionalService|Corporation/i) : false;
-  const wordCount = home && home.text ? home.text.split(/\s+/).filter(Boolean).length : null;
+  const corpusSig = corpusDerivedSignals(home, r.text);
 
-  return {
-    ok: true,
-    onpage: Object.assign({ state: 'measured', json_ld: jsonLdPresent, has_org_schema: hasOrgSchema, word_count: wordCount, title_len: (home && home.title ? home.title.length : null) }, markupSig),
-    security: Object.assign({ state: 'measured' }, headerSig),
-    a11y: { state: 'measured', h1_count: markupSig.h1_count, lang_declared: markupSig.lang, viewport: markupSig.viewport },
-    tech: { state: 'measured', canonical: markupSig.canonical, favicon: markupSig.favicon, json_ld: jsonLdPresent },
-  };
+  return shapeOnpageResult({ headerSig, markupSig, corpusSig });
 }
 
 module.exports = { onpageSignalsProbe, extractHeaderSignals, extractMarkupSignals, jsonLdHasType };

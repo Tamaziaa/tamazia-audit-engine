@@ -24,6 +24,13 @@ const CORPUS = { pages: [{ url: 'https://acme-dental.co.uk/', title: 'Acme Denta
 // call, for the "real numbers flow through" case. Supports BOTH .text() (probes/lib/net.js's own
 // primitive) AND .json() (llm/providers/chain.js's doFetch calls res.json() directly) - two genuinely
 // different real call sites in this codebase, so the fake must answer both like a real fetch Response.
+//
+// Routed by PARSED hostname/pathname (never a raw substring match on the whole URL string): a
+// substring check like `url.includes('openpagerank.com')` is satisfied by an arbitrary host that merely
+// contains that text anywhere before or after it (CodeQL js/incomplete-url-substring-sanitization) - a
+// fixture-only concern here since every URL is built by this repo's own probes, but the router is
+// written to the same standard the engine's real host-matching (`tools/lib/safe-fetch.js`'s
+// `isSameHost`) already holds production code to, so it never becomes a copy-pasteable bad example.
 function json(body, status = 200) {
   const raw = JSON.stringify(body);
   return Promise.resolve({ ok: status >= 200 && status < 300, status, headers: { forEach() {} }, text: async () => raw, json: async () => body });
@@ -31,20 +38,45 @@ function json(body, status = 200) {
 function text(body, status = 200) {
   return Promise.resolve({ ok: status >= 200 && status < 300, status, headers: { forEach() {} }, text: async () => body, json: async () => { throw new SyntaxError('Unexpected token'); } });
 }
-function router(url) {
-  const u = String(url);
-  if (u.includes('pagespeedonline')) {
-    return json({ lighthouseResult: { categories: { performance: { score: 0.7 }, seo: { score: 0.8 }, accessibility: { score: 0.9 }, 'best-practices': { score: 0.85 } }, audits: { 'largest-contentful-paint': { numericValue: 2000 }, 'cumulative-layout-shift': { numericValue: 0.05 } } } });
+
+// hostAndPath(url) -> { host, path }, both lower-cased; '' for either on an unparseable URL (never throws).
+function hostAndPath(url) {
+  try {
+    const u = new URL(String(url));
+    return { host: u.hostname.toLowerCase(), path: u.pathname.toLowerCase() };
+  } catch (_e) {
+    return { host: '', path: '' };
   }
-  if (u.includes('chromeuxreport')) return json({}, 404);
-  if (u.includes('google.serper.dev')) return json({ organic: [{ title: 'Rival Dental', link: 'https://rival-dental.co.uk/', position: 1 }, { title: 'Acme Dental', link: 'https://acme-dental.co.uk/', position: 3 }] });
-  if (u.includes('openpagerank.com')) return json({ response: [{ domain: 'acme-dental.co.uk', status_code: 200, page_rank_decimal: '4.10', rank: 500000 }, { domain: 'rival-dental.co.uk', status_code: 200, page_rank_decimal: '6.00', rank: 100000 }], last_updated: '2026-07-01' });
-  if (u.includes('/robots.txt')) return text('User-agent: *\nDisallow:\n');
-  if (u.includes('/llms.txt')) return json({}, 404);
-  if (u.includes('wikidata')) return json({ search: [] });
-  if (u.includes('generativelanguage.googleapis.com')) return json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ names: ['Acme Dental', 'Rival Dental'] }) }] } }] });
-  if (u.includes('groq.com')) return json({ choices: [{ message: { content: JSON.stringify({ names: ['Acme Dental', 'Rival Dental'] }) } }] });
-  return json({}, 404);
+}
+
+// isHost(host, name) -> true only when `host` IS `name` or a genuine subdomain of it (never a bare
+// substring match), the same anchoring discipline as tools/lib/safe-fetch.js's isSameHost.
+function isHost(host, name) { return host === name || host.endsWith('.' + name); }
+
+const PAGESPEED_RESPONSE = { lighthouseResult: { categories: { performance: { score: 0.7 }, seo: { score: 0.8 }, accessibility: { score: 0.9 }, 'best-practices': { score: 0.85 } }, audits: { 'largest-contentful-paint': { numericValue: 2000 }, 'cumulative-layout-shift': { numericValue: 0.05 } } } };
+const SERPER_RESPONSE = { organic: [{ title: 'Rival Dental', link: 'https://rival-dental.co.uk/', position: 1 }, { title: 'Acme Dental', link: 'https://acme-dental.co.uk/', position: 3 }] };
+const OPR_RESPONSE = { response: [{ domain: 'acme-dental.co.uk', status_code: 200, page_rank_decimal: '4.10', rank: 500000 }, { domain: 'rival-dental.co.uk', status_code: 200, page_rank_decimal: '6.00', rank: 100000 }], last_updated: '2026-07-01' };
+const GEMINI_RESPONSE = { candidates: [{ content: { parts: [{ text: JSON.stringify({ names: ['Acme Dental', 'Rival Dental'] }) }] } }] };
+const GROQ_RESPONSE = { choices: [{ message: { content: JSON.stringify({ names: ['Acme Dental', 'Rival Dental'] }) } }] };
+
+// ROUTES: ordered {match, respond} pairs, tried in order; the first match wins (mirrors the original
+// if-chain's precedence exactly). `match` reads only the parsed host/path, never the raw URL string.
+const ROUTES = [
+  { match: ({ host }) => isHost(host, 'www.googleapis.com'), respond: () => json(PAGESPEED_RESPONSE) },
+  { match: ({ host }) => isHost(host, 'chromeuxreport.googleapis.com'), respond: () => json({}, 404) },
+  { match: ({ host }) => isHost(host, 'google.serper.dev'), respond: () => json(SERPER_RESPONSE) },
+  { match: ({ host }) => isHost(host, 'openpagerank.com'), respond: () => json(OPR_RESPONSE) },
+  { match: ({ path }) => path.endsWith('/robots.txt'), respond: () => text('User-agent: *\nDisallow:\n') },
+  { match: ({ path }) => path.endsWith('/llms.txt'), respond: () => json({}, 404) },
+  { match: ({ host }) => isHost(host, 'www.wikidata.org'), respond: () => json({ search: [] }) },
+  { match: ({ host }) => isHost(host, 'generativelanguage.googleapis.com'), respond: () => json(GEMINI_RESPONSE) },
+  { match: ({ host }) => isHost(host, 'api.groq.com'), respond: () => json(GROQ_RESPONSE) },
+];
+
+function router(url) {
+  const parsed = hostAndPath(url);
+  const route = ROUTES.find((r) => r.match(parsed));
+  return route ? route.respond() : json({}, 404);
 }
 const alwaysUnreachable = () => Promise.resolve({ ok: false, status: 0, headers: { forEach() {} }, text: async () => '' });
 

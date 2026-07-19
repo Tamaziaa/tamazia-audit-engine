@@ -48,8 +48,6 @@ function isAggregator(d) {
   return AGG_TOKEN.test(dom);
 }
 
-function isSelf(d, me) { return !!d && !!me && (d === me || d.endsWith('.' + me) || me.endsWith('.' + d)); }
-
 // positionBand(pos) -> the SAME four bands as the old estate ('winning'/'striking'/'almost'/'distant'/
 // 'absent'), so a consumer reading `band` gets identical semantics.
 function positionBand(pos) {
@@ -60,14 +58,25 @@ function positionBand(pos) {
   return 'distant';
 }
 
+// SERVICE_NOUN_OVERRIDES: the sub-sector regex refiner, checked in order before the flat SECTOR_NOUN
+// table. Each entry is a flat (sector, corpus-text) predicate so deriveServiceNoun stays a single
+// lookup rather than a chain of ifs (same precedence as the original chain: first match wins).
+const SERVICE_NOUN_OVERRIDES = [
+  { test: (hay) => /dental|dentist|orthodont|invisalign/.test(hay), noun: 'dental clinic' },
+  { test: (hay) => /aesthetic|cosmetic|botox/.test(hay), noun: 'aesthetic clinic' },
+  { test: (hay, sec) => /personal injury|accident/.test(hay) && /law|solicit/.test(sec), noun: 'personal injury solicitor' },
+  { test: (hay, sec) => /family law|divorce/.test(hay) && /law|solicit/.test(sec), noun: 'family law solicitor' },
+];
+
+function overriddenServiceNoun(sec, hay) {
+  const hit = SERVICE_NOUN_OVERRIDES.find((o) => o.test(hay, sec));
+  return hit ? hit.noun : null;
+}
+
 function deriveServiceNoun(sector, corpusText) {
   const sec = String(sector || '').toLowerCase();
   const hay = String(corpusText || '').toLowerCase();
-  if (/dental|dentist|orthodont|invisalign/.test(hay)) return 'dental clinic';
-  if (/aesthetic|cosmetic|botox/.test(hay)) return 'aesthetic clinic';
-  if (/personal injury|accident/.test(hay) && /law|solicit/.test(sec)) return 'personal injury solicitor';
-  if (/family law|divorce/.test(hay) && /law|solicit/.test(sec)) return 'family law solicitor';
-  return SECTOR_NOUN[sec] || sec.replace(/-/g, ' ') || 'business';
+  return overriddenServiceNoun(sec, hay) || SECTOR_NOUN[sec] || sec.replace(/-/g, ' ') || 'business';
 }
 
 function keywordsFor(noun, city) {
@@ -75,15 +84,61 @@ function keywordsFor(noun, city) {
   return Array.from(new Set(kws.map((k) => k.replace(/\s+/g, ' ').trim())));
 }
 
+// serpResultUnusable(r) -> true when the live SERP call gave nothing to build a row from (GATE: no
+// invented position, ever - the whole reason checkKeyword can return null).
+function serpResultUnusable(r) { return !r || r.error || !((r.organic || []).length); }
+
 // checkKeyword(keyword, domain, country, env) -> the live-SERP row, or null when unverifiable (GATE: no
 // invented position, ever). Ported one-to-one from rank-insight.js `checkKeyword`.
 async function checkKeyword(keyword, domain, country, env) {
   const r = await serp.search(keyword, country, 40, { env });
-  if (!r || r.error || !((r.organic || []).length)) return null;
+  if (serpResultUnusable(r)) return null;
   const ranked = r.organic.map((o) => ({ pos: o.rank, domain: cleanD(o.domain) })).filter((x) => x.domain);
   const mine = ranked.find((x) => x.domain === domain);
   const top3 = ranked.filter((x) => x.domain !== domain && !isAggregator(x.domain)).slice(0, 3);
   return { keyword, my_position: mine ? mine.pos : null, top3, ranked_seen: ranked.length };
+}
+
+// keywordMapGateFailure(dom, city, env) -> the abstain reason when a precondition is missing, or null
+// when the probe may proceed. Checked in the same order as the original guard chain.
+function keywordMapGateFailure(dom, city, env) {
+  if (!dom) return 'no_domain';
+  if (!city) return 'no_operating_city';
+  if (!serp.hasKey(env)) return 'no_key';
+  return null;
+}
+
+// brandFilteredSeeds(noun, city, brand, max) -> the candidate keyword ladder, minus any seed that
+// already contains the firm's own brand token (a branded query is not a useful competitive check).
+function brandFilteredSeeds(noun, city, brand, max) {
+  return keywordsFor(noun, city).filter((k) => brand.length < 4 || !norm(k).includes(brand)).slice(0, max);
+}
+
+// isVerifiableRow(r) -> false for a SKIP-UNTIL-REAL row: no real operating competitor named and the
+// firm itself does not rank either, so there is nothing evidenced worth keeping.
+function isVerifiableRow(r) { return !(!r.top3.length && !r.my_position); }
+
+function toKeywordRow(kw, r) {
+  const leader = r.top3[0] || {};
+  return { keyword: kw, my_position: r.my_position, band: positionBand(r.my_position), leader: leader.domain || null, leader_pos: leader.pos || null };
+}
+
+// checkSeedKeywords(seeds, dom, country, env) -> the verifiable rows, in seed order, one live SERP call
+// per seed (sequential - the same rate the original for-loop made these calls at).
+async function checkSeedKeywords(seeds, dom, country, env) {
+  const out = [];
+  for (const kw of seeds) {
+    const r = await checkKeyword(kw, dom, country, env);
+    if (!r || !isVerifiableRow(r)) continue;
+    out.push(toKeywordRow(kw, r));
+  }
+  return out;
+}
+
+const BAND_RANK = { almost: 0, striking: 1, distant: 2, absent: 3, winning: 4 };
+function sortByBand(rows) {
+  rows.sort((a, b) => (BAND_RANK[a.band] ?? 5) - (BAND_RANK[b.band] ?? 5));
+  return rows;
 }
 
 // keywordMapProbe({domain, sector, city, corpusText, country, env, max}) -> {ok, service_noun, city,
@@ -92,24 +147,14 @@ async function checkKeyword(keyword, domain, country, env) {
 // matching the old estate's own "missing_domain_or_city" gate).
 async function keywordMapProbe({ domain, sector, city, corpusText, country = 'UK', env = process.env, max = 6 } = {}) {
   const dom = cleanD(domain);
-  if (!dom) return { ok: false, reason: 'no_domain' };
-  if (!city) return { ok: false, reason: 'no_operating_city' };
-  if (!serp.hasKey(env)) return { ok: false, reason: 'no_key' };
+  const gateFailure = keywordMapGateFailure(dom, city, env);
+  if (gateFailure) return { ok: false, reason: gateFailure };
   const noun = deriveServiceNoun(sector, corpusText);
   const brand = norm(dom.split('.')[0]);
-  const seeds = keywordsFor(noun, city).filter((k) => brand.length < 4 || !norm(k).includes(brand)).slice(0, max);
-  const out = [];
-  for (const kw of seeds) {
-    const r = await checkKeyword(kw, dom, country, env);
-    if (!r) continue;
-    if (!r.top3.length && !r.my_position) continue; // SKIP-UNTIL-REAL: no real operating competitor and we don't rank either
-    const leader = r.top3[0] || {};
-    out.push({ keyword: kw, my_position: r.my_position, band: positionBand(r.my_position), leader: leader.domain || null, leader_pos: leader.pos || null });
-  }
+  const seeds = brandFilteredSeeds(noun, city, brand, max);
+  const out = await checkSeedKeywords(seeds, dom, country, env);
   if (!out.length) return { ok: false, reason: 'no_verifiable_keywords' };
-  const bandRank = { almost: 0, striking: 1, distant: 2, absent: 3, winning: 4 };
-  out.sort((a, b) => (bandRank[a.band] ?? 5) - (bandRank[b.band] ?? 5));
-  return { ok: true, service_noun: noun, city, keywords: out };
+  return { ok: true, service_noun: noun, city, keywords: sortByBand(out) };
 }
 
 module.exports = { keywordMapProbe, checkKeyword, isAggregator, positionBand, deriveServiceNoun, keywordsFor };

@@ -34,32 +34,47 @@ function abortableFetch(url, init, ms) {
     .finally(() => clearTimeout(timer));
 }
 
-// fetchDeadlined(url, {method, headers, body, deadlineMs}) -> { ok, status, headers, text, json, error }.
-// Exactly one attempt (Rule 9's C-138 no-retry-storm doctrine: retry/backoff, if ever wanted, belongs
-// inside a caller's own bounded loop, never baked into the shared primitive). Never throws.
-async function fetchDeadlined(url, opts = {}) {
-  const ms = Number.isFinite(opts.deadlineMs) && opts.deadlineMs > 0 ? opts.deadlineMs : DEFAULT_DEADLINE_MS;
-  const init = {
+function buildFetchInit(opts) {
+  return {
     method: opts.method || 'GET',
     headers: Object.assign({ 'user-agent': UA }, opts.headers || {}),
     body: opts.body,
     redirect: 'follow',
   };
+}
+
+// racedFetch(url, init, ms) -> { ok:true, raced } | { ok:false, error }. Isolates the try/catch: a
+// network throw (DNS failure, ECONNREFUSED, an aborted signal) never escapes past this point.
+async function racedFetch(url, init, ms) {
   // raceWithDeadline REJECTS (not resolves-to-an-error-value) when the raced promise itself rejects (its
   // own header comment: "the caller's try/catch records it as a typed failure"), so the whole race - not
-  // just the value-unwrap - must be inside this try/catch, or a network throw (DNS failure, ECONNREFUSED,
-  // an aborted signal) would escape fetchDeadlined uncaught, breaking this primitive's "never throws"
-  // contract (Rule 4).
-  let raced;
-  try { raced = await raceWithDeadline(abortableFetch(url, init, ms), ms); }
-  catch (e) { return { ok: false, status: 0, error: 'fetch_error: ' + String((e && e.message) || e).slice(0, 160) }; }
-  if (raced.timedOut) return { ok: false, status: 0, error: 'timeout' };
-  const res = raced.value;
+  // just the value-unwrap - must be inside this try/catch (Rule 4's never-throws contract).
+  try { return { ok: true, raced: await raceWithDeadline(abortableFetch(url, init, ms), ms) }; }
+  catch (e) { return { ok: false, error: 'fetch_error: ' + String((e && e.message) || e).slice(0, 160) }; }
+}
+
+// readResponseBody(res) -> { text, headers, json }. json stays null for a non-JSON body (not every
+// endpoint answers JSON) rather than throwing a parse error.
+async function readResponseBody(res) {
   const text = await res.text().catch(() => '');
   const headers = {};
   res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
   let json = null;
-  if (text) { try { json = JSON.parse(text); } catch (_e) { json = null; } /* not every endpoint answers JSON */ }
+  if (text) { try { json = JSON.parse(text); } catch (_e) { json = null; } }
+  return { text, headers, json };
+}
+
+// fetchDeadlined(url, {method, headers, body, deadlineMs}) -> { ok, status, headers, text, json, error }.
+// Exactly one attempt (Rule 9's C-138 no-retry-storm doctrine: retry/backoff, if ever wanted, belongs
+// inside a caller's own bounded loop, never baked into the shared primitive). Never throws.
+async function fetchDeadlined(url, opts = {}) {
+  const ms = Number.isFinite(opts.deadlineMs) && opts.deadlineMs > 0 ? opts.deadlineMs : DEFAULT_DEADLINE_MS;
+  const init = buildFetchInit(opts);
+  const outcome = await racedFetch(url, init, ms);
+  if (!outcome.ok) return { ok: false, status: 0, error: outcome.error };
+  if (outcome.raced.timedOut) return { ok: false, status: 0, error: 'timeout' };
+  const res = outcome.raced.value;
+  const { text, headers, json } = await readResponseBody(res);
   return { ok: res.ok, status: res.status, headers, text, json, error: res.ok ? null : 'http_' + res.status };
 }
 

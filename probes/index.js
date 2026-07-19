@@ -51,73 +51,132 @@ function corpusText(corpus) {
 
 // ── section shapers: probe results -> the exact compose()-ready leaf shapes ────────────────────────────
 
-function shapeSeo({ ps, onp, kwMap, corpus }) {
-  const psi = ps.ok ? { mobile: ps.mobile, desktop: ps.desktop, state: 'measured' } : unavailable(ps.reason);
-  const cwv = ps.ok ? { mobile: ps.mobile && ps.mobile.cwv, desktop: ps.desktop && ps.desktop.cwv, state: 'measured' } : unavailable(ps.reason);
-  const psiAudits = ps.ok ? { mobile: (ps.mobile && ps.mobile.audits) || [], state: 'measured' } : unavailable(ps.reason);
-  const onpage = onp.ok ? onp.onpage : unavailable(onp.reason);
-  const security = onp.ok ? onp.security : unavailable(onp.reason);
-  const a11y = onp.ok ? onp.a11y : unavailable(onp.reason);
-  const tech = onp.ok ? onp.tech : unavailable(onp.reason);
-  const keywordSummary = kwMap.ok ? { service_noun: kwMap.service_noun, city: kwMap.city, count: kwMap.keywords.length, state: 'measured' } : unavailable(kwMap.reason);
-  let keywords;
-  if (kwMap.ok && kwMap.keywords.length) {
-    keywords = kwMap.keywords.map((k) => Object.assign({ state: 'measured' }, k));
-  } else {
-    const derived = keywordsFromCorpus(corpus);
-    keywords = derived || [{ term: null, state: 'probe_unavailable', reason: kwMap.reason }];
-  }
-  return { psi, cwv, onpage, security, a11y, tech, keywordSummary, psiAudits, keywords, note: 'SEO signals: real PageSpeed Insights + live SERP keyword map where keys/city were available; a leaf carries state:probe_unavailable when its underlying key or input was absent.' };
+// ── SEO leaf shapers: each takes just the probe result(s) it needs and returns ONE payload leaf, so
+// shapeSeo() itself is a flat list of calls with no branching of its own. ─────────────────────────────
+function seoPsi(ps) { return ps.ok ? { mobile: ps.mobile, desktop: ps.desktop, state: 'measured' } : unavailable(ps.reason); }
+function seoCwv(ps) { return ps.ok ? { mobile: ps.mobile && ps.mobile.cwv, desktop: ps.desktop && ps.desktop.cwv, state: 'measured' } : unavailable(ps.reason); }
+function seoPsiAudits(ps) { return ps.ok ? { mobile: (ps.mobile && ps.mobile.audits) || [], state: 'measured' } : unavailable(ps.reason); }
+function onpageLeaf(onp, key) { return onp.ok ? onp[key] : unavailable(onp.reason); }
+function seoKeywordSummary(kwMap) { return kwMap.ok ? { service_noun: kwMap.service_noun, city: kwMap.city, count: kwMap.keywords.length, state: 'measured' } : unavailable(kwMap.reason); }
+function seoKeywords(kwMap, corpus) {
+  if (kwMap.ok && kwMap.keywords.length) return kwMap.keywords.map((k) => Object.assign({ state: 'measured' }, k));
+  const derived = keywordsFromCorpus(corpus);
+  return derived || [{ term: null, state: 'probe_unavailable', reason: kwMap.reason }];
 }
 
+function shapeSeo({ ps, onp, kwMap, corpus }) {
+  return {
+    psi: seoPsi(ps),
+    cwv: seoCwv(ps),
+    onpage: onpageLeaf(onp, 'onpage'),
+    security: onpageLeaf(onp, 'security'),
+    a11y: onpageLeaf(onp, 'a11y'),
+    tech: onpageLeaf(onp, 'tech'),
+    keywordSummary: seoKeywordSummary(kwMap),
+    psiAudits: seoPsiAudits(ps),
+    keywords: seoKeywords(kwMap, corpus),
+    note: 'SEO signals: real PageSpeed Insights + live SERP keyword map where keys/city were available; a leaf carries state:probe_unavailable when its underlying key or input was absent.',
+  };
+}
+
+// ── root-cause chain: one row-builder per signal, so buildRootCauseChain() is just an array literal. ──
+function rowCrawlerAccess(air) {
+  return { label: 'Crawler access', ok: air.ok ? air.blocked_ai_bots.length === 0 : null, state: air.ok ? 'measured' : 'probe_unavailable' };
+}
+function rowIdentityAnchors(air) {
+  return { label: 'Identity anchors', ok: air.ok ? (air.has_org_schema && air.has_same_as) : null, state: air.ok ? 'measured' : 'probe_unavailable' };
+}
+function rowKnowledgeGraph(air) {
+  return { label: 'Knowledge graph', ok: air.ok ? air.in_wikidata : null, state: air.ok ? 'measured' : 'probe_unavailable' };
+}
+function rowShareOfVoice(gp) {
+  return { label: 'Share of voice', ok: gp.ok && typeof gp.share_of_voice === 'number' ? gp.share_of_voice >= 50 : null, state: gp.ok ? 'measured' : 'probe_unavailable' };
+}
 function buildRootCauseChain(air, gp) {
-  const chain = [
-    { label: 'Crawler access', ok: air.ok ? air.blocked_ai_bots.length === 0 : null, state: air.ok ? 'measured' : 'probe_unavailable' },
-    { label: 'Identity anchors', ok: air.ok ? (air.has_org_schema && air.has_same_as) : null, state: air.ok ? 'measured' : 'probe_unavailable' },
-    { label: 'Knowledge graph', ok: air.ok ? air.in_wikidata : null, state: air.ok ? 'measured' : 'probe_unavailable' },
-    { label: 'Share of voice', ok: gp.ok && typeof gp.share_of_voice === 'number' ? gp.share_of_voice >= 50 : null, state: gp.ok ? 'measured' : 'probe_unavailable' },
-  ];
+  const chain = [rowCrawlerAccess(air), rowIdentityAnchors(air), rowKnowledgeGraph(air), rowShareOfVoice(gp)];
   return { state: chain.every((l) => l.state === 'measured') ? 'measured' : 'partial', chain };
 }
 
+// ── fix gaps: one predicate per gap, filtered rather than pushed conditionally, same push order. ──────
+function fixGapOpenRobots(air) { return air.blocked_ai_bots.length ? 'open robots.txt for: ' + air.blocked_ai_bots.join(', ') : null; }
+function fixGapLlmsTxt(air) { return air.has_llms_txt ? null : 'publish an llms.txt'; }
+function fixGapOrgSchema(air) { return air.has_org_schema ? null : 'ship Organization/LocalBusiness schema'; }
+function fixGapSameAs(air) { return air.has_same_as ? null : 'add sameAs links to authoritative profiles'; }
+function fixGapWikidata(air) { return air.in_wikidata ? null : 'establish a Wikidata entity'; }
+function fixGapShareOfVoice(gp) { return (gp.ok && typeof gp.share_of_voice === 'number' && gp.share_of_voice < 50) ? 'build the content/authority signals that lift AI share of voice' : null; }
+
 function buildFix(air, gp) {
   if (!air.ok) return unavailable(air.reason);
-  const gaps = [];
-  if (air.blocked_ai_bots.length) gaps.push('open robots.txt for: ' + air.blocked_ai_bots.join(', '));
-  if (!air.has_llms_txt) gaps.push('publish an llms.txt');
-  if (!air.has_org_schema) gaps.push('ship Organization/LocalBusiness schema');
-  if (!air.has_same_as) gaps.push('add sameAs links to authoritative profiles');
-  if (!air.in_wikidata) gaps.push('establish a Wikidata entity');
-  if (gp.ok && typeof gp.share_of_voice === 'number' && gp.share_of_voice < 50) gaps.push('build the content/authority signals that lift AI share of voice');
+  const gaps = [fixGapOpenRobots(air), fixGapLlmsTxt(air), fixGapOrgSchema(air), fixGapSameAs(air), fixGapWikidata(air), fixGapShareOfVoice(gp)].filter(Boolean);
   return { gaps, state: 'measured' };
 }
 
+// ── GEO leaf shapers: same one-leaf-per-function discipline as the SEO shapers above. ──────────────────
+function geoEntityReadiness(air) {
+  return air.ok ? { score: air.score, blocked_ai_bots: air.blocked_ai_bots, has_llms_txt: air.has_llms_txt, has_org_schema: air.has_org_schema, has_same_as: air.has_same_as, in_wikidata: air.in_wikidata, state: 'measured' } : unavailable(air.reason);
+}
+function geoShareOfVoice(gp) {
+  return gp.ok ? { value: gp.share_of_voice, repeatability: gp.repeatability, samples: gp.samples, provider: gp.provider, top_competitors: gp.top_competitors, state: 'measured' } : unavailable(gp.reason);
+}
+function geoDr(auth) { return auth.ok && auth.you ? auth.you.dr : NaN; }
+function geoRadar(air, gp, dr) {
+  return air.ok ? { axes: geoVisuals.radarAxes(air, gp.ok ? gp.share_of_voice : null, dr), state: 'measured' } : unavailable(air.reason);
+}
+function geoSchema(air) {
+  return air.ok ? { has_org_schema: air.has_org_schema, has_localbusiness: air.has_localbusiness, has_service: air.has_service, has_faq: air.has_faq, has_same_as: air.has_same_as, state: 'measured' } : unavailable(air.reason);
+}
+function geoCitations(gp) {
+  return (gp.ok && gp.grounded) ? Object.assign({ state: 'measured' }, gp.grounded) : unavailable(gp.ok ? 'no_grounding_data' : gp.reason);
+}
+function geoSourceGap(air) {
+  return air.ok ? { in_wikidata: air.in_wikidata, has_llms_txt: air.has_llms_txt, state: 'measured' } : unavailable(air.reason);
+}
+function geoEngines(air, gp) {
+  return air.ok ? geoVisuals.engineGrid(air, gp.ok ? gp.share_of_voice : null) : Array.from({ length: 8 }, () => ({ engine: null, state: 'probe_unavailable', reason: air.reason }));
+}
+
 function shapeGeo({ air, gp, auth }) {
-  const entityReadiness = air.ok ? { score: air.score, blocked_ai_bots: air.blocked_ai_bots, has_llms_txt: air.has_llms_txt, has_org_schema: air.has_org_schema, has_same_as: air.has_same_as, in_wikidata: air.in_wikidata, state: 'measured' } : unavailable(air.reason);
-  const shareOfVoice = gp.ok ? { value: gp.share_of_voice, repeatability: gp.repeatability, samples: gp.samples, provider: gp.provider, top_competitors: gp.top_competitors, state: 'measured' } : unavailable(gp.reason);
-  const dr = auth.ok && auth.you ? auth.you.dr : NaN;
-  const radar = air.ok ? { axes: geoVisuals.radarAxes(air, gp.ok ? gp.share_of_voice : null, dr), state: 'measured' } : unavailable(air.reason);
-  const schema = air.ok ? { has_org_schema: air.has_org_schema, has_localbusiness: air.has_localbusiness, has_service: air.has_service, has_faq: air.has_faq, has_same_as: air.has_same_as, state: 'measured' } : unavailable(air.reason);
-  const citations = (gp.ok && gp.grounded) ? Object.assign({ state: 'measured' }, gp.grounded) : unavailable(gp.ok ? 'no_grounding_data' : gp.reason);
-  const sourceGap = air.ok ? { in_wikidata: air.in_wikidata, has_llms_txt: air.has_llms_txt, state: 'measured' } : unavailable(air.reason);
-  const fix = buildFix(air, gp);
-  const engines = air.ok ? geoVisuals.engineGrid(air, gp.ok ? gp.share_of_voice : null) : Array.from({ length: 8 }, () => ({ engine: null, state: 'probe_unavailable', reason: air.reason }));
-  const rootCause = buildRootCauseChain(air, gp);
-  return { entityReadiness, shareOfVoice, radar, schema, citations, sourceGap, fix, engines, rootCause, note: 'GEO signals: real AI-entity readiness (robots.txt/llms.txt/schema/Wikidata, zero-key) + a real multi-sample AI share-of-voice probe where a free LLM key was available. Per-engine readiness and the radar are MODELLED from these real signals (engineEstimate:true), never a per-engine live probe.' };
+  const dr = geoDr(auth);
+  return {
+    entityReadiness: geoEntityReadiness(air),
+    shareOfVoice: geoShareOfVoice(gp),
+    radar: geoRadar(air, gp, dr),
+    schema: geoSchema(air),
+    citations: geoCitations(gp),
+    sourceGap: geoSourceGap(air),
+    fix: buildFix(air, gp),
+    engines: geoEngines(air, gp),
+    rootCause: buildRootCauseChain(air, gp),
+    note: 'GEO signals: real AI-entity readiness (robots.txt/llms.txt/schema/Wikidata, zero-key) + a real multi-sample AI share-of-voice probe where a free LLM key was available. Per-engine readiness and the radar are MODELLED from these real signals (engineEstimate:true), never a per-engine live probe.',
+  };
+}
+
+// ── competitors leaf shapers ─────────────────────────────────────────────────────────────────────────
+function compBestKeyword(kwMap) {
+  return kwMap.ok && kwMap.keywords.length ? { keyword: kwMap.keywords[0].keyword, state: 'measured' } : unavailable(kwMap.reason);
+}
+function compYouDr(auth) {
+  return auth.ok && auth.you ? Object.assign({ state: 'measured' }, auth.you) : unavailable(auth.ok ? 'no_opr_data' : auth.reason);
+}
+function compRows(auth, overlap) {
+  if (auth.ok && auth.top3.length) return auth.top3.map((c) => Object.assign({ name: c.domain, state: 'measured' }, c));
+  if (overlap.length) return overlap.map((d) => ({ name: d, state: 'named_not_scored' }));
+  return [{ name: null, state: 'probe_unavailable', reason: auth.ok ? 'no_competitor_data' : auth.reason }];
+}
+function compDrBars(auth) {
+  if (!(auth.ok && auth.you)) return unavailable(auth.ok ? 'no_opr_data' : auth.reason);
+  return auth.top3.map((c) => ({ l: c.domain, v: c.da_100 })).concat([{ l: 'You', v: auth.you.da_100, you: true }]);
 }
 
 function shapeCompetitors({ auth, overlap, kwMap }) {
-  const bestKeyword = kwMap.ok && kwMap.keywords.length ? { keyword: kwMap.keywords[0].keyword, state: 'measured' } : unavailable(kwMap.reason);
-  const youDr = auth.ok && auth.you ? Object.assign({ state: 'measured' }, auth.you) : unavailable(auth.ok ? 'no_opr_data' : auth.reason);
-  const cols = ['domain', 'da_100'];
-  let rows;
-  if (auth.ok && auth.top3.length) rows = auth.top3.map((c) => Object.assign({ name: c.domain, state: 'measured' }, c));
-  else if (overlap.length) rows = overlap.map((d) => ({ name: d, state: 'named_not_scored' }));
-  else rows = [{ name: null, state: 'probe_unavailable', reason: auth.ok ? 'no_competitor_data' : auth.reason }];
-  const drBars = (auth.ok && auth.you)
-    ? auth.top3.map((c) => ({ l: c.domain, v: c.da_100 })).concat([{ l: 'You', v: auth.you.da_100, you: true }])
-    : unavailable(auth.ok ? 'no_opr_data' : auth.reason);
-  return { bestKeyword, youDr, cols, drBars, rows, note: 'Competitor Domain Rating is REAL OpenPageRank data only; a competitor with no public DR is never given a fabricated estimate (Rule 10 - the old estate\'s name-hash drFallback is deliberately not ported).' };
+  return {
+    bestKeyword: compBestKeyword(kwMap),
+    youDr: compYouDr(auth),
+    cols: ['domain', 'da_100'],
+    drBars: compDrBars(auth),
+    rows: compRows(auth, overlap),
+    note: 'Competitor Domain Rating is REAL OpenPageRank data only; a competitor with no public DR is never given a fabricated estimate (Rule 10 - the old estate\'s name-hash drFallback is deliberately not ported).',
+  };
 }
 
 // runProbesInner(input) -> { seo, geo, competitors }. The sequenced real work (see file header for the
