@@ -114,33 +114,33 @@ function verifyDomNode(candidate, bundle) {
 // ---------------------------------------------------------------------------------
 function runOneFixture(file, fixture) {
   const result = verifyDomNode(fixture.candidate, fixture.bundle);
-  const poison = fixture.poison || {};
-  const expectedCode = poison.expected_code;
-  const caught = result.verified === false && (!expectedCode || result.code === expectedCode);
-  if (!caught) return [];
-  return [{
-    file,
-    line: 1,
-    rule: 'p4-verifier-domnode-rejected',
-    message: 'refused the poisoned dom_node candidate (' + result.code + '): ' + result.reason,
-  }];
+  const expected = (fixture.poison || {}).expected_code;
+  if (result.verified !== false) return []; // the poison was WRONGLY verified -> no finding -> the gate is broken.
+  if (expected && result.code !== expected) return []; // rejected, but for the wrong reason -> not the caught class.
+  const message = 'refused the poisoned dom_node candidate (' + result.code + '): ' + result.reason;
+  return [{ file, line: 1, rule: 'p4-verifier-domnode-rejected', message }];
 }
 
-function runCalibration(fixturesDir) {
+// assertSafeFixtureName(f) -> throws on any fixture filename that is not a plain, dot/dash-only basename
+// (defence against a crafted path component before it is join()ed and read).
+function assertSafeFixtureName(f) {
+  if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(f)) throw new Error('unsafe path component: ' + JSON.stringify(f));
+}
+// runOneFixtureFile(dir, f) -> the findings from ONE p4-verifier fixture file (read + parse + run).
+function runOneFixtureFile(dir, f) {
   const fs = require('fs');
   const path = require('path');
+  assertSafeFixtureName(f);
+  const abs = path.join(dir, f);
+  return runOneFixture(abs, JSON.parse(fs.readFileSync(abs, 'utf8')));
+}
+function runCalibration(fixturesDir) {
+  const path = require('path');
   const dir = fixturesDir || path.join(__dirname, '..', '..', 'eval', 'calibration-known-bad', 'fixtures');
-  const findings = [];
-  const files = fs.readdirSync(dir).filter((f) => /^p4-verifier-.*\.json$/.test(f)).sort();
-  for (const f of files) {
-    if (!/^[a-z0-9][a-z0-9.-]{0,251}$/i.test(f)) {
-      throw new Error('unsafe path component: ' + JSON.stringify(f));
-    }
-    const abs = path.join(dir, f);
-    const fixture = JSON.parse(fs.readFileSync(abs, 'utf8'));
-    findings.push(...runOneFixture(abs, fixture));
-  }
-  return findings;
+  return require('fs').readdirSync(dir)
+    .filter((f) => /^p4-verifier-.*\.json$/.test(f))
+    .sort()
+    .flatMap((f) => runOneFixtureFile(dir, f));
 }
 
 function calibrateMain(argv) {

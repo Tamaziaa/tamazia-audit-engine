@@ -48,20 +48,17 @@ const { raceWithDeadline } = require('./deadline');
 const DEFAULT_DEADLINE_MS = 20000;
 const MAX_DESCRIPTORS = 2000; // bound on the serialised in-page payload (a cap, never a floor - Rule 8)
 
-// capOr(v, cap): a positive finite override CLAMPED to `cap`, else `cap` (a caller may lower a budget,
-// never raise it past the module ceiling). Local to this lane: observe.js keeps its own copy for the same
-// Rule-8 reason and does not export it; the function is below the jscpd duplication floor.
-function capOr(v, cap) {
+// normaliseOpts(opts) -> the two knobs this lane honours. deadlineMs is a hard CAP, never a floor (Rule
+// 8): a positive finite override is CLAMPED to the ceiling, and anything else falls back to the ceiling, so
+// a caller may only ask for a SHORTER wall time. (observe.js keeps its own capOr clamp for the same reason;
+// the clamp is inlined here so there is one obvious ceiling with no cross-lane shared internal.)
+function clampDeadline(v) {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, cap) : cap;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, DEFAULT_DEADLINE_MS) : DEFAULT_DEADLINE_MS;
 }
-
 function normaliseOpts(opts) {
   const o = opts || {};
-  return {
-    deadlineMs: capOr(o.deadlineMs, DEFAULT_DEADLINE_MS),
-    now: typeof o.now === 'function' ? o.now : Date.now,
-  };
+  return { deadlineMs: clampDeadline(o.deadlineMs), now: typeof o.now === 'function' ? o.now : Date.now };
 }
 
 // ── the canonical node shape (Rule 1: one door for the dom_node artifact fields) ──────────────────────
@@ -231,7 +228,8 @@ function collectDescriptors() {
 
   function capped() { return out.length >= CAP; }
   function clip(el) {
-    try { return String(el.outerHTML || '').slice(0, 300); } catch (e) { return ''; } // FAIL-OPEN: an element whose outerHTML throws yields an empty snippet, never a thrown lane.
+    try { return String(el.outerHTML || '').slice(0, 300); }
+    catch (e) { return ''; /* FAIL-OPEN: an element whose outerHTML throws yields an empty snippet, never a thrown lane. */ }
   }
   function collapse(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
   function cssPath(el) {
@@ -279,7 +277,8 @@ function collectDescriptors() {
   }
   function tryEach(selector, fn) {
     var nodes;
-    try { nodes = doc.querySelectorAll(selector); } catch (e) { return; } // FAIL-OPEN: a bad selector yields no descriptors, never a thrown lane.
+    try { nodes = doc.querySelectorAll(selector); }
+    catch (e) { return; /* FAIL-OPEN: a bad selector yields no descriptors, never a thrown lane. */ }
     for (var i = 0; i < nodes.length && !capped(); i++) {
       try { fn(nodes[i]); } catch (e) { /* FAIL-OPEN: one malformed element yields no descriptor; the pass continues so a single node never blanks the lane. */ }
     }
@@ -337,7 +336,8 @@ function collectDescriptors() {
     });
   }
   function schemeOf(raw) {
-    try { return new URL(raw, doc.location.href).protocol; } catch (e) { return null; } // FAIL-OPEN: an unparseable action is not an observable insecure-form; it yields a null scheme (no violation).
+    try { return new URL(raw, doc.location.href).protocol; }
+    catch (e) { return null; /* FAIL-OPEN: an unparseable action is not an observable insecure-form; it yields a null scheme (no violation). */ }
   }
   function addForms() {
     tryEach('form', function (el) {
