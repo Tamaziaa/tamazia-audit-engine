@@ -26,7 +26,15 @@
 const sector = require('../../../facts/sector.js');
 
 let REAL_VOCAB = null;
-try { REAL_VOCAB = require('../../../facts/vocabulary.js'); } catch (_e) { REAL_VOCAB = null; }
+try {
+  REAL_VOCAB = require('../../../facts/vocabulary.js');
+} catch (_e) {
+  // FAIL-OPEN: the vocabulary sibling is OPTIONAL for this fixture. The synthetic _textWinner legs are
+  // self-sufficient and always run, so the earn-your-zero gate still catches the #28 regression without it;
+  // the real-vocab legs are supplementary and their skip is reported explicitly in calibrate()'s message.
+  // Swallowing here never masks a defect (a genuinely broken module still fails the mandatory synthetic legs).
+  REAL_VOCAB = null;
+}
 const REAL_VOCAB_PRESENT = !!(REAL_VOCAB && (REAL_VOCAB.TREE || REAL_VOCAB.tree));
 
 // A candidate as facts/sector.js#_scoreSectors emits it (sorted by distinct desc before _textWinner sees it).
