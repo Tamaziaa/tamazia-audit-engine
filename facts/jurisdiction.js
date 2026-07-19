@@ -567,37 +567,38 @@ function analyseFreezones(sentence, source, state) {
   }
 }
 
-function analyseTierB(sentence, source, state) {
-  // US postal address is SELF-ANCHORING: a state token (two-letter code OR a full state name) immediately
-  // followed by a 5-digit ZIP is unmistakably a US address, so it does not need a separate context word -
-  // which real footers routinely split onto the line above ("Head Office" / "... Texas 75790"), leaving
-  // the address line contextless (healthcare-US Defect D). The ZIP anchors both forms; binding still
-  // needs a SECOND independent Tier-B kind, so a lone spurious postcode can never bind on its own.
+// addUsPostcode: record a US Tier-B postcode + a bound office_address state hit for a resolved state code.
+function addUsPostcode(state, code, source, sentence) {
+  addEvidence(state, 'US', 'B', 'postcode', source, sentence);
+  state.stateHits.push({ code, basis: 'office_address', source, quote: clip(sentence) });
+}
+
+// analyseUsAddress: a US postal address is SELF-ANCHORING - a state token (two-letter code OR a full
+// state name) immediately followed by a 5-digit ZIP is unmistakably a US address, so it needs no separate
+// context word, which real footers split onto the line above ("Head Office" / "... Texas 75790"),
+// leaving the address line contextless (healthcare-US Defect D). The ZIP anchors both forms; binding
+// still needs a SECOND independent Tier-B kind, so a lone spurious postcode can never bind on its own.
+function analyseUsAddress(sentence, source, state) {
   const usCode = sentence.match(US_ADDRESS_RX);
-  if (usCode) {
-    addEvidence(state, 'US', 'B', 'postcode', source, sentence);
-    state.stateHits.push({ code: usCode[1], basis: 'office_address', source, quote: clip(sentence) });
-  }
+  if (usCode) addUsPostcode(state, usCode[1], source, sentence);
   const usName = sentence.match(US_STATE_NAME_ADDRESS_RX);
-  if (usName) {
-    const st = US_STATE_NAME_TO_CODE[usName[1].toLowerCase()];
-    if (st) {
-      addEvidence(state, 'US', 'B', 'postcode', source, sentence);
-      state.stateHits.push({ code: st, basis: 'office_address', source, quote: clip(sentence) });
-    }
-  }
+  const st = usName ? US_STATE_NAME_TO_CODE[usName[1].toLowerCase()] : null;
+  if (st) addUsPostcode(state, st, source, sentence);
+}
+
+function analyseTierB(sentence, source, state) {
+  analyseUsAddress(sentence, source, state);
   // UK and IE postcodes still require an address-context word or the footer surface: their formats read
   // less unambiguously as postal in isolated prose than a US state+ZIP does.
   const inAddressContext = ADDRESS_CONTEXT_RX.test(sentence) || source === 'footer';
-  if (inAddressContext) {
-    const uk = sentence.match(UK_POSTCODE_RX);
-    if (uk) {
-      addEvidence(state, 'UK', 'B', 'postcode', source, sentence);
-      state.ukPostcodes.push({ postcode: uk[0], source, quote: clip(sentence) });
-    }
-    if (IE_EIRCODE_RX.test(sentence) && IE_CONTEXT_RX.test(sentence)) {
-      addEvidence(state, 'IE', 'B', 'postcode', source, sentence);
-    }
+  if (!inAddressContext) return;
+  const uk = sentence.match(UK_POSTCODE_RX);
+  if (uk) {
+    addEvidence(state, 'UK', 'B', 'postcode', source, sentence);
+    state.ukPostcodes.push({ postcode: uk[0], source, quote: clip(sentence) });
+  }
+  if (IE_EIRCODE_RX.test(sentence) && IE_CONTEXT_RX.test(sentence)) {
+    addEvidence(state, 'IE', 'B', 'postcode', source, sentence);
   }
 }
 
