@@ -143,8 +143,16 @@ test('scan: real committed packs produce exactly the documented known findings',
   assert.ok(res.scanned > 0);
 
   const KNOWN = [
-    ['uk-tech-media-industrial.json', 'UK_CAP_AI_CLAIMS', 'enforcement-host-unofficial'],
-    ['uk-tech-media-industrial.json', 'UK_PECR_EMARKETING', 'enforcement-host-unofficial'],
+    // uk-tech-media-industrial.json UK_CAP_AI_CLAIMS and UK_PECR_EMARKETING previously carried
+    // ERROR-severity enforcement-host-unofficial findings (a law-firm blog and a news blog cited
+    // as the enforcement URL instead of an OFFICIAL_HOSTS host) - the pack's adversarial legal-QA
+    // (2026-07-19) flagged both as compile-blocking. Both were independently re-verified at their
+    // official sources and corrected: UK_CAP_AI_CLAIMS enforcement[0].url now points at the real
+    // asa.org.uk ruling (case facts re-confirmed: 25 Mar 2026, 22 complaints upheld, UAB
+    // CommerceCore t/a WiggyDog); UK_PECR_EMARKETING enforcement[1].url now points at the ICO's own
+    // MPN page (ico.org.uk) with the date corrected to 2026-05 (was wrongly dated 2025-06). Both
+    // now clear with zero findings; tighten back here if they ever regress.
+    //
     // us-healthcare.json US_HIPAA_TRACKING/US_TELEHEALTH_LICENSURE and us-universal.json
     // US_STATE_PRIVACY_WAVE_2025_26 previously carried unofficial-host citation/enforcement/
     // register URLs (P2 catalogue hygiene pass): the unofficial enforcement entries were removed

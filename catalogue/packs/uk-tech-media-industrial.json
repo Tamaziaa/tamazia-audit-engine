@@ -16,7 +16,8 @@
     "url": "https://www.legislation.gov.uk/eur/2016/679/contents"
    },
    "sector": [
-    "saas-tech"
+    "saas",
+    "tech"
    ],
    "sub_sector": [
     "saas",
@@ -118,7 +119,8 @@
     "url": "https://www.legislation.gov.uk/uksi/2018/506/contents"
    },
    "sector": [
-    "saas-tech"
+    "saas",
+    "tech"
    ],
    "sub_sector": [
     "cloud-services",
@@ -198,7 +200,8 @@
     "url": "https://www.legislation.gov.uk/ukpga/2024/13"
    },
    "sector": [
-    "saas-tech",
+    "saas",
+    "tech",
     "fitness",
     "media",
     "marketing"
@@ -296,7 +299,8 @@
     "url": "https://www.asa.org.uk/codes-and-rulings/advertising-codes/non-broadcast-code.html"
    },
    "sector": [
-    "saas-tech",
+    "saas",
+    "tech",
     "marketing"
    ],
    "sub_sector": [
@@ -347,8 +351,8 @@
      "case": "ASA v UAB CommerceCore ('WiggyDog' AI robot dog ad)",
      "date": "2026-03",
      "amount": "22 complaints upheld; ad banned",
-     "url": "https://www.lewissilkin.com/insights/2026/03/30/asa-upholds-complaints-about-ad-for-ai-tool-102mocz",
-     "summary": "ASA upheld complaints that AI-styled product claims and lifelike AI imagery exaggerated performance the advertiser could not substantiate."
+     "url": "https://www.asa.org.uk/rulings/uab-commercecore-g25-1321974-uab-commercecore.html",
+     "summary": "ASA upheld complaints that AI-styled product claims and lifelike AI imagery exaggerated performance the advertiser could not substantiate (breached CAP Code rules 3.1, 3.7 and 3.11)."
     }
    ],
    "intel": {
@@ -360,11 +364,12 @@
     "sources": [
      "https://www.asa.org.uk/codes-and-rulings/advertising-codes/non-broadcast-code.html",
      "https://www.asa.org.uk/news/disclosure-of-ai-in-advertising-striking-the-balance-between-creativity-and-responsibility.html",
+     "https://www.asa.org.uk/rulings/uab-commercecore-g25-1321974-uab-commercecore.html",
      "https://www.lewissilkin.com/insights/2026/03/30/asa-upholds-complaints-about-ad-for-ai-tool-102mocz"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
    }
   },
   {
@@ -381,7 +386,8 @@
    },
    "sector": [
     "marketing",
-    "saas-tech"
+    "saas",
+    "tech"
    ],
    "sub_sector": [
     "digital-agencies",
@@ -447,10 +453,10 @@
     },
     {
      "case": "ICO v KRA Consultancy Ltd",
-     "date": "2025-06",
+     "date": "2026-05",
      "amount": "GBP 300,000",
-     "url": "https://www.freevacy.com/news/ico/ico-fines-debt-services-company-ps300000-for-pecr-violations/7488",
-     "summary": "Fined for 5.57m unsolicited marketing texts in breach of PECR regs 22 and 23."
+     "url": "https://ico.org.uk/action-weve-taken/enforcement/2026/05/kra-consultancy-ltd-mpn/",
+     "summary": "Monetary penalty notice for 5,575,715 unsolicited marketing texts (including fabricated bailiff-threat messages) sent April 2022 to May 2025 in breach of PECR regs 22 and 23; the ICO also issued an enforcement notice ordering the company to stop marketing without consent."
     }
    ],
    "intel": {
@@ -462,12 +468,13 @@
     "sources": [
      "https://www.legislation.gov.uk/uksi/2003/2426/contents",
      "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/04/compensation-company-fined-90-000-for-unlawful-marketing-calls/",
+     "https://ico.org.uk/action-weve-taken/enforcement/2026/05/kra-consultancy-ltd-mpn/",
      "https://www.freevacy.com/news/ico/ico-fines-debt-services-company-ps300000-for-pecr-violations/7488",
      "seed compliance_laws.json UK-PECR-01"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
    }
   },
   {
@@ -569,7 +576,8 @@
    },
    "sector": [
     "media",
-    "saas-tech"
+    "saas",
+    "tech"
    ],
    "sub_sector": [
     "ugc-platforms",
@@ -1286,19 +1294,19 @@
    },
    "enforcement": [],
    "intel": {
-    "why_matters": "Logo walls are sales assets and legal claims at once; the CAA has prosecuted a travel firm for displaying the ATOL logo without a licence, and HSE prosecutes false Gas Safe pretence.",
+    "why_matters": "Logo walls are sales assets and legal claims at once; CAA published enforcement policy moves from advisory to formal action, including prosecution, where ATOL compliance shortcomings are found, and HSE prosecutes false Gas Safe pretence.",
     "regulator_asks_first": "Pick each badge in the footer: does it appear on the issuing register today?",
     "relevance_hook": "This is the highest-yield register check in the audit: every badge is machine-verifiable, and a stale badge is an instant, evidenced finding."
    },
    "provenance": {
     "sources": [
      "https://www.legislation.gov.uk/ukpga/2024/13/schedule/20",
-     "https://travelweekly.co.uk/articles/42283/agent-fined-after-breaching-atol-rules",
+     "https://www.caa.co.uk/atol-protection/atol-compliance/requirements-legal-obligations/atol-enforcement/",
      "seed compliance_laws.json NEON-UK-DVSA, NEON-UK-CE-PLUS, NEON-UK-NCSC-CYBER-ESSENTIALS (subsumed here as register-verified claims)"
     ],
     "seed_status": "gap_filled",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
    }
   },
   {
@@ -1449,7 +1457,7 @@
    },
    "enforcement": [],
    "intel": {
-    "why_matters": "Selling flight-inclusive travel without an ATOL, or showing the logo without a licence, is a criminal offence the CAA prosecutes (it has convicted a firm for exactly the false-logo case).",
+    "why_matters": "Selling flight-inclusive travel without an ATOL, or falsely showing the ATOL logo, is a criminal offence under the ATOL Regulations 2012 Sch; CAA's published enforcement approach moves from advisory to formal action, including prosecution, where compliance shortcomings are found.",
     "regulator_asks_first": "Does the ATOL number on the footer come up on Check-an-ATOL, and does the licence cover what the site sells?",
     "relevance_hook": "One register lookup validates the single most trust-bearing badge in UK travel retail."
    },
@@ -1457,13 +1465,12 @@
     "sources": [
      "https://www.legislation.gov.uk/uksi/2012/1017/contents",
      "https://www.caa.co.uk/atol-protection/",
-     "https://travelweekly.co.uk/articles/42283/agent-fined-after-breaching-atol-rules",
-     "https://www.caa.co.uk/media/etyjyn35/caa-prosecutions-2024-2025.pdf",
+     "https://www.caa.co.uk/atol-protection/atol-compliance/requirements-legal-obligations/atol-enforcement/",
      "seed compliance_laws.json UK-ATOL"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
    }
   },
   {
@@ -1967,7 +1974,7 @@
    "name": "Waste carrier registration: advertising waste removal and skip services",
    "citation": {
     "act": "Control of Pollution (Amendment) Act 1989; The Waste (England and Wales) Regulations 2011 (SI 2011/988)",
-    "section": "COPA 1989 s.1 (offence to transport controlled waste without registration); 2011 Regs regs 26-30 (registration tiers)",
+    "section": "COPA 1989 s.1 (offence to transport controlled waste without registration); 2011 Regs regs 26-30 (registration tiers, England). Reform pending: the Environmental Permitting (Waste Controlling or Transporting) and Relevant Functions of Primary Authorities (Amendment) (England) Regulations 2026 will move England to a permit-based regime, but most of it is NOT YET in force (laid in draft before Parliament 20 May 2026; go-live not yet confirmed, expected sometime in 2027) - the registration duty below remains the current, live obligation. (Scotland's separate 'Transporting waste' EASR registration, live from 1 April 2026 via SEPA, is a different regime and does not apply to this England-scoped record.)",
     "url": "https://www.legislation.gov.uk/ukpga/1989/14"
    },
    "sector": [
@@ -1990,7 +1997,8 @@
     "the site advertises waste removal, skip hire, muck-away, house/site clearance, or the firm carries its own construction waste"
    ],
    "excluded_when": [
-    "no waste carried (design-only, trades that leave waste disposal to the client, though builders carrying own waste need lower-tier registration)"
+    "no waste carried (design-only, trades that leave waste disposal to the client, though builders carrying own waste need lower-tier registration)",
+    "the incoming England permit-based waste transporter regime (Environmental Permitting (Waste Controlling or Transporting) Regulations 2026) is NOT yet in force; do not assert a permit-holder requirement as a current breach until commencement (not yet confirmed, expected 2027) - only the current CBDU registration duty is a live, assertable obligation today"
    ],
    "website_obligations": [
     {
@@ -2017,7 +2025,7 @@
    },
    "enforcement": [],
    "intel": {
-    "why_matters": "Councils actively trawl Facebook and web ads for unregistered waste carriers; fly-tipping traced to a job makes the carrier and sometimes the customer liable.",
+    "why_matters": "Councils actively trawl Facebook and web ads for unregistered waste carriers; fly-tipping traced to a job makes the carrier and sometimes the customer liable. A reform (Environmental Permitting (Waste Controlling or Transporting) Regulations 2026) will replace registration with a criminal-record-checked permit regime, but it is not yet in force; the current CBDU registration is what to check today.",
     "regulator_asks_first": "What is your waste carrier registration number, and is it on the EA public register?",
     "relevance_hook": "For skip and clearance firms, the CBDU number on the site is both a legal necessity and the top trust signal customers are told to check."
    },
@@ -2025,12 +2033,14 @@
     "sources": [
      "https://www.legislation.gov.uk/ukpga/1989/14",
      "https://environment.data.gov.uk/public-register/view/search-waste-carriers-brokers",
+     "https://www.gov.uk/government/publications/reforming-the-waste-carrier-broker-and-dealer-system/reforming-the-waste-carrier-broker-and-dealer-system",
+     "https://www.legislation.gov.uk/ukdsi/2026/9780348283471",
      "https://www.buckinghamshire.gov.uk/news/registered-waste-carrier-fined-for-illegal-fly-tipping-in-bucks/",
      "seed compliance_laws.json NEON-UK-ENV-AGENCY (narrowed to the carrier-registration website duty)"
     ],
     "seed_status": "corrected",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "verified_date": "2026-07-19",
+    "last_synced": "2026-07-19"
    }
   }
  ]
