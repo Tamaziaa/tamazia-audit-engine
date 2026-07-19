@@ -117,17 +117,15 @@ function fromReviewComments(file) {
     [/nitpick|trivial|style/i, 'note'],
   ];
   return JSON.parse(fs.readFileSync(file, 'utf8')).map((c) => {
-    // Strip HTML comments, looping until stable so no residual opener/closer survives (a partial strip
-    // could re-form a live "<!--" from an overlap). Both comment-end forms are handled: the standard
-    // "-->" and the rarer "--!>" (an HTML spec-legal comment end); "--!?>" matches either. First the
-    // paired block, then any residual unpaired opener/closer, repeated until the string stops changing.
-    let raw = String(c.body || '');
-    let prevRaw = null;
-    while (prevRaw !== raw) {
-      prevRaw = raw;
-      raw = raw.replace(/<!--[\s\S]*?--!?>/g, '').replace(/<!--|--!?>/g, '');
-    }
-    const body = raw.trim();
+    // Sanitise the review-comment body for a plain-text markdown ledger cell. First remove HTML comment
+    // blocks (both end forms, the standard "-->" and the spec-legal "--!>") for readability, then strip
+    // EVERY angle bracket as the final, security-complete step: with no "<" or ">" left, no HTML element
+    // or comment can survive or re-form, so this is complete single-character sanitisation (the ledger is
+    // plain markdown, never rendered as HTML, and a title has no need for angle brackets).
+    const body = String(c.body || '')
+      .replace(/<!--[\s\S]*?--!?>/g, '')
+      .replace(/[<>]/g, '')
+      .trim();
     const lvl = (LEVEL.find((x) => x[0].test(body)) || [null, 'warning'])[1];
     const title = (body.match(/\*\*(.+?)\*\*/) || [null, body.slice(0, 90)])[1];
     return makeFinding({
