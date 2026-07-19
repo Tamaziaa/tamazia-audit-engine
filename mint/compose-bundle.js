@@ -47,22 +47,27 @@ const REGISTER_DEADLINE_MS = 6000;
 
 // normaliseOpts(opts) -> the injected surfaces + the clock, with production defaults. fetchFn defaults to
 // the real safe http/https primitive; launchBrowser/registersFetchFn default to production transports.
+// fnOr(v, fallback) -> v when it is a function, else fallback. The one repeated shape every injectable
+// surface below uses ("an opt override, else the production default"); pulling it out keeps normaliseOpts
+// itself a flat object literal with no inline conditionals (CodeScene Complex Method).
+function fnOr(v, fallback) { return typeof v === 'function' ? v : fallback; }
+
 function normaliseOpts(opts) {
   const o = opts || {};
   return {
-    fetchFn: typeof o.fetchFn === 'function' ? o.fetchFn : createFetchFn({ deadlineMs: o.perPageMs }),
-    launchBrowser: typeof o.launchBrowser === 'function' ? o.launchBrowser : null,
-    fetchLink: typeof o.fetchLink === 'function' ? o.fetchLink : null,
-    registersFetchFn: typeof o.registersFetchFn === 'function' ? o.registersFetchFn : makeRegistersFetch(REGISTER_DEADLINE_MS),
+    fetchFn: fnOr(o.fetchFn, createFetchFn({ deadlineMs: o.perPageMs })),
+    launchBrowser: fnOr(o.launchBrowser, null),
+    fetchLink: fnOr(o.fetchLink, null),
+    registersFetchFn: fnOr(o.registersFetchFn, makeRegistersFetch(REGISTER_DEADLINE_MS)),
     env: o.env || process.env,
-    now: typeof o.now === 'function' ? o.now : Date.now,
-    log: typeof o.log === 'function' ? o.log : null,
+    now: fnOr(o.now, Date.now),
+    log: fnOr(o.log, null),
     crawlOpts: o.crawlOpts || {},
     // TEST-ONLY seam (DEFECT-6, CodeRabbit PR #25 comment 3610846889): threaded through to BOTH browser
     // lanes' own resolvePlaywrightLauncher() calls so a test can deterministically prove the "no Playwright
     // driver installed" path for either lane, without depending on whether the optionalDependency happens
     // to be present in node_modules. Production never sets this.
-    resolveChromium: typeof o.resolveChromium === 'function' ? o.resolveChromium : undefined,
+    resolveChromium: fnOr(o.resolveChromium, undefined),
   };
 }
 
