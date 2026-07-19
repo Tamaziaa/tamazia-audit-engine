@@ -715,20 +715,23 @@ test('CLI smoke test: --print-hashes against a fixture directory prints one dete
 test('discoverPacks() against the real catalogue/packs/ succeeds now every committed sidecar carries a current CR-2 qa-approval header', () => {
   // Constitution/caution C-201: the P2 law-verification wave hash-stamped every QA'd sidecar's
   // approval header (`node catalogue/compile.js --print-hashes`, then a human legal-QA sign-off
-  // per pack) - this is the graduated state predicted by the prior version of this test. Six packs
-  // have a sidecar and a valid, current header and must be INCLUDED; uk-tech-media-industrial has
-  // no sidecar at all (by design, a parallel workstream not yet QA'd) and must be EXCLUDED, never
-  // thrown.
+  // per pack) - this is the graduated state predicted by the prior version of this test. uk-tech-
+  // media-industrial's adversarial legal-QA (2026-07-19) initially withheld `verdict=approved`
+  // pending two compile-blocking enforcement-URL corrections, a currency note, two dead-link
+  // replacements and a sector-tag fix; all were independently re-verified at official sources and
+  // applied, and the sidecar was re-stamped `verdict=approved` at the corrected pack's sha256 - so
+  // all seven packs now have a sidecar with a valid, current header and must be INCLUDED, with
+  // nothing excluded for a missing/stale sidecar.
   const { included, excluded } = compile.discoverPacks();
   const includedCells = included.map((p) => p.cellName).sort();
   assert.deepStrictEqual(
     includedCells,
-    ['uk-healthcare', 'uk-legal', 'uk-universal', 'us-healthcare', 'us-legal', 'us-universal'],
-    'expected exactly the six QA-stamped packs to be included'
+    ['uk-healthcare', 'uk-legal', 'uk-tech-media-industrial', 'uk-universal', 'us-healthcare', 'us-legal', 'us-universal'],
+    'expected exactly the seven QA-stamped packs to be included'
   );
   assert.ok(
-    excluded.some((e) => e.cell === 'uk-tech-media-industrial' && e.reason === 'no legal-QA sidecar'),
-    'expected uk-tech-media-industrial to stay excluded (no sidecar yet), not thrown'
+    !excluded.some((e) => e.reason === 'no legal-QA sidecar'),
+    'expected no pack to be excluded for a missing legal-QA sidecar'
   );
 });
 
@@ -741,8 +744,9 @@ test('--print-hashes against the real catalogue/packs/ prints a deterministic sh
     const expectedSha = compile.computePackSha(f.absPath);
     assert.ok(stdout.includes(f.cellName + '  ' + expectedSha), 'expected --print-hashes stdout to include ' + f.cellName + '  ' + expectedSha);
   }
-  // uk-tech-media-industrial has no .QA.md sidecar in this repo (by design); --print-hashes must
-  // still hash it, since generating the hash is the very first step towards writing that sidecar.
+  // uk-tech-media-industrial now has an approved .QA.md sidecar; --print-hashes still hashes every
+  // pack unconditionally (sidecar-independent), since generating the hash is also the first step
+  // towards RE-stamping a sidecar after a pack correction, not only writing one from scratch.
   assert.ok(realFiles.some((f) => f.cellName === 'uk-tech-media-industrial'));
 });
 

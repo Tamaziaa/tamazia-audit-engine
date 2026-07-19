@@ -150,6 +150,8 @@ function refusal(reason, manifest) {
  *   fetchFn / launchBrowser / registersFetchFn   evidence-lane transports (composeBundle; default real).
  *   llmCall / providers                          the adjudication seam (default: the built free+anchor chain).
  *   sqlFn / putFn / liveFetch / truthPackFn       the persistence + post-write doors (default: the real doors).
+ *   truthPackDeadlineMs                          a CAP (ms) on the truthPackFn call (default: post-write-
+ *                                                 assertions.js's TRUTH_PACK_DEADLINE_MS, Rule 8/9).
  *   catalogue                                    the compiled catalogue (default: catalogue/dist/catalogue.v1.json).
  *   now / env / log / generatedAt / table / adjudicateDeadlineMs
  */
@@ -173,7 +175,7 @@ async function mint(url, opts = {}) {
   const persisted = await persist(payload, { env: cfg.env, generatedAt: cfg.generatedAt, table: opts.table, sqlFn: opts.sqlFn, putFn: opts.putFn });
   const postWrite = await assertMinted({
     row: persisted.row, payload, liveUrl: persisted.liveUrl,
-    opts: { sqlFn: opts.sqlFn, liveFetch: opts.liveFetch, truthPackFn: opts.truthPackFn, table: opts.table, env: cfg.env },
+    opts: { sqlFn: opts.sqlFn, liveFetch: opts.liveFetch, truthPackFn: opts.truthPackFn, truthPackDeadlineMs: opts.truthPackDeadlineMs, table: opts.table, env: cfg.env },
   });
 
   return {

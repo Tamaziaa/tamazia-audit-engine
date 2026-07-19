@@ -1,0 +1,477 @@
+{
+  "seo": {
+    "psi": {
+      "state": "not_probed"
+    },
+    "cwv": {
+      "state": "not_probed"
+    },
+    "onpage": {
+      "state": "not_probed"
+    },
+    "security": {
+      "state": "not_probed"
+    },
+    "a11y": {
+      "state": "not_probed"
+    },
+    "tech": {
+      "state": "not_probed"
+    },
+    "keywordSummary": {
+      "state": "not_probed"
+    },
+    "psiAudits": {
+      "state": "not_probed"
+    },
+    "keywords": [
+      {
+        "term": null,
+        "state": "not_probed"
+      }
+    ],
+    "note": "SEO signals were not probed in this audit run; no on-page, performance or keyword measurements were taken."
+  },
+  "geo": {
+    "entityReadiness": {
+      "state": "not_probed"
+    },
+    "shareOfVoice": {
+      "state": "not_probed"
+    },
+    "radar": {
+      "state": "not_probed"
+    },
+    "schema": {
+      "state": "not_probed"
+    },
+    "citations": {
+      "state": "not_probed"
+    },
+    "sourceGap": {
+      "state": "not_probed"
+    },
+    "fix": {
+      "state": "not_probed"
+    },
+    "engines": [
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      },
+      {
+        "engine": null,
+        "state": "not_probed"
+      }
+    ],
+    "rootCause": {
+      "state": "not_probed",
+      "chain": [
+        {
+          "label": null,
+          "state": "not_probed"
+        },
+        {
+          "label": null,
+          "state": "not_probed"
+        },
+        {
+          "label": null,
+          "state": "not_probed"
+        },
+        {
+          "label": null,
+          "state": "not_probed"
+        }
+      ]
+    },
+    "note": "AI and GEO visibility were not probed in this audit run; no engine, entity or citation signals were measured."
+  },
+  "competitors": {
+    "bestKeyword": {
+      "state": "not_probed"
+    },
+    "youDr": {
+      "state": "not_probed"
+    },
+    "cols": {
+      "state": "not_probed"
+    },
+    "drBars": {
+      "state": "not_probed"
+    },
+    "rows": [
+      {
+        "name": null,
+        "state": "not_probed"
+      }
+    ],
+    "note": "The competitive set was not probed in this audit run; no competitor was identified and no ranking was measured."
+  },
+  "dims": [
+    {
+      "key": "dim-1",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-2",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-3",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-4",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-5",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-6",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-7",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-8",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-9",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    },
+    {
+      "key": "dim-10",
+      "label": null,
+      "score": null,
+      "state": "not_probed"
+    }
+  ],
+  "trajectory": [
+    {
+      "state": "not_probed",
+      "note": "A trajectory was not projected in this audit run."
+    }
+  ],
+  "pricing": [
+    {
+      "tier": null,
+      "state": "not_probed"
+    }
+  ],
+  "pricingNotes": {
+    "state": "not_probed",
+    "note": "Pricing analysis was not probed in this audit run."
+  },
+  "upsellProof": {
+    "state": "not_probed",
+    "note": "Pricing analysis was not probed in this audit run."
+  },
+  "score": {
+    "state": "not_probed"
+  },
+  "grade": {
+    "state": "not_probed"
+  },
+  "scoreBand": {
+    "state": "not_probed"
+  },
+  "scoring": {
+    "formula": {
+      "state": "not_probed"
+    },
+    "why": {
+      "state": "not_probed"
+    },
+    "inputs": {
+      "state": "not_probed"
+    },
+    "bands": [
+      {
+        "state": "not_probed"
+      }
+    ],
+    "note": "A headline score was not computed in this audit run; no score is asserted."
+  },
+  "exec": {
+    "state": "not_probed",
+    "note": "An executive summary was not composed in this audit run."
+  },
+  "glossary": {
+    "state": "not_probed"
+  },
+  "heat": {
+    "state": "not_probed"
+  },
+  "heatRows": {
+    "state": "not_probed"
+  },
+  "heatCols": {
+    "state": "not_probed"
+  },
+  "projected": {
+    "wk12": {
+      "state": "not_probed"
+    },
+    "wk24": {
+      "state": "not_probed"
+    }
+  },
+  "fixes": [
+    {
+      "state": "not_probed",
+      "note": "A remediation plan was not composed in this audit run."
+    }
+  ],
+  "meta": {
+    "company": "Harbourgate Estates",
+    "domain": "harbourgate-estates.example",
+    "sector": "real-estate",
+    "country": "UK",
+    "date": "2026-07-19"
+  },
+  "jurisdiction": {
+    "bound": [
+      "UK"
+    ],
+    "primary": "UK",
+    "abstained": false
+  },
+  "findings": [
+    {
+      "record_id": "UK_CPUT_2008",
+      "state": "violation",
+      "kind": "presence-breach",
+      "artifact": {
+        "type": "quote",
+        "text": "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges",
+        "page_url": "https://harbourgate-estates.example/sell"
+      },
+      "framework": "Consumer Protection from Unfair Trading Regulations 2008",
+      "statutory_citation": "Consumer Protection from Unfair Trading Regulations 2008, Regulation 3",
+      "page_url": "https://harbourgate-estates.example/sell",
+      "voice_tier": "confident",
+      "evidence_quote": "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges",
+      "penalty": {
+        "typical_low": 5000,
+        "typical_high": 20000,
+        "statutory_max": 500000,
+        "currency": "GBP"
+      },
+      "regulator": "National Trading Standards"
+    },
+    {
+      "record_id": "UK_MLR_2017",
+      "state": "needs_review",
+      "kind": "coverage-gap",
+      "artifact": {
+        "type": "coverage_proof",
+        "pages_crawled": 14,
+        "page_url": "https://harbourgate-estates.example/about"
+      },
+      "framework": "Money Laundering Regulations 2017",
+      "statutory_citation": "Money Laundering Regulations 2017, Regulation 27",
+      "page_url": "https://harbourgate-estates.example/about",
+      "voice_tier": "observation",
+      "description": "no published customer due-diligence or supervision statement was found on the crawled pages",
+      "penalty": {
+        "typical_low": 10000,
+        "typical_high": 50000,
+        "statutory_max": null,
+        "currency": "GBP"
+      },
+      "regulator": "HMRC"
+    }
+  ],
+  "applicability": {
+    "assessed": [
+      {
+        "record_id": "UK_CPUT_2008",
+        "framework": "Consumer Protection from Unfair Trading Regulations 2008",
+        "state": "violation"
+      },
+      {
+        "record_id": "UK_MLR_2017",
+        "framework": "Money Laundering Regulations 2017",
+        "state": "needs_review"
+      }
+    ],
+    "assessedCompliant": [],
+    "excludedCount": 1
+  },
+  "notLegalAdvice": "This automated audit is not legal advice; findings are evidence-backed observations for your review and verification with your own advisers.",
+  "frameworks": [
+    {
+      "code": "UK_CPUT_2008",
+      "name": "Consumer Protection from Unfair Trading Regulations 2008",
+      "regulator": "National Trading Standards",
+      "jurisdiction": "UK",
+      "citation": "Consumer Protection from Unfair Trading Regulations 2008, Regulation 3",
+      "penalty": {
+        "typical_low": 5000,
+        "typical_high": 20000,
+        "statutory_max": 500000,
+        "currency": "GBP"
+      },
+      "binding": true,
+      "state": "violation",
+      "findings": [
+        {
+          "record_id": "UK_CPUT_2008",
+          "state": "violation",
+          "kind": "presence-breach",
+          "artifact": {
+            "type": "quote",
+            "text": "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges",
+            "page_url": "https://harbourgate-estates.example/sell"
+          },
+          "framework": "Consumer Protection from Unfair Trading Regulations 2008",
+          "statutory_citation": "Consumer Protection from Unfair Trading Regulations 2008, Regulation 3",
+          "page_url": "https://harbourgate-estates.example/sell",
+          "voice_tier": "confident",
+          "evidence_quote": "we guarantee the lowest fees on the high street and are fully compliant, with no hidden charges",
+          "penalty": {
+            "typical_low": 5000,
+            "typical_high": 20000,
+            "statutory_max": 500000,
+            "currency": "GBP"
+          },
+          "regulator": "National Trading Standards"
+        }
+      ]
+    },
+    {
+      "code": "UK_MLR_2017",
+      "name": "Money Laundering Regulations 2017",
+      "regulator": "HMRC",
+      "jurisdiction": "UK",
+      "citation": "Money Laundering Regulations 2017, Regulation 27",
+      "penalty": {
+        "typical_low": 10000,
+        "typical_high": 50000,
+        "statutory_max": null,
+        "currency": "GBP"
+      },
+      "binding": true,
+      "state": "needs_review",
+      "findings": [
+        {
+          "record_id": "UK_MLR_2017",
+          "state": "needs_review",
+          "kind": "coverage-gap",
+          "artifact": {
+            "type": "coverage_proof",
+            "pages_crawled": 14,
+            "page_url": "https://harbourgate-estates.example/about"
+          },
+          "framework": "Money Laundering Regulations 2017",
+          "statutory_citation": "Money Laundering Regulations 2017, Regulation 27",
+          "page_url": "https://harbourgate-estates.example/about",
+          "voice_tier": "observation",
+          "description": "no published customer due-diligence or supervision statement was found on the crawled pages",
+          "penalty": {
+            "typical_low": 10000,
+            "typical_high": 50000,
+            "statutory_max": null,
+            "currency": "GBP"
+          },
+          "regulator": "HMRC"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "critical": 1,
+    "high": 0,
+    "standard": 1,
+    "total": 2
+  },
+  "confirmed": 1,
+  "screenedLabel": "Screened the catalogue",
+  "frameworksAssessed": 3,
+  "frameworksBinding": 2,
+  "rulesChecked": 7,
+  "exposure": {
+    "value": 12500,
+    "currency": "GBP",
+    "label": "median enforcement exposure"
+  },
+  "exposureFull": {
+    "value": 42500,
+    "currency": "GBP",
+    "label": "median exposure including items under review"
+  },
+  "exposureNote": "Exposure is the midpoint of each statute family's typical enforcement band, de-duplicated to one figure per family; the statutory ceiling shown is the single highest maximum across breached families, never a sum of maxima. Figures follow each statute's own currency and are not converted.",
+  "exposureWaterfall": {
+    "steps": [
+      {
+        "family": "consumer protection from unfair trading regulations 2008",
+        "typical_low": 5000,
+        "typical_high": 20000,
+        "familyCeiling": 500000,
+        "currency": "GBP",
+        "state": "violation"
+      },
+      {
+        "family": "money laundering regulations 2017",
+        "typical_low": 10000,
+        "typical_high": 50000,
+        "familyCeiling": null,
+        "currency": "GBP",
+        "state": "needs_review"
+      }
+    ],
+    "ceiling": {
+      "value": 500000,
+      "label": "statutory ceiling",
+      "currency": "GBP"
+    }
+  }
+}

@@ -288,22 +288,58 @@ const TAXONOMY = [
   {
     class: 'exposure-error',
     description: 'Fine maths wrong: statutory maxima summed, cross-law cap borrow, wrong currency, hardcoded fine-rate regexes, £0 collapse after a field rename, voluntary code showing a statutory fine.',
-    catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    catching_gate: 'payload/composer/compose.test.js',
+    // RE-ATTRIBUTED (CodeRabbit, 2026-07-19, truth-pack.js:206 thread): this class's core historical failure
+    // is the PRODUCER computing the wrong figure (statutory maxima summed, cross-law cap borrowed) - not a
+    // render disagreeing with a payload that was already wrong. render-proof/truth-pack.spec.js (the render
+    // truth-pack) can only prove the RENDER matches whatever payload.exposure/exposureWaterfall already say;
+    // a wrong figure computed upstream would render-match itself perfectly and pass truth-pack cleanly, so
+    // truth-pack alone is not an honest "guarded" claim for THIS class's core failure mode. The gate that
+    // actually proves the maths right is payload/composer/compose.test.js's dedicated exposure tests:
+    // "exposure never sums statutory maxima: headline is the band-midpoint sum, far below the single ceiling
+    // (C-094)" and "exposure de-dupes to one figure per family (two records, same citation.act -> one step)"
+    // directly exercise buildExposure() in payload/composer/compose.js. render-proof/truth-pack.spec.js
+    // remains a real, additional, but DISTINCT guard: it catches a render that drifts from a correct payload
+    // (the exposure-headline rule, C-094/C-096) - a different mechanism this class's caution pointers also
+    // name, but not the one this row's catching_gate claims to own.
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-094', 'C-095', 'C-096', 'C-097', 'C-098', 'C-099', 'C-100', 'C-101', 'C-103', 'C-105', 'C-106'],
   },
   {
     class: 'consistency-error',
     description: 'The rendered page disagreeing with the payload: three different framework counts, headline number on no card, hollow cards, invented enforcement filler, jurisdiction claimed with 0 frameworks.',
     catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 T3b: render-proof/truth-pack.spec.js LANDED. Three checker rules cover this class -
+    // money-provenance (every rendered GBP amount traces to a payload figure, C-112/C-114/C-115),
+    // framework-provenance (every violation/needs_review framework name is shown and no law-name-shaped
+    // string outside the payload/catalogue set appears, Rule 2/C-112) and voice (a needs_review name never
+    // co-occurs with a confident-breach phrase, C-111) - plus the standing not-legal-advice line (C-200).
+    // Each is earned by a seeded known-bad; wired into the mint via mint/post-write-assertions.js.
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-111', 'C-113', 'C-114', 'C-115', 'C-116', 'C-117', 'C-118', 'C-119', 'C-124', 'C-125'],
   },
   {
     class: 'render-security-freshness',
     description: 'Stale/insecure render surface: hand-maintained asset version served stale bundles, HMAC gated on an unbound secret, superseded pages served 200 as current.',
     catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P0', shipped: true,
+    // GUARDED as of P4 T3b, FOR THE FRESHNESS SUBCASE ONLY (narrowed, CodeRabbit 2026-07-19,
+    // taxonomy.js:324 thread). render-proof/truth-pack.spec.js LANDED. Its freshness check (C-122/C-123)
+    // fails a render whose generatedAt is missing/unparseable or older than maxAgeDays at the INJECTED clock
+    // (no ambient Date.now in the pure checker); this half is unconditional and genuinely live on every mint
+    // - earned by a seeded stale-stamp and a seeded missing-generatedAt known-bad.
+    //
+    // The HMAC subcase is a SEPARATE, NOT-YET-ENFORCED failure mode and this row's "guarded" status does NOT
+    // cover it: checkSecurity()'s sig+exp check in render-proof/truth-pack.js only runs when opts.requireHmac
+    // is true, and requireHmac stays FALSE everywhere in the live mint path until the website binds
+    // AUDIT_HMAC_SECRET end-to-end (docs/discovery/digest-website-render.md: the HMAC block is currently
+    // inert, the only live access barrier today is the 8-char hash). The code is real and unit-tested
+    // (the requireHmac:true known-bad in truth-pack.spec.js proves the CHECK itself works when asked to run),
+    // but a check nobody ever asks to run in production is not a live guard against the HMAC-gated-on-an-
+    // unbound-secret defect this class's description names - "dead security code is theatre" (C-122) applies
+    // to the disabled state exactly as much as to a missing gate. Do not flip any defect entry tagged against
+    // the HMAC failure mode to this row without first (a) binding AUDIT_HMAC_SECRET end-to-end on the website
+    // and (b) a deterministic CI test that exercises the mint with requireHmac actually turned on.
+    status: 'guarded', phase: null, past_severity: 'P0', shipped: true,
     caution: ['C-121', 'C-122', 'C-123', 'C-126'],
   },
   {
@@ -345,8 +381,21 @@ const TAXONOMY = [
   {
     class: 'coverage-truth',
     description: 'Coverage claimed that was never computed: "all 400+ frameworks screened", a compliance_unassessed flag nothing read, a rule falling back to the whole corpus when its target page was unfetched.',
-    catching_gate: 'render-proof/truth-pack.spec.js',
-    status: 'gap', phase: 'P4', past_severity: 'P1', shipped: true,
+    catching_gate: 'payload/composer/compose.test.js',
+    // RE-ATTRIBUTED (CodeRabbit, 2026-07-19, truth-pack.js:206 thread, "Also applies to: 367-372"): the same
+    // producer-vs-render split as exposure-error above. render-proof/truth-pack.spec.js's counts-coherence
+    // rule (C-117/C-118) can only prove the RENDER shows whatever frameworksBinding/frameworksAssessed/
+    // rulesChecked the payload ALREADY carries - a count never computed upstream (this class's own
+    // description: "a compliance_unassessed flag nothing read", "'all 400+ frameworks screened'") would
+    // render-match itself perfectly and pass truth-pack cleanly. The gate that actually proves the COUNTS
+    // were computed is payload/composer/compose.test.js's "the three framework counts read connect() counts
+    // VERBATIM, and fall back to the same door when absent" and "screenedLabel reflects the site-level
+    // coverage state (honest limited-read marker)", which exercise buildCoverageCounts()/screenedLabel() in
+    // payload/composer/compose.js directly against connect()'s real applicability counts (never a hand-typed
+    // magic total). render-proof/truth-pack.spec.js remains a real, additional, but DISTINCT render-drift
+    // guard (its own counts-coherence rule, now extended in P4 T3b to also check frameworksAssessed) - not
+    // the mechanism this row's catching_gate claims to own for the class's core "never computed" defect.
+    status: 'guarded', phase: null, past_severity: 'P1', shipped: true,
     caution: ['C-118', 'C-125'],
   },
 ];
