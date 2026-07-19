@@ -312,6 +312,20 @@ function _winnerDominates(topDistinct, rivalDistinct) {
   return topDistinct >= DOMINANCE_MIN_CUES && topDistinct >= DOMINANCE_RATIO * rivalDistinct;
 }
 
+// _conflictAbstain: the multidisciplinary-conflict decision. Returns the abstain envelope (winner null, with
+// the conflicting families named) when the top family faces a GENUINE tie - two or more rival families at
+// the floor AND a top that does NOT dominate (deny-by-default, Rule 6) - or null when the top should
+// classify because its cues dominate rivals whose mentions are incidental. Pulled out so _textWinner stays
+// flat (the CodeScene Complex-Method cap); the #28 regression fix lives in the _winnerDominates guard here.
+function _conflictAbstain(candidates, top, rival, minCues) {
+  const conflict = _rivalFamiliesAtFloor(candidates, top.family, minCues);
+  const rivalDistinct = rival ? rival.distinct : 0;
+  if (conflict.size >= 2 && !_winnerDominates(top.distinct, rivalDistinct)) {
+    return { winner: null, rival, top, conflict: Array.from(conflict) };
+  }
+  return null;
+}
+
 function _textWinner(candidates, minCues, selfIdFamilies) {
   if (!candidates.length) return { winner: null, rival: null };
   const selfId = _selfIdWinner(candidates, minCues, selfIdFamilies);
@@ -320,15 +334,7 @@ function _textWinner(candidates, minCues, selfIdFamilies) {
   const rival = candidates.find((c) => c.family !== top.family) || null;
   const rivalDistinct = rival ? rival.distinct : 0;
   if (top.distinct < minCues || top.distinct <= rivalDistinct) return { winner: null, rival, top };
-  // Abstain on a multidisciplinary conflict ONLY when it is a genuine tie: two or more rival families at
-  // the floor AND a top family that does not dominate (deny-by-default, Rule 6). A dominant winner
-  // classifies over rivals whose cues are incidental, so a content-rich real firm is no longer refused at
-  // the sector door for merely mentioning a rival domain's words (the #28 regression fix).
-  const conflict = _rivalFamiliesAtFloor(candidates, top.family, minCues);
-  if (conflict.size >= 2 && !_winnerDominates(top.distinct, rivalDistinct)) {
-    return { winner: null, rival, top, conflict: Array.from(conflict) };
-  }
-  return { winner: top, rival };
+  return _conflictAbstain(candidates, top, rival, minCues) || { winner: top, rival };
 }
 
 // ---------------------------------------------------------------------------------------------
