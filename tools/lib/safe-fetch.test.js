@@ -110,6 +110,15 @@ test('resolveNavigableUrl returns "" for genuinely unparseable input (the caller
   assert.equal(sf.resolveNavigableUrl(null), '');
 });
 
+test('CodeRabbit PR #25 (round 3): resolveNavigableUrl refuses any non-http(s) scheme, never handing a real browser a local-file/script/data target', () => {
+  assert.equal(sf.resolveNavigableUrl('file:///etc/passwd'), '', 'a file: target must never reach page.goto()');
+  assert.equal(sf.resolveNavigableUrl('javascript:alert(1)'), '');
+  assert.equal(sf.resolveNavigableUrl('data:text/html,<script>alert(1)</script>'), '');
+  assert.equal(sf.resolveNavigableUrl('blob:https://lomond.co.uk/x'), '');
+  // an http(s) target is unaffected by the scheme floor (the common, safe path stays exactly as before).
+  assert.equal(sf.resolveNavigableUrl('https://lomond.co.uk'), 'https://lomond.co.uk/');
+});
+
 test('acceptedSiteSet: the set of registrable domains that count as this site', () => {
   assert.deepEqual([...sf.acceptedSiteSet('www.example.com')], ['example.com']);
   assert.deepEqual([...sf.acceptedSiteSet('https://blog.example.co.uk/x')], ['example.co.uk']);
