@@ -81,3 +81,31 @@ at runtime via `applicability/connect.js` and the schema chain, so declaring the
 |---|---|---|---|
 | `llm/evals/run.js` | the blocking LLM-eval harness (precision/abstain-rate over `llm/evals/fixtures/`); a gate CI drives (`.github/workflows/llm-eval.yml`), never a mint step - the mint never calls the eval harness | Aman | it stays a CI gate; the mint never calls it, so it remains dormant to `mint/` by design |
 | `llm/prompts/adjudicate.js` | a prompt/schema builder (`buildAdjudicationPrompt`) whose verdict enum imports the one door `breach/adjudicator/verdict.js`; the LIVE adjudicator builds its prompt from `breach/adjudicator/prompt.js`, not this module, so nothing on the mint path requires it. Tested (`adjudicate.test.js`) | Aman | a future adjudicator prompt consolidation onto this builder, or its removal if the two prompt surfaces are unified onto `breach/adjudicator/prompt.js` |
+
+## enforcement/ (WS-Enforcement: mining pipeline - PRODUCES artefacts, not yet CONSUMED by the mint)
+
+The enforcement-mining pipeline (collectors + the `EnforcementAction` store + the derived
+violation-lexicon and penalty-precedent outputs) is a deliberately standalone workstream per its own
+brief: "Wire nothing into the live mint path yet - this workstream PRODUCES the data/artefacts;
+consumption comes when the detector registry (WS0-dependent) lands." Every module below is fully
+tested (`node --test`, including real-fixture and known-bad-calibration cases per `enforcement/*.test.js`)
+and exercised end to end via its own CLI/library entry points (`enforcement/derive/lexicon.js`,
+`enforcement/derive/precedent.js`, each collector's `collect()`); none is called from `mint/index.js` or
+`mint/worker.js`, by design, until a later workstream wires the detector registry to consume the derived
+lexicon proposals and penalty-precedent ranges. See `enforcement/README.md` for the full module map.
+
+| Module | Reason | Owner | Unblocks when |
+|---|---|---|---|
+| `enforcement/store/schema.js` | the `EnforcementAction` row shape + validator; consumed only by other `enforcement/` modules and their tests | Aman | a future WS wires `enforcement/derive/*` output into the catalogue-authoring or applicability path |
+| `enforcement/store/store.js` | the NDJSON store loader/writer; consumed only by `enforcement/collectors/*`, `enforcement/derive/*` and their tests | Aman | same as above |
+| `enforcement/collectors/lib/fetcher.js` | the deadline-wrapped fetch primitive; consumed only by `enforcement/collectors/lib/framework.js` and the per-source collectors | Aman | same as above |
+| `enforcement/collectors/lib/framework.js` | the shared fetch->parse->validate orchestration; consumed only by the per-source collectors | Aman | same as above |
+| `enforcement/collectors/lib/text.js` | the dependency-free HTML-to-text stripper + verbatim-quote/entity extraction helpers; consumed only by the per-source collector parsers | Aman | same as above |
+| `enforcement/collectors/asa.js` | ASA (UK ad rulings) collector; a live `collect()` entry point, not called from `mint/` | Aman | same as above |
+| `enforcement/collectors/ico.js` | ICO (UK data protection) collector; a live `collect()` entry point, not called from `mint/` | Aman | same as above |
+| `enforcement/collectors/cnil.js` | CNIL (France) collector; a live `collect()` entry point, not called from `mint/` | Aman | same as above |
+| `enforcement/collectors/ftc.js` | FTC (US) collector; a live `collect()` entry point, not called from `mint/` | Aman | same as above |
+| `enforcement/collectors/ocr.js` | HHS OCR (US HIPAA) collector; live-fetch blocked this session (hhs.gov 403), parser proven against a synthetic fixture, not called from `mint/` | Aman | same as above, plus a founder-resolved egress path to hhs.gov for live collection |
+| `enforcement/collectors/gdprhub.js` | GDPRhub (noyb) collector; live-fetch blocked this session (Anubis anti-bot challenge), parser proven against a synthetic fixture, not called from `mint/` | Aman | same as above, plus a headless-browser lane able to solve the Anubis challenge |
+| `enforcement/derive/lexicon.js` | derives violation-lexicon proposals per law_id from the store; a CLI/library entry point, not called from `mint/` | Aman | a future WS reads `enforcement/derive/out/lexicon-proposals/*.json` into the catalogue-authoring workflow |
+| `enforcement/derive/precedent.js` | derives penalty-precedent ranges per law_id/currency from the store; a CLI/library entry point, not called from `mint/` | Aman | a future WS renders `enforcement/derive/out/precedent-ranges.json` alongside the statutory maximum in the report |

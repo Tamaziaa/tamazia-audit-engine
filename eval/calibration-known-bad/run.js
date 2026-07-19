@@ -155,7 +155,7 @@ const CALIBRATIONS = [
   {
     name: 'register-nonmatch-rejected',
     description: 'a non-empty HTTP-200 register response that is not a real name match must yield no row (C-004)',
-    fixtures: ['p3-register-http200-nonmatch.json', 'p3-register-multi-register-nonmatch.json'],
+    fixtures: ['p3-register-http200-nonmatch.json', 'p3-register-multi-register-nonmatch.json', 'p3-register-npi-nonmatch.json'],
     checkerCandidates: ['evidence/registers/registers.js'],
   },
   {
@@ -303,6 +303,34 @@ const CALIBRATIONS = [
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-domassert-label-no-false-accusation.js'],
   },
 
+  // ---- WS0 taxonomy one-door gate (tools/taxonomy-onedoor/check.js, Constitution Rule 22) ----
+  {
+    name: 'ws0-taxonomy-second-door',
+    description:
+      'the vocabulary one-door gate (Constitution Rule 22, Kimi WS0 / blueprint 2.3) must flag a second '
+      + 'door for the shared taxonomy: a hardcoded multi-segment SECTOR-PATH literal (a healthcare / '
+      + 'aesthetics / injectables path) and a JURISDICTION_AXES declaration authored outside '
+      + 'taxonomy/index.js (the aesthetics-vs-injectables vocabulary that must have exactly one source). '
+      + 'It must NOT flag a non-path dotted signal name or the allowed doors (taxonomy/, facts/vocabulary.js). '
+      + 'The gate scans in-memory + on-disk content so it needs NO compiled catalogue and runs safely before '
+      + 'the catalogue compile in CI.',
+    fixtures: ['ws0-taxonomy-stray-literal.js'],
+    checkerCandidates: ['tools/taxonomy-onedoor/check.js'],
+  },
+
+  // ---- WS0 lane-empty gate (tools/lane-empty-gate/check.js, blueprint 2.2 invariant c) ----
+  {
+    name: 'ws0-lane-empty-array-return',
+    description:
+      'the lane-empty gate (Kimi WS0 / blueprint 2.2 invariant c) must flag an evidence lane ERROR path '
+      + 'that returns an empty array as if it were a value ("empty-arrays-flowing-as-success is how the '
+      + 'blank page rendered clean") instead of a typed LaneError. It must NOT flag a catch that returns a '
+      + 'LaneError, a bare return-[] outside a catch, or a sized new Array(n). AST (acorn) gate; the fixture '
+      + 'is self-sufficient (a lane-shaped function), needs NO compiled catalogue, runs before the compile.',
+    fixtures: ['ws0-lane-empty-return.js'],
+    checkerCandidates: ['tools/lane-empty-gate/check.js'],
+  },
+
   // ---- P6: the dead non-English honesty gate, now wired (repetition-audit-2026-07-19.md class #4, C-022) ----
   {
     name: 'p6-corpus-language-gate-fires',
@@ -310,6 +338,15 @@ const CALIBRATIONS = [
       'breach/proposers/propose.js\'s isNonEnglishGated() has always correctly read bundle.corpus.language, but nothing ever ASSIGNED that field (hidden-defects.md RANK 6), so a non-English site ran English patterns and rendered near-clean instead of honestly unassessed (caution.md C-022). evidence/crawler/language.js is now the producer, wired at crawl.js\'s one corpus-assembly door. Self-driving fixture drives the REAL end-to-end path: detectLanguage() feeding a bundle propose() actually evaluates. POSITIVE control: a confidently non-English corpus carrying a real violating phrase gates to ZERO candidates. NEGATIVE control: the identical phrase in a confidently English corpus still fires normally (the fix does not over-gate). Self-sufficient (a hand-built synthetic catalogue + bundle), runs safely BEFORE the catalogue compile in CI.',
     fixtures: ['p6-corpus-language-gate-fires.js'],
     checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-corpus-language-gate-fires.js'],
+  },
+
+  // ---- P6: the sector-classifier winner-margin fix (RETEST-2026-07-19 blocker #2, the #28 over-abstention) ----
+  {
+    name: 'p6-sector-winner-margin',
+    description:
+      'facts/sector.js\'s #28 multidisciplinary-conflict gate (`_rivalFamiliesAtFloor`) abstained whenever two rival sector families cleared the two-cue floor, IGNORING the winner\'s margin, so a content-rich real firm (londondoctorsclinic: healthcare 32 vs a stray hospitality 7) was refused the whole audit at the sector door - 8/11 replay + 2/3 fresh sites refused (EMPIRICAL-BREACH-AUDITS/RETEST-2026-07-19.md blocker #2). The fix makes the gate respect the winner\'s margin. Self-driving fixture drives facts/sector.js#_textWinner with the REAL empirical scores (POSITIVE: a dominant winner classifies despite 2+ rival families at floor) AND a genuine conglomerate 7/6/6 (NEGATIVE: comparable top-two still abstains, C-007), plus the real-vocabulary resolveSector end-to-end. Self-sufficient (pure _textWinner + facts/vocabulary.js), runs safely BEFORE the catalogue compile in CI.',
+    fixtures: ['p6-sector-winner-margin.js'],
+    checkerCandidates: ['eval/calibration-known-bad/fixtures/p6-sector-winner-margin.js'],
   },
 ];
 

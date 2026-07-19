@@ -1,0 +1,26 @@
+{
+  "domain": "seriousaccidents.com",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://seriousaccidents.com/",
+        "title": "Pines Salomon Personal Injury Lawyers",
+        "text": "Pines Salomon Personal Injury Lawyers, a law firm with offices in San Diego and La Jolla, CA. Over 30 years, our attorneys and lawyers have fought for accident victims. You don't pay unless we win. Our personal injury attorneys handle wrongful death and injury lawsuits."
+      },
+      {
+        "url": "https://seriousaccidents.com/case-results/",
+        "title": "Case Results",
+        "text": "Case Results: $2,500,000 verdict. $1,800,000 settlement. $950,000 verdict. Eleven case results from our attorneys, bare dollar figures, no context."
+      },
+      {
+        "url": "https://seriousaccidents.com/office-directions/",
+        "title": "Office Directions",
+        "text": "Directions to our San Diego office. Hotels Nearby: several resort and hotel options near our law firm for out-of-town clients."
+      }
+    ],
+    "footerText": "Pines Salomon Personal Injury Lawyers, San Diego and La Jolla, CA."
+  },
+  "registers": {}
+}

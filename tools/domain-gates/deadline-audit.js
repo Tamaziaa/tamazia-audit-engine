@@ -35,7 +35,7 @@
 const { runGateCli } = require('../lib/gate-cli');
 const { scanTreeWith, isMetaKey, lineOf, memberPropName: propName } = require('./acorn-scan');
 
-const SCAN_DIRS = ['evidence', 'llm', 'breach'];
+const SCAN_DIRS = ['evidence', 'llm', 'breach', 'enforcement'];
 const SKIP_DIRS = /^(node_modules|\.git|out|packs|dist|fixtures)$/;
 
 // The closed set of KNOWN injected external-call identifiers. This is the whole FP surface: nothing

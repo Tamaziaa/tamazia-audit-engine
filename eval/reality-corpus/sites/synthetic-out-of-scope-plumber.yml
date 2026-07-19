@@ -1,0 +1,36 @@
+# eval/reality-corpus/sites/synthetic-out-of-scope-plumber.yml
+# SYNTHETIC NEGATIVE MEMBER (not a real crawled site): an out-of-scope UK small business (a plumber) with
+# no legal or healthcare regulatory nexus at all. Neither legal.* nor healthcare.* laws should bind; the
+# only applicable records are universal, sector-independent ones (PECR, trading disclosures). This is the
+# corpus's control for "does the engine correctly NOT bind an out-of-scope sector", the mirror image of
+# the sector-abstain regression: an engine that is over-cautious in the other direction would either
+# refuse this site outright (acceptable: sector UNKNOWN with reason) or, worse, force-bind a legal/
+# healthcare record onto it (a wrong-attach false accusation).
+slug: synthetic-out-of-scope-plumber
+domain: example-plumber.invalid
+role: negative-out-of-scope
+brand:
+  legal: "Example Plumbing Services Ltd"
+  trading: "Example Plumbing Services"
+establishment:
+  - jurisdiction: UK
+    tier: A
+    basis: "synthetic: 'registered with Companies House, company number 09876543' and a complete registered-office address with postcode stated on-page (see the fixture's footerText) - CodeRabbit PR #32 flagged the earlier version of this fixture for stating only a bare company number and a partial address with no 'Companies House' wording; both are now explicit in the fixture text itself."
+audience:
+  - jurisdiction: UK
+    tier: C
+    basis: "synthetic: local plumbing and heating engineer, no cross-border trade"
+sector_paths: []
+labelled_breaches: []
+applicable_law_ids:
+  - UK_TRADING_DISCLOSURES
+  - UK_PECR_COOKIES_MARKETING
+known_clean_laws:
+  - UK_MHRA_POM_AD_BAN
+  - UK_CQC_REGISTRATION
+  - UK_SRA_TRANSPARENCY
+  - UK_GDC_ADVERTISING
+known_regression: "none observed (synthetic fixture, not run against a live audit in the empirical wave). Exists purely as a structural control fixture for the reality-corpus gate itself: any run that attaches a legal.* or healthcare.* law to this firm is a wrong-attach false accusation by construction, independent of engine version."
+source: "synthetic, authored for this corpus per KIMI-K3-DEEP-BLUEPRINT-2026-07-20.md section 3.1 (deliberate negatives: out-of-scope sectors)"
+snapshot_source: synthetic
+snapshot_note: "Entirely hand-authored page text (registered office block, plumbing service descriptions, a Google Analytics tag, no legal/healthcare vocabulary at all); not derived from a real crawl."

@@ -1,0 +1,21 @@
+{
+  "domain": "vanfamilymedical.com",
+  "fetched_at": "2026-07-19T00:00:00.000Z",
+  "snapshot_source": "manual-transcription",
+  "corpus": {
+    "pages": [
+      {
+        "url": "https://vanfamilymedical.com/",
+        "title": "Van Family Medical",
+        "text": "Van Family Medical, family medicine and telehealth. We serve patients across 11 US states with online doctor and telemedicine consultations, testosterone and hormone therapy, weight-loss injections. Head Office: 488 West Main Ste. 101 Van, Texas 75790. Phone: 903-963-6850."
+      },
+      {
+        "url": "https://vanfamilymedical.com/botox-fillers/",
+        "title": "Botox and Lip Filler in Van, TX",
+        "text": "Botox and Lip Filler service line offered alongside our family medicine and telehealth practice in Van, Texas."
+      }
+    ],
+    "footerText": "Van Family Medical, Head Office: 488 West Main Ste. 101 Van, Texas 75790, 903-963-6850."
+  },
+  "registers": {}
+}

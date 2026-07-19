@@ -43,13 +43,16 @@ const { enrichVerifiedCandidates } = require('../breach/enrich.js');
 const { adjudicate } = require('../breach/adjudicator/adjudicate.js');
 const { compose } = require('../payload/composer/compose.js');
 const { validatePayload } = require('../payload/contract');
+const { assertMintablePayload } = require('./quote-verify-gate.js');
 const { buildChain } = require('../llm/providers/chain.js');
 const { buildLlmCall } = require('./llm-seam.js');
 const { persist } = require('./persist.js');
 const { assertMinted } = require('./post-write-assertions.js');
+const { runProbes } = require('../probes/index.js');
 
 const ADJUDICATE_DEADLINE_MS = 60000; // total adjudication ceiling (Rule 8/9); a CAP, never a floor.
 const LLM_CALL_DEADLINE_MS = 20000;   // per-call ceiling handed to the llm seam.
+const PROBE_DEADLINE_MS = 45000;      // the seo/geo probe lane's own ceiling (probes/index.js's own cap).
 
 // loadCatalogue() -> the compiled catalogue artifact (Rule 2: the ONE source of law facts). Required
 // lazily so a caller may inject opts.catalogue (a subset in tests) without the default artifact being read.
@@ -114,19 +117,47 @@ async function runBreachLane(bundle, applicable, catalogue, llm, cfg) {
   return { findings, report };
 }
 
-// buildPayload(bundle, facts, app, findings, cfg, stageManifest) -> the contract-valid v1.1 payload.
-// compose() reads connect()'s counts VERBATIM (threaded whole via `applicability`), joins each finding to
-// its catalogue record, and runs the contract validator on its own output (throws on any violation - fail
-// closed). stageManifest (DEFECT-6) is the SAME manifest composeBundle() already produced for this mint;
-// passing it through (never re-derived - Rule 1) lets compose() project a LOUD payload.coverageCaveats
-// entry for any browser lane (observe/domAssert) that did not run, so its absence is visible to the client,
-// not just to the engine's own stageManifest.
-function buildPayload(bundle, facts, app, findings, cfg, stageManifest) {
+// companyNameOf(facts, domain) -> the best available display name off the one identity door (Rule 1:
+// never re-derived), falling back to the bare domain - fed to the geo-probe / ai-readiness probes as the
+// "who are we asking AI about" name; never invented beyond what identity.js already resolved.
+function companyNameOf(facts, domain) {
+  const id = facts && facts.identity;
+  const display = id && id.display_name && id.display_name.value;
+  const legal = id && id.legal_name && id.legal_name.value;
+  return display || legal || domain;
+}
+
+// buildPayload(bundle, facts, app, ctx) -> Promise<the contract-valid v1.1 payload>. ctx = { findings,
+// cfg, stageManifest, opts } (an options object per the repo's <=5-positional-arg house style; see
+// llm/router.js's own callProvider/collectVotes for the same pattern). compose() reads connect()'s
+// counts VERBATIM (threaded whole via `applicability`), joins each finding to its catalogue record, and
+// runs the contract validator on its own output (throws on any violation - fail closed). ctx.stageManifest
+// (DEFECT-6) is the SAME manifest composeBundle() already produced for this mint; passing it through
+// (never re-derived - Rule 1) lets compose() project a LOUD payload.coverageCaveats entry for any browser
+// lane (observe/domAssert) that did not run.
+//
+// SEO/GEO (WS-SEO-GEO): probes/index.js's runProbes() runs the real PageSpeed/keyword-map/authority/
+// ai-readiness/geo-probe lane and returns { seo, geo, competitors } already shaped to compose()'s
+// contract; those, plus the crawl corpus itself (previously never threaded - the whole reason every
+// prior mint emitted `not_probed` SEO/GEO), are passed straight into compose(). The probe lane is
+// dependency-injectable via ctx.opts.runProbes (tests inject a fake so node:test never touches the
+// network) and is ALWAYS deadline-bounded (runProbes' own internal cap; Rule 8/9) so a slow SEO API can
+// never hold the compliance mint hostage - a probe outage degrades only the marketing section (see
+// probes/index.js's fail-open justification), never the mint's compliance-critical path.
+async function buildPayload(bundle, facts, app, ctx) {
+  const { findings, cfg, stageManifest, opts = {} } = ctx;
   const pages = bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
   const site = coverageContract.computeCoverage(pages, sectorFamilyOf(facts));
+  const runProbesFn = typeof opts.runProbes === 'function' ? opts.runProbes : runProbes;
+  const { seo, geo, competitors } = await runProbesFn({
+    domain: bundle.domain, corpus: bundle.corpus, sector: sectorFamilyOf(facts),
+    city: opts.city || null, company: companyNameOf(facts, bundle.domain),
+    env: cfg.env, log: cfg.log, deadlineMs: opts.probeDeadlineMs || PROBE_DEADLINE_MS,
+  });
   return compose({
     domain: bundle.domain, generatedAt: cfg.generatedAt, facts, applicability: app,
     findings, coverage: { site }, familyKeyFn: conflicts.familyKey, stageManifest,
+    corpus: bundle.corpus, seo, geo, competitors,
   });
 }
 
@@ -172,9 +203,16 @@ async function mint(url, opts = {}) {
   const llm = resolveLlm(opts, cfg);
   const { findings, report } = await runBreachLane(bundle, app.applicable, catalogue, llm, cfg);
 
-  const payload = buildPayload(bundle, facts, app, findings, cfg, stageManifest);
+  const payload = await buildPayload(bundle, facts, app, { findings, cfg, stageManifest, opts });
   const missing = validatePayload(payload);
   if (missing.length) throw new Error('mint: compose produced a contract-invalid payload (construction bug, failing closed): ' + missing.join(', '));
+
+  // WS0 mint-time quote-verification gate (P0-2), defence-in-depth BEFORE the write and additive to the
+  // post-write assertions below. A v1.1 payload (what compose emits today) passes straight through; a v1.2
+  // lattice payload is refused if it carries an unverifiable quote, an unresolvable law_id, or a penalty
+  // absent from the hash-pinned catalogue. The catalogue + evidence store are threaded through opts so a
+  // future v1.2 compose is verified; today this is a proven no-op on the v1.1 path (Rule 19).
+  assertMintablePayload(payload, { catalogue, evidenceStore: opts.evidenceStore });
 
   const persisted = await persist(payload, { env: cfg.env, generatedAt: cfg.generatedAt, table: opts.table, sqlFn: opts.sqlFn, putFn: opts.putFn });
   const postWrite = await assertMinted({
