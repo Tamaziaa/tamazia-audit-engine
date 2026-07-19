@@ -342,6 +342,18 @@ const SECTORS = {
   energy: {
     label: 'Energy & utilities',
     sub: {
+      // P6 connection-integrity: UK_OFGEM_SUPPLY_LICENCE restricts itself to these two leaves, which
+      // the detection tree could not previously emit as distinct leaves (only the coarse 'general'
+      // energy leaf existed). Listed BEFORE general so a licensed supplier/broker resolves to the
+      // specific leaf the record targets.
+      'energy-suppliers': {
+        detect: /\benergy suppl(?:y|ier|iers)\b|\belectricity suppl(?:y|ier|iers)\b|\bgas suppl(?:y|ier|iers)\b/i,
+        sample: 'a licensed energy supplier for gas supply and electricity supply',
+      },
+      'energy-brokers': {
+        detect: /\benergy brokers?\b|\bbusiness energy broker\b|\benergy switching service\b/i,
+        sample: 'an energy broker offering a business energy broker and energy switching service',
+      },
       general: {
         detect: /\benergy supplier\b|\butility\b|\belectricity supplier\b|\brenewable energy\b|\bsolar (?:panel|energy)\b|\bofgem\b/i,
         sample: 'an energy supplier offering renewable energy and solar panels',
@@ -369,6 +381,56 @@ const SECTORS = {
   media: {
     label: 'Media & broadcasting',
     sub: {
+      // P6 connection-integrity: the catalogue restricts UK_OSA_UGC, UK_ODPS_NOTIFICATION and
+      // UK_PRESS_REGULATOR_MEMBERSHIP to these specific content/platform leaves, which the detection
+      // tree could not previously emit (only the coarse 'general' broadcaster/publisher leaf
+      // existed), so those records were unbindable. Listed BEFORE general so a firm that specifically
+      // self-identifies with one of these platform types resolves to the specific leaf; general
+      // remains the fallback for a plain broadcaster/publishing house/media company.
+      'content-studios': {
+        detect: /\bcontent studio\b|\bcreative content studio\b|\bvideo production studio\b/i,
+        sample: 'our content studio and video production studio create branded content',
+      },
+      'ugc-platforms': {
+        detect: /\buser[- ]generated content\b|\bugc platform\b/i,
+        sample: 'a UGC platform hosting user-generated content from our members',
+      },
+      forums: {
+        detect: /\bdiscussion forums?\b|\bmessage boards?\b|\bcommunity forums?\b/i,
+        sample: 'join our discussion forums and community message boards',
+      },
+      communities: {
+        detect: /\bonline communit(?:y|ies)\b|\bmember communit(?:y|ies)\b/i,
+        sample: 'our online community and member community connect users worldwide',
+      },
+      'video-sharing': {
+        detect: /\bvideo[- ]sharing (?:platform|site|service)\b|\bupload and share videos?\b/i,
+        sample: 'a video-sharing platform where you can upload and share videos',
+      },
+      vod: {
+        detect: /\bvideo on demand\b|\bvod service\b|\bvod platform\b/i,
+        sample: 'our video on demand service (VOD platform) streams shows on demand',
+      },
+      streaming: {
+        detect: /\bstreaming service\b|\bstream (?:tv|movies|shows)\b|\blive streaming platform\b/i,
+        sample: 'a streaming service to stream TV and movies on our live streaming platform',
+      },
+      'broadcast-catchup': {
+        detect: /\bcatch[- ]up tv\b|\bcatchup service\b|\bmissed (?:a )?programme\b/i,
+        sample: 'watch catch-up TV on our catchup service if you missed a programme',
+      },
+      'news-publishers': {
+        detect: /\bnews publisher\b|\bnews website\b|\bbreaking news\b/i,
+        sample: 'a news publisher running a news website with breaking news coverage',
+      },
+      magazines: {
+        detect: /\bmagazine publisher\b|\bonline magazine\b|\bprint magazine\b/i,
+        sample: 'a magazine publisher producing an online magazine and print magazine',
+      },
+      'local-news': {
+        detect: /\blocal news\b|\bregional news\b|\bcommunity newspaper\b/i,
+        sample: 'your local news and regional news, serving the community newspaper readership',
+      },
       general: {
         detect: /\bbroadcast(?:er|ing)?\b|\bpublishing house\b|\bnewspaper\b|\bmagazine\b|\bmedia (?:company|agency|group)\b/i,
         sample: 'a broadcasting and publishing house running a newspaper and magazine',
@@ -378,6 +440,28 @@ const SECTORS = {
   marketing: {
     label: 'Marketing & advertising',
     sub: {
+      // P6 connection-integrity (uk-tech-media-industrial wave): the catalogue restricts
+      // UK_PECR_EMARKETING and UK_INFLUENCER_AD_DISCLOSURE to these specific agency-activity leaves,
+      // which the detection tree could not previously emit (only the coarse 'general' marketing leaf
+      // existed), so those records were unbindable. Listed BEFORE general so a firm that specifically
+      // self-identifies with one of these activities resolves to the specific leaf; general remains
+      // the fallback for a plain marketing/advertising/SEO/branding agency.
+      'digital-agencies': {
+        detect: /\bdigital agency\b|\bdigital marketing agency\b|\bcreative digital agency\b/i,
+        sample: 'we are a digital marketing agency and creative digital agency',
+      },
+      'lead-generation': {
+        detect: /\blead generation\b|\blead gen agency\b|\bpay[- ]per[- ]lead\b/i,
+        sample: 'our lead generation agency runs pay-per-lead campaigns',
+      },
+      'email-marketing': {
+        detect: /\bemail marketing\b|\bemail campaigns?\b|\be-?shots?\b/i,
+        sample: 'email marketing and email campaigns, including e-shots, for your business',
+      },
+      'influencer-marketing': {
+        detect: /\binfluencer marketing\b|\binfluencer campaigns?\b|\bcreator partnerships?\b/i,
+        sample: 'influencer marketing and influencer campaigns built on creator partnerships',
+      },
       general: {
         detect: /\bmarketing agency\b|\badvertising agency\b|\bseo agency\b|\bdigital marketing\b|\bbranding agency\b/i,
         sample: 'a digital marketing agency and advertising agency, a specialist SEO agency',
@@ -387,6 +471,50 @@ const SECTORS = {
   manufacturing: {
     label: 'Manufacturing',
     sub: {
+      // P6 connection-integrity: UK_UKCA_CE_MARKING_CLAIMS, UK_ENERGY_LABELLING_ONLINE and
+      // UK_CPR305_DOP (manufacturing half of its dual sector) restrict themselves to these
+      // product-category leaves, which the detection tree could not previously emit. Listed BEFORE
+      // general so a firm making/selling a regulated product category resolves to the specific leaf.
+      // 'ppe' is deliberately scoped to a manufacturer/supplier phrasing, never a bare 'PPE' or
+      // 'personal protective equipment' alone, so a hospital or clinic's own infection-control page
+      // ("staff must wear appropriate PPE") can never fire it (the anti-misclassification discipline,
+      // C-059) - the record targets the maker/seller of PPE, not a wearer of it.
+      electronics: {
+        detect: /\belectronics manufactur(?:er|ing)\b|\bconsumer electronics\b|\belectronic goods\b/i,
+        sample: 'an electronics manufacturer making consumer electronics and electronic goods',
+      },
+      machinery: {
+        detect: /\bmachinery manufactur(?:er|ing)\b|\bindustrial machinery\b|\bheavy machinery\b/i,
+        sample: 'a machinery manufacturer producing industrial machinery and heavy machinery',
+      },
+      toys: {
+        detect: /\btoy manufactur(?:er|ing)\b|\btoys? importer\b|\btoy safety\b/i,
+        sample: 'a toy manufacturer and toys importer meeting toy safety standards',
+      },
+      ppe: {
+        detect: /\bppe manufactur(?:er|ing|ers)\b|\bppe suppl(?:y|ier|iers)\b|\bpersonal protective equipment (?:manufactur(?:er|ing)|suppl(?:y|ier|iers))\b/i,
+        sample: 'a PPE manufacturer and personal protective equipment supplier',
+      },
+      'consumer-products': {
+        detect: /\bconsumer products? manufactur(?:er|ing)\b|\bconsumer goods manufactur(?:er|ing)\b/i,
+        sample: 'a consumer products manufacturer and consumer goods manufacturer',
+      },
+      appliances: {
+        detect: /\bhousehold appliances?\b|\bwhite goods\b|\bappliance manufactur(?:er|ing)\b/i,
+        sample: 'household appliances and white goods from our appliance manufacturer',
+      },
+      lighting: {
+        detect: /\blighting (?:products?|manufactur(?:er|ing)|showroom)\b|\bled lighting (?:products?|range)\b/i,
+        sample: 'lighting products from our lighting showroom, including an LED lighting range',
+      },
+      hvac: {
+        detect: /\bhvac\b|\bheating, ventilation and air conditioning\b|\bair conditioning installation\b/i,
+        sample: 'HVAC systems: heating, ventilation and air conditioning, plus air conditioning installation',
+      },
+      'electronics-retail': {
+        detect: /\belectronics retailer\b|\belectrical retailer\b|\bconsumer electronics retailer\b/i,
+        sample: 'an electronics retailer and electrical retailer selling consumer electronics',
+      },
       general: {
         detect: /\bmanufactur(?:e|ing|er)\b|\bfactory\b|\bproduction plant\b|\bindustrial equipment\b|\bfabrication\b/i,
         sample: 'a manufacturer running a factory and production plant for fabrication',
@@ -396,6 +524,66 @@ const SECTORS = {
   construction: {
     label: 'Construction',
     sub: {
+      // P6 connection-integrity: UK_CPR305_DOP (construction half), UK_GAS_SAFE_REGISTRATION,
+      // UK_BSA_BUILDING_CONTROL_REGISTRATION and UK_WASTE_CARRIER_REGISTRATION restrict themselves to
+      // these trade-specific leaves, which the detection tree could not previously emit (only the
+      // coarse 'general' contractor leaf existed). Listed BEFORE general so a firm in one of these
+      // specific trades resolves to its own leaf; general remains the fallback for a plain
+      // construction company/building contractor (and is also where the canonical sub_sector tag
+      // 'builders' binds via SUB_SECTOR_SYNONYMS below - general's own detect already matches
+      // 'builders', so a dedicated 'builders' leaf would only duplicate it).
+      // 'waste-removal' is deliberately scoped to domestic/commercial waste phrasing ('rubbish
+      // removal', 'junk removal', 'general waste removal', 'waste clearance company'), never a bare
+      // 'waste removal', so a dental or medical practice's own clinical-waste compliance page can
+      // never fire it (the anti-misclassification discipline, C-059).
+      'construction-products': {
+        detect: /\bconstruction products?\b|\bbuilding products? manufactur(?:er|ing)\b/i,
+        sample: 'construction products from our building products manufacturer',
+      },
+      'building-materials': {
+        detect: /\bbuilding materials?\b|\bconstruction materials?\b|\bbuilders?['’]? merchants?\b/i,
+        sample: 'building materials and construction materials sold through our builders merchants',
+      },
+      'heating-engineers': {
+        detect: /\bheating engineers?\b|\bgas engineers?\b|\bcentral heating installation\b/i,
+        sample: 'our heating engineers and gas engineers handle central heating installation',
+      },
+      plumbers: {
+        detect: /\bplumbers?\b|\bplumbing services?\b|\bemergency plumber\b/i,
+        sample: 'local plumbers offering plumbing services and an emergency plumber callout',
+      },
+      'boiler-installers': {
+        detect: /\bboiler install(?:ation|ers?)\b|\bnew boiler fitted\b/i,
+        sample: 'boiler installation from our boiler installers; get a new boiler fitted',
+      },
+      'building-control': {
+        detect: /\bbuilding control (?:approver|body|services?)\b/i,
+        sample: 'a building control approver offering building control services',
+      },
+      'approved-inspectors': {
+        detect: /\bapproved inspectors?\b|\bregistered building inspector\b/i,
+        sample: 'our approved inspectors work as a registered building inspector',
+      },
+      'fire-consultants': {
+        detect: /\bfire consultants?\b|\bfire safety consultants?\b|\bfire engineering consultants?\b/i,
+        sample: 'our fire consultants provide fire safety consultants and fire engineering consultants services',
+      },
+      'skip-hire': {
+        detect: /\bskip hire\b|\bskips? for hire\b/i,
+        sample: 'skip hire in your area; skips for hire from 4 to 12 yards',
+      },
+      'waste-removal': {
+        detect: /\brubbish removal\b|\bjunk removal\b|\bgeneral waste removal\b|\bwaste clearance company\b/i,
+        sample: 'rubbish removal, junk removal and general waste removal from our waste clearance company',
+      },
+      demolition: {
+        detect: /\bdemolition\b|\bdemolition contractors?\b/i,
+        sample: 'a demolition specialist; our demolition contractors handle full and partial demolition',
+      },
+      'house-clearance': {
+        detect: /\bhouse clearance\b|\bhome clearance\b/i,
+        sample: 'house clearance and home clearance services for the whole property',
+      },
       general: {
         detect: /\bconstruction (?:company|firm)\b|\bbuilding contractor\b|\bcivil engineering\b|\bgroundwork\b|\bbuilders?\b/i,
         sample: 'a construction company and building contractor doing civil engineering',
@@ -405,6 +593,38 @@ const SECTORS = {
   fitness: {
     label: 'Fitness & wellness',
     sub: {
+      // P6 connection-integrity: the catalogue restricts UK_CCR_FITNESS_DISTANCE and
+      // UK_CRA_UNFAIR_TERMS_FITNESS to these specific fitness-activity leaves, which the detection
+      // tree could not previously emit (only the coarse 'general' leaf existed), so those records
+      // were unbindable. Listed BEFORE general so a firm that specifically self-identifies with one
+      // of these activities resolves to the specific leaf; general remains the fallback. 'studios' is
+      // deliberately scoped to FITNESS-studio phrasing ('fitness studio', 'spin studio', 'cycling
+      // studio'), never a bare 'studio', so a real-estate listing for a 'studio apartment' or 'studio
+      // flat' can never fire it (the anti-misclassification discipline, C-059).
+      gyms: {
+        detect: /\bgyms?\b|\bgym membership\b/i,
+        sample: 'join our gym today; gym membership starts from £20 per month',
+      },
+      studios: {
+        detect: /\bfitness studio\b|\bboutique fitness studio\b|\bspin studio\b|\bcycling studio\b/i,
+        sample: 'our boutique fitness studio runs spin studio and cycling studio classes',
+      },
+      'online-coaching': {
+        detect: /\bonline fitness coaching\b|\bonline personal training\b|\bvirtual personal training\b/i,
+        sample: 'online fitness coaching and online personal training delivered virtually',
+      },
+      'fitness-apps': {
+        detect: /\bfitness app\b|\bworkout app\b|\btraining app\b/i,
+        sample: 'download our fitness app for workout and training plans',
+      },
+      'martial-arts': {
+        detect: /\bmartial arts\b|\bkickboxing\b|\bmuay thai\b|\bjiu[- ]jitsu\b|\bkarate\b|\btaekwondo\b/i,
+        sample: 'our martial arts classes include kickboxing, muay thai, jiu-jitsu, karate and taekwondo',
+      },
+      'leisure-clubs': {
+        detect: /\bleisure centre\b|\bleisure club\b|\bhealth club\b|\bsports club\b/i,
+        sample: 'our leisure centre and health club include a sports club for members',
+      },
       general: {
         detect: /\bgym\b|\bfitness (?:studio|centre|club)\b|\bpersonal train(?:er|ing)\b|\bpilates studio\b|\byoga studio\b/i,
         sample: 'a gym and fitness studio with personal training and a yoga studio',
@@ -450,6 +670,25 @@ const SECTORS = {
   automotive: {
     label: 'Automotive',
     sub: {
+      // P6 connection-integrity: UK_FCA_MOTOR_FINANCE_PROMOTIONS restricts itself to these specific
+      // vehicle-sales leaves, which the detection tree could not previously emit. Listed BEFORE
+      // general so a firm that specifically self-identifies resolves to the specific leaf.
+      'car-dealers': {
+        detect: /\bcar dealers?\b|\bused cars? for sale\b|\bmain dealer\b/i,
+        sample: 'a car dealer with used cars for sale as a main dealer',
+      },
+      'vehicle-leasing': {
+        detect: /\bvehicle leasing\b|\bcar leasing\b|\bcontract hire\b|\bpersonal contract purchase\b/i,
+        sample: 'vehicle leasing and car leasing through contract hire or personal contract purchase',
+      },
+      'motorbike-dealers': {
+        detect: /\bmotorbike dealers?\b|\bmotorcycle dealers?\b|\bmoped dealers?\b/i,
+        sample: 'a motorbike dealer and motorcycle dealer stocking new mopeds',
+      },
+      'van-sales': {
+        detect: /\bvan sales\b|\bcommercial vehicle sales\b|\bvans? for sale\b/i,
+        sample: 'van sales and commercial vehicle sales; vans for sale today',
+      },
       general: {
         detect: /\bcar dealership\b|\bautomotive\b|\bgarage\b|\bvehicle (?:repair|service)\b|\bauto repair\b/i,
         sample: 'a car dealership and automotive garage for vehicle repair',
@@ -633,6 +872,18 @@ const SUB_SECTOR_SYNONYMS = {
   chambers: 'general',       // the barristers detection leaf key
   'law-firm': 'solicitors',  // US singular form
   attorney: 'solicitors',    // US term for a solicitor-equivalent
+  // P6 connection-integrity (uk-tech-media-industrial wave): the catalogue names UK_ATOL_LICENSING /
+  // UK_PACKAGE_TRAVEL_2018's target population with these three tags, all of which denote the SAME
+  // firm the hospitality.travel detection leaf already catches (its own detect already fires on
+  // 'tour operator', 'travel agent', 'atol', 'abta', 'package holiday') - alternative names for the
+  // one leaf the classifier emits, not a coarser category, so they belong here rather than as new
+  // detection nodes (the same discipline as gp-clinic/hospital/attorney above).
+  'travel-agents': 'travel',
+  'tour-operators': 'travel',
+  'online-travel': 'travel',
+  // 'builders' denotes the same firm the construction.general leaf already catches (its own detect
+  // already fires on the bare word 'builders'); a dedicated 'builders' leaf would only duplicate it.
+  builders: 'general',
 };
 
 // CLASSIFIER_SUB_SECTORS: every sub key the classifier can actually emit (every SECTORS[x].sub key).
