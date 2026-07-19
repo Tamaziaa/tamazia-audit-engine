@@ -70,6 +70,27 @@ test('resultLine: OK only when zero contradictions, zero errors, zero red-team e
   assert.match(resultLine(dirty), /^RESULT: FAIL/);
 });
 
+// ── B4 (R2/C-236): resultLine is vacuity-aware - a vacuous run is ALWAYS FAIL, never a stale OK ────────
+test('resultLine: a vacuous run is FAIL with the C-236 reason even when the summary itself looks perfectly clean', () => {
+  const perfectlyCleanSummary = { contradicting: 0, errored: 0, redTeamEscapes: 0 };
+  const line = resultLine(perfectlyCleanSummary, { vacuous: true, completeLanes: 3, reproduced: 0 });
+  assert.match(line, /^RESULT: FAIL/);
+  assert.match(line, /C-236/);
+  assert.match(line, /vacuous/i);
+});
+
+test('resultLine: omitting vacuity (or vacuity.vacuous:false) preserves the exact prior OK/FAIL behaviour', () => {
+  const clean = { contradicting: 0, errored: 0, redTeamEscapes: 0 };
+  assert.match(resultLine(clean), /^RESULT: OK/);
+  assert.match(resultLine(clean, undefined), /^RESULT: OK/);
+  assert.match(resultLine(clean, { vacuous: false, completeLanes: 0, reproduced: 0 }), /^RESULT: OK/);
+});
+
+test('resultLine: a non-vacuous but otherwise dirty run is unaffected by a vacuity object that did not fire', () => {
+  const dirty = { contradicting: 1, errored: 0, redTeamEscapes: 0 };
+  assert.match(resultLine(dirty, { vacuous: false }), /^RESULT: FAIL - see detail above/);
+});
+
 test('printHumanReport: runs without throwing on a representative result set (smoke test)', () => {
   const originalLog = console.log;
   const lines = [];
@@ -88,4 +109,51 @@ test('printHumanReport: runs without throwing on a representative result set (sm
   }
   assert.ok(lines.some((l) => l.includes('eval/e2e/run-pipeline')));
   assert.ok(lines.some((l) => l.includes('RESULT:')));
+});
+
+// ── B4 (R2/C-236): printHumanReport prints EXACTLY one RESULT line, and it is FAIL on a vacuous run,
+// with no preceding contradictory RESULT: OK line above it. ──────────────────────────────────────────
+test('printHumanReport: a vacuous run (extra.vacuity.vacuous:true) prints ONE result line, and it is FAIL', () => {
+  const originalLog = console.log;
+  const lines = [];
+  console.log = (...args) => lines.push(args.join(' '));
+  try {
+    const stageTable = [{ stage: 'facts', status: 'ran' }];
+    // A row set that is itself perfectly clean (no contradiction, no error, no red-team escape) - the
+    // exact shape that used to make resultLine(summary) alone print a stale "RESULT: OK".
+    const rows = [{ domain: 'clean.example', role: 'test', knownBreaches: [{ id: 'KB1', status: 'missed' }], knownNonBreaches: [], contradiction: false }];
+    const redteam = { present: false, rows: [] };
+    const summary = summarise(rows, redteam);
+    const vacuity = { vacuous: true, completeLanes: 1, reproduced: 0 };
+    const totals = { reproduced: 0, total: 1 };
+    printHumanReport(stageTable, rows, redteam, summary, { totals, vacuity });
+  } finally {
+    console.log = originalLog;
+  }
+  const resultLines = lines.filter((l) => l.startsWith('RESULT:'));
+  assert.strictEqual(resultLines.length, 1, 'exactly one RESULT: line, never a preceding OK followed by a corrective FAIL');
+  assert.match(resultLines[0], /^RESULT: FAIL/);
+  assert.match(resultLines[0], /C-236/);
+  assert.ok(lines.some((l) => l.includes('reproduced: 0/1')), 'the always-on usefulness gauge still prints');
+  assert.ok(lines.some((l) => l.includes('vacuous: 0 known_breach reproduced across 1 complete lanes')));
+});
+
+test('printHumanReport: a non-vacuous clean run still prints exactly one RESULT: OK line', () => {
+  const originalLog = console.log;
+  const lines = [];
+  console.log = (...args) => lines.push(args.join(' '));
+  try {
+    const stageTable = [{ stage: 'facts', status: 'ran' }];
+    const rows = [{ domain: 'clean.example', role: 'test', knownBreaches: [{ id: 'KB1', status: 'reproduced' }], knownNonBreaches: [], contradiction: false }];
+    const redteam = { present: false, rows: [] };
+    const summary = summarise(rows, redteam);
+    const vacuity = { vacuous: false, completeLanes: 1, reproduced: 1 };
+    const totals = { reproduced: 1, total: 1 };
+    printHumanReport(stageTable, rows, redteam, summary, { totals, vacuity });
+  } finally {
+    console.log = originalLog;
+  }
+  const resultLines = lines.filter((l) => l.startsWith('RESULT:'));
+  assert.strictEqual(resultLines.length, 1);
+  assert.match(resultLines[0], /^RESULT: OK/);
 });

@@ -250,6 +250,11 @@ function suppressed(detectionSpec, kind, reason) {
 // evalPresenceBreach: an 'absence' obligation (PROHIBITED content). A hit in a clean visible sentence is
 // a presence-breach with the verbatim quote as artifact (confidence strong). If every hit was negated /
 // a review, record the abstention. No hit -> clean pass (null).
+// A1 POLARITY SCOPING (C-238): the verbatim prohibited quote is self-sufficient Rule 3 evidence, valid
+// regardless of corpus size or truncation (a cut only removes text, never invents a claim). This path
+// DELIBERATELY never consults absenceInterlock - neither the MIN_PAGES_FOR_ABSENCE floor nor the C-024
+// truncation guard gates a presence-breach; those protect the OPPOSITE polarity (evalAbsenceBreach,
+// C-024/C-025/C-026) and stay untouched. Do not add a corpus-size/truncation guard here.
 function evalPresenceBreach(detectionSpec, pages) {
   if (!detectionSpec.patterns.length) return null;
   const found = findProhibitedQuote(detectionSpec, pages);
@@ -447,6 +452,8 @@ function evaluateSpec(detectionSpec, bundle, coverage, record) {
   if (detectionSpec.page_class !== null && coverageState === 'screened') {
     return [suppressed(detectionSpec, kindForType(detectionSpec.evidence_type), 'page-class coverage screened; a screened rule never proposes (C-029)')];
   }
+  // Polarity split (A1, C-238): 'absence' (PROHIBITION) -> presence-breach path (found quote, never
+  // floor/truncation gated); 'presence' (REQUIREMENT) -> absence-breach path (IS, via absenceInterlock).
   if (detectionSpec.evidence_type === 'absence') return listOf(evalPresenceBreach(detectionSpec, pagesOf(bundle)));
   if (detectionSpec.evidence_type === 'presence') return listOf(evalAbsenceBreach(detectionSpec, bundle, coverageState));
   if (detectionSpec.evidence_type === 'behavioural') return evalBehavioural(detectionSpec, bundle);

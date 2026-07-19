@@ -10,8 +10,17 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'tools', 'sweep', 'out');
 
+// esc(s): a table-cell-safe string. Order matters: backslashes are escaped FIRST. Escaping `|` before
+// `\` lets an input backslash immediately preceding a pipe (a literal "\|") re-arm the pipe as a live
+// table delimiter - the pipe-escape inserts its OWN backslash right before the pipe, so a renderer
+// resolves the original + inserted backslash as one escaped-backslash pair, leaving the pipe unescaped
+// again. Escaping `\` first turns every input backslash into a self-contained `\\` pair before the
+// pipe-escape runs, so its later single backslash is never absorbed by a pre-existing one. Hoisted out
+// of render() (module scope, not render()'s own body) so its own already-over-cap line count grows no
+// further (caution.md C-254: a fix extracts rather than grows an over-cap function).
+const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+
 function render(d) {
-  const esc = (s) => String(s || '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
   const L = [];
 
   L.push('# Tamazia Audit Engine, Findings Ledger');

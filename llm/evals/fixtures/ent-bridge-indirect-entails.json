@@ -1,0 +1,11 @@
+{
+  "kind": "entailment",
+  "name": "ent-bridge-indirect-entails",
+  "class": "known-breach",
+  "note": "FINAL UNIT iteration 3 (bridge-as-glossary): the page quote is only an INDIRECT reference ('wrinkle-relaxing injections') that cannot alone prove the atomic breach claim; the owning record's DEFINITIONAL GLOSSARY, supplied as a SECOND catalogue-rule premise (claim.bridge) with NO prohibition operator, maps that term to the regulated thing, so the premises COMPOSE to entailment and the claim ships. The glossary is trusted catalogue text (Rule 2), not model knowledge (Rule 11/C-147); the prohibition itself stays in adjudication, not here.",
+  "claims": [
+    { "claim": "This website does advertise a prescription only medicine to the public", "premise_source_id": "page1", "premise": "Book in this month for our wrinkle-relaxing injections", "bridge": "The following are indirect references to a prescription only medicine: wrinkle-relaxing injections, fat jab." }
+  ],
+  "scripted_response": { "source_id": "page1", "verdict": "entailment", "rationale": "the page names a term the glossary maps to a prescription only medicine, so the two premises together establish the claim" },
+  "expect": { "ok": [true] }
+}

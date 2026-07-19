@@ -1,0 +1,296 @@
+{
+  "contract": "recorded-llm.v1",
+  "engine": {
+    "providers": [
+      "cloudflare",
+      "groq",
+      "nim",
+      "gemini"
+    ],
+    "recorded_at": "2026-07-18",
+    "prompt_versions": {},
+    "domain": "bsalaw.com",
+    "note": null
+  },
+  "responses": [
+    {
+      "key": "7fc234c839137c4a20f2b30a0dffee1c1d7e06fe98153b5ede836bd37c9c1229",
+      "kind": "adjudicate",
+      "raw": "{\"id\":0,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "2ba76bf10802a7d3c52a0744efd28436723e612de9e6e3bb30ff915131ebc623",
+      "kind": "adjudicate",
+      "raw": "{\"id\":1,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "b85098ba6d4afa162618762c166d1e969083f829c1d0041dc34641d1797dbdb5",
+      "kind": "adjudicate",
+      "raw": "{\"id\":2,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "2cf8d059ce23f09b7be1339d16b3ee511ce3debbb4af5b6e54c821914a5fd1ad",
+      "kind": "adjudicate",
+      "raw": "{\"id\":3,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "96d83f1cceca2efe03c4c525fb36989ba1512edf1eff077bcc930160159f672f",
+      "kind": "adjudicate",
+      "raw": "{\"id\":4,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "b88a4f1fe09f5474e4e08094bb2e2f7bd95c2a42b22e634a9e541656ac4ad6f8",
+      "kind": "adjudicate",
+      "raw": "{\"id\":5,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "197d8b20c2fe8d2664ac18eaebdf69d9d6f1dfa44c4115b08b52ffce985baf8d",
+      "kind": "adjudicate",
+      "raw": "{\"id\":6,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "b72f58dfdc6cf2b60a3df5828b0c36f7cff626f5e0f168679c299e6bf2b1fde6",
+      "kind": "adjudicate",
+      "raw": "{\"id\":7,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "858acb7803f42ccaf8dc3fb441dd3858f5da437e6d8138958b385b333777eaac",
+      "kind": "adjudicate",
+      "raw": "{\"id\":8,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "0de4f07c904c8dc4b50bc4fedceccfff2c6c5ca71f339ea91677584259a199cd",
+      "kind": "adjudicate",
+      "raw": "{\"id\":9,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "7748dc745fe46eee2fb1821ae16f4a67567588c8670fefa074fcad4a9898cb09",
+      "kind": "adjudicate",
+      "raw": "{\"id\":0,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "dae6c8d1a51031738ab5c70a206924c55c73fd2fa52bf7d113181e4594fbd996",
+      "kind": "adjudicate",
+      "raw": "{\"id\":1,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "1ee80ea19eaeb081510906e1fdb287be5db4b1894474a9b6914daed5089f7f10",
+      "kind": "adjudicate",
+      "raw": "{\"id\":2,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "5bc53726c45a57badaac05d29d661d09b2fffd2cc0333edf34c93589ec9cfa21",
+      "kind": "adjudicate",
+      "raw": "{\"id\":3,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "7ebd05fa1040e62dd614fb94f119857a36dd2aad846a586f21c3ad5c70983a48",
+      "kind": "adjudicate",
+      "raw": "{\"id\":4,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "9eff7dfb9e880eefbaec473c1c22e8d186d536c3c85d6ff2d7dd9243c9bfb692",
+      "kind": "adjudicate",
+      "raw": "{\"id\":5,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "31079c41aaa063a1e06f9425bf056708b5ad51aace06ce722c548da1dc2bf205",
+      "kind": "adjudicate",
+      "raw": "{\"id\":6,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "4456728c756836d467d46ef58c939886d661e9c141b91f47ad75e4d8b1b4ec66",
+      "kind": "adjudicate",
+      "raw": "{\"id\":7,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "1c4954a29a6f794d5630ff174a823aec3ee094537e80fba1fdd0188e7807bef4",
+      "kind": "adjudicate",
+      "raw": "{\"id\":8,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "58473608af91e6b4ca96f276c27b9c06758ea69790c998721e154c13fb3f4977",
+      "kind": "adjudicate",
+      "raw": "{\"id\":9,\"verdict\":\"insufficient\",\"reason\":\"No page text is shown to you.\",\"disproof\":null}",
+      "meta": {
+        "provider": "nim",
+        "model": "meta/llama-3.1-8b-instruct"
+      }
+    },
+    {
+      "key": "b33d85e703e1f2b44c5a7dfb868ab4220f586b61abc0cd47565d8e36b9f0254e",
+      "kind": "adjudicate",
+      "raw": "{\"id\":0,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "8570029f5a957d3b07694dacb661b93e5876dc4fe224e96f357993fc8fd89103",
+      "kind": "adjudicate",
+      "raw": "{\"id\":1,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "ee7103852ecd897c17f1180bcdaacf5c9abb4c0fd181017ac9dde4f177c85b59",
+      "kind": "adjudicate",
+      "raw": "{\"id\":2,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "4b69220d6a959ae66ee83025e8320c90b67d3bcbe180ce9377c9ff25a10fc083",
+      "kind": "adjudicate",
+      "raw": "{\"id\":3,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "af8d30dafed1d10a67b2d5315ce049ef3386bc338449374f8dbde7898f475bd6",
+      "kind": "adjudicate",
+      "raw": "{\"id\":4,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "3dcc9c5095eea4a75f11ca0622d2fd2fe953671a3f90f20399826f596015df8a",
+      "kind": "adjudicate",
+      "raw": "{\"id\":5,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "6b1102f48f6771adb83d933230ae0be9893cffe015335244ac8b5823f7659ea9",
+      "kind": "adjudicate",
+      "raw": "{\"id\":6,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "efebbec0181941c710594cfc40fab5e6dc0f95c68f70194f66f6091ea769ba09",
+      "kind": "adjudicate",
+      "raw": "{\"id\":7,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "f75fff054354758aeb019b9ab9554e990ce3cbff81641e84ea68a1c0d328ef33",
+      "kind": "adjudicate",
+      "raw": "{\"id\":8,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "81bbf94aa713fccec3c3413a09c1a6fbaf775c7ea721e73d99112fdfcadc7151",
+      "kind": "adjudicate",
+      "raw": "{\"id\":9,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    },
+    {
+      "key": "02af49242ad67b7a20539289c317dcefb936d4779a3933f9db892173cec1dd08",
+      "kind": "adjudicate",
+      "raw": "{\"id\":0,\"verdict\":\"insufficient\",\"reason\":\"No page text shown\",\"disproof\":null}",
+      "meta": {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    }
+  ]
+}

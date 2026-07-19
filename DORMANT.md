@@ -110,9 +110,41 @@ tested and reachable from its own `.test.js`, but no `mint/` entry point require
 | `llm/gate.js` | the Rule 12 gates 1+2 structural validator (`validateResponse`); tested (`gate.test.js`) and calibrated (2 `p3-llm-*.json` fixtures, wired into `eval/calibration-known-bad/run.js` as `llm-gate`), but no `mint/` entry point calls it yet | Aman | `mint/` requires `llm/gate.js` to validate every adjudicator response |
 | `llm/router.js` | provider routing/quorum (`route`/`quorum`); tested (`router.test.js`, all passing - the earlier synchronous-throw stringification defect is fixed) | Aman | `mint/` requires it |
 | `llm/prompts/adjudicate.js` | prompt/schema builder for the adjudicator (`buildAdjudicationPrompt`); tested (`adjudicate.test.js`); its verdict enum is imported from the one door `breach/adjudicator/verdict.js` (no hyphen/underscore drift) | Aman | `mint/` requires it |
+| `llm/prompts/sanitise.js` | the ONE untrusted-text framing door (`sanitiseSpan`/`docDelimit`, C-134); tested (`sanitise.test.js`, including the U3-B3 byte-identical-corpus proof). Consumed by `llm/prompts/adjudicate.js`, `llm/prompts/entailment.js`, and (from P3-tail Wave-2, C-134 completion) directly by `breach/adjudicator/adjudicate.js`'s own inline `buildPrompt()`/`briefOf()` - the one prompt surface that previously built its CANDIDATES JSON by `JSON.stringify`-ing raw candidate text with no door at all (eval/red-team/fixtures.json's RT-B2 wiring note named this exact gap). None of its four consumers are yet reachable from `mint/` (no `mint/` entry point exists), so this file is dormant in exactly the same sense they are | Aman | `mint/` requires `breach/adjudicator/adjudicate.js` (which requires this directly) for the propose-verify-adjudicate pipeline |
 | `llm/evals/run.js` | the blocking LLM-eval harness (precision/abstain-rate over `llm/evals/fixtures/`); tested (`run.test.js`) and runnable from CI (`.github/workflows/llm-eval.yml`), but no `mint/` entry point calls it - it is a gate CI drives, not a mint step | Aman | it stays a CI gate; the mint never calls it, so it remains dormant to `mint/` by design |
 
 `llm/evals/run.js` + `run.test.js` have now landed (the earlier `.gitkeep`-only note is stale); the harness is reached by CI / `node --test`, never by a `mint/` entry point, so it is declared dormant above ahead of the reachability walk arming.
+
+## Gate 5 (diverse-jury quorum) is NOT wired into the adjudicator path - FOUNDER-VISIBLE DEFERRAL
+
+Constitution Rule 12 names FIVE structural-impossibility LLM gates as a fail-closed AND-chain. Gates 1-4
+(retrieval-gated emission, verbatim-quote re-match, NLI entailment, abstain-by-default confidence floor)
+are live and exercised in-path today via `llm/gate.js`, `breach/verifiers/quote-match.js`,
+`llm/entailment.js` and `breach/adjudicator/verdict.js`. **Gate 5 (a diverse jury of genuinely
+independent model families, any single veto rejects) is NOT wired into the live adjudication path.**
+`breach/adjudicator/adjudicate.js`'s `callGate()` calls `llm/router.js`'s `route()` (free-first,
+first-success routing across one provider chain) for its verdict call, never `llm/router.js`'s own
+`quorum()` (multi-family agreement with veto). This is the SAME true state `eval/e2e/run-real-proof.js`'s
+own header already documents ("Gate 5 ... is NOT invoked by the adjudicator's single-llmCall design in
+the live code") and P3-TAIL-ACCEPTANCE.md's Wave-2 amendment records as a known gap ("Gate 5 ... is not
+wired in the adjudicator path ... its wiring is recorded as an explicit deferral pending founder
+confirmation, tracked in DORMANT.md by R4").
+
+**This is recorded here now, explicitly, rather than left implicit in a driver's header comment:**
+- **Owner:** the dedicated post-P3-tail unit that wires jury quorum into the adjudicator path (not this
+  wave, not U1-resume, not Builder A/B - a named future unit).
+- **Founder-visible constraint:** P0/P1 findings (the highest-severity, most consequential claims a
+  mint could ship) **must not ship to a client mint until Gate 5 lands in the adjudicator path, or the
+  founder explicitly ratifies shipping P0/P1 findings on single-family routing instead.** This is a
+  standing precondition on any future `mint/` wiring of `breach/adjudicator/adjudicate.js`, not merely a
+  note for the next builder to notice by chance.
+- **Why this matters:** Rule 12's own rationale is that "weak judges have high true-positive but very
+  low true-negative rates, so a rejection is more trustworthy than an approval" and a single-provider
+  "quorum" once already hit the same provider twice and was not independent (caution.md C-133;
+  digest-research-llm-agents Pattern 5). Shipping a P0/P1 on one provider's `route()` result alone is
+  exactly the single-judge exposure Gate 5 exists to close.
+- **What is NOT affected:** gates 1-4 remain fully live and unweakened; this deferral is additive risk
+  disclosure, not a statement that the adjudicator is currently unsafe for the gates that ARE wired.
 
 ## Not in this file's scope
 

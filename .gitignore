@@ -21,5 +21,10 @@ catalogue/dist/
 scratch/
 scratch.*
 
+# Real-model proof raw call logs (U1, eval/e2e/run-real-proof.js). Full prompt/output/timing logs for
+# the local reproduction proof; gitignored (may carry crawled site prose; never a key - Rule 16). The
+# committed, sanitised recordings live in eval/e2e/fixtures/recorded/ instead.
+eval/e2e/record/
+
 # OS noise
 .DS_Store

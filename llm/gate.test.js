@@ -204,6 +204,31 @@ test('collectCitations gathers both source_id fields and quote pairs', () => {
   assert.equal(cites.quotes[0].sourceId, 'S1');
 });
 
+// ---- safeRegex: the invalid-pattern fallback (CodeQL js/regex/unmatchable-dollar + unmatchable-caret) ----
+
+test('safeRegex: an invalid pattern falls back to a regex that matches nothing, empty string or any char', () => {
+  const re = gate.safeRegex('(unterminated[group');
+  assert.ok(re instanceof RegExp, 'the fallback is still a real RegExp, never null/undefined');
+  assert.equal(re.test(''), false, 'the fallback must not match the empty string');
+  assert.equal(re.test('x'), false, 'the fallback must not match a single arbitrary char');
+  assert.equal(re.test('anything at all, including newlines\nand punctuation !@#'), false, 'the fallback must not match any string');
+});
+
+test('safeRegex: a schema field whose pattern is invalid is flagged as a violation, never silently passed', () => {
+  const strict = { type: 'string', pattern: '(unterminated[group' };
+  assert.equal(gate.validateSchema('', strict, '$').length, 1, 'an empty string against the fallback still violates (fail-closed)');
+  assert.equal(gate.validateSchema('anything', strict, '$').length, 1, 'no string satisfies the never-match fallback');
+});
+
+test('safeRegex: a valid pattern still compiles and matches/rejects correctly (the fallback did not regress the happy path)', () => {
+  const re = gate.safeRegex('^[0-9]+$');
+  assert.equal(re.test('12345'), true);
+  assert.equal(re.test('abc'), false);
+  const schema = { type: 'string', pattern: '^[0-9]+$' };
+  assert.deepEqual(gate.validateSchema('12345', schema, '$'), []);
+  assert.equal(gate.validateSchema('abc', schema, '$').length, 1);
+});
+
 // ---- calibration self-check ----
 
 test('runCalibration emits a finding for each of the two known-bad p3-llm fixtures', () => {

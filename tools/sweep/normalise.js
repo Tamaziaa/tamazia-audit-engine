@@ -117,7 +117,11 @@ function fromReviewComments(file) {
     [/nitpick|trivial|style/i, 'note'],
   ];
   return JSON.parse(fs.readFileSync(file, 'utf8')).map((c) => {
-    const body = String(c.body || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+    // Sanitise the review-comment body for a plain-text markdown ledger cell by stripping EVERY angle
+    // bracket. This is complete single-character sanitisation: with no "<" or ">" left, no HTML element,
+    // comment or tag can appear or re-form (comment markup degrades to harmless text, acceptable for a
+    // ledger title). The ledger is plain markdown, never rendered as HTML, so this is defence in depth.
+    const body = String(c.body || '').replace(/[<>]/g, '').trim();
     const lvl = (LEVEL.find((x) => x[0].test(body)) || [null, 'warning'])[1];
     const title = (body.match(/\*\*(.+?)\*\*/) || [null, body.slice(0, 90)])[1];
     return makeFinding({

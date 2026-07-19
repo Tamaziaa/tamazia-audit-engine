@@ -28,6 +28,25 @@ const { raceWithDeadline } = require('../../evidence/browser/deadline.js');
 const { classifyEvidenceKind } = require('./evidence-kind.js');
 const { parseVerdict, LLM_VERDICTS, disproofMatches } = require('./verdict.js');
 const { checkEntailment } = require('../../llm/entailment.js'); // Rule 12 gate 3 (NLI), wired below
+// C-134 completion + C-211/C-222 record-key unification (P3-tail Wave-2 Builder B), extracted to
+// ./prompt.js (caution.md C-254: this seam's growth had pushed this file over the 500-line health-gate
+// cap; the fix is to extract a module, never grow the file further - see prompt.js's own header for the
+// full C-134/C-211/C-222 rationale this used to carry inline here). fieldStr is re-imported because
+// this file's own claimFor()/premiseQuote() (the entailment-claim builder, a different seam) also use
+// it; briefOf/systemPrompt/buildPrompt/candidateRefsFor are re-exported below unchanged so every
+// existing caller of this module (adjudicate.test.js, callGate()) sees no shape change at all.
+const { fieldStr, briefOf, systemPrompt, buildPrompt, candidateRefsFor } = require('./prompt.js');
+// The Gate-3 (Rule 12 gate 3) atomic-claim door (P3-tail Wave-2 FINAL UNIT). U1's real-model run proved
+// the NLI hypothesis must be the ATOMIC BREACH CLAIM, not the raw obligation duty (an offending quote
+// CONTRADICTS the duty and Gate 3 wrongly demoted every presence-breach). claimFor() below now sources
+// the hypothesis from this one door instead of the finding's duty text; see claim.js's own header for
+// the derivation and why this is a framing correction, never a loosening.
+// FINAL UNIT iteration 2 also imports bridgeTextFor: for a presence-breach the Gate-3 premise set gains
+// the owning record's OWN verbatim duty text as a SECOND catalogue-sourced premise (the "bridge"), so an
+// indirect-reference quote can compose with the rule's own indirect-reference listing rather than
+// abstaining as bare `neutral`. See claim.js's bridgeTextFor header and docs/P3-TAIL-ACCEPTANCE.md
+// "FINAL UNIT iteration 2". The hypothesis is unchanged; contradiction/neutral still demote.
+const { atomicClaimFor, bridgeTextFor } = require('./claim.js');
 
 const BATCH = 10;                    // findings per LLM call (evidence truncated); a UK firm ~= 3 calls
 const DEFAULT_DEADLINE_MS = 60000;   // total adjudication ceiling; a CAP, never a floor (Rule 8)
@@ -74,86 +93,8 @@ function evidenceText(f) {
   return quote + ' ' + absence;
 }
 
-// ── the compact, quotable brief for ONE finding: everything the model needs and nothing else, so it
-//    cannot read our confidence off the payload and simply agree with us. Decomposed into small helpers
-//    so no single builder stays a "Bumpy Road" (health-gate decision cap). ──────────────────────────────
-function fieldStr(f, key) {
-  return f && f[key] != null ? String(f[key]) : '';
-}
-function hasCheckedUrls(f) {
-  return f && Array.isArray(f.checked_urls) && f.checked_urls.length > 0;
-}
-function firstCheckedUrl(f) {
-  if (f && f.evidence_url) return String(f.evidence_url);
-  if (hasCheckedUrls(f)) return String(f.checked_urls[0]);
-  return '';
-}
-function absenceLine(ae) {
-  if (ae && ae.nearest_quote) return 'NEAREST TEXT ON THE SITE: "' + String(ae.nearest_quote).slice(0, 220) + '"';
-  return 'CLAIM: the required disclosure is ABSENT. Pages checked: ' + ((ae && ae.pages_checked) || 0) + '. No page text is shown to you.';
-}
-function briefLaw(f) {
-  const cite = fieldStr(f, 'statutory_citation');
-  return (cite || fieldStr(f, 'framework')).slice(0, 90);
-}
-function briefEvidence(f, quote) {
-  if (quote) return 'VERBATIM FROM THE SITE: "' + quote.slice(0, 300) + '"';
-  return absenceLine(f && f.absence_evidence);
-}
-function briefOf(f, i) {
-  const quote = fieldStr(f, 'evidence_quote').trim();
-  return {
-    id: i,
-    obligation: fieldStr(f, 'description').slice(0, 240),
-    law: briefLaw(f),
-    kind: quote ? 'PRESENCE: we matched text on the site and claim it breaches' : 'ABSENCE: we claim a required disclosure is missing',
-    evidence: briefEvidence(f, quote),
-    page: firstCheckedUrl(f).slice(0, 120),
-  };
-}
-
-function systemPrompt() {
-  return 'You are a compliance adjudicator. A regular-expression engine has PROPOSED candidate breaches of '
-    + 'law on a company website. Your only job is to rule on each one against the evidence given. You are the '
-    + 'last check before a legal claim is sent to that company. You do not add findings. You do not soften '
-    + 'findings. You rule.';
-}
-
-function promptRules() {
-  return [
-    'HARD RULES:',
-    '  1. Judge ONLY the evidence given. No outside knowledge of this firm. No assumptions about the rest of the site.',
-    '  2. A FIRM WRITING ABOUT A TOPIC IS NOT COMMITTING IT. "We defend clients accused of X" is never evidence of X.',
-    '     A page discussing pornography offences, sex discrimination, fraud or money laundering is a PRACTICE AREA.',
-    '     This is the single most common false positive. Look for it first.',
-    '  3. HTML and technical vocabulary is not site content. A slot tag, a frame tag, a script filename: never evidence.',
-    '  4. For an ABSENCE claim, "no_breach" means the required disclosure IS present in the text you were shown.',
-    '     If you were shown no page text, you CANNOT clear an absence claim: answer "insufficient".',
-    '  5. For EVERY "no_breach" you MUST quote, verbatim, the words from the evidence that disprove the claim, in',
-    '     "disproof". If you cannot quote them, your verdict is "insufficient", not "no_breach".',
-    '  6. Never invent a citation, a penalty, or a finding.',
-  ];
-}
-
-function buildPrompt(ctx, briefs) {
-  return [
-    'FIRM: ' + ctx.domain + ' | SECTOR: ' + ctx.sector + ' | COUNTRY: ' + ctx.country,
-    'For EACH candidate below return a verdict:',
-    '  "breach"       = the evidence, AS GIVEN, establishes a breach of the stated obligation.',
-    '  "no_breach"    = it does not (a FALSE POSITIVE: the matched text means something else in context - a legal',
-    '                   practice area, an HTML tag name, a quotation, a negation, a blog post ABOUT the law - or the',
-    '                   obligation is plainly satisfied by the text shown).',
-    '  "insufficient" = the evidence is too thin to rule either way. Not a breach. Not a clearance.',
-    '',
-    ...promptRules(),
-    '',
-    'CANDIDATES:',
-    JSON.stringify(briefs),
-    '',
-    'Return STRICT JSON only:',
-    '{"verdicts":[{"id":0,"verdict":"breach|no_breach|insufficient","reason":"<=20 words","disproof":"<verbatim quote from the evidence, or null>"}]}',
-  ].join('\n');
-}
+// briefOf/systemPrompt/buildPrompt (the compact per-candidate brief + the model-facing prompt text) now
+// live in ./prompt.js (imported above) - see this file's header and prompt.js's own header for why.
 
 // ── the deterministic rubric handed to the injected gate: it scores structural validity, NEVER the
 //    model's self-reported confidence (C-145). Each sub-check is one small helper (health caps). ────────
@@ -264,9 +205,49 @@ function premiseQuote(f, art) {
   if (art.text != null) return String(art.text);
   return '';
 }
+// hypothesisFor(f) -> the Gate-3 NLI hypothesis (Rule 12 gate 3): the ATOMIC CLAIM, never the raw
+// obligation duty for a presence-breach (the U1 blocker). Prefers f.atomic_claim when the enrichment
+// step (eval/e2e/lib/pipeline.js, or run-real-proof.js's enrichCandidate once U1 adopts the door)
+// pre-computed it from the FULL catalogue record; otherwise derives it here from the finding itself via
+// the same one door (f carries the selected duty as `description`, so atomicClaimFor(f, f) reproduces
+// the identical claim). For a non-presence-breach the door returns the duty unchanged, so absence/
+// coverage_proof keep their existing hypothesis basis exactly as before.
+function hypothesisFor(f) {
+  if (typeof f.atomic_claim === 'string' && f.atomic_claim) return f.atomic_claim;
+  return atomicClaimFor(f, f);
+}
+// bridgeFor(f) -> the Gate-3 SECOND premise (FINAL UNIT iteration 2): the owning record's OWN verbatim
+// duty text, derived through the SAME one door as the hypothesis (claim.js) from the finding's selected
+// duty (`description`, what eval/e2e/lib/pipeline.js and run-real-proof.js's enrichCandidate set from
+// the FULL catalogue record; Rule 2). Non-empty ONLY for a presence-breach; '' for absence/coverage/
+// register/observed, which keep the single-premise basis unchanged.
+function bridgeFor(f) {
+  return bridgeTextFor(f, f);
+}
 function claimFor(f) {
   const art = f.artifact || {};
-  return { claim: fieldStr(f, 'description'), premise_source_id: premiseSourceId(f, art), premise: premiseQuote(f, art) };
+  const claim = {
+    claim: hypothesisFor(f),
+    premise_source_id: premiseSourceId(f, art),
+    premise: premiseQuote(f, art),
+    // The out-of-band candidate identity for the frozen recorded-response contract's ENTAILMENT key
+    // (P3-tail Wave-2 resume, C-211/C-222 gap closure). record_id + the candidate's own deterministic
+    // Rule-3 artifact object - the IDENTICAL basis prompt.js candidateRefsFor() uses for the
+    // adjudicate-kind key, so an entailment recording keys under the same (record_id, artifact) the
+    // recorder computes, differing from its adjudicate sibling only by kind. llm/entailment.js passes
+    // this straight onto the llmCall request as request.candidate WITHOUT it ever entering the prompt
+    // text (buildEntailmentPrompt sees only {hypothesis, premise, sourceId, bridge}), so eval/e2e/lib/
+    // replay-llm.js can derive the same key while a live model never sees an internal id. (Paired with
+    // prompt.js candidateRefsFor: both build {record_id, artifact} from the same fields; a change to the
+    // key basis must move both.)
+    candidate: { record_id: fieldStr(f, 'record_id'), artifact: (f && f.artifact != null) ? f.artifact : null },
+  };
+  // Attach the catalogue rule-text bridge as a SECOND NLI premise for a presence-breach ONLY (empty for
+  // every other kind, so the field is simply absent and the single-premise path is byte-unchanged).
+  // llm/entailment.js reads claim.bridge and DOC-delimits it through the sanitise door (C-134).
+  const bridge = bridgeFor(f);
+  if (bridge) claim.bridge = bridge;
+  return claim;
 }
 // runEntailment(claim, opts, remaining) -> the NLI verdict, or null on throw/no-result. FAIL-OPEN
 // (Rule 4/9): a shell that throws demotes the finding to needs_review, never throws into the mint.
@@ -329,6 +310,10 @@ function safeLog(log, event) {
   catch (e) { /* FAIL-OPEN: observability logging must never break adjudication; a broken logger is not a legal-claim failure. Dropped on purpose. */ }
 }
 
+// candidateRefsFor (the out-of-band {id, record_id, artifact} channel for replay-llm.js's key
+// derivation, C-211/C-222) now lives in ./prompt.js (imported above) alongside briefOf/buildPrompt,
+// since it is built from the exact same batch and exists for the exact same seam.
+
 // callGate(batch, ctx, opts) -> the injected caller's raw return, under a HARD deadline (Rule 9).
 // Resolves to the return value, or null when it timed out / threw (the caller then abstains the batch).
 async function callGate(batch, ctx, opts) {
@@ -341,6 +326,7 @@ async function callGate(batch, ctx, opts) {
     threshold: 7, max_attempts: 3, max_tokens: 900, temperature: 0,
     scan_id: String(ctx.domain || '') + ':adjudicate',
     deadline_ms: opts.batchDeadlineMs,
+    candidates: candidateRefsFor(batch),
   };
   const work = Promise.resolve().then(() => opts.llmCall(request));
   const raced = await raceWithDeadline(work, opts.batchDeadlineMs, opts.now).catch((e) => ({ _threw: e }));
@@ -463,6 +449,9 @@ module.exports = {
   rubricFor,
   verdictsFrom,
   applyVerdicts,
+  candidateRefsFor,
+  claimFor,
+  hypothesisFor,
   BATCH,
   DEFAULT_DEADLINE_MS,
 };

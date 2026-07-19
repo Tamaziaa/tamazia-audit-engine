@@ -75,7 +75,12 @@ function safeRegex(pattern) {
   } catch (_e) {
     // FAIL-OPEN: an invalid schema pattern is a config error; the never-match keeps the field flagged
     // and the SYSTEM fail-closed (the value is reported as a schema violation, never silently passed).
-    return /$.^/;
+    // /(?!)/ is the standard impossible-pattern idiom (a negative lookahead on the always-true empty
+    // match, so it can never succeed): unambiguous never-match intent, unlike the old /$.^/ literal
+    // CodeQL flagged as js/regex/unmatchable-dollar + js/regex/unmatchable-caret (a `$` not at the end
+    // of the pattern, a `^` not at the start - the classic sign of a mis-anchored regex, even though
+    // both compile to the same never-match behaviour here).
+    return /(?!)/;
   }
 }
 
@@ -443,6 +448,7 @@ module.exports = {
   checkSourceIds,
   checkQuotes,
   normalise,
+  safeRegex,
   runCalibration,
   DEFAULT_MIN_QUOTE_LEN,
 };

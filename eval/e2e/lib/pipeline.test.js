@@ -18,8 +18,11 @@ const {
   verifiedCandidatesFrom,
   adjudicatedFindings,
   perRuleCoverageArg,
+  enrichVerifiedCandidates,
+  joinCatalogueFacts,
+  catalogueRecordIndex,
 } = require('./pipeline');
-const { scriptedLlmCall } = require('./scripted-llm');
+const { scriptedLlmCall, allVerdicts } = require('./scripted-llm');
 
 const MINI_BUNDLE = {
   domain: 'pipeline-test.example',
@@ -244,4 +247,129 @@ test('runBreachLane: an injected loader forces the in-process path even when bre
   const breach = await runBreachLane(MINI_BUNDLE, { perRule: { rules: [] } }, { proposeLoaded, catalogueRecords: [], breachTimeoutMs: 1 });
   // A 1ms subprocess deadline would have errored; the in-process path with an injected empty propose does not.
   assert.strictEqual(breach.propose.ran, true);
+});
+
+// =====================================================================================================
+// B2: catalogue enrichment join (WAVE 2 AMENDMENT). breach/proposers/propose.js emits BARE candidates
+// (record_id + artifact only); breach/adjudicator/adjudicate.js reads description/statutory_citation/
+// evidence_quote. Without this join every text-derived candidate abstains on an empty hypothesis before
+// the model is ever asked. Mirrors eval/e2e/run-real-proof.js's own enrichCandidate() (Rule 2:
+// catalogue-only fields), replicated here (not imported: run-real-proof.js is a separate CLI unit this
+// task does not touch) with its own distinct implementation.
+// =====================================================================================================
+
+const FIXTURE_RECORD = {
+  id: 'PIPELINE-TEST-RULE',
+  name: 'Pipeline Test Framework (harness self-test only, not a real law)',
+  citation: { section: 'section 99', act: 'Pipeline Test Act 2026 (self-test only)', url: 'https://example.test/pipeline-test-act' },
+  website_obligations: [{ duty: 'Do not guarantee the outcome of a legal matter (self-test obligation)', elements: ['no guarantee of outcome'], evidence_type: 'absence' }],
+};
+
+test('catalogueRecordIndex: indexes by id, skips records with no id, tolerates a non-array input', () => {
+  const idx = catalogueRecordIndex([FIXTURE_RECORD, { name: 'no id' }, null]);
+  assert.strictEqual(idx.size, 1);
+  assert.strictEqual(idx.get('PIPELINE-TEST-RULE'), FIXTURE_RECORD);
+  assert.strictEqual(catalogueRecordIndex(undefined).size, 0);
+  assert.strictEqual(catalogueRecordIndex(null).size, 0);
+});
+
+test('joinCatalogueFacts: a bare propose.js-shaped candidate gains description/framework/statutory_citation/evidence_quote from the catalogue record', () => {
+  const bare = { record_id: 'PIPELINE-TEST-RULE', duty_idx: 0, artifact: { type: 'quote', text: 'we guarantee you will win', page_url: 'https://x.test/claims' }, page_url: 'https://x.test/claims', kind: 'presence-breach' };
+  const enriched = joinCatalogueFacts(bare, FIXTURE_RECORD);
+  assert.strictEqual(enriched.description, 'Do not guarantee the outcome of a legal matter (self-test obligation)');
+  assert.strictEqual(enriched.framework, 'Pipeline Test Framework (harness self-test only, not a real law)');
+  assert.strictEqual(enriched.statutory_citation, 'section 99');
+  assert.strictEqual(enriched.evidence_quote, 'we guarantee you will win');
+  assert.strictEqual(enriched.evidence_source_id, 'https://x.test/claims');
+  assert.deepStrictEqual(enriched.checked_urls, ['https://x.test/claims']);
+  // record_id, artifact, page_url, kind and duty_idx all pass through untouched.
+  assert.strictEqual(enriched.record_id, 'PIPELINE-TEST-RULE');
+  assert.deepStrictEqual(enriched.artifact, bare.artifact);
+  assert.strictEqual(enriched.kind, 'presence-breach');
+});
+
+test('joinCatalogueFacts: a presence-breach is stamped with the ATOMIC Gate-3 claim (not the duty); description stays the duty', () => {
+  const bare = { record_id: 'PIPELINE-TEST-RULE', duty_idx: 0, artifact: { type: 'quote', text: 'we guarantee you will win', page_url: 'https://x.test/claims' }, page_url: 'https://x.test/claims', kind: 'presence-breach' };
+  const enriched = joinCatalogueFacts(bare, FIXTURE_RECORD);
+  assert.strictEqual(enriched.atomic_claim, 'This website does guarantee the outcome of a legal matter (self-test obligation)', 'the Gate-3 hypothesis is the affirmative breach claim');
+  assert.notStrictEqual(enriched.atomic_claim, enriched.description, 'the atomic claim must differ from the obligation duty (the U1 blocker)');
+  assert.strictEqual(enriched.description, FIXTURE_RECORD.website_obligations[0].duty, 'description stays the duty (used by the adjudication prompt, briefOf)');
+});
+
+test('joinCatalogueFacts: an ABSENCE (coverage_proof) candidate stamps atomic_claim == the duty (presence-only change)', () => {
+  const bare = { record_id: 'PIPELINE-TEST-RULE', duty_idx: 0, artifact: { type: 'coverage_proof' }, page_url: 'https://x.test/', kind: 'absence-breach' };
+  const enriched = joinCatalogueFacts(bare, FIXTURE_RECORD);
+  assert.strictEqual(enriched.atomic_claim, enriched.description, 'absence keeps the existing duty basis for its hypothesis');
+});
+
+test('joinCatalogueFacts: no matching catalogue record degrades honestly (empty fields), never throws', () => {
+  const bare = { record_id: 'NO-SUCH-RULE', artifact: { type: 'absence' } };
+  const enriched = joinCatalogueFacts(bare, null);
+  assert.strictEqual(enriched.description, '');
+  assert.strictEqual(enriched.framework, '');
+  assert.strictEqual(enriched.statutory_citation, '');
+  assert.strictEqual(enriched.evidence_quote, undefined);
+});
+
+test('joinCatalogueFacts: a candidate never mutates - the join returns a fresh object', () => {
+  const bare = { record_id: 'PIPELINE-TEST-RULE', artifact: { type: 'quote', text: 'q' } };
+  const before = JSON.stringify(bare);
+  joinCatalogueFacts(bare, FIXTURE_RECORD);
+  assert.strictEqual(JSON.stringify(bare), before);
+});
+
+test('enrichVerifiedCandidates: joins every candidate in the list; tolerates a non-array input', () => {
+  const bare = [{ record_id: 'PIPELINE-TEST-RULE', artifact: { type: 'quote', text: 'q' } }];
+  const [enriched] = enrichVerifiedCandidates(bare, [FIXTURE_RECORD]);
+  assert.strictEqual(enriched.framework, FIXTURE_RECORD.name);
+  assert.deepStrictEqual(enrichVerifiedCandidates(undefined, [FIXTURE_RECORD]), []);
+  assert.deepStrictEqual(enrichVerifiedCandidates(null, [FIXTURE_RECORD]), []);
+});
+
+// ── the CONTRACT test: a BARE propose-shaped candidate reaches the REAL adjudicator with a REAL brief ──
+// This is the end-to-end lock the task asks for (see scripted-llm.test.js's own CONTRACT pattern):
+// inject a bare candidate via proposeLoaded/verifyLoaded, let the REAL breach/adjudicator/adjudicate.js
+// run (no adjudicateLoaded override), and prove the OUTPUT finding carries the catalogue-derived fields
+// - proof that pipeline.js's own enrichment join ran between verify and adjudicate, not just that some
+// finding came back.
+test('CONTRACT: pipeline.js enriches a bare candidate before the REAL adjudicator sees it (framework/description on the output finding)', async () => {
+  const bareCandidate = {
+    record_id: 'PIPELINE-TEST-RULE', duty_idx: 0, kind: 'presence-breach', evidence_type: 'absence',
+    artifact: { type: 'quote', text: 'we guarantee you will win every case', surface: 'visible_text', page_url: 'https://x.test/claims' },
+    page_url: 'https://x.test/claims',
+  };
+  const proposeLoaded = available(() => [bareCandidate]);
+  const verifyLoaded = available((candidates) => ({ verified: candidates.map((c) => ({ candidate: c, verified: true, code: 'OK', reason: 'test' })), rejected: [] }));
+  const breach = await runBreachLane(MINI_BUNDLE, {}, {
+    proposeLoaded, verifyLoaded, catalogueRecords: [FIXTURE_RECORD],
+    llmCall: scriptedLlmCall(allVerdicts('breach', 1)),
+    // adjudicateLoaded intentionally NOT injected: the REAL breach/adjudicator/adjudicate.js runs.
+  });
+  assert.strictEqual(breach.adjudicate.ran, true);
+  assert.strictEqual(breach.findings.length, 1);
+  const f = breach.findings[0];
+  assert.strictEqual(f.framework, FIXTURE_RECORD.name, 'the finding must carry the catalogue framework name (proof the join ran, not a bare candidate)');
+  assert.strictEqual(f.description, 'Do not guarantee the outcome of a legal matter (self-test obligation)');
+  assert.strictEqual(f.statutory_citation, 'section 99');
+  // P3-tail Wave-2 FINAL UNIT: the enrichment also stamps the atomic Gate-3 claim, and the real
+  // adjudicator's Gate-3 uses it (not the duty) - proven by the finding reaching violation with a
+  // scripted breach + entailment. (Under the default scripted DECLINE this would demote; the affirming
+  // script here stands in for the real model's judgment of the atomic claim, which U1 validates next.)
+  assert.strictEqual(f.atomic_claim, 'This website does guarantee the outcome of a legal matter (self-test obligation)', 'the Gate-3 hypothesis is the atomic breach claim, stamped by the enrichment join');
+  assert.notStrictEqual(f.atomic_claim, f.description, 'the atomic claim is not the obligation duty (the U1 blocker is fixed)');
+  assert.strictEqual(f.state, 'violation', 'a real brief + a scripted breach verdict + real Gate-3 entailment must reach violation');
+});
+
+test('CONTRACT (negative control): WITHOUT the join, a bare candidate would carry no framework/description (documents the gap this join closes)', async () => {
+  // Same candidate, but adjudicate is driven directly (bypassing pipeline.js's enrichment) to document
+  // exactly what the WAVE 2 AMENDMENT diagnosed: a bare candidate's brief is an empty hypothesis.
+  const { adjudicate, briefOf } = require('../../../breach/adjudicator/adjudicate.js');
+  const bareCandidate = {
+    record_id: 'PIPELINE-TEST-RULE', artifact: { type: 'quote', text: 'we guarantee you will win every case', page_url: 'https://x.test/claims' }, page_url: 'https://x.test/claims',
+  };
+  const brief = briefOf(bareCandidate, 0);
+  assert.strictEqual(brief.obligation, '', 'an un-enriched candidate has no description at all - an empty Gate-3 hypothesis');
+  assert.strictEqual(brief.law, '', 'an un-enriched candidate has no framework/statutory_citation - an empty law field');
+  const { findings } = await adjudicate([bareCandidate], MINI_BUNDLE, { llmCall: scriptedLlmCall(allVerdicts('breach', 1)) });
+  assert.strictEqual(findings[0].framework, undefined, 'without enrichment the finding carries no framework at all');
 });

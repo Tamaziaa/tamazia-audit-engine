@@ -1,0 +1,35 @@
+{
+  "note": "KNOWN-BAD calibration fixtures for eval/e2e/lib/real-llm.js validateRecordingFile(). Each case is an intentionally-malformed recorded-llm.v1 object the validator MUST reject; a case the validator ACCEPTS means the recording schema gate is broken (Constitution Rule 4: earn your zero). Loaded by real-llm.test.js; this is NOT a real recording and is never served to replay. It deliberately carries NO secret-shaped literal (caution.md C-253); the secret-shape rejection case is exercised inline in the test with a dynamically-built token so the secret scanner is never tripped by a committed file.",
+  "cases": [
+    {
+      "why": "wrong contract id",
+      "recording": { "contract": "recorded-llm.v0", "engine": { "providers": [], "recorded_at": "2026-07-18", "prompt_versions": {} }, "responses": [] },
+      "expect_error_substr": "contract"
+    },
+    {
+      "why": "responses is not an array",
+      "recording": { "contract": "recorded-llm.v1", "engine": { "providers": [], "recorded_at": "2026-07-18", "prompt_versions": {} }, "responses": "not-an-array" },
+      "expect_error_substr": "responses must be an array"
+    },
+    {
+      "why": "response key is not a 64-hex sha256",
+      "recording": { "contract": "recorded-llm.v1", "engine": { "providers": ["groq"], "recorded_at": "2026-07-18", "prompt_versions": {} }, "responses": [ { "key": "tooshort", "kind": "adjudicate", "raw": "{\"verdicts\":[]}", "meta": { "provider": "groq", "model": "llama-3.3-70b-versatile" } } ] },
+      "expect_error_substr": "key must be a 64-hex"
+    },
+    {
+      "why": "kind is outside the closed enum (adjudicate|entailment)",
+      "recording": { "contract": "recorded-llm.v1", "engine": { "providers": ["groq"], "recorded_at": "2026-07-18", "prompt_versions": {} }, "responses": [ { "key": "0000000000000000000000000000000000000000000000000000000000000000", "kind": "preflight", "raw": "{}", "meta": { "provider": "groq", "model": "llama-3.3-70b-versatile" } } ] },
+      "expect_error_substr": "kind must be"
+    },
+    {
+      "why": "raw is not a string (a paraphrase object is not a verbatim capture)",
+      "recording": { "contract": "recorded-llm.v1", "engine": { "providers": ["groq"], "recorded_at": "2026-07-18", "prompt_versions": {} }, "responses": [ { "key": "1111111111111111111111111111111111111111111111111111111111111111", "kind": "adjudicate", "raw": { "verdicts": [] }, "meta": { "provider": "groq", "model": "llama-3.3-70b-versatile" } } ] },
+      "expect_error_substr": "raw must be a string"
+    },
+    {
+      "why": "meta.model missing",
+      "recording": { "contract": "recorded-llm.v1", "engine": { "providers": ["groq"], "recorded_at": "2026-07-18", "prompt_versions": {} }, "responses": [ { "key": "2222222222222222222222222222222222222222222222222222222222222222", "kind": "entailment", "raw": "{\"source_id\":\"x\",\"verdict\":\"entailment\"}", "meta": { "provider": "groq" } } ] },
+      "expect_error_substr": "meta.model must be a string"
+    }
+  ]
+}
