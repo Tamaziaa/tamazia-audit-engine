@@ -213,6 +213,15 @@ const CALIBRATIONS = [
     checkerCandidates: ['breach/verifiers/quote-match.js'],
   },
   {
+    name: 'breach-domnode-artifact-rejected',
+    description:
+      'Constitution Rule 3 (no artifact, no breach) for the dom_node artifact (caution.md C-080): a candidate citing a failing DOM node the axe-style assertion lane never observed (a fabricated selector) must be REFUSED, never adjudicated. The module IS the checker (like breach/verifiers/quote-match.js): breach/verifiers/dom-node.js --calibrate replays every p4-verifier-*.json fixture. The fixtures are self-sufficient (candidate + bundle only) so this calibration needs NO compiled catalogue and runs safely BEFORE the catalogue compile in CI.',
+    fixtures: [
+      'p4-verifier-fabricated-domnode.json',
+    ],
+    checkerCandidates: ['breach/verifiers/dom-node.js'],
+  },
+  {
     name: 'deadline-hang',
     description:
       'Constitution Rule 9 (every external step has a hard deadline): an injected external call (fetchFn / launchBrowser / llmCall / a provider .call) awaited with no raceWithDeadline/withDeadline wrapper and no deadline arg, or a spawn shelling out to http, must be flagged - the 752s stuck-Chromium / exhausted-free-tier hang class (GAPS.md deadline-hang, caution.md C-040/C-138). The module IS the checker: tools/domain-gates/deadline-audit.js --calibrate replays the seeded undeadlined awaits',

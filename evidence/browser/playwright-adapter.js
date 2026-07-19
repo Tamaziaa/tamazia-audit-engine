@@ -20,6 +20,9 @@
 //     page.cookies()            -> [{ name, domain, value, expires }]  (expires: unix seconds or -1)
 //     page.findConsentControl() -> { found, url?, text?, acceptSelector? } | null
 //     page.clickConsent(ctrl)   accept consent (no-op when none)
+//     page.evaluate(fn, arg?)   run a self-contained function in the page context, returning its
+//                               serialisable result (used by evidence/browser/dom-assert.js's axe-style
+//                               DOM extraction; ADDITIVE, no existing method touched)
 //   browser.close()
 
 const DRIVERS = ['playwright', 'playwright-core', '@playwright/test'];
@@ -88,6 +91,11 @@ function wrapPage(page, ctx, now) {
       if (!control || !control.acceptSelector) return;
       await page.click(control.acceptSelector, { timeout: 3000 }).catch(() => {});
     },
+    // ADDITIVE (T2a): delegate to the real page.evaluate so evidence/browser/dom-assert.js can run its
+    // one self-contained DOM-extraction pass in the browser context. Unlike goto/findConsentControl this
+    // does NOT swallow a rejection: dom-assert.js wraps the call in the ONE outer deadline race and turns
+    // any throw into a recorded lane.reason='error' (C-041 - the lane's failure is visible, never silent).
+    async evaluate(fn, arg) { return page.evaluate(fn, arg); },
   };
 }
 

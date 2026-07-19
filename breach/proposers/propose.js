@@ -60,6 +60,34 @@ const OBSERVATION_CONCEPTS = Object.freeze({
   consent_control_broken: ['cookie', 'cookies', 'consent', 'banner', 'preferences'],
 });
 
+// DOM_NODE_CONCEPTS (T2a) - the dom_node analogue of OBSERVATION_CONCEPTS. OBSERVATION_CONCEPTS keys by
+// the network-event observation KIND; the axe-style DOM lane instead maps each dom-assert rule_id to a
+// generic web-behaviour CONCEPT (below), then routes a failing DOM node to a behavioural obligation only
+// when the obligation's own tokens concern that concept. A SEPARATE constant, not an OBSERVATION_CONCEPTS
+// entry, because the two lanes key on different axes (observation-kind vs check-rule-id). Rule 2 safe: no
+// law/regulator name. consent_control + chatbot_disclosure carry no rule_id yet (no dom-assert check emits
+// them); they are kept so the lane is GENERIC and those families activate the moment a rule maps to them.
+const DOM_NODE_CONCEPTS = Object.freeze({
+  accessibility: ['accessible', 'accessibility', 'wcag', 'disability', 'impairment', 'screen', 'reader', 'alt'],
+  consent_control: ['consent', 'cookie', 'banner', 'preferences', 'withdraw'],
+  insecure_form: ['secure', 'security', 'encryption', 'transport'],
+  pre_ticked_consent: ['consent', 'pre-ticked', 'opt-in', 'checkbox', 'marketing'],
+  chatbot_disclosure: ['chatbot', 'ai', 'automated', 'bot', 'disclosure'],
+});
+// DOM_RULE_TO_CONCEPT - the one door mapping a dom-assert rule_id to the obligation-concept a failing node
+// of that rule can prove (frozen). The six accessibility checks -> accessibility; insecure-form and
+// pre-ticked-consent to their own concepts. A rule_id absent here proposes nothing (fail-closed routing).
+const DOM_RULE_TO_CONCEPT = Object.freeze({
+  'image-alt': 'accessibility',
+  'label': 'accessibility',
+  'html-has-lang': 'accessibility',
+  'link-name': 'accessibility',
+  'button-name': 'accessibility',
+  'color-contrast': 'accessibility',
+  'insecure-form': 'insecure_form',
+  'pre-ticked-consent': 'pre_ticked_consent',
+});
+
 // ── bundle readers (tolerant; the pure EvidenceBundle shape from facts/README.md) ─────────────────
 function pagesOf(bundle) {
   const pages = bundle && bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
@@ -330,12 +358,17 @@ function specTokens(detectionSpec) {
   for (const p of detectionSpec.patterns) for (const t of tokensOf(p)) out.add(t);
   return out;
 }
+// tokensIntersectConcepts(tokens, conceptTokens) -> does the obligation's token SET intersect a concept's
+// generic token list, by exact membership OR containment (a 'disabilities' obligation token concerns the
+// 'disability' concept). The ONE token-intersection door, reused by the network-observation router
+// (obligationConcerns) and the dom_node router (obligationConcernsDom) so the two lanes share one rule.
+function tokensIntersectConcepts(tokens, conceptTokens) {
+  return (conceptTokens || []).some((c) => tokens.has(c) || [...tokens].some((t) => t.includes(c)));
+}
 // obligationConcerns(detectionSpec, obsKind) -> does this behavioural obligation concern an observation
 // of this kind (token intersection with the generic concept set); gates C-039/C-042 to consent duties.
 function obligationConcerns(detectionSpec, obsKind) {
-  const concepts = OBSERVATION_CONCEPTS[obsKind] || [];
-  const tokens = specTokens(detectionSpec);
-  return concepts.some((c) => tokens.has(c) || [...tokens].some((t) => t.includes(c)));
+  return tokensIntersectConcepts(specTokens(detectionSpec), OBSERVATION_CONCEPTS[obsKind] || []);
 }
 
 // laneRan(browser) -> true only when the browser lane definitively ran; laneReason gives the recorded
@@ -380,6 +413,71 @@ function evalBehavioural(detectionSpec, bundle) {
   const browser = bundle && bundle.browser;
   if (!laneRan(browser)) return [suppressed(detectionSpec, KIND.BEHAVIOURAL, 'browser lane unavailable: ' + laneReason(browser) + ' (C-041)')];
   return observedCandidates(detectionSpec, browser.observed);
+}
+
+// ── dom_node lane (T2a): a failing DOM node the axe-style lane (evidence/browser/dom-assert.js) observed
+// as a VIOLATION is an observed breach for a behavioural obligation whose tokens concern the node's concept
+// (accessibility, insecure form, pre-ticked consent, ...). A state 'incomplete' node is needs-review and
+// NEVER becomes a candidate (Rule 10). The DOM lane not running is a recorded suppression (C-041), exactly
+// as evalBehavioural records the PECR lane's absence. ─────────────────────────────────────────────────
+function domLaneRan(browser) {
+  return Boolean(browser && browser.domLane && browser.domLane.ran === true);
+}
+function domLaneReason(browser) {
+  return (browser && browser.domLane && browser.domLane.reason) || 'dom lane did not run';
+}
+// obligationConcernsDom(detectionSpec, concept) -> does this behavioural obligation concern a dom concept
+// (the same token-intersection door the network lane uses, keyed on DOM_NODE_CONCEPTS).
+function obligationConcernsDom(detectionSpec, concept) {
+  return tokensIntersectConcepts(specTokens(detectionSpec), DOM_NODE_CONCEPTS[concept] || []);
+}
+// isDomViolationForObligation(detectionSpec, node) -> true when node is a real VIOLATION whose rule maps to
+// a concept this obligation concerns. Named so domNodeCandidates' loop is a plain existence check, never a
+// nested if-with-continue (the health-gate Deep Nesting cap).
+function isDomViolationForObligation(detectionSpec, node) {
+  if (!node || node.state !== 'violation') return false;
+  const concept = DOM_RULE_TO_CONCEPT[node.rule_id];
+  return Boolean(concept) && obligationConcernsDom(detectionSpec, concept);
+}
+// domNodeCandidates(detectionSpec, domNodes) -> a candidate per observed DOM violation this obligation
+// concerns, carrying the node as its dom_node artifact. The spread precedes the discriminator so a stray
+// node.type can never overwrite the canonical dom_node type (ledger decision 1: the artifact-type enum is
+// the one door). The candidate shape is candidate()'s, identical to every other observed-lane candidate.
+function domNodeCandidates(detectionSpec, domNodes) {
+  const out = [];
+  for (const node of (Array.isArray(domNodes) ? domNodes : [])) {
+    if (!isDomViolationForObligation(detectionSpec, node)) continue;
+    out.push(candidate({
+      detectionSpec, kind: KIND.BEHAVIOURAL, artifact: { ...node, type: ARTIFACT_TYPES.DOM_NODE },
+      pageUrl: node.page_url || null, confidence: 'strong',
+    }));
+  }
+  return out;
+}
+// evalDomNode(detectionSpec, bundle) -> dom_node candidates, or a recorded suppression when the DOM lane
+// did not run (C-041: an un-run lane cannot silently back-fill nor silently vanish).
+function evalDomNode(detectionSpec, bundle) {
+  const browser = bundle && bundle.browser;
+  if (!domLaneRan(browser)) return [suppressed(detectionSpec, KIND.BEHAVIOURAL, 'dom lane unavailable: ' + domLaneReason(browser) + ' (C-041)')];
+  return domNodeCandidates(detectionSpec, browser.domNodes);
+}
+// hasDomEvidence(bundle) -> the bundle actually carries the DOM lane's evidence surface (domNodes[] or a
+// domLane record). The dom_node path only runs when the DOM lane was ENGAGED for this bundle, so a bundle
+// that never invoked it (the register/PECR-only bundles the existing suite uses) proposes exactly as
+// before - no dom suppression is fabricated for a lane the bundle never ran (the optional-lane pattern,
+// mirroring how a non-register obligation never emits a register suppression). This keeps every existing
+// propose path byte-identical.
+function hasDomEvidence(bundle) {
+  const browser = bundle && bundle.browser;
+  return Boolean(browser) && (Array.isArray(browser.domNodes) || (Boolean(browser.domLane) && typeof browser.domLane === 'object'));
+}
+// behaviouralCandidates(detectionSpec, bundle) -> the network-observation candidates PLUS, when the DOM
+// lane was engaged for this bundle, the dom_node candidates. Two independent observation lanes feed one
+// behavioural obligation; each reports its own availability (C-041).
+function behaviouralCandidates(detectionSpec, bundle) {
+  const out = evalBehavioural(detectionSpec, bundle);
+  if (hasDomEvidence(bundle)) for (const c of evalDomNode(detectionSpec, bundle)) out.push(c);
+  return out;
 }
 
 // registerTargetFor(detectionSpec, record, keys) -> the bundle register key this record's register duty
@@ -456,7 +554,7 @@ function evaluateSpec(detectionSpec, bundle, coverage, record) {
   // floor/truncation gated); 'presence' (REQUIREMENT) -> absence-breach path (IS, via absenceInterlock).
   if (detectionSpec.evidence_type === 'absence') return listOf(evalPresenceBreach(detectionSpec, pagesOf(bundle)));
   if (detectionSpec.evidence_type === 'presence') return listOf(evalAbsenceBreach(detectionSpec, bundle, coverageState));
-  if (detectionSpec.evidence_type === 'behavioural') return evalBehavioural(detectionSpec, bundle);
+  if (detectionSpec.evidence_type === 'behavioural') return behaviouralCandidates(detectionSpec, bundle);
   if (detectionSpec.evidence_type === 'register') return listOf(evalRegister(detectionSpec, bundle, record));
   return [];
 }
@@ -494,4 +592,8 @@ module.exports = {
   registerTargetFor,
   coverageStateFor,
   absenceInterlock,
+  // dom_node lane (T2a), exported for direct testing + reuse
+  evalDomNode,
+  DOM_NODE_CONCEPTS,
+  DOM_RULE_TO_CONCEPT,
 };

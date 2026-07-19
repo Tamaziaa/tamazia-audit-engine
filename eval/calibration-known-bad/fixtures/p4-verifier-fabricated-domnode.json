@@ -1,0 +1,31 @@
+{
+  "comment": "P4 verifier calibration (Constitution Rule 3 / caution.md C-080: no artifact, no breach). The candidate cites a failing DOM node - an image-alt violation on selector img:nth-of-type(99) - that the axe-style DOM lane never observed: bundle.browser.domNodes contains only a real image-alt violation on img:nth-of-type(1). breach/verifiers/dom-node.js must refuse this fabricated node: verifyDomNode must return verified:false with code dom_node_not_observed (the DOM lane RAN, so the failure is a fabricated selector, not an absent lane). Run via: node breach/verifiers/dom-node.js --calibrate. A finding is emitted only when the fabrication is correctly rejected. Self-sufficient: candidate + bundle only, no compiled catalogue needed (CI runs calibration before the catalogue compile).",
+  "candidate": {
+    "rule_id": "UK_EQUALITY_ACCESSIBILITY",
+    "artifact": {
+      "type": "dom_node",
+      "rule_id": "image-alt",
+      "selector": "img:nth-of-type(99)",
+      "snippet": "<img src=\"fabricated-hero.png\">",
+      "wcag_sc": "1.1.1",
+      "state": "violation"
+    }
+  },
+  "bundle": {
+    "browser": {
+      "domLane": { "ran": true, "reason": null },
+      "domNodes": [
+        {
+          "rule_id": "image-alt",
+          "selector": "img:nth-of-type(1)",
+          "snippet": "<img src=\"real-logo.png\">",
+          "wcag_sc": "1.1.1",
+          "state": "violation"
+        }
+      ]
+    }
+  },
+  "poison": {
+    "expected_code": "dom_node_not_observed"
+  }
+}
