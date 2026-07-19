@@ -378,19 +378,22 @@ function laneCaveat(stage, entry) {
     message: 'The ' + label + ' did not run for this audit (' + reason + '). Its findings are not represented here; this absence must not be read as a clean result for that evidence class.',
   };
 }
-// buildCoverageCaveats(stageManifest) -> [{lane,reason,message}], always an array (possibly empty). Only
-// the two BROWSER lanes are projected: a crawl/register degrade already speaks for itself elsewhere in the
-// payload (an empty corpus, zero matched registers), but an absent/failed browser lane leaves no other
-// trace anywhere in the client-facing shape (Rule 4/C-041's "never a silent pass").
+// BROWSER_LANE_STAGES: the only two stages ever projected into coverageCaveats (a crawl/register degrade
+// already speaks for itself elsewhere in the payload - an empty corpus, zero matched registers - but an
+// absent/failed browser lane leaves no other trace anywhere in the client-facing shape, Rule 4/C-041).
+const BROWSER_LANE_STAGES = Object.freeze(['observe', 'domAssert']);
+// stageManifestByStage(stageManifest) -> Map<stage, entry>, the manifest keyed for a single O(1) lookup
+// per stage below (kept as its own small function so buildCoverageCaveats stays a flat filter/map, no
+// nested loop-plus-conditional).
+function stageManifestByStage(stageManifest) {
+  return new Map(arr(stageManifest).filter((entry) => entry && entry.stage).map((entry) => [entry.stage, entry]));
+}
+// buildCoverageCaveats(stageManifest) -> [{lane,reason,message}], always an array (possibly empty).
 function buildCoverageCaveats(stageManifest) {
-  const byStage = new Map();
-  for (const entry of arr(stageManifest)) { if (entry && entry.stage) byStage.set(entry.stage, entry); }
-  const caveats = [];
-  for (const stage of ['observe', 'domAssert']) {
-    const c = laneCaveat(stage, byStage.get(stage));
-    if (c) caveats.push(c);
-  }
-  return caveats;
+  const byStage = stageManifestByStage(stageManifest);
+  return BROWSER_LANE_STAGES
+    .map((stage) => laneCaveat(stage, byStage.get(stage)))
+    .filter(Boolean);
 }
 
 // assertFindingsWellFormed(findings) -> throws (fail closed, Rule 3 + Rule 10) if any projected finding

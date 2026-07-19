@@ -94,27 +94,43 @@ function httpFallbackOf(url) {
   return /^https:\/\//i.test(String(url || '')) ? String(url).replace(/^https:\/\//i, 'http://') : null;
 }
 
-async function gotoUrl(page, url) {
-  try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    return;
-  } catch (primaryErr) {
-    const fallback = httpFallbackOf(url);
-    if (!fallback) throw primaryErr; // LOUD (C-041): no fallback to try; propagate so the caller records it.
-    try {
-      await page.goto(fallback, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      return;
-    } catch (fallbackErr) {
-      // LOUD (C-041/Rule 4): both the https:// attempt and the one-shot http:// fallback failed. This is
-      // the "records" leg of a FAIL-OPEN catch, not a new swallow: a combined, informative error is thrown
-      // (never eaten) so observe.js / mint/compose-bundle.js's own outer deadline+catch records a visible
-      // lane failure (lane.reason='error') instead of silently leaving the page at about:blank.
-      const msg = 'navigation failed on both https and http: '
-        + String((primaryErr && primaryErr.message) || primaryErr).slice(0, 150) + ' | '
-        + String((fallbackErr && fallbackErr.message) || fallbackErr).slice(0, 150);
-      throw new Error(msg);
-    }
+const GOTO_OPTS = Object.freeze({ waitUntil: 'domcontentloaded', timeout: 15000 });
+
+// attemptGoto(page, url) -> { ok: true } | { ok: false, error }. NEVER throws (the one try/catch this file
+// needs for a single navigation attempt lives here, once); gotoUrl below composes two attempts with plain,
+// flat if-returns instead of nested try/catch, which is what CodeScene's Bumpy-Road/Complex-Method
+// biomarkers were flagging on the previous nested-try shape.
+async function attemptGoto(page, url) {
+  try { await page.goto(url, GOTO_OPTS); return { ok: true }; }
+  catch (error) {
+    // FAIL-OPEN: this is a captured, not a swallowed, failure - the error is RETURNED (never dropped) so
+    // gotoUrl's caller can decide whether to try the http:// fallback or rethrow it loudly (C-041). Neither
+    // branch of gotoUrl below ever discards this value: it is always either rethrown as-is or folded into
+    // combinedGotoError() and rethrown.
+    return { ok: false, error };
   }
+}
+
+// combinedGotoError(primaryErr, fallbackErr) -> one informative Error naming both failed attempts.
+function combinedGotoError(primaryErr, fallbackErr) {
+  return new Error('navigation failed on both https and http: '
+    + String((primaryErr && primaryErr.message) || primaryErr).slice(0, 150) + ' | '
+    + String((fallbackErr && fallbackErr.message) || fallbackErr).slice(0, 150));
+}
+
+// gotoUrl(page, url) -> navigates, or throws LOUDLY (C-041/Rule 4): this is the "records" leg of a
+// FAIL-OPEN catch, not a swallow. On an https:// failure it makes ONE bounded http:// fallback attempt
+// (Rule 9: a single extra try, never a loop); on a genuine double failure it throws a combined,
+// informative error so observe.js / mint/compose-bundle.js's own outer deadline+catch records a visible
+// lane failure (lane.reason='error') instead of silently leaving the page at about:blank.
+async function gotoUrl(page, url) {
+  const primary = await attemptGoto(page, url);
+  if (primary.ok) return;
+  const fallback = httpFallbackOf(url);
+  if (!fallback) throw primary.error; // no fallback to try; propagate so the caller records it.
+  const secondary = await attemptGoto(page, fallback);
+  if (secondary.ok) return;
+  throw combinedGotoError(primary.error, secondary.error);
 }
 
 function wrapPage(page, ctx, now) {

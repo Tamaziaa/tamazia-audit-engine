@@ -31,33 +31,49 @@ function makeEmit(handlers) {
   };
 }
 
+// gotoBehaviour: DEFECT-1 regression - a real Playwright goto() that fails (e.g. the bare-domain "Cannot
+// navigate to invalid URL" throw) must REJECT here, never resolve silently - this fake proves observe.js's
+// OWN catch chain (navigateUntouched has no local try/catch) turns that rejection into a recorded
+// lane.reason='error', not a false-clean "ran:true, observed:0" (C-041).
+function gotoBehaviour(s, rec, emit) {
+  return async function goto(url) {
+    rec.gotoUrl = url;
+    if (s.hang === 'goto') return hangForever();
+    if (s.gotoRejects) throw new Error(s.gotoRejects);
+    rec.gotoCalled = true; emit(s.preRequests);
+  };
+}
+// settleBehaviour: settleWaits is opt-in (a REAL setTimeout) so the DEFECT-8b post-consent-settle
+// regression test can prove a delayed post-consent request is actually captured; every other test keeps
+// the fast no-op so the suite stays instant.
+function settleBehaviour(s, rec) {
+  return async function settle(ms) {
+    rec.settleCalls = (rec.settleCalls || 0) + 1;
+    if (s.settleWaits) await new Promise((r) => setTimeout(r, ms));
+  };
+}
+function cookiesBehaviour(s, rec) {
+  return async function cookies() { return rec.consented ? (s.postCookies || s.preCookies || []) : (s.preCookies || []); };
+}
+// clickConsentBehaviour: postRequestsDelayMs simulates a tag that a consent-gated CMP only INJECTS on
+// click and which needs a moment to actually fire its own network request (DEFECT-8b: this is a REAL
+// behaviour confirmed on a live GDPR-plugin-gated site during this fix, not a hypothetical).
+function clickConsentBehaviour(s, rec, emit) {
+  return async function clickConsent() {
+    rec.clicked = true; rec.consented = true;
+    if (s.postRequestsDelayMs) setTimeout(() => emit(s.postRequests), s.postRequestsDelayMs);
+    else emit(s.postRequests);
+  };
+}
+
 function makeFakePage(s, rec, handlers, emit) {
   return {
     on(ev, h) { if (ev === 'request') handlers.push(h); },
-    async goto(url) {
-      rec.gotoUrl = url;
-      if (s.hang === 'goto') return hangForever();
-      // DEFECT-1 regression: a real Playwright goto() that fails (e.g. the bare-domain "Cannot navigate
-      // to invalid URL" throw) must REJECT here, never resolve silently - this fake proves observe.js's
-      // OWN catch chain (navigateUntouched has no local try/catch) turns that rejection into a recorded
-      // lane.reason='error', not a false-clean "ran:true, observed:0" (C-041).
-      if (s.gotoRejects) throw new Error(s.gotoRejects);
-      rec.gotoCalled = true; emit(s.preRequests);
-    },
-    // settleWaits is opt-in (a REAL setTimeout) so the DEFECT-8b post-consent-settle regression test can
-    // prove a delayed post-consent request is actually captured; every other test keeps the fast no-op so
-    // the suite stays instant.
-    async settle(ms) { rec.settleCalls = (rec.settleCalls || 0) + 1; if (s.settleWaits) await new Promise((r) => setTimeout(r, ms)); },
-    async cookies() { return rec.consented ? (s.postCookies || s.preCookies || []) : (s.preCookies || []); },
+    goto: gotoBehaviour(s, rec, emit),
+    settle: settleBehaviour(s, rec),
+    cookies: cookiesBehaviour(s, rec),
     async findConsentControl() { return s.control || null; },
-    async clickConsent() {
-      rec.clicked = true; rec.consented = true;
-      // postRequestsDelayMs simulates a tag that a consent-gated CMP only INJECTS on click and which needs
-      // a moment to actually fire its own network request (DEFECT-8b: this is a REAL behaviour confirmed
-      // on a live GDPR-plugin-gated site during this fix, not a hypothetical).
-      if (s.postRequestsDelayMs) setTimeout(() => emit(s.postRequests), s.postRequestsDelayMs);
-      else emit(s.postRequests);
-    },
+    clickConsent: clickConsentBehaviour(s, rec, emit),
   };
 }
 
