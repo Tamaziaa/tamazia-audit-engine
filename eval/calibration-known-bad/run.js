@@ -155,7 +155,7 @@ const CALIBRATIONS = [
   {
     name: 'register-nonmatch-rejected',
     description: 'a non-empty HTTP-200 register response that is not a real name match must yield no row (C-004)',
-    fixtures: ['p3-register-http200-nonmatch.json', 'p3-register-multi-register-nonmatch.json'],
+    fixtures: ['p3-register-http200-nonmatch.json', 'p3-register-multi-register-nonmatch.json', 'p3-register-npi-nonmatch.json'],
     checkerCandidates: ['evidence/registers/registers.js'],
   },
   {

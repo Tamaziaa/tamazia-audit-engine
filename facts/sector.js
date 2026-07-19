@@ -365,6 +365,47 @@ function _present(x) {
 // Decisive regulator registers: presence implies the sector family outright.
 const _REGULATOR_FAMILY = { sra: 'law-firms', cqc: 'healthcare', fca: 'finance' };
 
+// WS-Signals (KIMI-K3-DEEP-BLUEPRINT-2026-07-20 §B2): NPI (NPPES, US healthcare) -> healthcare
+// SUB-sector. Matched on the register's OWN self-reported taxonomy `desc` text (not a hand-guessed
+// NUCC code), so this table never depends on this repo correctly memorising an opaque 10-character
+// code: the register vouches for the words, and the words are what is matched. This is exactly the
+// register-anchored cascade doctrine of §B2: "never infer what a register can tell you" — a matched
+// NPI taxonomy decisively sets the healthcare sub-sector, overriding a weaker text-cue guess,
+// because register data is authoritative (a Tier-A-resolvable firm must be 100% correct here).
+// Deliberately conservative: broad/ambiguous taxonomy groups (e.g. "Clinic/Center, Multi-Specialty")
+// are left UNMATCHED rather than guessed into one of the specific sub-sector leaves below.
+const _NPI_DESC_SUBSECTOR = [
+  [/\bfamily medicine\b|\bgeneral practice\b|\binternal medicine\b/i, 'general-practice'],
+  [/\bpsychiatry\b|\bmental health\b|\bpsycholog(?:y|ist)\b|\bbehavioral health\b/i, 'mental-health'],
+  [/\boptometrist\b|\boptometry\b/i, 'optometry'],
+  [/\bphysical therap/i, 'physiotherapy'],
+  [/\bpharmac(?:y|ist)\b/i, 'pharmacy'],
+  [/\bhospital\b/i, 'hospital-care'],
+  [/\bfertility\b|\breproductive endocrinology\b/i, 'fertility-ivf'],
+  [/\bnursing (?:facility|home)\b|\bskilled nursing\b|\bassisted living\b/i, 'care-home'],
+  [/\btelehealth\b|\btelemedicine\b/i, 'telemedicine'],
+];
+
+// _npiSubSector(registers) -> {sub, desc, code} | null. Reads the primary taxonomy first, then
+// falls back through any secondary taxonomies the register returned (a multi-specialty
+// organisation's primary taxonomy may be a broad, unmatched group while a secondary one is
+// specific), so the sub-sector is only left unset when NOTHING the register reported matches.
+function _npiSubSector(registers) {
+  const npi = registers && registers.npi;
+  if (!npi) return null;
+  const candidates = [];
+  if (npi.taxonomy_desc) candidates.push({ desc: npi.taxonomy_desc, code: npi.taxonomy_code || null });
+  for (const t of Array.isArray(npi.taxonomies) ? npi.taxonomies : []) {
+    if (t && t.desc) candidates.push({ desc: t.desc, code: t.code || null });
+  }
+  for (const c of candidates) {
+    for (const [rx, sub] of _NPI_DESC_SUBSECTOR) {
+      if (rx.test(c.desc)) return { sub, desc: c.desc, code: c.code };
+    }
+  }
+  return null;
+}
+
 // UK SIC 2007 prefix -> sector family. Longest prefix wins. SIC codes are self-declared at
 // incorporation so they corroborate or contradict; they never solely resolve a sector.
 const _SIC_FAMILY = [
@@ -501,9 +542,25 @@ function resolveSector(bundle, options = {}) {
   }
 
   const subRes = resolveSubSector(tree, sector, allText);
+  let subSector = subRes.sub || null;
+  if (sector === 'healthcare') {
+    const npiSub = _npiSubSector((bundle && bundle.registers) || {});
+    if (npiSub) {
+      if (subSector && subSector !== npiSub.sub) {
+        evidence.push({
+          kind: 'register',
+          source: 'npi',
+          quote: 'NPI taxonomy "' + npiSub.desc + '" (' + (npiSub.code || 'no code') + ') overrides the text-derived sub-sector "' + subSector + '"',
+        });
+      } else {
+        evidence.push({ kind: 'register', source: 'npi', quote: 'NPI taxonomy: ' + npiSub.desc + ' (' + (npiSub.code || 'no code') + ')' });
+      }
+      subSector = npiSub.sub;
+    }
+  }
   const result = {
     fact: 'sector',
-    value: { sector: subRes.parent || sector, sub_sector: subRes.sub || null },
+    value: { sector: subRes.parent || sector, sub_sector: subSector },
     confidence,
     evidence,
     contradictions,
@@ -664,5 +721,6 @@ module.exports = {
   _segments,
   _isClientIndustryMention,
   _sicFamilies,
+  _npiSubSector,
   SERVED_CELLS,
 };
