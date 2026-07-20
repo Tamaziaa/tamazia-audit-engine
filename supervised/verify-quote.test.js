@@ -104,16 +104,34 @@ test('verifyRawProvenance PASSES for a real span backed by genuine raw bytes wit
 });
 
 // test (b): a phantom-join (two raw nodes with no punctuation between them) is detectable and refused.
+// NOTE: as of Kimi K3 R2 finding A1/#1, resolveQuoteSpan now REFUSES to mint a phantom span at all (it is
+// the first line of defence), so this test hand-builds the span to prove verifyRawProvenanceDetailed - the
+// SECOND, independent gate the mint gate relies on - also refuses it.
+const crypto = require('crypto');
 test('verifyRawProvenance REFUSES a span crossing a phantom join (two raw text nodes stitched with no source separator)', () => {
   const rawHtml = '<div><span>Free</span><span>VPS</span></div>';
   const text = 'Free VPS';
   const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/pricing', text, rawHtml }] } });
-  const quote = resolveQuoteSpan(store, 'https://x.example/pricing', 'Free VPS');
-  assert.ok(quote, 'the span must resolve against the normalised text (verifyQuote itself still passes)');
-  assert.strictEqual(verifyQuote(store, quote), true); // the EXISTING gate is untouched and still passes
+  const artifact = store.list()[0];
+  const spanBytes = Buffer.from('Free VPS', 'utf8');
+  const quote = { evidence_id: artifact.evidence_id, byte_start: 0, byte_end: spanBytes.length, span_sha256: crypto.createHash('sha256').update(spanBytes).digest('hex') };
+  assert.strictEqual(verifyQuote(store, quote), true); // the EXISTING normalised gate passes - proves independence
   const raw = verifyRawProvenanceDetailed(store, quote);
   assert.strictEqual(raw.ok, false);
   assert.strictEqual(raw.reason, RAW_REFUSAL_REASONS.PHANTOM_JOIN_RISK);
+});
+
+// Kimi K3 R2 finding A24/#23 (live audit 2026-07-20): a span whose offsets split a multi-byte UTF-8
+// character decodes with a U+FFFD replacement char - a mojibake "quote". It must be refused.
+test('A24/#23: a span that splits a multi-byte character (decodes to U+FFFD) is REJECTED as a corrupt slice', () => {
+  const store = storeWithOnePage('café menu prices'); // é is 2 bytes (0xC3 0xA9) in UTF-8
+  const artifact = store.list()[0];
+  const eByteStart = artifact.bytes.indexOf(0xc3); // start of 'é'
+  // A range ending in the MIDDLE of 'é' (one byte into the two-byte sequence) decodes to a U+FFFD.
+  const quote = { evidence_id: artifact.evidence_id, byte_start: 0, byte_end: eByteStart + 1, span_sha256: crypto.createHash('sha256').update(artifact.bytes.subarray(0, eByteStart + 1)).digest('hex') };
+  const result = verifyQuoteDetailed(store, quote);
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.reason, REFUSAL_REASONS.CORRUPT_SLICE);
 });
 
 test('verifyRawProvenance reports raw_unavailable (never a false pass) when the artifact carries no raw bytes', () => {

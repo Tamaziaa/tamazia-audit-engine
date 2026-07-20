@@ -10,10 +10,25 @@
 // This is a LINT, not a rewriter: it never edits the drafted text, it only reports violations with enough
 // detail (sentence, reason) for the orchestrator (or a human) to fix the draft before the packet step runs.
 
-// BANNED_PHRASES: reserved for CONFIRMED-tier findings only. Case-insensitive whole-phrase match.
+// BANNED_PHRASES: reserved for CONFIRMED-tier findings only. Word-boundary match (see bannedPhraseRe).
+//
+// Kimi K3 R2 finding A15/#15 (live audit 2026-07-20): the list had holes - "violates the UK GDPR", "against
+// the law", "contravenes", "prosecutable", "liable to a fine", "breaks the law" all shipped in strong voice
+// at ANY tier. Widened here; the substring match that also mis-fired ("not illegal", "illegally-looking")
+// is replaced by a word-boundary regex with a not/never suppressor (finding A15/#16, see bannedPhraseRe).
 const BANNED_PHRASES = Object.freeze([
   'illegal', 'in breach', 'is breaking the law', 'you are breaking the law', 'unlawful', 'criminal offence',
+  'violates', 'violation of', 'against the law', 'contravenes', 'prosecutable', 'liable to a fine', 'breaks the law',
 ]);
+
+// BANNED_PHRASE_RE: a single word-boundary regex over BANNED_PHRASES (Kimi K3 R2 finding A15/#16). Word
+// boundaries stop the two substring misfires the old `lower.includes(p)` produced: "illegally" no longer
+// matches "illegal" (no boundary after 'illegal' inside 'illegally'), and a not/never prefix within 6 chars
+// suppresses the hit ("not illegal", "never unlawful") - handled at the call site, not in the regex.
+const BANNED_PHRASE_RE = new RegExp('\\b(?:' + BANNED_PHRASES.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b', 'i');
+// NEGATION_BEFORE_RE: true when the text immediately before a banned hit ends in "not"/"never" (+ up to 6
+// spaces) - a negated banned phrase ("this is not illegal") is an exoneration, never an accusation.
+const NEGATION_BEFORE_RE = /\b(?:not|never)\s{0,6}$/i;
 
 // SOFTENED_EQUIVALENT: the required substitute phrasing for a lower tier (used only to illustrate the fix
 // in a violation's `suggestion` field - the lint never rewrites text itself).
@@ -42,14 +57,22 @@ const BARE_ID_RE = /\b[a-f0-9]{6,64}\b/i;
 // newline (a normal Markdown-style list, e.g. a drafted report's own bullet findings) were glued into a
 // SINGLE "sentence" for citation purposes - a citation on the FIRST bullet made hasCitation() see it
 // anywhere in the glued blob and silently cover an UNCITED second bullet's claim right beside it.
-const LIST_MARKER_BREAK_RE = '\\n(?=\\s*(?:[-*•]|\\d+[.)])\\s)';
+const LIST_MARKER_BREAK_RE = '\\n(?=\\s*(?:[-*•◦▪–—]|\\d+[.)])\\s)';
+
+// ABBREV_GUARD_RE: a variable-length negative lookbehind that prevents the sentence-terminator split from
+// firing right after a known abbreviation's closing period (Kimi K3 R2 finding A13/#19, live audit
+// 2026-07-20): "e.g.", "i.e.", "Mr.", "Ltd.", "No." etc. are NOT sentence ends, so splitting there tore an
+// abbreviation-bearing clause off its own citation and produced a false ORPHAN_CLAIM hard-refusal on a
+// correctly-cited report. The abbreviation plus its trailing dot is what must precede the split point, so
+// the guard consumes both (e.g. "e\\.g\\." for "e.g.").
+const ABBREV_GUARD_RE = '(?<!\\b(?:Mr|Mrs|Ms|Dr|Ltd|etc|vs|No|Fig|e\\.g|i\\.e)\\.)';
 
 // splitSentences(text) -> a naive but adequate sentence split for a compliance-report draft: splits on
 // '. '/'.\n'/'!'/'?' followed by whitespace+capital/digit/quote, on a blank line ('\n\n'+), OR on a single
 // newline immediately before a list-marker-opened line (see LIST_MARKER_BREAK_RE above) - keeps the
 // terminator on the sentence.
 function splitSentences(text) {
-  const re = new RegExp('(?<=[.!?])\\s+(?=[A-Z0-9"\'])|\\n{2,}|' + LIST_MARKER_BREAK_RE);
+  const re = new RegExp(ABBREV_GUARD_RE + '(?<=[.!?])\\s+(?=[A-Z0-9"\'])|\\n{2,}|' + LIST_MARKER_BREAK_RE);
   return String(text || '')
     .split(re)
     .map((s) => s.trim())
@@ -68,7 +91,12 @@ function splitSentences(text) {
 // all, so a factual claim about the audited site's own content phrased as "Your homepage promises
 // guaranteed returns." - the exact class of sentence a fin-promo/consumer-protection finding would need to
 // cite - required no citation whatsoever and slipped past the lint entirely.
-const CLAIM_VERBS = /\b(found|detected|shows?|displays?|fails? to|does not|breaches?|lacks?|missing|observed|is regulated|does provide|has published|promises?|claims?|states?|advertises?|guarantees?|offers?|asserts?|represents?)\b/i;
+//
+// Kimi K3 R2 finding A8/#8 (live audit 2026-07-20): the allowlist was an escapable class - real accusation
+// verbs (collects, charges, sells, tracks, installs, buries, pre-ticks, auto-enrols, requires, shares,
+// retains, renews, hides, omits, uses...) were absent, so "Your checkout auto-enrols customers into a
+// £49/month plan." (no citation) read as scaffolding and shipped an uncited accusation. Widened materially.
+const CLAIM_VERBS = /\b(found|detected|shows?|displays?|fails? to|does not|breaches?|lacks?|missing|observed|is regulated|does provide|has published|promises?|claims?|states?|advertises?|guarantees?|offers?|asserts?|represents?|collects?|charges?|sells?|sends?|tracks?|installs?|bur(?:y|ies|ied)|pre[- ]?ticks?|auto[- ]?enrols?|requires?|shares?|retains?|renews?|hides?|omits?|includes?|contains?|uses?)\b/i;
 function isFactualSentence(sentence) {
   return CLAIM_VERBS.test(sentence);
 }
@@ -93,30 +121,42 @@ function findingTierOf(findingId, findingsById) {
 // lintBannedPhrases(sentence, findingsById) -> violation|null. A banned phrase is only ever legitimate when
 // the sentence cites a CONFIRMED-class finding; anywhere else (no citation, or a likely/needs_human
 // citation) it is a violation.
+// lintBannedPhrases(sentence) -> { phrase } | null. A banned phrase fires via the word-boundary
+// BANNED_PHRASE_RE (Kimi K3 R2 finding A15/#16), UNLESS it is negated by a not/never within 6 chars
+// immediately before it (an exoneration, "this is not illegal", is never an accusation).
 function lintBannedPhrases(sentence) {
-  const lower = sentence.toLowerCase();
-  const hit = BANNED_PHRASES.find((p) => lower.includes(p));
-  if (!hit) return null;
+  const m = BANNED_PHRASE_RE.exec(sentence);
+  if (!m) return null;
+  if (NEGATION_BEFORE_RE.test(sentence.slice(0, m.index))) return null;
+  const hit = m[0].toLowerCase();
   return { type: 'banned_phrase', phrase: hit, sentence, suggestion: 'reserve "' + hit + '" for a CONFIRMED-tier citation only; otherwise use "' + SOFTENED_EQUIVALENT + '"' };
 }
 
-// citedFindingIdIn(sentence) -> the lowercased finding/evidence id a sentence cites, via either the
-// "Finding <id>" phrasing or a bare 16-hex token, or null when it cites nothing id-shaped.
-function citedFindingIdIn(sentence) {
-  const m = sentence.match(CITATION_RE) || sentence.match(BARE_ID_RE);
-  return m ? (m[1] || m[0]).toLowerCase() : null;
+// citedFindingIdsIn(sentence) -> every lowercased finding/evidence id a sentence cites, via the
+// "Finding/Evidence <id>" phrasing OR bare id-shaped tokens (Kimi K3 R2 finding #31, live audit
+// 2026-07-20): a sentence may cite MORE than one finding, so the banned-phrase tier check must consider
+// ALL of them, not only the first match - a strong phrase is licensed if ANY cited finding is CONFIRMED.
+function citedFindingIdsIn(sentence) {
+  const ids = new Set();
+  const cited = new RegExp(CITATION_RE.source, 'ig');
+  const bare = new RegExp(BARE_ID_RE.source, 'ig');
+  let m;
+  while ((m = cited.exec(sentence)) !== null) ids.add(m[1].toLowerCase());
+  while ((m = bare.exec(sentence)) !== null) ids.add(m[0].toLowerCase());
+  return Array.from(ids);
 }
 
 // bannedPhraseViolation(sentence, findingsById) -> a violation object when `sentence` uses a banned
-// phrase without a CONFIRMED-tier citation backing it, else null. A citation to a real but non-CONFIRMED
-// finding is `banned_phrase_wrong_tier`; no citation at all is the plain `banned_phrase` type.
+// phrase without a CONFIRMED-tier citation backing it, else null. The phrase is licensed if ANY id the
+// sentence cites resolves to a CONFIRMED-class finding (#31); a citation to only non-CONFIRMED findings is
+// `banned_phrase_wrong_tier`; no id-shaped citation at all is the plain `banned_phrase` type.
 function bannedPhraseViolation(sentence, findingsById) {
   const banned = lintBannedPhrases(sentence);
   if (!banned) return null;
-  const citedId = citedFindingIdIn(sentence);
-  const tier = citedId ? findingTierOf(citedId, findingsById) : null;
-  if (tier === 'confirmed') return null;
-  return Object.assign({}, banned, { type: citedId ? 'banned_phrase_wrong_tier' : 'banned_phrase', cited_tier: tier });
+  const citedIds = citedFindingIdsIn(sentence);
+  const tiers = citedIds.map((id) => findingTierOf(id, findingsById));
+  if (tiers.some((t) => t === 'confirmed')) return null;
+  return Object.assign({}, banned, { type: citedIds.length ? 'banned_phrase_wrong_tier' : 'banned_phrase', cited_tier: tiers[0] || null });
 }
 
 // violationForSentence(sentence, findingsById, knownIds) -> the ONE violation (if any) a single sentence

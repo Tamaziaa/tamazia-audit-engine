@@ -98,6 +98,24 @@ test('E3: a malformed report_sha256 (not 64-hex) is rejected at the write bounda
   assert.strictEqual(latestSignature(s, 'run-e3-bad'), null);
 });
 
+// Kimi K3 R2 finding A16/#26 (live audit 2026-07-20): recordSignature silently coerced a non-store argument
+// into a discarded fresh store, so a signature "succeeded" into the void and every later mint refused
+// NO_SIGNATURE. The write side must fail loudly.
+test('A16/#26: recordSignature THROWS on a non-ManifestStore, never records into a discarded default store', () => {
+  assert.throws(() => recordSignature({}, 'run-badstore', { overall: 'SIGN', findingDecisions: [] }), /requires a real ManifestStore/);
+  assert.throws(() => recordSignature(null, 'run-badstore', { overall: 'SIGN', findingDecisions: [] }), /requires a real ManifestStore/);
+  assert.throws(() => recordSignature('not-a-store', 'run-badstore', { overall: 'SIGN', findingDecisions: [] }), /requires a real ManifestStore/);
+});
+
+// Kimi K3 R2 finding #37 (live audit 2026-07-20): shippedFindingIds reads a Set, so a hand-built/legacy
+// signature carrying a conflicting duplicate (ship+drop) would silently resolve to shipped. Fail closed.
+test('#37: shippedFindingIds EXCLUDES an id decided inconsistently on a hand-built signature (fail closed)', () => {
+  const conflicting = { finding_decisions: [{ finding_id: 'f1', decision: 'ship' }, { finding_id: 'f1', decision: 'drop' }, { finding_id: 'f2', decision: 'ship' }] };
+  const ids = shippedFindingIds(conflicting);
+  assert.ok(!ids.has('f1'), 'a conflicting ship/drop id must not count as shipped');
+  assert.ok(ids.has('f2'), 'a cleanly-shipped id is still shipped');
+});
+
 test('latestSignature returns null when no signature was ever recorded', () => {
   const s = store();
   assert.strictEqual(latestSignature(s, 'never-signed'), null);
