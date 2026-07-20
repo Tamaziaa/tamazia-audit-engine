@@ -10,6 +10,6 @@
 // ONE producer, ONE consumer surface (Rule 1): every mint module reads ENGINE_VERSION from here; no
 // second copy of the string exists anywhere in the engine. Frozen so a consumer cannot mutate it.
 
-const ENGINE_VERSION = 'engine-v2.9.0';
+const ENGINE_VERSION = 'engine-v2.10.0-v';
 
 module.exports = Object.freeze({ ENGINE_VERSION });
