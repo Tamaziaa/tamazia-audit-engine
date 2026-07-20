@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const v = require('./v1_2.js');
-const { verifyQuote, sha256Hex } = require('./verify-quote.js');
+const { verifyQuote, verifyQuoteDetailed, sha256Hex } = require('./verify-quote.js');
 
 const BYTES = 'Welcome. Book your Botox today from £99. Contact us.';
 const TARGET = 'Book your Botox today';
@@ -112,4 +112,70 @@ test('O6: a declared text containing the Unicode replacement character is never 
   store.set('ev1', Buffer.from('clean prose with no corruption', 'utf8'));
   const quote = { evidence_id: 'ev1', byte_start: 0, byte_end: 5, text: '�����', span_sha256: sha256Hex(Buffer.from('clean', 'utf8')) };
   assert.equal(verifyQuote(store, quote), false);
+});
+
+// ── #24 repro: the NO-declared-text sliceMatches path accepted a slice whose BYTES contain the UTF-8
+// encoding of U+FFFD (0xEF 0xBF 0xBD). A byte-split mojibake blob, with a span commitment genuinely
+// computed over those exact corrupt bytes and NO declared text, therefore verified as legitimate.
+test('#24: rejects a no-text quote whose byte slice contains the UTF-8 encoding of U+FFFD (byte-split mojibake)', () => {
+  const mojibake = Buffer.concat([Buffer.from('Bad ', 'utf8'), Buffer.from('�', 'utf8'), Buffer.from(' data', 'utf8')]);
+  const store = new Map([['ev1', mojibake]]);
+  const slice = mojibake.slice(0, mojibake.length);
+  // no declared text; span_sha256 genuinely computed over the corrupt bytes so span-commitment passes
+  const quote = { evidence_id: 'ev1', byte_start: 0, byte_end: mojibake.length, span_sha256: sha256Hex(slice) };
+  assert.equal(verifyQuote(store, quote), false);
+});
+
+// ── #34 repro: when entry.record is null there is no travelling tamper anchor. A caller may now supply
+// expectedHashes (a Map evidence_id -> bytes_sha256). Present-and-correct verifies; present-and-wrong is
+// tamper; a supplied map missing the id is a refusal (no anchor), not a silent pass.
+test('#34: expectedHashes supplies the tamper anchor when no record travels with the bytes', () => {
+  const store = { ev1: BYTES }; // bare bytes, NO travelling EvidenceRecord
+  const quote = v.Quote({ evidence_id: 'ev1', byte_start: START, byte_end: END, text: TARGET, span_sha256: SPAN_SHA });
+  const good = new Map([['ev1', sha256Hex(Buffer.from(BYTES, 'utf8'))]]);
+  assert.equal(verifyQuote(store, quote, good), true);
+
+  const wrong = new Map([['ev1', 'a'.repeat(64)]]);
+  assert.equal(verifyQuote(store, quote, wrong), false); // caller-supplied anchor disagrees -> tamper
+
+  const missing = new Map(); // caller supplied a map but this id is absent -> refuse (no anchor)
+  assert.equal(verifyQuote(store, quote, missing), false);
+});
+
+test('#34: a tampered bare-bytes blob is caught once a caller supplies expectedHashes', () => {
+  const tampered = BYTES.replace('£99', '£10');
+  const store = { ev1: tampered };
+  const quote = v.Quote({ evidence_id: 'ev1', byte_start: START, byte_end: END, text: TARGET, span_sha256: SPAN_SHA });
+  const anchor = new Map([['ev1', sha256Hex(Buffer.from(BYTES, 'utf8'))]]); // anchor over the ORIGINAL bytes
+  assert.equal(verifyQuote(store, quote, anchor), false);
+});
+
+// ── #49 repro: verifyQuoteDetailed returns a typed reason so callers can distinguish the failure leg.
+test('#49: verifyQuoteDetailed returns typed reasons per failure leg', () => {
+  const store = new Map([['ev1', { bytes: BYTES, record: record(BYTES) }]]);
+
+  // pass
+  const okQuote = v.Quote({ evidence_id: 'ev1', byte_start: START, byte_end: END, text: TARGET, span_sha256: SPAN_SHA });
+  assert.deepEqual(verifyQuoteDetailed(store, okQuote), { ok: true, reason: null });
+
+  // no_evidence: unresolvable id, and malformed quote
+  assert.equal(verifyQuoteDetailed(store, v.Quote({ evidence_id: 'ghost', byte_start: 0, byte_end: 3, span_sha256: sha256Hex(BYTES.slice(0, 3)) })).reason, 'no_evidence');
+  assert.equal(verifyQuoteDetailed(store, null).reason, 'no_evidence');
+
+  // tampered: store holds a tampered blob vs the record's hash
+  const tstore = new Map([['ev1', { bytes: BYTES.replace('£99', '£10'), record: record(BYTES) }]]);
+  assert.equal(verifyQuoteDetailed(tstore, okQuote).reason, 'tampered');
+
+  // out_of_bounds
+  assert.equal(verifyQuoteDetailed(store, { evidence_id: 'ev1', byte_start: 0, byte_end: BYTES.length + 50, span_sha256: SPAN_SHA }).reason, 'out_of_bounds');
+
+  // span_mismatch: in-bounds, wrong span commitment
+  assert.equal(verifyQuoteDetailed(store, { evidence_id: 'ev1', byte_start: START, byte_end: END, span_sha256: 'f'.repeat(64) }).reason, 'span_mismatch');
+
+  // text_mismatch: valid span over the slice, but declared text differs from the slice
+  const slice = BYTES.slice(START, END);
+  assert.equal(verifyQuoteDetailed(store, { evidence_id: 'ev1', byte_start: START, byte_end: END, text: 'We never store payment details', span_sha256: sha256Hex(Buffer.from(slice, 'utf8')) }).reason, 'text_mismatch');
+
+  // corrupt_text: declared text carries U+FFFD
+  assert.equal(verifyQuoteDetailed(store, { evidence_id: 'ev1', byte_start: START, byte_end: END, text: '�����', span_sha256: sha256Hex(Buffer.from(slice, 'utf8')) }).reason, 'corrupt_text');
 });

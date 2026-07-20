@@ -39,6 +39,15 @@ function locateNeedle(artifact, needle) {
   return { byteStart, byteEnd, sliceBytes };
 }
 
+// spanCrossesPhantomJoin(artifact, byteStart, byteEnd) -> true when any raw-text-run boundary recorded on
+// the artifact lies STRICTLY inside [byteStart, byteEnd) and is unpunctuated - i.e. the located span was
+// stitched together across two originally separate raw text nodes with no source separator between them (a
+// "Free"+"VPS" pill-badge pair concatenated into a phantom "Free VPS" no human could find on the page).
+function spanCrossesPhantomJoin(artifact, byteStart, byteEnd) {
+  const boundaries = Array.isArray(artifact.boundaries) ? artifact.boundaries : [];
+  return boundaries.some((b) => b && b.byteOffset > byteStart && b.byteOffset < byteEnd && !b.punctuated);
+}
+
 function resolveQuoteSpan(store, pageUrl, quoteText) {
   const needle = normaliseWhitespace(quoteText);
   if (!needle.trim()) return null;
@@ -46,6 +55,11 @@ function resolveQuoteSpan(store, pageUrl, quoteText) {
   if (!artifact) return null;
   const located = locateNeedle(artifact, needle);
   if (!located) return null;
+  // Kimi K3 R2 finding A1/#1 (live audit 2026-07-20): E2 (phantom-join refusal) was enforced NOWHERE. A
+  // span that resolves to a real byte range can still straddle an unpunctuated raw-run join - refuse it
+  // here, at the ONE door that mints a span, rather than let a phantom sentence reach verify/sign/mint
+  // (Constitution Rule 4/Rule 6: fail closed, ambiguity withholds the accusation).
+  if (spanCrossesPhantomJoin(artifact, located.byteStart, located.byteEnd)) return null;
   // span_sha256: the ONE-WAY commitment to the exact bytes at these offsets (verify-quote.js re-checks it,
   // so a later drift of the offsets no longer verifies - the anti-fake bind of a quote to its own bytes).
   // A hash, never the words themselves, so the "a Quote is never a raw string" rule (finding.js) holds.

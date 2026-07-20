@@ -81,6 +81,11 @@ class ArtifactStore {
     return {
       artifacts: this.list().map((a) => ({
         evidence_id: a.evidence_id, url: a.url, lane: a.lane, sha256: a.sha256, length: a.length, fetched_at: a.fetched_at,
+        // Kimi K3 R2 finding A22/#27 (live audit 2026-07-20): the manifest projection dropped the raw
+        // provenance fields, so a manifest-only re-audit (no live bytes) could never re-run the phantom-join
+        // check verifyRawProvenanceDetailed performs - the raw sha256, its availability, and the boundary map
+        // are provenance facts and belong in the manifest exactly like the normalised sha256 does.
+        raw_sha256: a.rawSha256 || null, raw_available: Boolean(a.rawAvailable), boundaries: Array.isArray(a.boundaries) ? a.boundaries : [],
       })),
       errors: this.errors.map((e) => ({ lane: e.lane, reasonCode: e.reasonCode, detail: e.detail })),
     };
@@ -123,7 +128,12 @@ function captureOnePage(page, fetchedAt) {
   const raw = captureRawFor(page, normalised);
   return {
     error: null,
-    artifact: {
+    // Kimi K3 R2 finding #41 (live audit 2026-07-20): the artifact metadata is frozen before it leaves this
+    // function (belt-and-braces: span_sha256 already anchors the bytes, but freezing the record stops any
+    // consumer silently reassigning evidence_id/sha256/boundaries after capture, and lets verify-quote.js's
+    // integrity cache trust the record's immutability). The Buffer contents stay mutable (freeze is shallow),
+    // so a tamper-detection test that flips a byte in place still exercises the hash-mismatch path.
+    artifact: Object.freeze({
       evidence_id: evidenceIdFor(page.url, 'static'), url: page.url, lane: 'static', sha256: sha256Hex(bytes), length: bytes.length, fetched_at: fetchedAt, bytes,
       // ── raw-vs-normalised durability fields (Kimi K3 HIGH-E2, see the section below) ──
       rawAvailable: Boolean(raw),
@@ -131,7 +141,7 @@ function captureOnePage(page, fetchedAt) {
       rawSha256: raw ? raw.rawSha256 : null,
       rawLength: raw ? raw.rawBytes.length : null,
       boundaries: raw ? raw.boundaries : [],
-    },
+    }),
   };
 }
 
@@ -305,8 +315,14 @@ function captureAllPages(pages, fetchedAt) {
 function buildCaptureIndex(bundle, opts) {
   const o = opts || {};
   const now = typeof o.now === 'function' ? o.now : Date.now;
-  const fetchedAt = new Date(now()).toISOString();
+  // Kimi K3 R2 finding #46 (live audit 2026-07-20): a bad injected clock (NaN/Infinity/non-number) fed
+  // straight into `new Date(t).toISOString()` throws a raw RangeError that aborts the whole capture. A
+  // capture must degrade to an honest 'unknown' timestamp, never crash (Rule 4: a malformed input BLOCKS
+  // the one field it affects, it does not take down the run).
+  const t = now();
+  const fetchedAt = Number.isFinite(t) ? new Date(t).toISOString() : 'unknown';
   const { artifacts, errors } = captureAllPages(pagesOfBundle(bundle), fetchedAt);
+  if (fetchedAt === 'unknown') errors.push(new LaneError('capture', 'bad_clock', 'the injected clock returned a non-finite value; fetched_at recorded as "unknown" rather than crashing the capture'));
   const unreachable = unreachableSiteError(o.stageManifest);
   if (unreachable) errors.push(unreachable);
   return new ArtifactStore(artifacts, errors);

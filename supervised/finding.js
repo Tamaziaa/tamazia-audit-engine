@@ -96,8 +96,12 @@ function assertQuotePlainObject(quote) {
 // assertQuoteHasNoRawText(quote) -> throws if a raw quote_text/text field is present (Kimi blueprint
 // section 2.2: the quote IS the byte range, never a copy of the words).
 function assertQuoteHasNoRawText(quote) {
-  if (typeof quote.quote_text === 'string' || typeof quote.text === 'string') {
-    throw new FindingConstructionError('quote', 'quote must never carry a raw string field (quote_text/text) - the quote IS the byte range, never a copy of the words (Kimi blueprint section 2.2)');
+  // Kimi K3 R2 sniper #35 (live audit 2026-07-20): the guard checked `typeof === 'string'` only, so a
+  // non-string raw-text smuggle (`quote_text: 123`, `text: {...}`, `quote_text: null`) slipped straight
+  // past it - the presence of the KEY AT ALL is the defect (a Quote is the byte range, it may never carry
+  // its own words under any type), so the check is on key presence, not value type.
+  if ('quote_text' in quote || 'text' in quote) {
+    throw new FindingConstructionError('quote', 'quote must never carry a raw text field (quote_text/text) under any type - the quote IS the byte range, never a copy of the words (Kimi blueprint section 2.2)');
   }
 }
 // assertQuoteEvidenceId(quote) -> throws unless evidence_id is a non-empty string.
@@ -172,8 +176,17 @@ function canonicalQuote(quote) {
 // suppress-only review (run-harness.js's own doc) never re-derives a Finding with a different class over the
 // same quote - it only appends a mitigation_log entry via withMitigation() below, which never touches
 // finding_id.
-function deriveFindingId(ruleId, quote, findingClass, jurisdiction) {
-  const basis = ruleId + '|' + findingClass + '|' + jurisdiction + '|' + quote.evidence_id + '|' + quote.byte_start + '-' + quote.byte_end + '|' + quote.span_sha256;
+//
+// catalogue_hash and engine_version are ALSO in the basis (Kimi K3 R2 finding A5/#7, live audit
+// 2026-07-20): the mint-gate's catalogue check compares a finding's catalogue_hash to the CURRENTLY loaded
+// catalogue, and a per-finding_id 'ship' decision is what licenses a mint. Before this, a finding rebuilt
+// under a NEW catalogue (same rule_id/quote/class/jurisdiction, but different law text at that id) or under
+// NEW engine detection logic kept the identical finding_id, so the founder's earlier per-id sign-off - made
+// reading the OLD law text - silently covered the never-reviewed rebuild. With catalogue_hash and
+// engine_version in the basis, either change mints a DIFFERENT finding_id with no recorded decision, which
+// mint-gate.js refuses as UNDECIDED_FINDING.
+function deriveFindingId(ruleId, quote, findingClass, jurisdiction, catalogueHash, engineVersion) {
+  const basis = ruleId + '|' + findingClass + '|' + jurisdiction + '|' + catalogueHash + '|' + engineVersion + '|' + quote.evidence_id + '|' + quote.byte_start + '-' + quote.byte_end + '|' + quote.span_sha256;
   return crypto.createHash('sha256').update(basis, 'utf8').digest('hex').slice(0, 16);
 }
 
@@ -223,21 +236,31 @@ function resolvedEngineVersion(f) {
 // frozenMitigationLog(f) -> a FROZEN copy of f.mitigation_log (or a frozen [] when none was supplied) -
 // the array itself is frozen, not just the Finding that carries it (same shallow-freeze gap as the quote:
 // Object.freeze(finding) alone does not stop finding.mitigation_log.push(...) mutating the array in place).
+//
+// Kimi K3 R2 finding A12/#17 (live audit 2026-07-20): the initial mitigation_log was only SHALLOW-frozen
+// (the array froze, its entry objects did not), so `finding.mitigation_log[0].outcome = 'promoted'` mutated
+// a recorded verdict post-construction on a branded, frozen Finding - the same tamper hole withMitigation()
+// already closed for appended entries. Each initial entry is now deep-frozen (via a structuredClone,
+// severing it from the caller's own reference), exactly as withMitigation() does.
 function frozenMitigationLog(f) {
-  return Object.freeze(Array.isArray(f.mitigation_log) ? f.mitigation_log.slice() : []);
+  const entries = Array.isArray(f.mitigation_log) ? f.mitigation_log : [];
+  return Object.freeze(entries.map((e) => deepFreezeClone(e)));
 }
 
 // buildFindingObject(f, quote) -> the plain (not yet frozen) Finding fields, all read straight off the
-// already-validated `f` and the canonicalised (already-frozen) `quote`.
+// already-validated `f` and the canonicalised (already-frozen) `quote`. engine_version is resolved ONCE
+// here and fed into BOTH the finding_id basis and the finding's own engine_version field, so the two can
+// never disagree (Rule 1: one door for the value).
 function buildFindingObject(f, quote) {
+  const engineVersion = resolvedEngineVersion(f);
   return {
-    finding_id: deriveFindingId(f.rule_id, quote, f.class, f.jurisdiction),
+    finding_id: deriveFindingId(f.rule_id, quote, f.class, f.jurisdiction, f.catalogue_hash, engineVersion),
     rule_id: f.rule_id,
     catalogue_hash: f.catalogue_hash,
     quote,
     jurisdiction: f.jurisdiction,
     class: f.class,
-    engine_version: resolvedEngineVersion(f),
+    engine_version: engineVersion,
     mitigation_log: frozenMitigationLog(f),
   };
 }

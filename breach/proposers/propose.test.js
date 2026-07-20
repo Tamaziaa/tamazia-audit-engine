@@ -873,3 +873,149 @@ test('MEDIUM-13(c-regression): findWindowedTokenSetQuote is a no-op for a spec w
   const r = findWindowedTokenSetQuote(anchoredOnly, ['Book your', 'Botox treatment']);
   assert.deepStrictEqual(r, { quote: null, guarded: false, sawNonProse: false }, 'no token-set pattern -> the window pass never engages');
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// R2 DETECTION CLUSTER (Kimi K3 re-poll, 2026-07-20) - false-accusation regressions from round-1 fixes.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+// ── A2/#3: pathHasSegment must whole-token-SUBSEQUENCE match a HYPHENATED pattern, not require the
+// un-tokenised whole slug to appear verbatim in the tokens array (which can never happen once the path
+// itself is tokenised) ──────────────────────────────────────────────────────────────────────────────
+test('R2 A2: pathHasSegment matches a hyphenated pattern against the matching hyphenated URL slug (must not fabricate a "missing" absence)', () => {
+  assert.strictEqual(pathHasSegment('https://clinic.example/complaints-policy', '/complaints-policy'), true, 'a real /complaints-policy page must read as present, not absent');
+  assert.strictEqual(pathHasSegment('https://clinic.example/terms-and-conditions', '/terms-and-conditions'), true, 'a multi-hyphen slug must still whole-token match');
+  assert.strictEqual(pathHasSegment('https://clinic.example/about', '/complaints-policy'), false, 'an unrelated page never matches');
+  assert.strictEqual(pathHasSegment('https://clinic.example/complaints-policy', '/complaints'), true, 'a single-token pattern still matches inside a hyphenated slug (no regression)');
+  assert.strictEqual(pathHasSegment('https://clinic.example/my-complaints-policy-page', '/complaints-policy'), true, 'the pattern run may sit inside a longer slug (subsequence, not full-path equality)');
+});
+
+// ── A7/#4: an empty/whitespace-only page must not count toward the corpus a presence check reads,
+// nor keep an all-blank bundle looking "readable" (isUnreadable relies on pagesOf) ────────────────────
+test('R2 A7: an all-blank-text bundle (nothing actually read) fires NOTHING - no fabricated "missing X" on unread content', () => {
+  const cat = catalogue();
+  const blankPages = [
+    { url: 'https://clinic.example/', title: 'Home', text: '', jsonLd: [] },
+    { url: 'https://clinic.example/about', title: 'About', text: '   ', jsonLd: [] },
+    { url: 'https://clinic.example/contact', title: 'Contact', text: '\n\t', jsonLd: [] },
+  ];
+  const b = { domain: 'clinic.example', corpus: { pages: blankPages, footerText: 'placeholder footer copy present on every page of this site', truncated: false },
+    registers: { notes: [] }, browser: { observed: [], lane: { ran: false, reason: 'x' } } };
+  const cov = coverageContract.coverageFor(cat.records, blankPages, { truncated: false });
+  const out = propose(b, cat, cov);
+  assert.strictEqual(out.filter((c) => !c.suppressed_reason).length, 0, 'a bundle with no real page text must behave as unreadable (C-038), never fire an absence breach');
+});
+
+// ── A6/#12: isMatchedRegisterRow must reject a degraded-lane placeholder even when it also happens to
+// carry a *_name-shaped key ─────────────────────────────────────────────────────────────────────────
+test('R2 A6: isMatchedRegisterRow rejects a degraded/error row even when it carries a *_name field (the failure HIGH-10 was filed against, one key over)', () => {
+  assert.strictEqual(isMatchedRegisterRow({ error: 'timeout', register_name: 'fca' }), false, 'an error-flagged row is never a compliant match, whatever field names ride along');
+  assert.strictEqual(isMatchedRegisterRow({ degraded: true, firm_name: 'Whatever Ltd' }), false, 'a degraded-flagged row is never a compliant match');
+  assert.strictEqual(isMatchedRegisterRow({ firm_name: 'Genuine Firm Ltd' }), true, 'a genuine matched row (no error/degraded flag) still passes (no regression)');
+});
+
+// ── A10a/#10: the clause splitter must not break an intra-word hyphen (only a hyphen with surrounding
+// whitespace is a clause boundary) ──────────────────────────────────────────────────────────────────
+test('R2 A10a: an intra-word hyphen does not fragment a clause away from its own negation guard', () => {
+  const specBack = { patterns: [{ kind: 'anchored-regex', value: '\\bback\\b', negation_guarded: true, prose_exempt: true }] };
+  assert.strictEqual(sentenceVerdict(specBack, 'We do not offer a money-back guarantee.'), 'guarded', 'the hyphenated compliant sentence must not fragment into a false "needs_human" candidate');
+});
+
+// ── A10b/#11: de Morgan or/nor coordination under a single negation must guard the whole sentence,
+// not just the clause literally holding the negation word ──────────────────────────────────────────
+test('R2 A10b: an or/nor-coordinated negated sentence guards both legs (de Morgan), never fires needs_human on a compliant sentence', () => {
+  const specGuarantee = { patterns: [{ kind: 'anchored-regex', value: '\\bguarantee\\W+returns\\b', negation_guarded: true, prose_exempt: true }] };
+  assert.strictEqual(sentenceVerdict(specGuarantee, "We don't charge fees or guarantee returns."), 'guarded', 'or-coordination under one negation must suppress both legs, never a weak fired candidate on a compliant opt-out sentence');
+});
+
+// ── A11/#13,#14: consent_control_broken must require a distinctive 'consent' token (the same
+// distinctive-token gate cookie_pre_consent already got), and 'preferences' must not be a bare qualifier ──
+test('R2 A11: consent_control_broken requires the obligation to actually concern consent, not merely mention "preferences"', () => {
+  const preferencesOnlySpec = { record_id: 'X', duty_idx: 0, patterns: [{ kind: 'token-set', value: { tokens: ['user', 'preferences'], mode: 'all' }, negation_guarded: false }] };
+  assert.strictEqual(obligationConcerns(preferencesOnlySpec, 'consent_control_broken'), false, 'a behavioural duty about generic "user preferences" must not claim a broken-consent-control event');
+  const consentSpec = { record_id: 'X', duty_idx: 0, patterns: [{ kind: 'token-set', value: { tokens: ['consent', 'withdraw'], mode: 'all' }, negation_guarded: false }] };
+  assert.strictEqual(obligationConcerns(consentSpec, 'consent_control_broken'), true, 'a genuine consent-control duty still concerns the event (no regression)');
+});
+
+// ── #29: isNonEnglishGated must accept "eng" and a dot/colon-separated tag, not just hyphen/underscore ──
+test('R2 #29: isNonEnglishGated accepts "eng" and dot/colon-separated English language tags', () => {
+  assert.strictEqual(isNonEnglishGated({ corpus: { language: 'eng' } }), false, '"eng" is English, must not gate');
+  assert.strictEqual(isNonEnglishGated({ corpus: { language: 'en.GB' } }), false, 'a dot-separated tag is still English, must not gate');
+  assert.strictEqual(isNonEnglishGated({ corpus: { language: 'en:GB' } }), false, 'a colon-separated tag is still English, must not gate');
+  assert.strictEqual(isNonEnglishGated({ corpus: { language: 'fr' } }), true, 'French is still correctly gated (no regression)');
+});
+
+// ── A23/#30: registerTargetFor must prefer the record's OWN register_url token over an unrelated
+// record-id token that happens to collide with a different register key ───────────────────────────────
+test('R2 A23: registerTargetFor prefers a register_url-derived token over a same-named record-id token collision', () => {
+  const record = { id: 'FAKE_SRA_ICO_LINKED_2099', regulator: { register_url: 'https://register.example/sra' }, citation: { url: 'https://law.example/act' } };
+  assert.strictEqual(registerTargetFor(record, ['ico', 'sra']), 'sra', 'the register_url says sra; the id merely CONTAINS the unrelated token "ico" and must not win regardless of key order');
+  assert.strictEqual(registerTargetFor(record, ['sra', 'ico']), 'sra', 'same result whatever order the caller supplies keys in (deterministic, not caller-order-dependent)');
+});
+
+// ── #33: the absence floor must require at least one substantively readable page, not merely satisfy
+// the page-count floor with trivial 1-2 word pages ──────────────────────────────────────────────────
+test('R2 #33: an absence claim on a corpus of only trivial (near-empty) pages is demoted, not fired as a hard breach', () => {
+  const cat = catalogue();
+  const trivialPages = [
+    { url: 'https://clinic.example/', title: 'Home', text: 'hi', jsonLd: [] },
+    { url: 'https://clinic.example/about', title: 'About', text: 'hi there', jsonLd: [] },
+    { url: 'https://clinic.example/contact', title: 'Contact', text: 'ok', jsonLd: [] },
+  ];
+  const b = { domain: 'clinic.example', corpus: { pages: trivialPages, footerText: 'x', truncated: false },
+    registers: { notes: [] }, browser: { observed: [], lane: { ran: false, reason: 'x' } } };
+  const cov = coverageContract.coverageFor(cat.records, trivialPages, { truncated: false });
+  const out = propose(b, cat, cov);
+  const firedAbsence = out.filter((c) => c.kind === KIND.ABSENCE_BREACH && !c.suppressed_reason);
+  assert.strictEqual(firedAbsence.length, 0, 'no substantively readable page in the corpus -> the absence claim must be demoted (C-038), never a hard "missing X" breach on 2-8 characters of text');
+  assert.ok(out.some((c) => c.kind === KIND.ABSENCE_BREACH && c.suppressed_reason), 'the demotion is a recorded suppression, not silent');
+});
+
+// ── #36: an unrecognised evidence_type must never silently route to the REGISTER kind (a real routing
+// bug for any suppression built off it) ─────────────────────────────────────────────────────────────
+test('R2 #36: an unrecognised evidence_type throws rather than silently defaulting to REGISTER', () => {
+  const spec = { record_id: 'X', duty_idx: 0, evidence_type: 'nonsense_type', page_class: 'privacy', patterns: [] };
+  const bundle_ = { corpus: { pages: [{ url: 'https://x/', text: 'hello world today, this is a perfectly ordinary sentence with real content.' }], truncated: false } };
+  assert.throws(() => evaluateSpec(spec, bundle_, { rules: [{ id: 'X', state: 'screened' }] }, null), /unknown evidence_type/i);
+});
+
+// ── #38: DOM_NODE_CONCEPTS.accessibility must not carry the over-broad bare 'screen' token (a duty
+// merely mentioning "screens" in an unrelated sense must not route an accessibility DOM node to it) ────
+test('R2 #38: DOM_NODE_CONCEPTS.accessibility does not carry the over-broad bare "screen" token', () => {
+  const { DOM_NODE_CONCEPTS } = require('./propose.js');
+  assert.ok(!DOM_NODE_CONCEPTS.accessibility.includes('screen'), '"screen" alone is over-broad; "reader" (screen reader) remains the concept anchor');
+  assert.ok(DOM_NODE_CONCEPTS.accessibility.includes('reader'), '"reader" must remain so a genuine "screen reader" duty still routes (no regression)');
+});
+
+// ── #47: a PARTIAL (bare disclosure page) absence-breach candidate must carry the bare page's own URL,
+// not a null page_url that throws away exactly the page a human should go check ────────────────────────
+test('R2 #47: a partial (bare disclosure page) absence-breach candidate carries the bare page URL, not null', () => {
+  const cat = complaintsCatalogue();
+  const barePage = { url: 'https://x.example/complaints', title: 'Complaints', text: 'Coming soon. This page is under construction and will be available shortly for all of our visitors here.', jsonLd: [] };
+  const b = complaintsBundle([barePage]);
+  const cov = coverageContract.coverageFor(cat.records, b.corpus.pages, { truncated: false });
+  const forRecord = propose(b, cat, cov).filter((c) => c.record_id === 'FAKE_ACT_2099_COMPLAINTS');
+  const firedOnes = fired(forRecord, KIND.ABSENCE_BREACH);
+  assert.strictEqual(firedOnes.length, 1);
+  assert.strictEqual(firedOnes[0].page_url, barePage.url, 'the partial candidate must point a human reviewer at the actual bare page');
+});
+
+// ── #48 (propose-half): a prohibited-content scan must also cover the footer surface, not pages only -
+// a footer-only prohibited claim is otherwise structurally undetectable ────────────────────────────────
+test('R2 #48 (propose-half): a prohibited phrase living ONLY in the footer is detected, not structurally invisible', () => {
+  const cat = { records: [{ id: 'FAKE_ACT_2099_MAIN', website_obligations: [
+    { duty: 'Do not advertise the prohibited miracle tonic', elements: ["the phrase 'miracle tonic cures all' must not appear in public copy"], evidence_type: 'absence' },
+  ] }] };
+  const pages_ = [
+    { url: 'https://clinic.example/', title: 'Home', text: 'Welcome to our clinic, a friendly team helping the community every day here.', jsonLd: [] },
+    { url: 'https://clinic.example/about', title: 'About', text: 'About us page with plenty of words describing our founders history here today.', jsonLd: [] },
+    { url: 'https://clinic.example/contact', title: 'Contact', text: 'Contact information and opening hours listed clearly on this page today now.', jsonLd: [] },
+  ];
+  const b = { domain: 'clinic.example', corpus: { pages: pages_, footerText: 'Try our miracle tonic cures all remedies available today only here.', truncated: false },
+    registers: { notes: [] }, browser: { observed: [], lane: { ran: false, reason: 'x' } } };
+  const cov = coverageContract.coverageFor(cat.records, pages_, { truncated: false });
+  const out = propose(b, cat, cov);
+  const firedOnes = out.filter((c) => c.kind === KIND.PRESENCE_BREACH && !c.suppressed_reason);
+  assert.strictEqual(firedOnes.length, 1, 'a footer-only prohibited claim must fire, not vanish silently');
+  assert.strictEqual(firedOnes[0].artifact.type, 'quote');
+  assert.ok(/miracle tonic cures all/i.test(firedOnes[0].artifact.text));
+});

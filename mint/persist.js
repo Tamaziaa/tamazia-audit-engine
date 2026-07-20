@@ -86,11 +86,24 @@ function kebab(s) {
   return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-// stableJson(payload) -> the payload serialised for hashing. compose() is pure and its generatedAt is
-// injected (no clock), so the same inputs yield the same object and JSON.stringify is byte-stable for the
-// content hash. Not a canonical sort (unnecessary: one producer, one shape), just the content bytes.
+// stableJson(payload) -> the payload serialised for hashing, with object keys sorted at EVERY level (Kimi
+// K3 R2 #50: plain JSON.stringify's key order follows insertion order, so a future producer refactor that
+// reorders how it builds the same payload would silently change the content hash for byte-identical
+// content, spuriously breaking ON CONFLICT (slug, hash) dedup and ledger continuity). A recursive
+// replacer keeps this a genuine deep sort rather than the flawed `JSON.stringify(obj, Object.keys(obj)
+// .sort())` form, which uses the replacer array as a global key ALLOWLIST and would silently drop any
+// nested key not present at the top level. Arrays keep their order (position is semantic there).
+function sortKeysDeep(value) {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const k of Object.keys(value).sort()) out[k] = sortKeysDeep(value[k]);
+    return out;
+  }
+  return value;
+}
 function stableJson(payload) {
-  return JSON.stringify(payload);
+  return JSON.stringify(sortKeysDeep(payload));
 }
 
 // deriveSlug(payload) / deriveHash(payload) -> the two route segments. slug from the domain fact
@@ -99,8 +112,12 @@ function deriveSlug(payload) {
   const domain = payload && payload.meta && payload.meta.domain;
   return kebab(domain);
 }
+// Kimi K3 R2 A19/#21: 8 hex (2^32) is offline-grindable; a colliding hash silently overwrites a PRIOR
+// audit's row and R2 object under ON CONFLICT (slug, hash) DO UPDATE. Widened to 16 hex (2^64) - both the
+// R2 object key and the Neon row are derived from this SAME function, so the widened value stays internally
+// consistent across both persistence doors without any other file needing to change.
 function deriveHash(payload) {
-  return crypto.createHash('sha256').update(stableJson(payload)).digest('hex').slice(0, 8);
+  return crypto.createHash('sha256').update(stableJson(payload)).digest('hex').slice(0, 16);
 }
 
 // str(v) -> the string value, or null for null/undefined/empty (the columns are nullable metadata, never a
@@ -136,9 +153,13 @@ function markerBinding(payload) {
 // LLM Gate-3/Gate-5 seam, ran and produced the findings surface), so this genuinely distinguishes a real
 // verified mint from a bare `{r2:true}` stub. It does NOT claim per-finding model approval: observed/register
 // facts bypass the model to a violation (C-084), which is a fact, not a model judgement.
+// Kimi K3 R2 A18/#20: `Array.isArray(payload.findings)` is TRUE for a stub carrying `findings: []` - shape
+// alone cannot carry "the LLM adjudication step ran". The realness marker now reads an explicit pipeline
+// fact instead: payload.meta.adjudicated === true, defaulting to false when absent (fail closed, never a
+// shape-derived guess).
 function llmVerifyFor(payload, explicit) {
   if (typeof explicit === 'boolean') return explicit;
-  return Array.isArray(payload && payload.findings);
+  return Boolean(payload && payload.meta && payload.meta.adjudicated === true);
 }
 // buildMarker(payload, llmVerify) -> the COMPACT r2 marker persisted in the Neon row's payload_json (NEVER
 // the full payload; that lives in R2). Carries the four keys the live trigger reads: r2 (dual-path flag the
@@ -408,7 +429,11 @@ async function persistArtifactStore(store, opts = {}) {
     const putResult = await putFn(objectKey, JSON.stringify(sealedRecordFor(artifact)));
     results.push({ evidence_id: artifact.evidence_id, sha256: artifact.sha256, objectKey, ok: Boolean(putResult && putResult.ok) });
   }
-  return { chainHead: deriveArtifactChainHead(store), results };
+  // Kimi K3 R2 A17/#22: chainHead was returned UNCONDITIONALLY, so a caller could attach
+  // evidence_chain_head to the minted payload over a store that was only PARTIALLY written - a false
+  // durability claim. Now null unless every artifact write succeeded; `ok` mirrors that same fact.
+  const allOk = results.every((r) => r.ok);
+  return { chainHead: allOk ? deriveArtifactChainHead(store) : null, ok: allOk, results };
 }
 
 // replaySealedStore(records) -> an ArtifactStore-SHAPED { get, list } object rehydrated ONLY from sealed

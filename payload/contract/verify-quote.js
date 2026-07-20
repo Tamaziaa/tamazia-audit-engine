@@ -71,12 +71,21 @@ function hasFields(quote) {
  * -> false), because a throw here would be a way for a fabrication to escape as an error the mint might
  * swallow. The mint-time gate (mint/quote-verify-gate.js) turns a false here into a mint refusal.
  */
-// tamperedOrOutOfBounds(entry, buf, quote) -> true when the bytes no longer hash to the recorded digest
-// (tamper) or the quote's offsets fall outside the fetched bytes.
-function tamperedOrOutOfBounds(entry, buf, quote) {
-  const want = expectedHash(entry);
-  if (want != null && sha256Hex(buf) !== want) return true;
-  return quote.byte_end > buf.length;
+// resolveAnchorHash(entry, quote, expectedHashes) -> { hash } (the sha256 the bytes must match, or null
+// when no anchor is available) or { refuse: true }. The travelling EvidenceRecord's bytes_sha256 is the
+// primary anchor. When no record travels with the bytes (record === null) a caller MAY supply
+// expectedHashes (a Map evidence_id -> bytes_sha256) as the tamper anchor (#34). If the caller supplied
+// such a map but this evidence_id is absent from it, that is a REFUSAL (a demanded anchor that cannot be
+// resolved), never a silent pass with no tamper check.
+function resolveAnchorHash(entry, quote, expectedHashes) {
+  const recorded = expectedHash(entry);
+  if (recorded != null) return { hash: recorded };
+  if (expectedHashes != null) {
+    const supplied = typeof expectedHashes.get === 'function' ? expectedHashes.get(quote.evidence_id) : undefined;
+    if (typeof supplied !== 'string' || supplied === '') return { refuse: true };
+    return { hash: supplied };
+  }
+  return { hash: null };
 }
 // SPAN_HASH_RE: span_sha256 must be a 64-char lowercase-hex commitment (mirrors v1_2/evidence.js's Quote
 // constructor and supervised/verify-quote.js's proven pattern).
@@ -94,6 +103,22 @@ function hasSpanCommitment(quote) {
 // can make two different byte sequences read as "equal" (O6). The fix below compares raw BYTES, never
 // decoded strings, so this constant remains only for the reject-on-replacement-char defence in depth.
 const UNICODE_REPLACEMENT = '�';
+// REPLACEMENT_BYTES: the UTF-8 encoding of U+FFFD (0xEF 0xBF 0xBD). A byte slice CONTAINING this sequence
+// is itself corrupt/mojibake even when no `text` is declared, so the no-declared-text path must reject it
+// (#24) - otherwise a byte-split blob with a span commitment computed over its own corrupt bytes would
+// verify as a legitimate quote.
+const REPLACEMENT_BYTES = Buffer.from('�', 'utf8');
+function sliceHasReplacementBytes(slice) { return slice.indexOf(REPLACEMENT_BYTES) !== -1; }
+// REASONS: the closed set of typed failure legs verifyQuoteDetailed can report (#49). A caller (e.g.
+// mint/quote-verify-checks.js) can throw or route on the specific leg instead of a bare boolean.
+const REASONS = {
+  NO_EVIDENCE: 'no_evidence',
+  TAMPERED: 'tampered',
+  OUT_OF_BOUNDS: 'out_of_bounds',
+  SPAN_MISMATCH: 'span_mismatch',
+  TEXT_MISMATCH: 'text_mismatch',
+  CORRUPT_TEXT: 'corrupt_text',
+};
 // declaredTextIsCorrupt(quote) -> true when a non-empty declared text carries the Unicode replacement
 // character. A corrupted/lossy decode can never be an honest declaration, so it is REJECTED outright
 // (never silently treated as "no text declared" - that would let the byte-only fallback below wave through
@@ -106,17 +131,18 @@ function declaredTextBuffer(quote) {
   if (quote.text == null || quote.text === '') return null;
   return Buffer.from(quote.text, 'utf8');
 }
-// sliceMatches(buf, quote) -> the declared text (encoded back to UTF-8 bytes) must BYTE-EQUAL the byte
-// slice; with no declared text a non-empty in-bounds slice is the verified quote. Comparing BYTES (never
-// decoded strings) closes O6: a slice that splits a multi-byte character decodes to U+FFFD, and a decoded
-// string comparison would let a declared text also containing U+FFFD "match" bytes that are not that text.
-// A corrupted declared text is rejected outright, never silently ignored.
-function sliceMatches(buf, quote) {
-  if (declaredTextIsCorrupt(quote)) return false;
+// sliceReason(buf, quote) -> null when the byte slice is a verified quote, else a typed failure reason.
+// The declared text (encoded back to UTF-8 bytes) must BYTE-EQUAL the byte slice; with no declared text a
+// non-empty in-bounds slice free of replacement bytes is the verified quote. Comparing BYTES (never decoded
+// strings) closes O6; rejecting a slice that CONTAINS the U+FFFD byte sequence closes #24; a corrupted
+// declared text is rejected outright, never silently ignored.
+function sliceReason(buf, quote) {
+  if (declaredTextIsCorrupt(quote)) return REASONS.CORRUPT_TEXT;
   const slice = buf.slice(quote.byte_start, quote.byte_end);
+  if (sliceHasReplacementBytes(slice)) return REASONS.CORRUPT_TEXT;
   const declared = declaredTextBuffer(quote);
-  if (declared) return slice.equals(declared);
-  return slice.length > 0;
+  if (declared) return slice.equals(declared) ? null : REASONS.TEXT_MISMATCH;
+  return slice.length > 0 ? null : REASONS.TEXT_MISMATCH;
 }
 // spanCommitmentMatches(buf, quote) -> the quote's span_sha256 recomputed over the ACTUAL byte slice. This
 // is the mandatory tamper anchor (CRITICAL-1): even when no `text` is declared, a hand-assembled offset
@@ -126,15 +152,37 @@ function spanCommitmentMatches(buf, quote) {
   const slice = buf.slice(quote.byte_start, quote.byte_end);
   return sha256Hex(slice) === quote.span_sha256;
 }
-function verifyQuote(evidenceStore, quote) {
-  if (!hasFields(quote)) return false;
+
+/**
+ * verifyQuoteDetailed(evidenceStore, quote, expectedHashes?) -> { ok, reason }. Same pure, never-throwing
+ * verification as verifyQuote, but returning a typed reason (one of REASONS, or null on success) so a
+ * caller can distinguish the failure leg (#49). expectedHashes is an optional Map (evidence_id ->
+ * bytes_sha256) supplying the tamper anchor when no EvidenceRecord travels with the bytes (#34).
+ */
+function verifyQuoteDetailed(evidenceStore, quote, expectedHashes) {
+  if (!hasFields(quote)) return { ok: false, reason: REASONS.NO_EVIDENCE };
   const entry = resolveEntry(evidenceStore, quote.evidence_id);
-  if (!entry) return false; // no such evidence: an unresolvable quote (the fabrication case)
+  if (!entry) return { ok: false, reason: REASONS.NO_EVIDENCE }; // unresolvable quote (the fabrication case)
   const buf = asBuffer(entry.bytes);
-  if (!buf) return false;
-  if (tamperedOrOutOfBounds(entry, buf, quote)) return false;
-  if (!spanCommitmentMatches(buf, quote)) return false;
-  return sliceMatches(buf, quote);
+  if (!buf) return { ok: false, reason: REASONS.NO_EVIDENCE };
+  const anchor = resolveAnchorHash(entry, quote, expectedHashes);
+  if (anchor.refuse) return { ok: false, reason: REASONS.TAMPERED }; // demanded anchor unresolvable (#34)
+  if (anchor.hash != null && sha256Hex(buf) !== anchor.hash) return { ok: false, reason: REASONS.TAMPERED };
+  if (quote.byte_end > buf.length) return { ok: false, reason: REASONS.OUT_OF_BOUNDS };
+  if (!spanCommitmentMatches(buf, quote)) return { ok: false, reason: REASONS.SPAN_MISMATCH };
+  const reason = sliceReason(buf, quote);
+  if (reason) return { ok: false, reason };
+  return { ok: true, reason: null };
 }
 
-module.exports = { verifyQuote, sha256Hex };
+/**
+ * verifyQuote(evidenceStore, quote, expectedHashes?) -> boolean. Thin boolean reduction of
+ * verifyQuoteDetailed (kept as the existing choke-point API); see that function and the module header for
+ * the full contract. Pure; never throws (a throw here would be a way for a fabrication to escape as an
+ * error the mint might swallow).
+ */
+function verifyQuote(evidenceStore, quote, expectedHashes) {
+  return verifyQuoteDetailed(evidenceStore, quote, expectedHashes).ok;
+}
+
+module.exports = { verifyQuote, verifyQuoteDetailed, REASONS, sha256Hex };
