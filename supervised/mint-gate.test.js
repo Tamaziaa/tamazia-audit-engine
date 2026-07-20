@@ -43,7 +43,7 @@ test('mint gate PROCEEDS (in stub mode) when signature=SIGN, all quotes verify, 
   const outcome = await mintGate({
     store: s, runId: 'run-ok', findings: [finding], captureIndex,
     catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]),
-    coverageManifest: { checks_planned: ['UK_X'] },
+    coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
   });
   assert.strictEqual(outcome.proceeded, true);
   assert.strictEqual(outcome.mode, 'stub');
@@ -54,7 +54,7 @@ test('REFUSAL: no signature recorded at all', async () => {
   const s = store();
   const { captureIndex, finding } = realFindingAndIndex();
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-none', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-none', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.NO_SIGNATURE); return true; }
   );
 });
@@ -64,7 +64,7 @@ test('REFUSAL: the latest signature is HOLD, not SIGN, even though verify_quote 
   const { captureIndex, finding } = realFindingAndIndex();
   recordSignature(s, 'run-hold', { overall: 'HOLD', findingDecisions: [] });
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-hold', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-hold', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.SIGNATURE_HOLD); return true; }
   );
 });
@@ -77,7 +77,7 @@ test('REFUSAL (THE FABRICATION PROOF): mint gate refuses a FABRICATED finding ev
   const fabricated = createFinding({ rule_id: 'UK_X', catalogue_hash: 'HASH1', quote: { evidence_id: 'never-captured', byte_start: 0, byte_end: 40, span_sha256: FAKE_SPAN_HASH }, jurisdiction: 'UK', class: FINDING_CLASS.LIKELY });
   recordSignature(s, 'run-fab', { overall: 'SIGN', findingDecisions: [{ finding_id: fabricated.finding_id, decision: 'ship' }] });
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-fab', findings: [fabricated], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-fab', findings: [fabricated], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => {
       assert.ok(err instanceof MintRefusalError);
       assert.strictEqual(err.reasonCode, REFUSAL_CODES.UNVERIFIABLE_QUOTE);
@@ -92,7 +92,7 @@ test('REFUSAL: an unresolvable law_id (not in the loaded catalogue) is refused',
   const { captureIndex, finding } = realFindingAndIndex();
   recordSignature(s, 'run-lawid', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-lawid', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'SOME_OTHER_LAW', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-lawid', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'SOME_OTHER_LAW', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.UNRESOLVABLE_LAW_ID); return true; }
   );
 });
@@ -103,7 +103,7 @@ test('REFUSAL: a catalogue-hash mismatch (finding minted against a different cat
   recordSignature(s, 'run-hashmismatch', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   const differentCatalogue = { content_hash: 'DIFFERENT_HASH', records: [{ id: 'UK_X', jurisdiction: 'UK' }] };
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-hashmismatch', findings: [finding], captureIndex, catalogue: differentCatalogue, coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-hashmismatch', findings: [finding], captureIndex, catalogue: differentCatalogue, coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.CATALOGUE_HASH_MISMATCH); return true; }
   );
 });
@@ -171,7 +171,7 @@ test('O2: a missing/undefined catalogue is a TYPED refusal, never a raw TypeErro
   const { captureIndex, finding } = realFindingAndIndex();
   recordSignature(s, 'run-nocat', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-nocat', findings: [finding], captureIndex, catalogue: undefined, coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-nocat', findings: [finding], captureIndex, catalogue: undefined, coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.ok(err instanceof MintRefusalError, 'must be a MintRefusalError, not a bare TypeError'); assert.strictEqual(err.reasonCode, REFUSAL_CODES.NO_CATALOGUE); return true; }
   );
 });
@@ -184,7 +184,7 @@ test('O7: duplicate finding_id entries in the same mint attempt are refused', as
   const { captureIndex, finding } = realFindingAndIndex();
   recordSignature(s, 'run-dup', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-dup', findings: [finding, finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-dup', findings: [finding, finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.DUPLICATE_FINDING_ID); assert.match(err.detail, new RegExp(finding.finding_id)); return true; }
   );
 });
@@ -198,7 +198,7 @@ test('E4: a field-correct look-alike Finding (never produced by createFinding())
   const lookalike = Object.assign({}, finding); // every field copied, but not branded
   recordSignature(s, 'run-lookalike', { overall: 'SIGN', findingDecisions: [{ finding_id: lookalike.finding_id, decision: 'ship' }] });
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-lookalike', findings: [lookalike], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-lookalike', findings: [lookalike], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.UNBRANDED_FINDING); return true; }
   );
 });
@@ -214,7 +214,7 @@ test('E1 (catalogue leg): a finding whose jurisdiction disagrees with its catalo
     () => mintGate({
       store: s, runId: 'run-jurmismatch', findings: [finding], captureIndex,
       catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'US' }]), // the catalogue says this record is US-scoped
-      coverageManifest: { checks_planned: ['UK_X'] },
+      coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
     }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.JURISDICTION_MISMATCH); return true; }
   );
@@ -243,7 +243,7 @@ test('E1 (THE POST-SIGNATURE REBUILD PROOF): signing a needs_human finding then 
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-rebuild', findings: [rebuiltConfirmed], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
     }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.UNDECIDED_FINDING); return true; }
   );
@@ -261,7 +261,7 @@ test('E1: a legitimate stage-6 mitigation-log entry (no class/jurisdiction chang
   recordSignature(s, 'run-legit-downgrade', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   const outcome = await mintGate({
     store: s, runId: 'run-legit-downgrade', findings: [mitigated], captureIndex,
-    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
   });
   assert.strictEqual(outcome.proceeded, true);
 });
@@ -276,7 +276,7 @@ test('O1: stubPersist:false with no persistFn is refused, never silently downgra
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-nopersistfn', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       stubPersist: false, // explicitly opting OUT of stub mode
       // persistFn intentionally omitted
     }),
@@ -296,7 +296,7 @@ test('O4: a timed-out persist actually signals cancellation (AbortSignal) to per
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-o4-signal', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       stubPersist: false, persistFn, persistTimeoutMs: 20,
     }),
     /exceeded its 20ms budget/
@@ -317,7 +317,7 @@ test('O4: a persistFn that IGNORES the abort signal and settles AFTER the timeou
   try {
     await mintGate({
       store: s, runId: 'run-o4-late', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       stubPersist: false, persistFn, persistTimeoutMs: 15,
     });
     assert.fail('expected mintGate to reject with a timeout');
@@ -355,7 +355,7 @@ test('E3 (happy path): a signed, UNEDITED report whose every claim is cited stil
   recordSignature(s, 'run-e3-ok', { overall: 'SIGN', report_sha256: sha256Hex(report), findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   const outcome = await mintGate({
     store: s, runId: 'run-e3-ok', findings: [finding], captureIndex,
-    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
     report,
   });
   assert.strictEqual(outcome.proceeded, true);
@@ -370,7 +370,7 @@ test('E3 (a - THE POST-SIGN EDIT PROOF): sign a report, edit ONE byte, attempt m
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-e3-edit', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       report: editedReport,
     }),
     (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.REPORT_TAMPERED); return true; }
@@ -388,7 +388,7 @@ test('E3 (b - LINT IS A HARD GATE): a signed report containing an UNCITED factua
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-e3-orphan', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       report: orphanReport,
     }),
     (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.ORPHAN_CLAIM); return true; }
@@ -403,7 +403,7 @@ test('E3: a signature that COMMITTED to a report but no report is supplied at mi
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-e3-missing', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       // report intentionally omitted
     }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.REPORT_MISSING); return true; }
@@ -417,7 +417,7 @@ test('E3: a report supplied at mint time that the signature NEVER committed to (
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-e3-unsigned', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       report: reportCiting(finding), // a report the founder never signed
     }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.REPORT_UNSIGNED); return true; }
@@ -430,7 +430,7 @@ test('E3: a findings-only mint (no report signed, none supplied) still proceeds 
   recordSignature(s, 'run-e3-none', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
   const outcome = await mintGate({
     store: s, runId: 'run-e3-none', findings: [finding], captureIndex,
-    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
   });
   assert.strictEqual(outcome.proceeded, true);
 });
@@ -440,15 +440,67 @@ test('REFUSAL: a shipped finding was never explicitly decided in the signature (
   const { captureIndex, finding } = realFindingAndIndex();
   recordSignature(s, 'run-undecided', { overall: 'SIGN', findingDecisions: [] }); // signed, but this finding was never decided
   await assert.rejects(
-    () => mintGate({ store: s, runId: 'run-undecided', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    () => mintGate({ store: s, runId: 'run-undecided', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
     (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.UNDECIDED_FINDING); return true; }
+  );
+});
+
+// Kimi K3 R2 finding A1/#2 (live audit 2026-07-20): verifyRawProvenanceDetailed existed but nothing in the
+// mint path called it, so a phantom-join span (two sibling raw nodes concatenated, e.g. "Free"+"VPS" pill
+// badges) that hashes cleanly on the NORMALISED side minted unchallenged. The gate now runs raw-provenance
+// alongside verify_quote. resolveQuoteSpan refuses the phantom, so this hand-builds the finding to prove the
+// gate itself is the second, independent line of defence.
+test('A1/#2 (THE GATE-LEVEL PHANTOM PROOF): a finding whose span crosses an unpunctuated raw-run join is refused at the mint gate on raw-provenance', async () => {
+  const s = store();
+  const captureIndex = buildCaptureIndex({ domain: 'x', corpus: { pages: [{
+    url: 'https://x/pricing', text: 'Free VPS', rawHtml: '<span>Free</span><span>VPS</span>',
+  }] } });
+  const artifact = captureIndex.list()[0];
+  const spanBytes = Buffer.from('Free VPS', 'utf8');
+  const spanHash = crypto.createHash('sha256').update(spanBytes).digest('hex');
+  const phantom = createFinding({ rule_id: 'UK_X', catalogue_hash: 'HASH1', quote: { evidence_id: artifact.evidence_id, byte_start: 0, byte_end: spanBytes.length, span_sha256: spanHash }, jurisdiction: 'UK', class: FINDING_CLASS.LIKELY });
+  recordSignature(s, 'run-phantom', { overall: 'SIGN', findingDecisions: [{ finding_id: phantom.finding_id, decision: 'ship' }] });
+  await assert.rejects(
+    () => mintGate({ store: s, runId: 'run-phantom', findings: [phantom], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
+    (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.UNVERIFIABLE_QUOTE); assert.match(err.detail, /raw-provenance: phantom_join_risk/); return true; }
+  );
+});
+
+test('A1/#2: raw_unavailable (an older bundle with no rawHtml) is NOT a hard refusal - the normalised gate still governs', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  recordSignature(s, 'run-rawunavail', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const outcome = await mintGate({ store: s, runId: 'run-rawunavail', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } });
+  assert.strictEqual(outcome.proceeded, true);
+});
+
+// Kimi K3 R2 finding A3/#5 (live audit 2026-07-20): a manifest carrying ONLY checks_planned (both run/unrun
+// arrays absent) alongside findings:[] minted a vacuous "clean" audit that recorded zero terminal states.
+test('A3/#5 (THE STATELESS-MANIFEST PROOF): checks_planned present but both run/unrun arrays absent is refused, never minted clean', async () => {
+  const s = store();
+  recordSignature(s, 'run-stateless', { overall: 'SIGN', findingDecisions: [] });
+  await assert.rejects(
+    () => mintGate({ store: s, runId: 'run-stateless', findings: [], captureIndex: null, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } }),
+    (err) => { assert.ok(err instanceof MintRefusalError); assert.strictEqual(err.reasonCode, REFUSAL_CODES.NO_COVERAGE_MANIFEST); assert.match(err.detail, /no recorded terminal state/); return true; }
+  );
+});
+
+// Kimi K3 R2 finding A21/#25 (live audit 2026-07-20): the supervised gate had no findings-count budget.
+test('A21/#25: a mint attempt over the MAX_FINDINGS cap is refused', async () => {
+  const s = store();
+  const { captureIndex, finding } = realFindingAndIndex();
+  recordSignature(s, 'run-toomany', { overall: 'SIGN', findingDecisions: [{ finding_id: finding.finding_id, decision: 'ship' }] });
+  const many = new Array(10001).fill(finding);
+  await assert.rejects(
+    () => mintGate({ store: s, runId: 'run-toomany', findings: many, captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } }),
+    (err) => { assert.strictEqual(err.reasonCode, REFUSAL_CODES.TOO_MANY_FINDINGS); return true; }
   );
 });
 
 test('evaluateMintGate is a pure, non-throwing form usable for a preview check', async () => {
   const s = store();
   const { captureIndex, finding } = realFindingAndIndex();
-  const decision = evaluateMintGate({ store: s, runId: 'never-signed', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] } });
+  const decision = evaluateMintGate({ store: s, runId: 'never-signed', findings: [finding], captureIndex, catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] } });
   assert.strictEqual(decision.ok, false);
   assert.strictEqual(decision.reasonCode, REFUSAL_CODES.NO_SIGNATURE);
 });
@@ -463,7 +515,7 @@ test('mintGate LIVE mode calls persistFn and returns its result when it resolves
   const persistFn = async () => ({ neonRowId: 42 });
   const outcome = await mintGate({
     store: s, runId: 'run-live', findings: [finding], captureIndex,
-    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+    catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
     stubPersist: false, persistFn,
   });
   assert.strictEqual(outcome.mode, 'live');
@@ -478,7 +530,7 @@ test('REFUSAL (via rejection): a persistFn that never resolves is bounded by a t
   await assert.rejects(
     () => mintGate({
       store: s, runId: 'run-hang', findings: [finding], captureIndex,
-      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'] },
+      catalogue: catalogue([{ id: 'UK_X', jurisdiction: 'UK' }]), coverageManifest: { checks_planned: ['UK_X'], checks_run: ['UK_X'], checks_unrun: [] },
       stubPersist: false, persistFn: hungPersistFn, persistTimeoutMs: 25,
     }),
     /exceeded its 25ms budget/

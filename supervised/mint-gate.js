@@ -12,7 +12,7 @@
 // stubbed").
 
 const crypto = require('crypto');
-const { verifyQuoteDetailed } = require('./verify-quote.js');
+const { verifyQuoteDetailed, verifyRawProvenanceDetailed, RAW_REFUSAL_REASONS } = require('./verify-quote.js');
 const { latestSignature, shippedFindingIds, signedReportSha256 } = require('./signature-store.js');
 const { ManifestStore } = require('./manifest-store.js');
 const { MintRefusalError } = require('./errors.js');
@@ -36,7 +36,14 @@ const REFUSAL_CODES = Object.freeze({
   REPORT_MISSING: 'report_missing',
   REPORT_UNSIGNED: 'report_unsigned',
   ORPHAN_CLAIM: 'orphan_claim',
+  TOO_MANY_FINDINGS: 'too_many_findings',
 });
+
+// MAX_FINDINGS: an upper bound on how many findings one mint attempt may carry (Kimi K3 R2 finding A21/#25,
+// live audit 2026-07-20; Rule 8: a cap, never a floor). The payload gate has MAX_VERDICTS but the
+// supervised gate had no findings-count budget, so a pathological or compromised input could drive the gate
+// into an unbounded per-finding re-hash loop. Generous relative to any real single-site audit.
+const MAX_FINDINGS = 10000;
 
 // artifactIdsOf(captureIndex) -> every real artifact id for the run (evidence_id AND sha256 of each
 // captured artifact), the set orphan-lint accepts as a valid citation target alongside finding ids (the
@@ -52,6 +59,15 @@ function reportSha256(report) {
   return crypto.createHash('sha256').update(report, 'utf8').digest('hex');
 }
 
+// hashesEqual(a, b) -> constant-time comparison of two hex sha256 strings (Kimi K3 R2 finding #44, live
+// audit 2026-07-20): a plain `!==` on the signed report hash leaks timing about how many leading bytes
+// matched. Length-checked first (timingSafeEqual throws on unequal-length buffers), so a malformed hash is
+// simply unequal, never a crash.
+function hashesEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
+
 // checkReportBinding(signedHash, report) -> { ok, reasonCode?, detail?, lint? }. The report-binding leg of
 // Kimi K3 finding HIGH-E3: a signature commits to the exact linted report bytes via report_sha256, so an
 // edit after the founder signed is detectable here. `lint` (true only when a signed report is present and
@@ -59,7 +75,7 @@ function reportSha256(report) {
 function checkReportBinding(signedHash, report) {
   if (signedHash) {
     if (typeof report !== 'string') return { ok: false, reasonCode: REFUSAL_CODES.REPORT_MISSING, detail: 'the signature committed to a report (report_sha256 present) but no report was supplied to the mint gate' };
-    if (reportSha256(report) !== signedHash) return { ok: false, reasonCode: REFUSAL_CODES.REPORT_TAMPERED, detail: 'the report being minted does not match the report_sha256 the founder signed (it was edited after signing)' };
+    if (!hashesEqual(reportSha256(report), signedHash)) return { ok: false, reasonCode: REFUSAL_CODES.REPORT_TAMPERED, detail: 'the report being minted does not match the report_sha256 the founder signed (it was edited after signing)' };
     return { ok: true, lint: true };
   }
   if (typeof report === 'string') return { ok: false, reasonCode: REFUSAL_CODES.REPORT_UNSIGNED, detail: 'a report was supplied to the mint gate but the signature never committed to one (no report_sha256); an unsigned report is never minted' };
@@ -147,14 +163,36 @@ function firstUnverifiableFinding(captureIndex, findings) {
   return null;
 }
 
+// firstRawProvenanceFailure(captureIndex, findings) -> {finding, result} for the first finding whose RAW
+// provenance is affirmatively bad (a phantom join across an unpunctuated raw-run boundary, or a tampered
+// raw record), or null when every finding is either raw-clean OR only raw_unavailable.
+//
+// Kimi K3 R2 finding A1/#2 (live audit 2026-07-20): verifyRawProvenanceDetailed existed but NOTHING in the
+// mint path called it - checkQuotes ran only verifyQuoteDetailed (the normalised-bytes gate), so a phantom
+// "Free VPS" span that resolves and hashes cleanly on the normalised side minted unchallenged. This runs
+// the raw-provenance gate ALONGSIDE (never instead of) verifyQuoteDetailed. raw_unavailable is NOT a hard
+// refusal (older bundles/replay inputs legitimately carry no raw bytes - a needs-review downgrade, not a
+// block, per the finding); an affirmative PHANTOM_JOIN_RISK/RAW_HASH_MISMATCH IS a hard refusal.
+function firstRawProvenanceFailure(captureIndex, findings) {
+  for (const f of findings) {
+    const result = verifyRawProvenanceDetailed(captureIndex, f.quote);
+    if (!result.ok && result.reason !== RAW_REFUSAL_REASONS.RAW_UNAVAILABLE) return { finding: f, result };
+  }
+  return null;
+}
+
 // checkQuotes(captureIndex, findings) -> { ok, reasonCode?, detail? }. Re-runs verify_quote over EVERY
 // finding being minted, against the SAME hash-chained artifact store the run captured - independent of
 // whatever check ran earlier in the harness (defence in depth: this is the check that runs immediately
-// before persistence, not a trust of an earlier pass).
+// before persistence, not a trust of an earlier pass). Both the normalised-bytes gate (verifyQuoteDetailed)
+// AND the raw-provenance gate (verifyRawProvenanceDetailed) must pass - two independent evidence
+// representations, an escape from one is not an escape from the other (Kimi K3 R2 A1/#2).
 function checkQuotes(captureIndex, findings) {
   const bad = firstUnverifiableFinding(captureIndex, findings);
-  if (!bad) return { ok: true };
-  return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + bad.finding.finding_id + ' (' + bad.finding.rule_id + ') failed verify_quote: ' + bad.result.reason };
+  if (bad) return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + bad.finding.finding_id + ' (' + bad.finding.rule_id + ') failed verify_quote: ' + bad.result.reason };
+  const rawBad = firstRawProvenanceFailure(captureIndex, findings);
+  if (rawBad) return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + rawBad.finding.finding_id + ' (' + rawBad.finding.rule_id + ') failed raw-provenance: ' + rawBad.result.reason };
+  return { ok: true };
 }
 
 // catalogueRecordsById(catalogue) -> a Map of record id -> record for every record in the loaded catalogue
@@ -269,6 +307,14 @@ function coverageGapErrors(coverageManifest) {
   const planned = coverageManifest.checks_planned;
   const run = coverageManifest.checks_run;
   const unrun = coverageManifest.checks_unrun;
+  // Kimi K3 R2 finding A3/#5 (live audit 2026-07-20): when BOTH checks_run and checks_unrun are absent, the
+  // old code silently no-op'd (`return []`), so a `{checks_planned:['X']}` manifest alongside findings:[]
+  // minted a "clean" audit that recorded ZERO terminal states - the exact C-068/Rule-18 disease. The real
+  // harness (run-harness.js) ALWAYS emits both arrays, so requiring them here never blocks an honest mint;
+  // only a hand-built minimal-shape backdoor hits this. When both are absent, every planned id is stateless.
+  if (Array.isArray(planned) && planned.length > 0 && !Array.isArray(run) && !Array.isArray(unrun)) {
+    return ['checks_run and checks_unrun are both absent; planned check(s) ' + JSON.stringify(planned) + ' have no recorded terminal state - a run that recorded zero states must not mint as "clean" (Rule 18/21)'];
+  }
   if (!Array.isArray(run) && !Array.isArray(unrun)) return [];
   const runSet = new Set(Array.isArray(run) ? run : []);
   const unrunSet = new Set(unrunCheckNames(Array.isArray(unrun) ? unrun : []));
@@ -296,6 +342,9 @@ function checkCoverageManifest(coverageManifest) {
 function evaluateMintGate(input) {
   const i = input || {};
   const findings = Array.isArray(i.findings) ? i.findings : [];
+  if (findings.length > MAX_FINDINGS) {
+    return { ok: false, reasonCode: REFUSAL_CODES.TOO_MANY_FINDINGS, detail: 'this mint attempt carries ' + findings.length + ' findings, over the ' + MAX_FINDINGS + ' cap (Rule 8: budgets are caps, never floors)' };
+  }
   const coverage = checkCoverageManifest(i.coverageManifest);
   if (!coverage.ok) return coverage;
   const branded = checkFindingsAreReal(findings);
@@ -365,6 +414,11 @@ function withPersistTimeout(persistFn, findings, i, ms) {
       const err = new Error('mint-gate: persistFn exceeded its ' + ms + 'ms budget (Rule 8: budgets are caps, never floors)');
       err.timedOut = true;
       err.ambiguousOutcomes = ambiguousOutcomes;
+      // Kimi K3 R2 finding A25/#43 (live audit 2026-07-20): carry the run context on the timeout error so a
+      // caller reconciling an ambiguous (timed-out-but-maybe-landed) write knows WHICH run and how many
+      // findings were in flight without re-plumbing it separately.
+      err.runId = i && i.runId;
+      err.findingsCount = Array.isArray(findings) ? findings.length : 0;
       reject(err);
     }, ms);
     if (timer && typeof timer.unref === 'function') timer.unref();

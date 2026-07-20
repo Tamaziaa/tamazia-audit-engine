@@ -166,3 +166,41 @@ test('KNOWN-BAD CALIBRATION FIXTURE: a raw page over the per-page raw byte ceili
   assert.strictEqual(artifact.rawAvailable, false);
   assert.strictEqual(artifact.rawBytes, null);
 });
+
+// Kimi K3 R2 finding A22/#27 (live audit 2026-07-20): toJSON dropped the raw provenance fields, so a
+// manifest-only re-audit could never re-run the phantom-join check.
+test('A22/#27: toJSON carries raw_sha256, raw_available and the boundary map for a raw-backed artifact', () => {
+  const rawHtml = '<span>Free</span><span>VPS</span>';
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/pricing', text: 'Free VPS', rawHtml }]));
+  const json = store.toJSON();
+  const a = json.artifacts[0];
+  assert.strictEqual(a.raw_available, true);
+  assert.match(a.raw_sha256, /^[0-9a-f]{64}$/);
+  assert.ok(Array.isArray(a.boundaries) && a.boundaries.some((b) => !b.punctuated), 'the unpunctuated boundary must survive into the manifest');
+});
+
+test('A22/#27: toJSON records raw_available:false and a null raw_sha256 for a page with no rawHtml', () => {
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/', text: 'plain page, no raw html' }]));
+  const a = store.toJSON().artifacts[0];
+  assert.strictEqual(a.raw_available, false);
+  assert.strictEqual(a.raw_sha256, null);
+  assert.deepStrictEqual(a.boundaries, []);
+});
+
+// Kimi K3 R2 finding #41 (live audit 2026-07-20): a captured artifact record is frozen so its metadata
+// cannot be silently reassigned after capture.
+test('#41: a captured artifact record is frozen (metadata cannot be reassigned)', () => {
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/', text: 'some real page text' }]));
+  const artifact = store.list()[0];
+  assert.ok(Object.isFrozen(artifact));
+  assert.throws(() => { 'use strict'; artifact.sha256 = 'deadbeef'; });
+});
+
+// Kimi K3 R2 finding #46 (live audit 2026-07-20): a non-finite injected clock threw a raw RangeError that
+// aborted the whole capture; it must degrade to an honest 'unknown' timestamp with a typed LaneError.
+test('#46: a non-finite injected clock degrades to fetched_at:"unknown" plus a typed bad_clock LaneError, never a crash', () => {
+  const store = buildCaptureIndex(bundleWithPages([{ url: 'https://example.com/', text: 'real page text here' }]), { now: () => NaN });
+  const artifact = store.list()[0];
+  assert.strictEqual(artifact.fetched_at, 'unknown');
+  assert.ok(store.errors.some((e) => e.reasonCode === 'bad_clock'));
+});

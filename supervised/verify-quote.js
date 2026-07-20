@@ -42,6 +42,7 @@ const REFUSAL_REASONS = Object.freeze({
   EMPTY_SLICE: 'empty_slice',                 // the sliced range decodes to whitespace-only or unreadable text
   MISSING_SPAN_HASH: 'missing_span_hash',     // the quote carries no span_sha256 commitment (unverifiable by construction)
   SPAN_HASH_MISMATCH: 'span_hash_mismatch',   // the bytes at the offsets do not hash to the quote's own span_sha256 (drifted/fabricated span)
+  CORRUPT_SLICE: 'corrupt_slice',             // the sliced range decodes with a U+FFFD replacement char (a span split mid-multibyte-character - a mojibake "quote")
 });
 
 // SPAN_HASH_RE: a span_sha256 must be a 64-char lowercase-hex commitment (the crypto.digest('hex') shape).
@@ -77,10 +78,21 @@ function resolveArtifact(store, quote) {
 
 // verifyArtifactIntegrity(artifact) -> {ok, reason}. Step 3: the artifact must carry real bytes, and
 // those bytes must still hash to the sha256 recorded at capture time (catches tamper/corruption).
+//
+// Kimi K3 R2 finding #40 (live audit 2026-07-20): the mint gate re-runs verify_quote over every finding,
+// and multiple findings often cite the SAME artifact, so the full-bytes sha256 was recomputed N times per
+// artifact per run. A module-level WeakMap memoises the integrity RESULT keyed on the artifact object
+// itself; captured artifacts are frozen (capture-index.js), so the (bytes, sha256) pair a key commits to
+// cannot drift under the cache. The WeakMap never keeps an artifact alive past its own lifetime.
+const INTEGRITY_CACHE = new WeakMap();
 function verifyArtifactIntegrity(artifact) {
-  if (!Buffer.isBuffer(artifact.bytes)) return { ok: false, reason: REFUSAL_REASONS.NO_BYTES };
-  if (sha256Hex(artifact.bytes) !== artifact.sha256) return { ok: false, reason: REFUSAL_REASONS.HASH_MISMATCH };
-  return { ok: true, reason: null };
+  if (artifact && typeof artifact === 'object' && INTEGRITY_CACHE.has(artifact)) return INTEGRITY_CACHE.get(artifact);
+  let result;
+  if (!Buffer.isBuffer(artifact.bytes)) result = { ok: false, reason: REFUSAL_REASONS.NO_BYTES };
+  else if (sha256Hex(artifact.bytes) !== artifact.sha256) result = { ok: false, reason: REFUSAL_REASONS.HASH_MISMATCH };
+  else result = { ok: true, reason: null };
+  if (artifact && typeof artifact === 'object') INTEGRITY_CACHE.set(artifact, result);
+  return result;
 }
 
 // sliceInBounds(artifact, quote) -> {ok, reason, sliceBytes, slice}. Step 4: the byte range must be
@@ -90,6 +102,10 @@ function sliceInBounds(artifact, quote) {
   const sliceBytes = artifact.bytes.subarray(quote.byte_start, quote.byte_end);
   const slice = sliceBytes.toString('utf8');
   if (!slice.trim()) return { ok: false, reason: REFUSAL_REASONS.EMPTY_SLICE, sliceBytes: null, slice: null };
+  // Kimi K3 R2 finding A24/#23 (live audit 2026-07-20): a hand-computed span whose offsets fall mid-way
+  // through a multi-byte UTF-8 character decodes with a U+FFFD replacement char - a mojibake "quote" no
+  // human wrote. Refuse it (Rule 4: fail closed on a corrupt decode, never mint a garbled accusation).
+  if (slice.indexOf('�') !== -1) return { ok: false, reason: REFUSAL_REASONS.CORRUPT_SLICE, sliceBytes: null, slice: null };
   return { ok: true, reason: null, sliceBytes, slice };
 }
 

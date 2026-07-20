@@ -101,6 +101,14 @@ function resolvedNote(f) {
 //                       per candidate finding the packet presented; a finding with no decision is treated
 //                       by mint-gate.js as NOT signed off (fail closed, never assume 'ship').
 function recordSignature(store, runId, fields) {
+  // Kimi K3 R2 finding A16/#26 (live audit 2026-07-20): asManifestStore() silently coerced a non-store
+  // argument into a FRESH default store that nothing retains, so a signature recorded against a bad store
+  // returned a success-shaped entry that was written into the void - the founder believes they signed, but
+  // every later mint reads a real store and refuses NO_SIGNATURE. The write side must fail LOUDLY (O2's own
+  // typed-refusal-never-silent doctrine), not silently succeed into a discarded store.
+  if (!(store instanceof ManifestStore)) {
+    throw new Error('signature-store: recordSignature requires a real ManifestStore (refusing to record a signature into a discarded default store - a silent write is worse than a loud refusal)');
+  }
   const f = fields || {};
   assertValidOverall(f.overall);
   assertValidFindingDecisions(f.findingDecisions);
@@ -128,14 +136,24 @@ function decisionsOf(signature) {
   const decisions = signature && signature.finding_decisions;
   return Array.isArray(decisions) ? decisions : [];
 }
-// isShipDecision(d) -> true only for a real decision entry whose decision is 'ship'.
-function isShipDecision(d) {
-  return Boolean(d) && d.decision === 'ship';
-}
-// shippedFindingIds(signature) -> Set<finding_id> of every finding whose latest decision is 'ship'. A
-// finding never decided is NOT in this set (fail closed - see recordSignature's own doc).
+// shippedFindingIds(signature) -> Set<finding_id> of every finding decided 'ship' with NO conflicting
+// decision. recordSignature() already rejects duplicate ids at the write boundary, but shippedFindingIds()
+// may also read a hand-built or legacy signature object that never went through that gate (Kimi K3 R2
+// finding #37, live audit 2026-07-20). A Set built by `filter(ship).map(id)` would silently include an id
+// that was ALSO dropped (first-write-wins by accident of order); instead an id decided inconsistently is
+// EXCLUDED (fail closed - an ambiguous ship/drop is exactly as untrustworthy as no decision, matching this
+// file's own doctrine).
 function shippedFindingIds(signature) {
-  return new Set(decisionsOf(signature).filter(isShipDecision).map((d) => d.finding_id));
+  const byId = new Map(); // finding_id -> 'ship' | 'drop' | 'conflict'
+  for (const d of decisionsOf(signature)) {
+    if (!d || typeof d.finding_id !== 'string' || d.finding_id === '') continue;
+    const prior = byId.get(d.finding_id);
+    if (prior === undefined) byId.set(d.finding_id, d.decision);
+    else if (prior !== d.decision) byId.set(d.finding_id, 'conflict');
+  }
+  const shipped = new Set();
+  for (const [id, decision] of byId) if (decision === 'ship') shipped.add(id);
+  return shipped;
 }
 
 // signedReportSha256(signature) -> the founder's committed report_sha256 for this signature, or null when

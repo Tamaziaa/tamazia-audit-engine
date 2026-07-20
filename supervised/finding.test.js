@@ -15,7 +15,7 @@ test('createFinding builds a frozen finding with a derived, deterministic findin
   const f = createFinding(VALID);
   assert.ok(Object.isFrozen(f));
   assert.strictEqual(f.rule_id, 'UK_TEST_RULE');
-  assert.strictEqual(f.finding_id, deriveFindingId('UK_TEST_RULE', VALID_QUOTE, FINDING_CLASS.LIKELY, 'UK'));
+  assert.strictEqual(f.finding_id, deriveFindingId('UK_TEST_RULE', VALID_QUOTE, FINDING_CLASS.LIKELY, 'UK', 'abc123', f.engine_version));
   assert.deepStrictEqual(f.mitigation_log, []);
   assert.ok(f.engine_version);
   assert.ok(isFinding(f));
@@ -36,6 +36,44 @@ test('E1: the SAME quote under a DIFFERENT jurisdiction mints a DIFFERENT findin
   const uk = createFinding(Object.assign({}, VALID, { jurisdiction: 'UK' }));
   const us = createFinding(Object.assign({}, VALID, { jurisdiction: 'US' }));
   assert.notStrictEqual(uk.finding_id, us.finding_id);
+});
+
+// Kimi K3 R2 finding A5/#7 (live audit 2026-07-20): catalogue_hash and engine_version were NOT in the
+// finding_id basis, so a finding rebuilt under a NEW catalogue (different law text at the same rule_id) or
+// NEW engine detection logic kept the identical id and silently inherited the founder's earlier per-id
+// sign-off.
+test('A5: the SAME quote/class/jurisdiction under a DIFFERENT catalogue_hash mints a DIFFERENT finding_id', () => {
+  const cat1 = createFinding(Object.assign({}, VALID, { catalogue_hash: 'CAT_V1' }));
+  const cat2 = createFinding(Object.assign({}, VALID, { catalogue_hash: 'CAT_V2' }));
+  assert.notStrictEqual(cat1.finding_id, cat2.finding_id);
+});
+
+test('A5: the SAME finding under a DIFFERENT engine_version mints a DIFFERENT finding_id', () => {
+  const v1 = createFinding(Object.assign({}, VALID, { engine_version: 'engine-vA' }));
+  const v2 = createFinding(Object.assign({}, VALID, { engine_version: 'engine-vB' }));
+  assert.notStrictEqual(v1.finding_id, v2.finding_id);
+});
+
+// Kimi K3 R2 finding #35 (live audit 2026-07-20): the raw-text-smuggle guard only rejected STRING
+// quote_text/text; a non-string value under the same key slipped past.
+test('#35: a quote carrying a NON-STRING quote_text/text field is still rejected (key presence, not value type)', () => {
+  assert.throws(() => createFinding(Object.assign({}, VALID, { quote: { evidence_id: 'ev1', byte_start: 1, byte_end: 5, span_sha256: FAKE_SPAN_HASH, quote_text: 123 } })), FindingConstructionError);
+  assert.throws(() => createFinding(Object.assign({}, VALID, { quote: { evidence_id: 'ev1', byte_start: 1, byte_end: 5, span_sha256: FAKE_SPAN_HASH, text: { nested: true } } })), FindingConstructionError);
+  assert.throws(() => createFinding(Object.assign({}, VALID, { quote: { evidence_id: 'ev1', byte_start: 1, byte_end: 5, span_sha256: FAKE_SPAN_HASH, quote_text: null } })), FindingConstructionError);
+});
+
+// Kimi K3 R2 finding A12/#17 (live audit 2026-07-20): the INITIAL mitigation_log supplied to createFinding()
+// was only shallow-frozen, so an entry object could be mutated post-construction.
+test('A12/#17: an initial mitigation_log entry is deep-frozen and severed from the caller\'s object', () => {
+  const entry = { source: 'seed', outcome: 'unverifiable', artifact_ref: { evidence_id: 'ev1' } };
+  const f = createFinding(Object.assign({}, VALID, { mitigation_log: [entry] }));
+  entry.outcome = 'TAMPERED';
+  entry.artifact_ref.evidence_id = 'TAMPERED';
+  assert.strictEqual(f.mitigation_log[0].outcome, 'unverifiable');
+  assert.strictEqual(f.mitigation_log[0].artifact_ref.evidence_id, 'ev1');
+  assert.ok(Object.isFrozen(f.mitigation_log[0]));
+  assert.ok(Object.isFrozen(f.mitigation_log[0].artifact_ref));
+  assert.throws(() => { 'use strict'; f.mitigation_log[0].outcome = 'nope'; });
 });
 
 test('createFinding() output is BRANDED (isFinding true); a field-correct look-alike is not', () => {
