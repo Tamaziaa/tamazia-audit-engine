@@ -31,21 +31,24 @@ function assertVerdictBudget(verdicts) {
 /**
  * assertMintablePayload(payload, opts) -> { ok:true, version, checkedQuotes, checkedRefs }. For a v1.1
  * payload it is a pass-through ({ version:'1.1', checkedQuotes:0, checkedRefs:0 }). For a v1.2 payload it
- * (1) structurally validates via the versioned decoder, (2) rejects a payload whose verdict count exceeds
- * MAX_VERDICTS, then (3) for every Breach verdict resolves its law/penalty against the hash-pinned
- * catalogue and verifies its quote against the evidence store (and, when the payload declares its own
- * evidence, against that record set). THROWS on the first failure so the mint never persists an
- * unverifiable v1.2 payload.
+ * (1) rejects a payload whose verdict count exceeds MAX_VERDICTS (Rule 8: the budget cap must gate BEFORE
+ * any unbounded traversal runs over the payload, including the structural decoder itself - Kimi K3 R2
+ * #32), (2) structurally validates via the versioned decoder, then (3) for every Breach verdict resolves
+ * its law/penalty against the hash-pinned catalogue and verifies its quote against the evidence store (and,
+ * when the payload declares its own evidence, against that record set). THROWS on the first failure so the
+ * mint never persists an unverifiable v1.2 payload.
  */
 function assertMintablePayload(payload, opts) {
   const o = opts || {};
   if (decode.payloadVersionOf(payload) !== PAYLOAD_V1_2_VERSION) {
     return { ok: true, version: '1.1', checkedQuotes: 0, checkedRefs: 0 };
   }
-  const structural = decode.validateV1_2(payload);
+  // Kimi K3 R2 #32: budget-check the raw verdicts array BEFORE the structural decoder walks it, so an
+  // oversized payload is refused by the cheap length check rather than by an unbounded validator pass.
+  assertVerdictBudget(Array.isArray(payload.verdicts) ? payload.verdicts : []);
+  const structural = decode.validateV1_2(payload) || ['decoder returned no result array'];
   if (structural.length) throw new Error('quote-verify-gate: v1.2 payload is structurally invalid, refusing to mint: ' + structural.join('; '));
   const verdicts = Array.isArray(payload.verdicts) ? payload.verdicts : [];
-  assertVerdictBudget(verdicts);
   const counts = verifyBreachVerdicts(verdicts, o, payload);
   return { ok: true, version: PAYLOAD_V1_2_VERSION, checkedQuotes: counts.checkedQuotes, checkedRefs: counts.checkedRefs };
 }
