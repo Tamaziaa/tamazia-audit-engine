@@ -36,6 +36,13 @@ const vocabulary = require('../facts/vocabulary.js');
 const STATUSES = ['candidate', 'needs_verification', 'rejected_qa'];
 const CURRENCIES = ['GBP', 'USD'];
 const EVIDENCE_TYPES = ['presence', 'absence', 'behavioural', 'register'];
+// penalty.penalty_model (optional): how the render layer must label a penalty figure, so it never
+// guesses. 'fixed' = a single fixed penalty; 'statutory_cap' = a genuine statutory ceiling exists
+// (statutory_max IS that ceiling); 'uncapped' = no statutory ceiling exists, typical_high is an
+// illustrative enforcement band only and must never be printed as a cap; 'turnover_pct' = the
+// penalty is a percentage of worldwide turnover (statutory_max is a GBP illustration, not a ceiling
+// in GBP terms). Field is optional (legacy records may omit it) but validated when present.
+const PENALTY_MODELS = ['fixed', 'statutory_cap', 'uncapped', 'turnover_pct'];
 const SECTOR_UNIVERSAL = 'universal';
 
 const ID_RX = /^[A-Z][A-Z0-9_]*$/;
@@ -319,6 +326,12 @@ function validatePenalty(record) {
   if (!CURRENCIES.includes(p.currency)) v.push('penalty.currency: ' + JSON.stringify(p.currency) + ' must be one of ' + CURRENCIES.join('|'));
   if (!isNonEmptyString(p.basis)) v.push('penalty.basis: required non-empty string');
   if (!isBoolean(p.max_is_rare)) v.push('penalty.max_is_rare: required boolean');
+  if (p.penalty_model !== undefined && p.penalty_model !== null && !PENALTY_MODELS.includes(p.penalty_model)) {
+    v.push('penalty.penalty_model: ' + JSON.stringify(p.penalty_model) + ' must be null, omitted, or one of ' + PENALTY_MODELS.join('|'));
+  }
+  if (p.penalty_model === 'uncapped' && p.statutory_max !== null && p.statutory_max !== undefined) {
+    v.push('penalty.statutory_max: must be null when penalty_model is "uncapped" (no statutory ceiling exists to state)');
+  }
   return v;
 }
 
@@ -490,6 +503,7 @@ module.exports = {
   STATUSES,
   CURRENCIES,
   EVIDENCE_TYPES,
+  PENALTY_MODELS,
   SECTOR_UNIVERSAL,
   isValidSector,
   isValidSubJurisdiction,

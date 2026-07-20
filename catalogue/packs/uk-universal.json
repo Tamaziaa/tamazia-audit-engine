@@ -65,6 +65,7 @@
     "typical_low": 1230000,
     "typical_high": 14000000,
     "statutory_max": 17500000,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
     "basis": "Higher maximum of GBP 17.5m or 4% of total worldwide annual turnover (UK GDPR Art 83(5)); typical band from 2025 ICO monetary penalties",
     "max_is_rare": true
@@ -173,8 +174,9 @@
     "typical_low": 100000,
     "typical_high": 17500000,
     "statutory_max": 17500000,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
-    "basis": "Historic PECR cap was GBP 500,000; the Data (Use and Access) Act 2025 raises PECR maxima toward UK GDPR levels (up to GBP 17.5m or 4% turnover). Typical band from ICO PECR penalties.",
+    "basis": "For conduct on or after 5 February 2026: the higher of GBP 17,500,000 or 4% of total worldwide annual turnover (PECR reg 31, as substituted by the Data (Use and Access) Act 2025 s.115/Sch 12, commenced by the Data (Use and Access) Act 2025 (Commencement No. 6 and Transitional and Saving Provisions) Regulations 2026). The ICO has confirmed the new ceiling applies only to conduct from that commencement date; conduct before 5 February 2026 remains subject to the pre-DUAA GBP 500,000 PECR cap. typical_high of GBP 17.5m is the statutory ceiling itself, not a typical fine - actual PECR fines to date (see enforcement[]) have been far lower; render must not present the ceiling as 'what regulators actually levy'.",
     "max_is_rare": true
    },
    "regulator": {
@@ -206,11 +208,12 @@
     "sources": [
      "UK-PECR-01 (seed, confirmed)",
      "NEON-UK-ICO-COOKIES (seed)",
-     "ICO cookie review + HelloFresh (seed compliance_enforcement)"
+     "ICO cookie review + HelloFresh (seed compliance_enforcement)",
+     "https://www.legislation.gov.uk/uksi/2026/82/contents/made - The Data (Use and Access) Act 2025 (Commencement No. 6 and Transitional and Saving Provisions) Regulations 2026 (SI 2026/82), which commences the PECR penalty uplift on 5 February 2026; SI number and date located and cross-checked 2026-07-20 (Womble Bond Dickinson, Clifford Chance, Handley Gill commencement notes, all citing SI 2026/82); legislation.gov.uk's own machine-readable data endpoint returned no content at verification time (the known 202-while-generating behaviour for legislation.gov.uk data URLs), so the primary-source page itself should be spot-checked by a human before this record leaves candidate status"
     ],
-    "seed_status": "confirmed",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "seed_status": "corrected",
+    "verified_date": "2026-07-20",
+    "last_synced": "2026-07-20"
    }
   },
   {
@@ -260,8 +263,9 @@
     "typical_low": null,
     "typical_high": null,
     "statutory_max": 17500000,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
-    "basis": "DUAA raises the PECR maximum toward UK GDPR levels (up to GBP 17.5m or 4% of worldwide turnover); figure applies once the relevant provision is commenced",
+    "basis": "DUAA s.115/Sch 12 raises the PECR maximum to UK-GDPR levels (the higher of GBP 17.5m or 4% of worldwide turnover); commenced for PECR purposes by the Data (Use and Access) Act 2025 (Commencement No. 6 and Transitional and Saving Provisions) Regulations 2026 (SI 2026/82), in force 5 February 2026, applying to conduct from that date",
     "max_is_rare": true
    },
    "regulator": {
@@ -285,11 +289,12 @@
    "provenance": {
     "sources": [
      "UK-DUAA-01 (seed)",
-     "DUAA PECR uplift note (seed compliance_enforcement)"
+     "DUAA PECR uplift note (seed compliance_enforcement)",
+     "https://www.legislation.gov.uk/uksi/2026/82/contents/made SI 2026/82, PECR uplift commencement 5 February 2026, verified via cross-referenced secondary reporting 2026-07-20"
     ],
     "seed_status": "confirmed",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "verified_date": "2026-07-20",
+    "last_synced": "2026-07-20"
    }
   },
   {
@@ -337,6 +342,7 @@
     "typical_low": 400,
     "typical_high": 4350,
     "statutory_max": 4350,
+    "penalty_model": "fixed",
     "currency": "GBP",
     "basis": "Non-payment attracts a penalty of up to 150% of the highest fee tier (up to about GBP 4,350) under the DPA 2018 fee regime",
     "max_is_rare": false
@@ -414,11 +420,12 @@
     }
    ],
    "penalty": {
-    "typical_low": 1000,
-    "typical_high": 10000,
+    "typical_low": 1200,
+    "typical_high": 60700,
     "statutory_max": null,
+    "penalty_model": "uncapped",
     "currency": "GBP",
-    "basis": "No statutory cap; liability is uncapped compensation for injury to feelings and losses in a county court claim per claimant, plus EHRC action",
+    "basis": "No statutory cap. Liability is uncapped county-court compensation (injury to feelings plus any financial loss) per claimant; damages are litigation-led, not regulator-fined. Tribunals and courts follow the Vento bands as guidance for injury-to-feelings awards, uprated annually for claims presented on or after 6 April 2025: lower band GBP 1,200-12,100 (less serious, one-off), middle band GBP 12,100-36,400, upper band GBP 36,400-60,700 (most serious), with the upper band exceeded only in the most exceptional cases. The EHRC can also take separate enforcement action (investigations, agreements, injunctions) but does not itself issue fines.",
     "max_is_rare": false
    },
    "regulator": {
@@ -434,11 +441,14 @@
    "provenance": {
     "sources": [
      "UK-EQ-10 (seed, confirmed)",
-     "US accessiBe FTC action re overlay claims (seed, comparative)"
+     "US accessiBe FTC action re overlay claims (seed, comparative)",
+     "https://www.legislation.gov.uk/ukpga/2010/15/section/29 (no statutory cap on s.29 liability), verified 2026-07-20",
+     "https://www.equalityhumanrights.com/equality/equality-act-2010/how-value-discrimination-claim-decided-england-and-wales (Vento bands methodology, uncapped, EHRC), verified 2026-07-20",
+     "Presidential Guidance (Employment Tribunals England & Wales / Scotland), Vento bands uprated for claims presented on or after 6 April 2025 (Eighth Addendum, RPI to 26 March 2025): GBP 1,200-12,100 / 12,100-36,400 / 36,400-60,700, verified 2026-07-20 against the judiciary.uk Presidential Guidance addendum and VWV/Clarkslegal reporting (legal-QA pass 2026-07-20 corrected the two intermediate boundaries from stale pre-2025 figures 11,700/35,200 to 12,100/36,400; endpoints 1,200 and 60,700 were already correct; penalty.typical_low/high corrected from an unsourced GBP 1,000-10,000 band to these bands; penalty_model set to 'uncapped' so the render never states a ceiling)"
     ],
-    "seed_status": "confirmed",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "seed_status": "corrected",
+    "verified_date": "2026-07-20",
+    "last_synced": "2026-07-20"
    }
   },
   {
@@ -499,6 +509,7 @@
     "typical_low": 500,
     "typical_high": 1000,
     "statutory_max": 1000,
+    "penalty_model": "fixed",
     "currency": "GBP",
     "basis": "CA 2006 s.84: a fine on the company and every officer in default at level 3 on the standard scale (up to GBP 1,000); reg 6 breach is actionable and can support enforcement orders",
     "max_is_rare": false
@@ -729,6 +740,7 @@
     "typical_low": null,
     "typical_high": null,
     "statutory_max": null,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
     "basis": "CMA can impose direct penalties up to 10% of global annual turnover for businesses (up to GBP 300,000 for individuals) without going to court",
     "max_is_rare": true
@@ -955,6 +967,7 @@
     "typical_low": null,
     "typical_high": 18000000,
     "statutory_max": 18000000,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
     "basis": "Ofcom can fine the greater of GBP 18m or 10% of qualifying worldwide revenue, and seek business disruption measures",
     "max_is_rare": true
@@ -1077,13 +1090,15 @@
    ],
    "excluded_when": [
     "b2b only, where VAT-exclusive prices may be shown to business customers",
-    "services rather than products may fall outside the unit-price element of the Order"
+    "services rather than products may fall outside the unit-price element of the Order",
+    "VAT-EXEMPT HEALTH SERVICES GATE: the priced item is a health service supplied by, or directly supervised by, a registered/enrolled health professional acting within their profession (dentists and dental care professionals on the GDC register providing dental treatment; doctors, nurses, pharmacists, opticians and other registered health professionals providing care within their registration) - such supplies are VAT-exempt under VATA 1994 Sch 9 Group 7, so showing a price with NO VAT line, or a price with no VAT breakdown, is the CORRECT and compliant position, not a breach; do not flag this as a VAT-display failure and never instruct such a provider to 'add VAT' or show a 'VAT-inclusive' price it is not entitled to charge",
+    "purely cosmetic treatment by a registered health professional that does not qualify for the health exemption (HMRC's medical-purpose test) is standard-rated and the VAT-inclusive-price duty below DOES apply to it; this exclusion covers only genuinely exempt health services"
    ],
    "website_obligations": [
     {
-     "duty": "Show a clear selling price inclusive of VAT to consumers, with a unit price where required",
+     "duty": "Show a clear selling price inclusive of VAT to consumers, with a unit price where required (this duty does not apply to VAT-exempt health services - see excluded_when)",
      "elements": [
-      "prices to consumers shown inclusive of VAT",
+      "prices to consumers shown inclusive of VAT where the supply is taxable",
       "unit price displayed for products sold by quantity where the Order requires it",
       "prices unambiguous, legible and clearly associated with the product",
       "any mandatory delivery or service charges made clear (reinforced by the DMCC total-price rule)"
@@ -1095,8 +1110,9 @@
     "typical_low": 500,
     "typical_high": 5000,
     "statutory_max": null,
+    "penalty_model": "uncapped",
     "currency": "GBP",
-    "basis": "Trading Standards can prosecute breaches of the Price Marking Order, typically a fine; DMCC drip-pricing penalties (up to 10% turnover) apply where mandatory fees are hidden",
+    "basis": "Breach of the Price Marking Order 2004 is a criminal offence (art.11) triable summarily; the historic level-5 standard-scale maximum (GBP 5,000) was made unlimited by s.85 Legal Aid, Sentencing and Punishment of Offenders Act 2012, in force 12 March 2015, so magistrates may now impose a fine of any amount. typical_high is an illustrative low-level enforcement figure, not a statutory ceiling. DMCC drip-pricing penalties (up to 10% turnover) apply separately where mandatory fees are hidden.",
     "max_is_rare": true
    },
    "regulator": {
@@ -1113,11 +1129,14 @@
     "sources": [
      "Price Marking Order 2004 (gap_filled)",
      "UK-CCR-13 total price element (seed)",
-     "UK-DMCC-24 (seed)"
+     "UK-DMCC-24 (seed)",
+     "https://www.legislation.gov.uk/uksi/2004/102/contents/made verified 2026-07-20",
+     "VATA 1994 Sch 9 Group 7 (health and welfare exemption for supplies by registered/enrolled health professionals), https://www.legislation.gov.uk/ukpga/1994/23/schedule/9 verified 2026-07-20 - added as an excluded_when gate after Kimi K3 review flagged the rendered dental audit as a likely false positive telling a VAT-exempt dental practice to add VAT it does not charge",
+     "https://www.legislation.gov.uk/ukpga/2012/10/section/85 (LASPO 2012 s.85, in force 12 March 2015, removes the level-5/GBP5,000 cap on magistrates' court fines) verified 2026-07-20 - penalty corrected from a false GBP 5,000 ceiling to uncapped"
     ],
-    "seed_status": "gap_filled",
-    "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "seed_status": "corrected",
+    "verified_date": "2026-07-20",
+    "last_synced": "2026-07-20"
    }
   },
   {
@@ -1171,6 +1190,7 @@
     "typical_low": 250000,
     "typical_high": 7552800,
     "statutory_max": 17500000,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
     "basis": "Higher maximum of GBP 17,500,000 or 4% of total worldwide annual turnover, whichever is higher (UK GDPR Art 83(5)(c), covering transfers under Arts 44A to 49). The ICO has not issued a monetary penalty for a pure Chapter V transfer breach, so the modelled band reflects the ICO's cross-border and higher-tier practice (the GBP 7,552,800 Clearview AI fine, 2022) and the reprimand-first reality for transfer issues; the landmark restricted-transfer penalty is the EU/EDPB Meta decision (EUR 1.2bn, May 2023).",
     "max_is_rare": true
@@ -1257,6 +1277,7 @@
     "typical_low": 60000,
     "typical_high": 4400000,
     "statutory_max": 8700000,
+    "penalty_model": "turnover_pct",
     "currency": "GBP",
     "basis": "Standard maximum of GBP 8,700,000 or 2% of total worldwide annual turnover, whichever is higher (UK GDPR Art 83(4), covering the Art 32 security obligations). Typical band from ICO Art 32 and Art 5(1)(f) security penalties: GBP 60,000 (DPP Law, 2025), GBP 98,000 (Tuckers Solicitors, 2022), GBP 1,228,283 (LastPass UK, 2025), GBP 3.07m (Advanced, 2025) and GBP 4.4m (Interserve, 2022); large-scale breaches reach higher through the 2% turnover route (British Airways GBP 20m and Marriott GBP 18.4m, 2020).",
     "max_is_rare": true
