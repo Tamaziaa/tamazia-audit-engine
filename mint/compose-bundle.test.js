@@ -24,8 +24,12 @@ function fakeBrowser() {
   return { async newPage() { return page; }, async close() {} };
 }
 const launchBrowser = async () => fakeBrowser();
-const registersFetchFn = async (_url, options) => (options && options.requestKey === 'companies_house.search'
-  ? { status: 200, json: { items: [{ title: 'Acme Ltd', company_number: '12345678', company_status: 'active' }] } } : null);
+const registersFetchFn = async (_url, options) => {
+  const key = options && options.requestKey;
+  if (key === 'companies_house.search') return { status: 200, json: { items: [{ title: 'Acme Ltd', company_number: '12345678', company_status: 'active' }] } };
+  if (key === 'companies_house.canary') return { status: 200, json: { company_number: '00445790', company_status: 'active' } };
+  return null;
+};
 
 // gotoUrlsBrowser() -> a browser whose page.goto(url) RECORDS every url it was called with (into
 // `calls`), never navigating for real. Used to prove composeBundle normalises a bare operator domain into

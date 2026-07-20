@@ -201,23 +201,44 @@ async function runDomLane(url, cfg, manifest) {
   return result;
 }
 
-// runRegisterLane(domain, cfg, manifest) -> the EvidenceBundle.registers object. fetchRegisters searches
-// UK registers by a domain-derived query (identity is resolved AFTER the bundle, so no company-name hint is
-// available at this point; a richer hint is a future two-pass design). It never throws for a degraded lane
-// (each records a loud note); a missing fetchFn is the one throw, caught and recorded here.
-async function runRegisterLane(domain, cfg, manifest) {
+// corpusTextOf(corpus) -> the crawled site's own visible text, joined and bounded, for the
+// register-establishment lane's footer id-scrape (evidence/registers/lib/establishment-id.js). Only
+// the first few pages' text is needed (a footer/legal page is almost always crawled early); capped
+// so this never becomes an unbounded string build over a large corpus (Rule 8).
+const REGISTER_CORPUS_TEXT_MAX_PAGES = 12;
+const REGISTER_CORPUS_TEXT_MAX_CHARS = 200000;
+function corpusTextOf(corpus) {
+  const pages = corpus && Array.isArray(corpus.pages) ? corpus.pages : [];
+  return pages.slice(0, REGISTER_CORPUS_TEXT_MAX_PAGES)
+    .map((p) => (p && typeof p.text === 'string' ? p.text : ''))
+    .join('\n')
+    .slice(0, REGISTER_CORPUS_TEXT_MAX_CHARS);
+}
+
+// runRegisterLane(domain, corpus, cfg, manifest) -> the EvidenceBundle.registers object. fetchRegisters
+// searches UK registers by a domain-derived query, PLUS (register-establishment lane) a direct-id path
+// off the crawled corpus's own footer text (a scraped Companies House number / CQC provider id, see
+// evidence/registers/lib/establishment-id.js) when one is present — the direct path sidesteps
+// fuzzy-name-match ambiguity entirely. It never throws for a degraded lane (each records a loud note); a
+// missing fetchFn is the one throw, caught and recorded here. laneStatus (canary-gated per register,
+// evidence/registers/lib/canary.js) is threaded onto the manifest entry so a canary-caused DEGRADED run
+// is visible in the run manifest, never silently indistinguishable from "checked and clean".
+async function runRegisterLane(domain, corpus, cfg, manifest) {
   try {
-    const registers = await fetchRegisters({ domain }, {
+    const registers = await fetchRegisters({ domain, corpusText: corpusTextOf(corpus) }, {
       fetchFn: cfg.registersFetchFn, deadlineMs: REGISTER_DEADLINE_MS, keys: registerKeys(cfg.env),
       log: (note) => safeLog(cfg.log, { stage: 'registers', note }),
     });
-    const matched = Object.keys(registers).filter((k) => k !== 'notes');
-    manifest.push({ stage: 'registers', ran: true, matched, notes: Array.isArray(registers.notes) ? registers.notes.length : 0 });
+    const matched = Object.keys(registers).filter((k) => k !== 'notes' && k !== 'laneStatus');
+    manifest.push({
+      stage: 'registers', ran: true, matched, notes: Array.isArray(registers.notes) ? registers.notes.length : 0,
+      lane_status: registers.laneStatus || {},
+    });
     return registers;
   } catch (e) {
     // FAIL-OPEN: the one register throw is a missing fetchFn; it degrades to an empty register set RECORDED
     // on the manifest (propose then abstains on register duties), never a throw into the mint (C-041).
-    manifest.push({ stage: 'registers', ran: false, reason: 'error', message: String((e && e.message) || e).slice(0, 160) });
+    manifest.push({ stage: 'registers', ran: false, reason: 'error', message: String((e && e.message) || e).slice(0, 160), lane_status: {} });
     return { notes: [] };
   }
 }
@@ -262,7 +283,7 @@ async function composeBundle(url, opts) {
   const crawlLane = await runCrawlLane(domain, cfg, manifest);
   const observeLane = await runObserveLane(navUrl, cfg, manifest);
   const domLane = await runDomLane(navUrl, cfg, manifest);
-  const registers = await runRegisterLane(domain, cfg, manifest);
+  const registers = await runRegisterLane(domain, crawlLane.corpus, cfg, manifest);
 
   const bundle = {
     domain,
@@ -291,4 +312,5 @@ module.exports = {
   runDomLane,
   runRegisterLane,
   normaliseOpts,
+  corpusTextOf,
 };

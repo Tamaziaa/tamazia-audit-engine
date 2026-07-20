@@ -159,3 +159,47 @@ test('lookupCqc: with NO partnerCode configured, an HTTP 400 is NOT retried (the
   assert.notEqual(r.note.reason, 'partner_code_rejected');
   assert.match(r.note.detail, /Unspecified query parameter name is not allowed/);
 });
+
+// ── register-establishment lane: direct provider-id path ────────────────────────────────────────
+test('lookupCqc: a site-displayed CQC provider id resolves DIRECTLY via provider-detail, sidestepping the broken name search', async () => {
+  const calls = [];
+  const fetchFn = async (url, options) => {
+    calls.push(options.requestKey);
+    if (options.requestKey === 'cqc.provider_detail') {
+      return { status: 200, json: { providerId: '1-101234567', name: 'THE DENTAL PRACTICE UK', registrationStatus: 'Registered', postalAddressLine1: '1 Smile St', postalAddressTownCity: 'Leeds', postalPostCode: 'LS1 1AA' } };
+    }
+    throw new Error('unexpected call: ' + options.requestKey);
+  };
+  const r = await lookupCqc({
+    query: 'The Dental Practice UK', sector: 'dental', fetchFn, deadlineMs: 500,
+    keys: { cqc: { apiKey: 'test-key' } },
+    corpusText: 'CQC Provider ID: 1-101234567',
+  });
+  assert.ok(r.row);
+  assert.equal(r.row.provider_id, '1-101234567');
+  assert.equal(r.row.registration_status, 'Registered');
+  assert.equal(r.row.match.method, 'direct_id');
+  assert.deepEqual(calls, ['cqc.provider_detail']);
+});
+
+test('lookupCqc: a scraped provider id whose registrationStatus is not Registered is NOT treated as establishment', async () => {
+  const fetchFn = async () => ({ status: 200, json: { providerId: '1-101234567', name: 'X', registrationStatus: 'Deregistered' } });
+  const r = await lookupCqc({
+    query: 'X', sector: 'dental', fetchFn, deadlineMs: 500, keys: { cqc: { apiKey: 'test-key' } },
+    corpusText: 'CQC Provider ID: 1-101234567',
+  });
+  assert.equal(r.row, null);
+  assert.equal(r.note.reason, 'not_registered');
+});
+
+test('lookupCqc: a genuine register-negative on a scraped provider id is lookup-phrased, never an accusation', async () => {
+  const fetchFn = async () => ({ status: 404, json: null });
+  const r = await lookupCqc({
+    query: 'X', sector: 'dental', fetchFn, deadlineMs: 500, keys: { cqc: { apiKey: 'test-key' } },
+    corpusText: 'CQC Provider ID: 1-999999999',
+  });
+  assert.equal(r.row, null);
+  assert.equal(r.note.reason, 'not_found');
+  assert.match(r.note.detail, /our lookup at .* returned no match/);
+  assert.doesNotMatch(r.note.detail, /unregistered|unauthorised/i);
+});

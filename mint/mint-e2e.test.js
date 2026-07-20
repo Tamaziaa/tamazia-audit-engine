@@ -57,10 +57,15 @@ function fakeBrowser() {
 }
 const launchBrowser = async () => fakeBrowser();
 
-// the fake registers fetchFn: a Companies House match for the domain-stem query; everything else abstains.
-const registersFetchFn = async (_url, options) => (options && options.requestKey === 'companies_house.search'
-  ? { status: 200, json: { items: [{ title: 'Oakhurst Legal LLP', company_number: '09999999', company_status: 'active' }] } }
-  : null);
+// the fake registers fetchFn: a Companies House match for the domain-stem query, PLUS the register-
+// establishment lane's own canary (evidence/registers/lib/canary.js) answering its known-good shape
+// so the fixture's real match is not spuriously stripped as DEGRADED; everything else abstains.
+const registersFetchFn = async (_url, options) => {
+  const key = options && options.requestKey;
+  if (key === 'companies_house.search') return { status: 200, json: { items: [{ title: 'Oakhurst Legal LLP', company_number: '09999999', company_status: 'active' }] } };
+  if (key === 'companies_house.canary') return { status: 200, json: { company_number: '00445790', company_status: 'active' } };
+  return null;
+};
 
 // the scripted llmCall: DECLINES (the offline default). The observed-fact PECR/dom_node breaches bypass the
 // model entirely (C-084), so a declining model still ships them as violations; the text-derived absence

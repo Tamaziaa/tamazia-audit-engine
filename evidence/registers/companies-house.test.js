@@ -98,3 +98,52 @@ test('lookupCompaniesHouse: a too-short query is refused before any fetch is att
   assert.equal(called, false);
   assert.equal(r.note.reason, 'query_too_short');
 });
+
+// ── register-establishment lane: direct company-number path ────────────────────────────────────
+test('lookupCompaniesHouse: a footer-scraped company number resolves DIRECTLY via the profile endpoint, no name-match ambiguity', async () => {
+  const calls = [];
+  const fetchFn = async (url, options) => {
+    calls.push(options.requestKey);
+    if (options.requestKey === 'companies_house.profile') {
+      return { status: 200, json: { company_name: 'ACME LTD', company_number: '12345678', company_status: 'active', registered_office_address: { address_line_1: '1 High St', locality: 'London', postal_code: 'EC1A 1AA' } } };
+    }
+    throw new Error('unexpected call: ' + options.requestKey);
+  };
+  const r = await lookupCompaniesHouse({
+    query: 'Acme Ltd', fetchFn, deadlineMs: 500, keys: { companiesHouse: 'test-key' },
+    corpusText: 'Acme Ltd. Company number 12345678.',
+  });
+  assert.ok(r.row);
+  assert.equal(r.row.company_number, '12345678');
+  assert.equal(r.row.registered_office_address, '1 High St, London, EC1A 1AA');
+  assert.equal(r.row.match.method, 'direct_id');
+  assert.deepEqual(calls, ['companies_house.profile']);
+});
+
+test('lookupCompaniesHouse: a genuine register-negative on a scraped number is lookup-phrased, never an accusation', async () => {
+  const fetchFn = async () => ({ status: 404, json: null });
+  const r = await lookupCompaniesHouse({
+    query: 'Acme Ltd', fetchFn, deadlineMs: 500, keys: { companiesHouse: 'test-key' },
+    corpusText: 'Company number 99999999.',
+  });
+  assert.equal(r.row, null);
+  assert.equal(r.note.reason, 'not_found');
+  assert.match(r.note.detail, /our lookup at .* returned no match/);
+  assert.doesNotMatch(r.note.detail, /unregistered|unauthorised/i);
+});
+
+test('lookupCompaniesHouse: a scraped number that fails to resolve falls back to the fuzzy name search', async () => {
+  const fetchFn = async (url, options) => {
+    if (options.requestKey === 'companies_house.profile') return { status: 404, json: null };
+    if (options.requestKey === 'companies_house.search') {
+      return { status: 200, json: { items: [{ title: 'Acme Ltd', company_number: '87654321', company_status: 'active' }] } };
+    }
+    throw new Error('unexpected call');
+  };
+  const r = await lookupCompaniesHouse({
+    query: 'Acme Ltd', fetchFn, deadlineMs: 500, keys: { companiesHouse: 'test-key' },
+    corpusText: 'Company number 00000001.',
+  });
+  assert.ok(r.row);
+  assert.equal(r.row.company_number, '87654321');
+});

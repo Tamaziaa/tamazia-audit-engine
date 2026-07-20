@@ -23,6 +23,15 @@ const { lookupIco } = require('./ico');
 const { lookupNpi } = require('./npi');
 const { lookupRdap } = require('./rdap');
 const { domainStemFallback } = require('./lib/name-match');
+const { runCanary } = require('./lib/canary');
+const { makeNote } = require('./lib/notes');
+
+// CANARY_GUARDED_REGISTERS: the register keys the register-establishment lane guards with a
+// known-good canary lookup before trusting a real establishment row from them this run (see
+// lib/canary.js's header). Only companies_house and cqc are establishment-gating registers today
+// (facts/jurisdiction.js's REGISTER_HOMES 'register' kind covers all of them, but companies_house
+// and cqc are the two this lane was built to unblock — gate-6's established_in test).
+const CANARY_GUARDED_REGISTERS = ['companies_house', 'cqc'];
 
 let canonicalSector = (s) => (s == null ? null : String(s));
 try {
@@ -65,6 +74,10 @@ function callArgs(query, hints, opts) {
     deadlineMs: opts.deadlineMs,
     keys: opts.keys || {},
     log: opts.log,
+    // corpusText: the crawled site's own visible text (register-establishment lane). Lets
+    // companies-house.js / cqc.js try a DIRECT id resolution (a scraped company number / CQC
+    // provider id) before falling back to fuzzy name search — see lib/establishment-id.js.
+    corpusText: hints && typeof hints.corpusText === 'string' ? hints.corpusText : '',
   };
 }
 
@@ -117,6 +130,54 @@ function assembleBundle(settled) {
   return bundle;
 }
 
+// BUNDLE_KEY_TO_CANARY_REGISTER: buildLookups' bundle key (camelCase, matches REGISTER_HOMES in
+// facts/jurisdiction.js) -> the canary/lookup-runner register id (snake_case, matches row.source).
+const BUNDLE_KEY_TO_CANARY_REGISTER = { companiesHouse: 'companies_house', cqc: 'cqc' };
+
+// runCanaries(options) -> Promise<{register: canaryResult}> for every CANARY_GUARDED_REGISTERS
+// entry. THE non-negotiable safety gate (CLAUDE.md §7.9 / this lane's brief): a register outage or
+// an expired key must never render as "established" nor as "no issue found" — a canary failure
+// marks that register DEGRADED for the whole run, BEFORE any real establishment row from it is
+// trusted (see applyCanaryGate below).
+async function runCanaries(options) {
+  const out = {};
+  await Promise.all(CANARY_GUARDED_REGISTERS.map(async (register) => {
+    out[register] = await runCanary(register, { fetchFn: options.fetchFn, deadlineMs: options.deadlineMs, keys: options.keys || {} });
+  }));
+  return out;
+}
+
+// applyCanaryGate(bundle, canaries) -> bundle, mutated in place: any establishment-gating register
+// row whose canary did NOT pass is stripped from the bundle (never trusted this run, however clean
+// its own real lookup looked) and replaced with a loud DEGRADED note; bundle.laneStatus records
+// 'OK' | 'DEGRADED' | 'not_attempted' per guarded register so the run manifest can surface it.
+function applyCanaryGate(bundle, canaries) {
+  bundle.laneStatus = {};
+  for (const [bundleKey, register] of Object.entries(BUNDLE_KEY_TO_CANARY_REGISTER)) {
+    const canary = canaries[register];
+    if (!canary || canary.message === 'missing_key: no canary attempted (same as a real lookup with no key)') {
+      bundle.laneStatus[register] = 'not_attempted';
+      continue;
+    }
+    if (canary.ok) {
+      bundle.laneStatus[register] = 'OK';
+      continue;
+    }
+    bundle.laneStatus[register] = 'DEGRADED';
+    if (bundle[bundleKey]) delete bundle[bundleKey];
+    bundle.notes.push(makeNote({
+      register,
+      kind: 'degraded',
+      reason: 'canary_failed',
+      detail: 'the ' + register + ' canary (' + canary.label + ') did not pass this run (' + canary.message
+        + '); establishment is NOT resolved from this register this run, even if the real lookup itself '
+        + 'returned a candidate — a register outage/expired key must never render as established or as '
+        + 'no-issue-found (see evidence/registers/lib/canary.js)',
+    }));
+  }
+  return bundle;
+}
+
 async function fetchRegisters(identityHints, opts) {
   const hints = identityHints || {};
   const options = opts || {};
@@ -128,8 +189,12 @@ async function fetchRegisters(identityHints, opts) {
   }
   const query = resolveQuery(hints);
   const lookups = buildLookups(query, hints, options);
-  const settled = await Promise.all(lookups.map((l) => l.run().then((result) => ({ key: l.key, result }))));
-  return assembleBundle(settled);
+  const [settled, canaries] = await Promise.all([
+    Promise.all(lookups.map((l) => l.run().then((result) => ({ key: l.key, result })))),
+    runCanaries(options),
+  ]);
+  const bundle = assembleBundle(settled);
+  return applyCanaryGate(bundle, canaries);
 }
 
 // ---------------------------------------------------------------------------------
@@ -212,4 +277,7 @@ module.exports = {
   buildLookups,
   runCalibration,
   calibrateMain,
+  runCanaries,
+  applyCanaryGate,
+  CANARY_GUARDED_REGISTERS,
 };
