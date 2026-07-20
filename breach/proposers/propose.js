@@ -44,6 +44,11 @@ const { ARTIFACT_TYPES } = require('../artifact-types.js');
 // MIN_PAGES_FOR_ABSENCE: the code-clamped floor for any absence claim (C-025: a safety floor lives in
 // code and cannot be forced below itself; matches facts/capabilities.js's own MIN_PAGES_FOR_ABSENCE).
 const MIN_PAGES_FOR_ABSENCE = 3;
+// MIN_READABLE_PAGE_CHARS: the floor (R2 #33) below which a page is treated as too trivial to prove an
+// absence claim, even though it cleared the MIN_PAGES_FOR_ABSENCE page-count floor. Set well below a
+// genuine short sentence (a real disclosure/about paragraph is comfortably 60+ chars) so it catches only
+// the "hi" / "ok" / bot-walled-shell class, never a real short page.
+const MIN_READABLE_PAGE_CHARS = 50;
 
 const KIND = Object.freeze({
   PRESENCE_BREACH: 'presence-breach',   // prohibited content FOUND (from an 'absence' obligation)
@@ -60,9 +65,13 @@ const KIND = Object.freeze({
 // claim a pre-consent-cookie observation as its artifact - the wrong law bound to a real event. Narrowed
 // to cookie/tracker/consent terms; obligationConcerns additionally requires a distinctive 'cookie' token
 // before this concept ever binds (see obligationConcerns below), so 'consent' alone is not enough either.
+// R2 A11/#14 FIX: 'preferences' dropped from consent_control_broken's concept list. It was broad enough
+// that ANY behavioural obligation whose prose merely mentioned "user preferences" (a wholly unrelated
+// duty) could claim a broken-consent-control observation as its artifact - the wrong-law-bound-to-a-
+// real-event class MEDIUM-15 fixed for cookie_pre_consent, left open on this second leg.
 const OBSERVATION_CONCEPTS = Object.freeze({
   cookie_pre_consent: ['cookie', 'cookies', 'tracker', 'trackers', 'tracking', 'consent'],
-  consent_control_broken: ['cookie', 'cookies', 'consent', 'banner', 'preferences'],
+  consent_control_broken: ['cookie', 'cookies', 'consent', 'banner'],
 });
 
 // DOM_NODE_CONCEPTS (T2a) - the dom_node analogue of OBSERVATION_CONCEPTS. OBSERVATION_CONCEPTS keys by
@@ -73,7 +82,9 @@ const OBSERVATION_CONCEPTS = Object.freeze({
 // law/regulator name. consent_control + chatbot_disclosure carry no rule_id yet (no dom-assert check emits
 // them); they are kept so the lane is GENERIC and those families activate the moment a rule maps to them.
 const DOM_NODE_CONCEPTS = Object.freeze({
-  accessibility: ['accessible', 'accessibility', 'wcag', 'disability', 'impairment', 'screen', 'reader', 'alt'],
+  // R2 #38 FIX: bare 'screen' dropped - over-broad (a duty mentioning "screens" in an unrelated sense
+  // would route). 'reader' alone still anchors the genuine "screen reader" concept.
+  accessibility: ['accessible', 'accessibility', 'wcag', 'disability', 'impairment', 'reader', 'alt'],
   consent_control: ['consent', 'cookie', 'banner', 'preferences', 'withdraw'],
   insecure_form: ['secure', 'security', 'encryption', 'transport'],
   pre_ticked_consent: ['consent', 'pre-ticked', 'opt-in', 'checkbox', 'marketing'],
@@ -94,9 +105,15 @@ const DOM_RULE_TO_CONCEPT = Object.freeze({
 });
 
 // ── bundle readers (tolerant; the pure EvidenceBundle shape from facts/README.md) ─────────────────
+// R2 A7 FIX: a page whose text is '' or whitespace-only used to count toward the corpus (isUnreadable's
+// count and every presence/absence read), so a bundle that read NOTHING (bot-walled, JS-shell) still
+// looked "readable" once it cleared the 3-page floor, and every presence obligation judged 'absent' -
+// fabricated "missing X" accusations on a site nothing was actually read from. A page with no real text
+// contributes nothing to any assessment and is filtered out here, at the one shared reader every
+// evaluator uses.
 function pagesOf(bundle) {
   const pages = bundle && bundle.corpus && Array.isArray(bundle.corpus.pages) ? bundle.corpus.pages : [];
-  return pages.filter((p) => p && typeof p.text === 'string');
+  return pages.filter((p) => p && typeof p.text === 'string' && p.text.trim() !== '');
 }
 function footerOf(bundle) {
   return bundle && bundle.corpus && typeof bundle.corpus.footerText === 'string' ? bundle.corpus.footerText : '';
@@ -141,8 +158,11 @@ function isNonEnglishGated(bundle) {
   if (bundle.compliance_unassessed === true) return true;
   const lang = bundle.corpus && bundle.corpus.language;
   if (typeof lang !== 'string' || lang.trim() === '') return false;
+  // R2 #29 FIX: the tag test accepted only a hyphen/underscore separator (en-GB, en_US) or bare 'en',
+  // so the literal abbreviation 'eng' and a dot/colon-separated tag ('en.GB', 'en:GB') both FAILED the
+  // test and were wrongly gated to compliance_unassessed - a real English audit silently zeroed.
   const l = lang.trim().toLowerCase();
-  return !(l === 'english' || /^en([-_]|$)/.test(l));
+  return !(l === 'english' || l === 'eng' || /^en([-_.:]|$)/.test(l));
 }
 
 // coverageStateFor(coverage, recordId) -> 'covered' | 'screened' | 'unknown'. 'unknown' (the record is
@@ -186,6 +206,13 @@ function surfaceTextForPresence(detectionSpec, pages, footer) {
 // disclosure at that path was judged ABSENT and could fire a fabricated "missing complaints procedure"
 // absence-breach. Fixed to tokenise the whole path on any non-alphanumeric run and require the target
 // segment to appear as one of those tokens (whole-token membership, never a substring test).
+// R2 A2 FIX: the HIGH-5 fix tokenised the PATH but left `seg` un-tokenised, so
+// `tokens.includes(seg)` compared a token list against a still-hyphenated whole string and could NEVER
+// match a hyphenated/multi-word pattern ('complaints-policy' is never itself one of ['complaints',
+// 'policy']) - a real /complaints-policy page read as ABSENT, a fabricated "missing" accusation created
+// by the fix itself. `seg` is now tokenised identically to the path, and the match is a contiguous
+// token-run SUBSEQUENCE (the pattern's own tokens must appear in that order, adjacently, somewhere in
+// the path's tokens) rather than single-token membership.
 function pathHasSegment(url, seg) {
   let path;
   try { path = new URL(url).pathname; }
@@ -194,7 +221,9 @@ function pathHasSegment(url, seg) {
     path = String(url || '');
   }
   const tokens = path.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  return tokens.includes(String(seg).replace(/^\/+/, '').toLowerCase());
+  const need = String(seg).replace(/^\/+/, '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (!need.length) return false;
+  return tokens.some((_, i) => need.every((t, j) => tokens[i + j] === t));
 }
 function matchUrlPath(value, pages) {
   return pages.some((p) => pathHasSegment(p.url, value));
@@ -276,7 +305,12 @@ function prohibitedHitInSentence(detectionSpec, sentence) {
 // breaks a sentence on [,;-—–] and coordinating conjunctions (and/but/or), giving
 // sentenceVerdict a clause-scoped unit to test the guard against, independent of the whole-sentence test
 // still used to detect a guard living in a DIFFERENT clause (below).
-const CLAUSE_SPLIT_RX = /[,;—–-]|\b(?:and|but|or)\b/i;
+// R2 A10a FIX: the bare `-` alternative split on ANY hyphen, including an intra-word one ('money-back',
+// 'pre-ticked'), fragmenting a hyphenated compliant phrase away from its own carrier clause and its own
+// negation guard (a hyphenated hit could then land in a clause the negation marker was never in). A
+// dash is only a clause boundary when it is a standalone token (surrounded by whitespace, per the en/
+// em-dash-as-punctuation convention '... - however ...'); an intra-word hyphen never splits.
+const CLAUSE_SPLIT_RX = /[,;]|\s[-—–]\s|\b(?:and|but|or)\b/i;
 function splitClauses(sentence) {
   return String(sentence || '').split(CLAUSE_SPLIT_RX).map((c) => c.trim()).filter(Boolean);
 }
@@ -313,6 +347,12 @@ function sentenceVerdict(detectionSpec, sentence) {
   if (!hit) return 'skip';
   const carrierClause = clauseContainingHit(sentence, hit);
   if (spec.isNegated(carrierClause) || spec.looksLikeReview(carrierClause)) return 'guarded';
+  // R2 A10b FIX: reached only when the WHOLE sentence is negated/review but the hit's own clause is not
+  // (the negation sits in a different, or/nor-coordinated, clause). De Morgan: "We don't X or Y" negates
+  // BOTH X and Y under the single negation, so an or/nor-coordinated sentence is guarded outright rather
+  // than demoted to a fired 'needs_human' candidate over a compliant opt-out sentence ("We do not charge
+  // fees or guarantee returns.").
+  if ((spec.isNegated(sentence) || spec.looksLikeReview(sentence)) && /\b(?:or|nor)\b/i.test(sentence)) return 'guarded';
   if (spec.isNegated(sentence) || spec.looksLikeReview(sentence)) return 'needs_human';
   if (!hit.prose_exempt && !spec.isProse(sentence)) return 'nonprose';
   return 'hit';
@@ -444,11 +484,28 @@ function suppressed(detectionSpec, kind, reason) {
 // DELIBERATELY never consults absenceInterlock - neither the MIN_PAGES_FOR_ABSENCE floor nor the C-024
 // truncation guard gates a presence-breach; those protect the OPPOSITE polarity (evalAbsenceBreach,
 // C-024/C-025/C-026) and stay untouched. Do not add a corpus-size/truncation guard here.
-function evalPresenceBreach(detectionSpec, pages) {
+// R2 #48 (propose-half) FIX: findProhibitedQuote only ever scanned bundle.corpus.pages, so a prohibited
+// claim living ONLY in the footer (never captured as a page) was structurally undetectable - no
+// suppression even recorded, a silent miss. When the bundle carries a non-empty footer, it is appended
+// here as a pseudo-page (url anchored '#footer' off the first real page, or the bare domain when no page
+// exists) so the SAME prohibited-content scan (sentence/window, negation-guarded, prose-gated) covers it
+// too. Capturing the footer as a genuine crawl-indexed artifact (so a footer quote resolves to real raw
+// bytes at mint time) is the paired capture-index.js half of this fix, owned separately.
+function footerPseudoPage(bundle, pages) {
+  const footer = footerOf(bundle);
+  if (!footer) return null;
+  const anchorBase = (pages[0] && pages[0].url) || (bundle && bundle.domain ? 'https://' + bundle.domain + '/' : '');
+  return { url: anchorBase + '#footer', text: footer };
+}
+function pagesForProhibitionScan(bundle, pages) {
+  const footerPage = footerPseudoPage(bundle, pages);
+  return footerPage ? pages.concat([footerPage]) : pages;
+}
+function evalPresenceBreach(detectionSpec, pages, bundle) {
   // MEDIUM-14 FIX: a record whose prose compiled to zero patterns used to `return null`, indistinguishable
   // from a genuine compliant clean pass. It is now a recorded suppression - the coverage gap is visible.
   if (!detectionSpec.patterns.length) return suppressed(detectionSpec, KIND.PRESENCE_BREACH, 'no detection patterns compiled for this obligation');
-  const found = findProhibitedQuote(detectionSpec, pages);
+  const found = findProhibitedQuote(detectionSpec, pagesForProhibitionScan(bundle, pages));
   if (found.quote) {
     const artifact = { type: ARTIFACT_TYPES.QUOTE, text: found.quote, surface: detectionSpec.surface };
     // HIGH-7: a cross-clause negation/review guard fires the candidate at reduced ('weak') confidence
@@ -470,6 +527,13 @@ function absenceInterlock(detectionSpec, bundle, coverageState) {
   if (detectionSpec.surface === 'raw_html') return 'required mechanism lives in raw HTML, unreadable in the stripped corpus; abstained rather than fabricate a missing-mechanism breach (C-036/C-032)';
   if (detectionSpec.surface === 'footer' && !footerOf(bundle)) return 'no footer surface was captured; a registration-disclosure absence cannot be asserted (C-034)';
   if (pagesOf(bundle).length < MIN_PAGES_FOR_ABSENCE) return 'corpus below the ' + MIN_PAGES_FOR_ABSENCE + '-page floor for an absence claim (C-025)';
+  // R2 #33 FIX: the page-count floor alone passed on trivial 1-2-word pages ("hi", "ok") - a corpus
+  // that clears 3 pages but never contained a single substantively readable page is not evidence the
+  // disclosure is genuinely missing, only that nothing useful was read (C-038). Require at least one
+  // page whose text exceeds a minimal readability length before an absence claim can proceed.
+  if (!pagesOf(bundle).some((p) => p.text.length > MIN_READABLE_PAGE_CHARS)) {
+    return 'no substantively readable page in the corpus (all pages under ' + MIN_READABLE_PAGE_CHARS + ' chars); an absence claim is demoted (C-038)';
+  }
   const truncated = truncationState(bundle);
   if (truncated !== false) {
     // A truncated corpus (true) OR unknown truncation (null: the assembler surfaced no telemetry) both
@@ -523,7 +587,10 @@ function evalAbsenceBreach(detectionSpec, bundle, coverageState) {
   if (state === 'partial') {
     // MEDIUM-12: a disclosure page exists but its required text is not corroborated on it. Emit a
     // needs-review candidate at 'weak' confidence carrying the same coverage_proof, never a hard breach.
-    return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: null, confidence: 'weak' });
+    // R2 #47 FIX: pageUrl used to be hard-coded null, discarding exactly the bare page a human reviewer
+    // needs to go check. Point it at the first crawled page matching the spec's url-path pattern.
+    const partialUrl = urlPatternsOf(detectionSpec).flatMap((up) => pagesMatchingUrlPattern(up.value, pages)).map((p) => p.url)[0] || null;
+    return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: partialUrl, confidence: 'weak' });
   }
   return candidate({ detectionSpec, kind: KIND.ABSENCE_BREACH, artifact, pageUrl: null, confidence: 'moderate' });
 }
@@ -598,6 +665,11 @@ function obligationConcerns(detectionSpec, obsKind) {
   const tokens = specTokens(detectionSpec);
   if (!tokensIntersectConcepts(tokens, OBSERVATION_CONCEPTS[obsKind] || [])) return false;
   if (obsKind === 'cookie_pre_consent') return tokensIntersectConcepts(tokens, ['cookie', 'cookies']);
+  // R2 A11/#13 FIX: cookie_pre_consent already got its distinctive-token gate (MEDIUM-15); the
+  // consent_control_broken leg did not, so a duty whose tokens intersected only on a broad word like
+  // 'banner' could claim a broken-consent-control event. It now additionally requires a genuine
+  // 'consent' token, matching the same discipline.
+  if (obsKind === 'consent_control_broken') return tokensIntersectConcepts(tokens, ['consent']);
   return true;
 }
 
@@ -740,10 +812,26 @@ function recordIdTokens(id) {
 // matched a key that was merely a SUBSTRING of an unrelated word - 'asa' inside 'asbestos', 'ico' inside
 // 'silicon' - routing a record to the wrong register lane entirely. Now matched WHOLE TOKEN against the
 // register/citation URL's host+path tokens and the record id's own tokens - never a substring test.
+// R2 A23 FIX: the old code merged register_url tokens, citation-url tokens and record-id tokens into
+// ONE set and returned whichever caller-supplied `key` happened to appear FIRST in `keys` (Object.keys
+// order of the bundle's registers object) - non-deterministic and wrong when a record's OWN id merely
+// CONTAINS a token that collides with a totally different register key (e.g. id 'FAKE_SRA_ICO_LINKED'
+// whose real register_url says 'sra' could bind to 'ico' purely because 'ico' sorted first in `keys`).
+// Resolution is now tiered by evidence quality: register_url tokens (the record's own authoritative
+// register link) first, then citation-url tokens, then record-id tokens last - and within a tier every
+// `keys` entry is checked so the result no longer depends on the caller's key ordering.
 function registerTargetFor(record, keys) {
-  const urls = [record && record.regulator && record.regulator.register_url, record && record.citation && record.citation.url].filter(Boolean);
-  const tokenSet = new Set([...urls.flatMap(urlTokens), ...recordIdTokens(record && record.id)]);
-  return keys.find((k) => tokenSet.has(String(k).toLowerCase())) || null;
+  const registerUrlTokens = urlTokens((record && record.regulator && record.regulator.register_url) || '');
+  const citationUrlTokens = urlTokens((record && record.citation && record.citation.url) || '');
+  const idTokens = recordIdTokens(record && record.id);
+  const tiers = [registerUrlTokens, citationUrlTokens, idTokens];
+  for (const tierTokens of tiers) {
+    const tierSet = new Set(tierTokens);
+    if (!tierSet.size) continue;
+    const hit = keys.find((k) => tierSet.has(String(k).toLowerCase()));
+    if (hit) return hit;
+  }
+  return null;
 }
 // evalRegister: consume bundle.registers. A present matched row is compliant (no candidate). A DEFINITIVE
 // no_match note (C-004) is a weak candidate carrying a `register_absence` artifact (its own artifact
@@ -787,9 +875,19 @@ function registerNoMatchOutcome(detectionSpec, target, note) {
 // pass with no suppression, silently missing a real non-registration. Anything that is not a genuine
 // matched-row shape now falls through to registerNoMatchOutcome, which requires a definitive no_match
 // note before any non-appearance claim (else it suppresses, visibly, per C-004).
+// MATCHED_ROW_NAME_FIELDS: the exact, closed set of name fields every real register lane in
+// evidence/registers/ actually returns for a matched candidate (company_name, provider_name,
+// firm_name, entity_name, organisation_name, name). R2 A6 FIX: the old `/(^|_)name$/` regex accepted
+// ANY key merely SHAPED like a name field, including a degraded-lane placeholder's own field (e.g.
+// `{error:'timeout', register_name:'fca'}` has a `_name$`-shaped key with a non-empty string) - a
+// real non-registration missed silently, no suppression recorded. Now: (a) an explicit error/degraded
+// flag on the row rejects it outright regardless of what other fields ride along, and (b) only the
+// closed whitelist of real field names counts as a match, never an arbitrary `*_name` shape.
+const MATCHED_ROW_NAME_FIELDS = Object.freeze(['name', 'company_name', 'provider_name', 'firm_name', 'entity_name', 'organisation_name']);
 function isMatchedRegisterRow(row) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
-  return Object.keys(row).some((k) => /(^|_)name$/.test(k) && typeof row[k] === 'string' && row[k].trim() !== '');
+  if (row.error || row.degraded) return false;
+  return MATCHED_ROW_NAME_FIELDS.some((k) => typeof row[k] === 'string' && row[k].trim() !== '');
 }
 function evalRegister(detectionSpec, bundle, record) {
   const registers = (bundle && bundle.registers) || {};
@@ -822,17 +920,22 @@ function evaluateSpec(detectionSpec, bundle, coverage, record) {
   }
   // Polarity split (A1, C-238): 'absence' (PROHIBITION) -> presence-breach path (found quote, never
   // floor/truncation gated); 'presence' (REQUIREMENT) -> absence-breach path (IS, via absenceInterlock).
-  if (detectionSpec.evidence_type === 'absence') return listOf(evalPresenceBreach(detectionSpec, pagesOf(bundle)));
+  if (detectionSpec.evidence_type === 'absence') return listOf(evalPresenceBreach(detectionSpec, pagesOf(bundle), bundle));
   if (detectionSpec.evidence_type === 'presence') return listOf(evalAbsenceBreach(detectionSpec, bundle, coverageState));
   if (detectionSpec.evidence_type === 'behavioural') return behaviouralCandidates(detectionSpec, bundle);
   if (detectionSpec.evidence_type === 'register') return listOf(evalRegister(detectionSpec, bundle, record));
   return [];
 }
+// R2 #36 FIX: an unrecognised evidence_type used to silently default to KIND.REGISTER - a wrong-lane
+// routing bug for whatever suppression/candidate got built off it (a 'register'-kind candidate that was
+// never actually a register duty). Fail closed instead: an evidence_type this module does not know
+// about is a compile-time/catalogue defect, not something to guess a kind for.
 function kindForType(evidenceType) {
   if (evidenceType === 'absence') return KIND.PRESENCE_BREACH;
   if (evidenceType === 'presence') return KIND.ABSENCE_BREACH;
   if (evidenceType === 'behavioural') return KIND.BEHAVIOURAL;
-  return KIND.REGISTER;
+  if (evidenceType === 'register') return KIND.REGISTER;
+  throw new Error('propose: unknown evidence_type ' + JSON.stringify(evidenceType));
 }
 function listOf(x) { return x ? [x] : []; }
 
