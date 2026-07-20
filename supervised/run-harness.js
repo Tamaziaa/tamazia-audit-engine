@@ -58,7 +58,7 @@ const { verifyQuote } = require('./verify-quote.js');
 const { createFinding, FINDING_CLASS } = require('./finding.js');
 const { buildEntityCard } = require('./entity-card.js');
 const { buildApplicabilityLedger } = require('./applicability-ledger.js');
-const { buildExcerpts } = require('./excerpts.js');
+const { buildExcerpts, evidenceFieldsFor } = require('./excerpts.js');
 const { ManifestStore, newRunId } = require('./manifest-store.js');
 const { ENGINE_VERSION } = require('../mint/version.js');
 
@@ -280,7 +280,13 @@ function detectionStage(run, ctx) {
   for (const f of classified.findings) kinds[f.evidence_kind] = (kinds[f.evidence_kind] || 0) + 1;
   ctx.manifestStore.append(ctx.runId, 'candidate_findings', {
     findingCount: classified.findings.length,
-    findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, jurisdiction: f.jurisdiction, evidence_kind: f.evidence_kind, quote: f.quote, coverage: f.coverage || null })),
+    // Kimi §2 invariant #1 (persist evidence at run time): the captureIndex is in memory HERE, so resolve
+    // each finding's evidence_quote/evidence_sha256/checked_urls now and PERSIST them, so a later separate
+    // process (engine review/sign/export) reads real evidence without re-crawling the site.
+    findings: classified.findings.map((f) => Object.assign(
+      { finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, jurisdiction: f.jurisdiction, evidence_kind: f.evidence_kind, quote: f.quote, coverage: f.coverage || null },
+      evidenceFieldsFor(run.captureIndex, f),
+    )),
     rejected: classified.rejected,
     nonQuoteCandidateCount: classified.nonQuote.length,
     kinds,

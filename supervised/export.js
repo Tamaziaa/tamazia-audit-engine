@@ -20,7 +20,7 @@
 // applicable" credibility backbone Kimi's §3 table names).
 
 const { ManifestStore } = require('./manifest-store.js');
-const { resolveSpanText } = require('./excerpts.js');
+const { readEvidence } = require('./excerpts.js');
 const { deriveStatus, latestCandidateFindings } = require('./signoff.js');
 
 function asManifestStore(store) {
@@ -62,7 +62,7 @@ function applicabilityInfo(store, runId) {
 // pointerFor(finding, { store, runId, captureIndex, catalogue, applicability }) -> one exported pointer.
 function pointerFor(finding, ctx) {
   const status = deriveStatus(ctx.store, ctx.runId, finding.finding_id);
-  const resolved = resolveSpanText(ctx.captureIndex, finding, {});
+  const resolved = readEvidence(ctx.captureIndex, finding, {}); // persisted-first; live only for legacy manifests.
   const record = ruleRecordFor(ctx.catalogue, finding.rule_id);
   return {
     finding_id: finding.finding_id,

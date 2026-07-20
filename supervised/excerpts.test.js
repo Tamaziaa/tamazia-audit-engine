@@ -82,3 +82,38 @@ test('resolveSpanText: absence finding never carries a quote and lists real chec
   assert.strictEqual(r.quote, null);
   assert.deepStrictEqual(r.checkedUrls, ['https://x/privacy']);
 });
+
+// ── run-time persistence (Kimi §2 invariant #1): resolveSpanText populates checked_urls for a presence
+// quote (page found on), and readEvidence prefers persisted fields over a live store ──────────────────
+const { evidenceFieldsFor, readEvidence } = require('./excerpts.js');
+
+test('resolveSpanText: a presence quote carries checked_urls = the page it was found on', () => {
+  const { store, span } = storeAndSpan();
+  const finding = createFinding({ rule_id: 'UK_X', catalogue_hash: 'h', quote: span, jurisdiction: 'UK', class: FINDING_CLASS.LIKELY });
+  const r = resolveSpanText(store, finding, {});
+  assert.deepStrictEqual(r.checkedUrls, ['https://x/']);
+});
+
+test('evidenceFieldsFor: shapes the persist-at-run-time projection', () => {
+  const { store, span } = storeAndSpan();
+  const finding = createFinding({ rule_id: 'UK_X', catalogue_hash: 'h', quote: span, jurisdiction: 'UK', class: FINDING_CLASS.LIKELY });
+  const fields = evidenceFieldsFor(store, finding);
+  assert.ok(fields.evidence_quote.includes('THE QUOTED PART'));
+  assert.strictEqual(fields.evidence_sha256, span.span_sha256);
+  assert.deepStrictEqual(fields.checked_urls, ['https://x/']);
+});
+
+test('readEvidence: prefers PERSISTED evidence and needs NO live store (the separate-process gap)', () => {
+  // A manifest record shape (persisted at run time) - note NO artifact store available in this process.
+  const record = { finding_id: 'f1', evidence_kind: 'quote', evidence_quote: 'PERSISTED VERBATIM TEXT', evidence_sha256: 'a'.repeat(64), checked_urls: ['https://x/pricing'] };
+  const r = readEvidence(null, record, {});
+  assert.strictEqual(r.quote, 'PERSISTED VERBATIM TEXT');
+  assert.deepStrictEqual(r.checkedUrls, ['https://x/pricing']);
+});
+
+test('readEvidence: an absence record persists null quote but real checked_urls (never empty)', () => {
+  const record = { finding_id: 'f2', evidence_kind: 'coverage_proof', evidence_quote: null, evidence_sha256: null, checked_urls: ['https://x/privacy', 'https://x/terms'] };
+  const r = readEvidence(null, record, {});
+  assert.strictEqual(r.quote, null);
+  assert.deepStrictEqual(r.checkedUrls, ['https://x/privacy', 'https://x/terms']);
+});

@@ -33,7 +33,7 @@ const { runSupervised } = require('../supervised/run-harness.js');
 const { buildPacketHtml } = require('../supervised/packet.js');
 const { recordSignature } = require('../supervised/signature-store.js');
 const { signFinding, rejectFinding, deriveStatus, latestCandidateFindings, SignoffError } = require('../supervised/signoff.js');
-const { resolveSpanText } = require('../supervised/excerpts.js');
+const { readEvidence } = require('../supervised/excerpts.js');
 const { exportRun } = require('../supervised/export.js');
 const { replayRun } = require('../supervised/replay.js');
 const { mintGate } = require('../supervised/mint-gate.js');
@@ -296,7 +296,7 @@ async function captureIndexFor(args, manifestStore, catalogue, suffix) {
 // candidate finding (Kimi §1b step 1: "Lists each needs_human finding with its RESOLVED excerpt, source
 // URL, and catalogue rule").
 function reviewRowFor(finding, store, runId, captureIndex, catalogue) {
-  const resolved = resolveSpanText(captureIndex, finding, {});
+  const resolved = readEvidence(captureIndex, finding, {}); // persisted-first; live only for legacy manifests.
   const records = (catalogue && (catalogue.records || catalogue)) || [];
   const rule = (Array.isArray(records) ? records : []).find((r) => r && r.id === finding.rule_id) || null;
   return {

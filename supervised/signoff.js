@@ -23,7 +23,7 @@
 
 const { ManifestStore } = require('./manifest-store.js');
 const { verifyQuoteDetailed } = require('./verify-quote.js');
-const { resolveSpanText } = require('./excerpts.js');
+const { resolveSpanText, readEvidence } = require('./excerpts.js');
 
 const SIGNOFF_STAGE = 'signoff';
 
@@ -93,14 +93,22 @@ function statusMap(store, runId) {
 // names explicitly ("REFUSES to sign an unevidenced finding; enforce here, not at render").
 function hasEvidenceAnchor(store, finding) {
   if (!finding) return false;
-  const kind = finding.evidence_kind;
-  if (kind === 'coverage_proof' || kind === 'register_absence') {
-    const resolved = resolveSpanText(store, finding, {});
-    return resolved.checkedUrls.length > 0;
+  // Strong path: when a live artifact store is present, RE-VERIFY the quote span (or resolve the absence
+  // finding's checked_urls) against real bytes - the highest-assurance check, unchanged from before.
+  if (store) {
+    const kind = finding.evidence_kind;
+    if (kind === 'coverage_proof' || kind === 'register_absence') {
+      return resolveSpanText(store, finding, {}).checkedUrls.length > 0;
+    }
+    if (!finding.quote) return false;
+    return verifyQuoteDetailed(store, finding.quote).ok;
   }
-  if (!finding.quote) return false;
-  if (!store) return false; // no store to re-verify against - never sign on trust alone.
-  return verifyQuoteDetailed(store, finding.quote).ok;
+  // Persisted path (Kimi §2 invariant #1): with no live store, the evidence was resolved from real bytes
+  // at RUN time and persisted onto the finding record (evidence_quote/checked_urls, keyed by
+  // evidence_sha256). A finding is signable iff it carries a real persisted evidence_quote OR a non-empty
+  // checked_urls list - satisfiable now because the data lives in the manifest, not only in a live crawl.
+  const ev = readEvidence(store, finding, {});
+  return (typeof ev.quote === 'string' && ev.quote.length > 0) || ev.checkedUrls.length > 0;
 }
 
 // evidenceCommitment(store, finding) -> the sha256 the signoff event commits to as its evidence anchor:
@@ -109,7 +117,7 @@ function hasEvidenceAnchor(store, finding) {
 function evidenceCommitment(store, finding) {
   if (finding.quote && typeof finding.quote.span_sha256 === 'string') return finding.quote.span_sha256;
   const crypto = require('crypto');
-  const resolved = resolveSpanText(store, finding, {});
+  const resolved = readEvidence(store, finding, {}); // persisted checked_urls when no live store.
   return crypto.createHash('sha256').update(JSON.stringify(resolved.checkedUrls || []), 'utf8').digest('hex');
 }
 

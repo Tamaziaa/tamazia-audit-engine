@@ -87,3 +87,19 @@ test('signFinding: refuses on a drifted/mismatched span even with a captureIndex
   seedRun(manifest, runId, drifted);
   assert.throws(() => signFinding(manifest, runId, { findingId: drifted.finding_id, signer: 'founder', captureIndex: store }), (e) => e instanceof SignoffError && e.code === 'unevidenced_finding');
 });
+
+test('signFinding: a finding with PERSISTED evidence is signable with NO live store (the fix)', () => {
+  const { finding } = quoteFinding();
+  const manifest = tmpStore();
+  const runId = 'run-persisted';
+  manifest.append(runId, 'run_start', { site: 'https://x/', engine_version: 'test', catalogue_hash: 'h' });
+  // Persist the evidence onto the candidate_findings record, exactly as run-harness.js now does at run time.
+  manifest.append(runId, 'candidate_findings', {
+    findingCount: 1,
+    findings: [{ finding_id: finding.finding_id, rule_id: finding.rule_id, class: finding.class, jurisdiction: finding.jurisdiction, evidence_kind: finding.evidence_kind, quote: finding.quote, coverage: null, evidence_quote: 'we do not have a modern slavery statement THE MATCH', evidence_sha256: finding.quote.span_sha256, checked_urls: ['https://x/'] }],
+  });
+  // No captureIndex passed - a separate `engine sign` process with no live crawl.
+  const entry = signFinding(manifest, runId, { findingId: finding.finding_id, signer: 'founder', note: 'verified on live site', captureIndex: null });
+  assert.strictEqual(entry.type, 'signoff');
+  assert.strictEqual(deriveStatus(manifest, runId, finding.finding_id), 'confirmed');
+});
