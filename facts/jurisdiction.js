@@ -831,8 +831,45 @@ function resolveJurisdiction(bundle) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Entity-resolution lane wiring (Kimi KIMI-FINAL-BATCH-2026-07-20.md §1c, E6) — ADDITIVE ONLY.
+// ---------------------------------------------------------------------------
+// applyEntityResolution(bundle, entityResolution) -> a bundle whose registers.companiesHouse carries
+// the CH-authoritative row from a CONFIRMED-A entity_resolution artefact (facts/entity/resolve.js),
+// or the ORIGINAL bundle unchanged when the artefact is anything else (UNRESOLVED/CONFLICT/absent —
+// §1f fail-closed: no fact is emitted, resolveJurisdiction() runs exactly as it does today).
+//
+// This is DELIBERATELY not a bespoke emit() path: collectRegisterSignals() above already turns any
+// bundle.registers.companiesHouse row bearing company_number/company_name into a Tier-A 'register'
+// UK evidence entry (REGISTER_HOMES.companiesHouse === 'UK') — the SAME mechanism the register-
+// establishment lane (PR#51) already feeds. Reusing it means resolveJurisdiction()'s own body is
+// untouched (Rule 1, Rule 13): "no else" falls out naturally because a non-CONFIRMED-A verdict simply
+// never populates the field this function writes, and an already-present companiesHouse row (e.g. the
+// register-establishment lane's own scrape) is never overwritten by a lower-confidence entity-lane
+// result — CH-authoritative data wins once, and only once.
+function applyEntityResolution(bundle, entityResolution) {
+  const b = bundle || {};
+  if (!entityResolution || entityResolution.verdict !== 'CONFIRMED-A' || !entityResolution.crn) return b;
+  const registers = Object.assign({}, b.registers);
+  if (!registers.companiesHouse) {
+    registers.companiesHouse = {
+      // company_number/name are the shared companies-house.js row field names (Rule 1); `name` is
+      // ALSO set because collectRegisterSignals()'s REGISTER_NAME_FIELDS reads 'name' before
+      // 'companyName' and does not include the snake_case 'company_name' — kept in sync deliberately
+      // rather than editing that shared list for one caller.
+      company_number: entityResolution.crn,
+      company_name: entityResolution.ch_name || null,
+      name: entityResolution.ch_name || null,
+      source: 'facts/entity/resolve.js:entity_resolution',
+      anchors: entityResolution.artefact ? [entityResolution.artefact.hash] : [],
+    };
+  }
+  return Object.assign({}, b, { registers });
+}
+
 module.exports = {
   resolveJurisdiction,
+  applyEntityResolution,
   TIER_WEIGHTS,
   VOCAB_SOURCE,
   // exposed for white-box tests only; consumers read resolveJurisdiction() and nothing else
