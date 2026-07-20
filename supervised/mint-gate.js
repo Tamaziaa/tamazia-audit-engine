@@ -16,8 +16,9 @@ const { verifyQuoteDetailed, verifyRawProvenanceDetailed, RAW_REFUSAL_REASONS } 
 const { latestSignature, shippedFindingIds, signedReportSha256 } = require('./signature-store.js');
 const { ManifestStore } = require('./manifest-store.js');
 const { MintRefusalError } = require('./errors.js');
-const { isFinding } = require('./finding.js');
+const { isFinding, ABSENCE_KINDS } = require('./finding.js');
 const { lintNoOrphanClaims } = require('./orphan-lint.js');
+const { patternSha256For } = require('./coverage-proof.js');
 
 const REFUSAL_CODES = Object.freeze({
   NO_SIGNATURE: 'no_signature',
@@ -37,6 +38,10 @@ const REFUSAL_CODES = Object.freeze({
   REPORT_UNSIGNED: 'report_unsigned',
   ORPHAN_CLAIM: 'orphan_claim',
   TOO_MANY_FINDINGS: 'too_many_findings',
+  // Kimi K3 10Q Q2(b): the non-quote evidence lane's own re-verification refusals.
+  UNVERIFIABLE_DERIVATION: 'unverifiable_derivation',
+  ABSENCE_RECOMPUTE_MISMATCH: 'absence_recompute_mismatch',
+  EVIDENCE_KIND_MISMATCH: 'evidence_kind_mismatch',
 });
 
 // MAX_FINDINGS: an upper bound on how many findings one mint attempt may carry (Kimi K3 R2 finding A21/#25,
@@ -192,6 +197,87 @@ function checkQuotes(captureIndex, findings) {
   if (bad) return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + bad.finding.finding_id + ' (' + bad.finding.rule_id + ') failed verify_quote: ' + bad.result.reason };
   const rawBad = firstRawProvenanceFailure(captureIndex, findings);
   if (rawBad) return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + rawBad.finding.finding_id + ' (' + rawBad.finding.rule_id + ') failed raw-provenance: ' + rawBad.result.reason };
+  return { ok: true };
+}
+
+// ── checkEvidence: the non-quote lane's gate-level re-verification (Kimi K3 10Q Q2, "recompute, never
+// trust", generalised beyond quotes) ──────────────────────────────────────────────────────────────────
+// checkOneFindingEvidence(captureIndex, f) -> {ok, reasonCode?, detail?}. Runs ONLY for non-quote-kind
+// findings (a quote finding is already fully covered by checkQuotes above; this is additive, never a
+// replacement). Three independent commitments are re-checked, never merely trusted:
+//   1. derivation integrity - the artifact the finding's span anchors into, if it declares provenance
+//      (derivedFrom), must have every declared source still present and hash-matching in the LIVE store
+//      (a source that vanished or whose bytes changed since capture invalidates the derived artifact).
+//   2. absence recompute - for a coverage/register-absence finding, the coverage artifact's OWN committed
+//      line (fetched fresh from the store, not trusted from the finding object) must still show
+//      pattern_sha256/claimed_count matching what the finding recorded, AND every subject's sha256 must
+//      still match the live artifact of that evidence_id (a subject swapped or mutated after capture is
+//      the one thing an absence claim can never survive).
+//   3. evidence_kind / artifact-lane agreement - a dom_node/network_event finding must anchor into an
+//      artifact whose OWN lane matches (a dom_node finding pointing into the network log, or vice versa,
+//      is a routing bug this refuses rather than silently minting).
+function evidenceLaneOfKind(kind) {
+  if (kind === 'dom_node') return 'dom';
+  if (kind === 'network_event') return 'network';
+  if (kind === 'coverage_proof' || kind === 'register_absence') return 'coverage';
+  return null;
+}
+function checkDerivationIntegrity(captureIndex, artifact) {
+  if (!artifact.derived || !Array.isArray(artifact.derivedFrom) || artifact.derivedFrom.length === 0) return { ok: true };
+  for (const src of artifact.derivedFrom) {
+    const s = captureIndex.get(src.evidence_id);
+    if (!s || s.sha256 !== src.sha256) {
+      return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_DERIVATION, detail: 'derived artifact ' + artifact.evidence_id + ' claims source ' + src.evidence_id + ' which is missing or hash-mismatched in the live capture index' };
+    }
+  }
+  return { ok: true };
+}
+function checkAbsenceRecompute(captureIndex, f) {
+  const artifact = captureIndex.get(f.quote.evidence_id);
+  let line;
+  try { line = JSON.parse(artifact.bytes.toString('utf8')); } catch (e) {
+    return { ok: false, reasonCode: REFUSAL_CODES.ABSENCE_RECOMPUTE_MISMATCH, detail: 'finding ' + f.finding_id + ' anchors into a coverage artifact whose bytes are not parseable canonical JSON' };
+  }
+  if (line.pattern_sha256 !== f.coverage.pattern_sha256 || line.claimed_count !== f.coverage.claimed_count) {
+    return { ok: false, reasonCode: REFUSAL_CODES.ABSENCE_RECOMPUTE_MISMATCH, detail: 'finding ' + f.finding_id + '\'s coverage claim does not match the committed coverage artifact bytes (pattern/claimed_count drift)' };
+  }
+  for (const subj of f.coverage.subjects) {
+    const art = captureIndex.get(subj.evidence_id);
+    // Re-derive the hash from the LIVE bytes (never trust the artifact's own stored .sha256 field, which a
+    // post-capture tamper leaves untouched) - the same "recompute, never trust" discipline
+    // verifyQuoteDetailed already applies to a finding's own span.
+    const liveHash = art && Buffer.isBuffer(art.bytes) ? crypto.createHash('sha256').update(art.bytes).digest('hex') : null;
+    if (!art || liveHash !== subj.sha256) {
+      return { ok: false, reasonCode: REFUSAL_CODES.ABSENCE_RECOMPUTE_MISMATCH, detail: 'finding ' + f.finding_id + '\'s coverage subject ' + subj.evidence_id + ' is missing or hash-mismatched in the live capture index; the absence claim can no longer be re-proven' };
+    }
+  }
+  return { ok: true };
+}
+function checkOneFindingEvidence(captureIndex, f) {
+  if (f.evidence_kind === 'quote') return { ok: true }; // checkQuotes already covers this kind fully
+  const artifact = captureIndex.get(f.quote.evidence_id);
+  if (!artifact) return { ok: false, reasonCode: REFUSAL_CODES.UNVERIFIABLE_QUOTE, detail: 'finding ' + f.finding_id + ' anchors to evidence_id ' + f.quote.evidence_id + ' which is not in the capture index' };
+  const expectedLane = evidenceLaneOfKind(f.evidence_kind);
+  if (expectedLane && artifact.lane !== expectedLane) {
+    return { ok: false, reasonCode: REFUSAL_CODES.EVIDENCE_KIND_MISMATCH, detail: 'finding ' + f.finding_id + ' declares evidence_kind ' + f.evidence_kind + ' but anchors into a ' + JSON.stringify(artifact.lane) + '-lane artifact' };
+  }
+  const derivation = checkDerivationIntegrity(captureIndex, artifact);
+  if (!derivation.ok) return derivation;
+  if (ABSENCE_KINDS.has(f.evidence_kind)) {
+    const absence = checkAbsenceRecompute(captureIndex, f);
+    if (!absence.ok) return absence;
+  }
+  return { ok: true };
+}
+// checkEvidence(captureIndex, findings) -> { ok, reasonCode?, detail? }. Re-verifies every NON-QUOTE
+// finding's evidence commitment against the live capture index, immediately after checkQuotes (which
+// already covers quote findings and the shared normalised/raw-provenance checks every finding's span must
+// still pass regardless of kind).
+function checkEvidence(captureIndex, findings) {
+  for (const f of findings) {
+    const result = checkOneFindingEvidence(captureIndex, f);
+    if (!result.ok) return result;
+  }
   return { ok: true };
 }
 
@@ -357,6 +443,8 @@ function evaluateMintGate(input) {
   if (!cat.ok) return cat;
   const quotes = checkQuotes(i.captureIndex, findings);
   if (!quotes.ok) return quotes;
+  const evidence = checkEvidence(i.captureIndex, findings);
+  if (!evidence.ok) return evidence;
   // Report binding + in-gate orphan-lint (Kimi K3 finding HIGH-E3) - runs AFTER checkSignature so the
   // founder's signed report_sha256 is known, and after the findings/quotes are proven so the lint runs
   // over the real, verified finding-id set.
@@ -471,4 +559,4 @@ async function mintGate(input) {
   return { proceeded: true, mode: 'live', persisted, signature: decision.signature, findingsShipped };
 }
 
-module.exports = { mintGate, evaluateMintGate, checkSignature, checkQuotes, checkCatalogue, checkCoverageManifest, checkReport, REFUSAL_CODES, ManifestStore };
+module.exports = { mintGate, evaluateMintGate, checkSignature, checkQuotes, checkEvidence, checkCatalogue, checkCoverageManifest, checkReport, REFUSAL_CODES, ManifestStore };

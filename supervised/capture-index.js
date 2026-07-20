@@ -52,6 +52,42 @@ function sha256Hex(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
+// stableStringify(value) -> canonical JSON with recursively sorted object keys. THE one canonicaliser for
+// every derived evidence artifact this module (and coverage-proof.js, quote-resolver.js, mint-gate.js)
+// produces - Rule 1, one door - so two callers hashing "the same" object always land on the same bytes.
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  return '{' + Object.keys(value).sort().map((k) => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+}
+
+// MAX_EVIDENCE_LANE_BYTES: a separate cap on one derived evidence-lane artifact (dom/network/register/
+// coverage), independent of MAX_TOTAL_BYTES which only budgets the page-text lane (Rule 8: a cap, never a
+// floor). Hitting it fails the WHOLE capture closed with a typed LaneError - a truncated evidence lane
+// would silently under-report DOM/network surface, which the non-quote lane must never do.
+const MAX_EVIDENCE_LANE_BYTES = 32 * 1024 * 1024;
+
+// captureEvidenceArtifact({lane, key, rows, derivedFrom, fetchedAt, origin}) -> a frozen artifact whose
+// bytes are one stableStringify'd JSON object per line (a canonical "evidence log"), or null when rows is
+// empty (never an empty-but-present artifact - Rule 4: no evidence captured is a fact recorded by the
+// artifact's ABSENCE, not a zero-row artifact standing in for it). Throws LaneError (fail-closed) if the
+// serialised bytes would exceed MAX_EVIDENCE_LANE_BYTES.
+function captureEvidenceArtifact({ lane, key, rows, derivedFrom, fetchedAt, origin }) {
+  if (!rows || !rows.length) return null;
+  const bytes = Buffer.from(rows.map((r) => stableStringify(r)).join('\n'), 'utf8');
+  if (bytes.length > MAX_EVIDENCE_LANE_BYTES) {
+    throw new LaneError('capture', 'evidence_budget_exceeded', 'evidence lane ' + JSON.stringify(lane) + ' for ' + JSON.stringify(key) + ' would serialise to ' + bytes.length + ' bytes, over the ' + MAX_EVIDENCE_LANE_BYTES + '-byte cap (Rule 8: budgets are caps, never floors)');
+  }
+  return Object.freeze({
+    evidence_id: evidenceIdFor(key, lane), url: key, lane,
+    sha256: sha256Hex(bytes), length: bytes.length, fetched_at: fetchedAt, bytes,
+    rawAvailable: false, rawBytes: null, rawSha256: null, rawLength: null, boundaries: [],
+    origin: origin || 'derived',
+    derived: origin !== 'external',
+    derivedFrom: Object.freeze((derivedFrom || []).map((d) => Object.freeze({ evidence_id: d.evidence_id, sha256: d.sha256 }))),
+  });
+}
+
 // evidenceIdFor(url, lane) -> a stable, deterministic evidence_id for one captured artifact. Derived from
 // the URL + lane (never a random uuid): two captures of the SAME url/lane in two different runs get the
 // SAME id, which is what lets replay.js compare "the finding pointed at evidence_id X" across runs without
@@ -74,6 +110,19 @@ class ArtifactStore {
   list() {
     return Array.from(this._byId.values());
   }
+  // addDerived(artifact) - used by the non-quote resolution lane (quote-resolver.js's resolveEvidenceSpan)
+  // to register a coverage-proof artifact it built ON DEMAND at resolve time (the ONLY caller allowed to
+  // add an artifact after buildCaptureIndex's own initial capture pass). Requires a genuinely derived
+  // artifact (derived:true) carrying provenance, and refuses a duplicate id (an artifact, once captured,
+  // is immutable - a second add for the same evidence_id would silently make "which bytes are the real
+  // ones" ambiguous).
+  addDerived(artifact) {
+    if (!artifact || artifact.derived !== true) {
+      throw new LaneError('capture', 'derived_artifact_malformed', 'addDerived requires a derived artifact with derivedFrom provenance');
+    }
+    if (this._byId.has(artifact.evidence_id)) return; // idempotent: reuse the already-registered artifact
+    this._byId.set(artifact.evidence_id, artifact);
+  }
   toJSON() {
     // Bytes are NOT serialised into the manifest (they can be large, and the manifest's job is provenance,
     // not a second copy of the corpus - text/byte content stays retrievable from the bundle/replay inputs).
@@ -86,6 +135,11 @@ class ArtifactStore {
         // check verifyRawProvenanceDetailed performs - the raw sha256, its availability, and the boundary map
         // are provenance facts and belong in the manifest exactly like the normalised sha256 does.
         raw_sha256: a.rawSha256 || null, raw_available: Boolean(a.rawAvailable), boundaries: Array.isArray(a.boundaries) ? a.boundaries : [],
+        // Non-quote evidence-lane provenance (Kimi K3 10Q Q1(b)): a manifest reader must be able to see
+        // WHICH artifacts are derived and from what, without the bytes - same doctrine as the raw fields
+        // above.
+        origin: a.origin || 'external', derived: Boolean(a.derived),
+        derived_from: Array.isArray(a.derivedFrom) ? a.derivedFrom.map((d) => ({ evidence_id: d.evidence_id, sha256: d.sha256 })) : [],
       })),
       errors: this.errors.map((e) => ({ lane: e.lane, reasonCode: e.reasonCode, detail: e.detail })),
     };
@@ -312,6 +366,97 @@ function captureAllPages(pages, fetchedAt) {
   return { artifacts, errors };
 }
 
+// ── non-quote evidence lanes (Kimi K3 10Q Q1(b)) ──────────────────────────────────────────────────────
+// The dom/network/register lanes below capture the SAME bundle.browser/bundle.registers surface
+// breach/proposers/propose.js already reads to build candidates (Rule 1: no second crawler, no second
+// evidence source) into their own hash-chained "evidence log" artifacts, so a dom_node/network_event/
+// register_absence candidate can be anchored with the SAME {evidence_id,byte_start,byte_end,span_sha256}
+// a quote uses, into a real, re-derivable artifact - never a fake span into an unrelated page.
+//
+// contentShaFor(row) -> sha256 of the row's OWN stableStringify'd bytes (excluding the `i` index this
+// module stamps on): the stable "this row is the same real observation" key quote-resolver.js's
+// resolveEvidenceSpan uses to find a candidate's row in the lane artifact, independent of row order.
+function contentShaFor(row) {
+  const rest = Object.assign({}, row);
+  delete rest.i;
+  return sha256Hex(Buffer.from(stableStringify(rest), 'utf8'));
+}
+
+// domLaneKey(bundle) -> the one evidence_id key the whole run's dom-node lane captures under (the DOM
+// violation lane is a SITE-WIDE observation, evidence/browser/dom-assert.js does not key per-page in the
+// bundle.browser.domNodes shape) - so one dom evidence-log artifact per run, not per page.
+function siteKeyOf(bundle) {
+  return (bundle && bundle.domain) || (bundle && bundle.corpus && bundle.corpus.pages && bundle.corpus.pages[0] && bundle.corpus.pages[0].url) || 'unknown-site';
+}
+
+// domLaneRows(domNodes) -> [{i, contentSha, ...node}] in observed order. `contentSha` is stamped onto the
+// row itself (not just used to compute the artifact hash) so a consumer can locate a row without
+// re-deriving the hash from the node fields a second time.
+function domLaneRows(domNodes) {
+  return (Array.isArray(domNodes) ? domNodes : []).map((node, i) => {
+    const row = Object.assign({ i }, node);
+    return Object.assign(row, { contentSha: contentShaFor(row) });
+  });
+}
+function networkLaneRows(observed) {
+  return (Array.isArray(observed) ? observed : []).map((ev, i) => {
+    const row = Object.assign({ i }, ev);
+    return Object.assign(row, { contentSha: contentShaFor(row) });
+  });
+}
+// registerLaneRows(registers) -> [{i, register, note, contentSha}] - one row per register's recorded
+// `notes` entry (the register lane's own definitive-outcome record; see propose.js's evalRegister). Rows
+// with no notes carry nothing to capture (an un-run/skipped lane, recorded upstream as a suppression, not
+// a fabricated empty row here).
+function registerLaneRows(registers) {
+  const out = [];
+  const notes = Array.isArray(registers && registers.notes) ? registers.notes : [];
+  notes.forEach((note, i) => {
+    const row = { i, register: note && note.register, note };
+    out.push(Object.assign(row, { contentSha: contentShaFor(row) }));
+  });
+  return out;
+}
+
+// captureEvidenceLanes(bundle, artifacts, fetchedAt) -> pushes dom/network/register evidence-log
+// artifacts onto `artifacts` (mutating, mirroring captureAllPages's own accumulator style) when the bundle
+// carries non-empty rows for that lane; captureEvidenceArtifact's own null-on-empty rule means an
+// unobserved lane simply contributes nothing (never a fabricated zero-row artifact). Throws LaneError
+// (fail-closed, MAX_EVIDENCE_LANE_BYTES) if any one lane's serialised bytes are oversized - this is not
+// caught here; buildCaptureIndex lets it propagate so a caller sees the SAME fail-closed contract the page
+// lane's own budgets already give.
+function captureEvidenceLanes(bundle, artifacts, fetchedAt) {
+  const browser = bundle && bundle.browser;
+  const siteKey = siteKeyOf(bundle);
+  const domRows = domLaneRows(browser && browser.domNodes);
+  if (domRows.length) {
+    artifacts.push(captureEvidenceArtifact({ lane: 'dom', key: siteKey, rows: domRows, fetchedAt, origin: 'derived', derivedFrom: [] }));
+  }
+  const networkRows = networkLaneRows(browser && browser.observed);
+  if (networkRows.length) {
+    artifacts.push(captureEvidenceArtifact({ lane: 'network', key: siteKey, rows: networkRows, fetchedAt, origin: 'derived', derivedFrom: [] }));
+  }
+  const registers = (bundle && bundle.registers) || {};
+  const registerKeys = Object.keys(registers).filter((k) => k !== 'notes');
+  for (const regKey of registerKeys) {
+    const rows = registerLaneRows({ notes: (registers.notes || []).filter((n) => n && n.register === regKey) });
+    if (rows.length) {
+      artifacts.push(captureEvidenceArtifact({ lane: 'register', key: regKey, rows, fetchedAt, origin: 'external', derivedFrom: [] }));
+    }
+  }
+  // A register whose ONLY notes were captured above under their own register-keyed artifact; a bundle that
+  // carries notes but no matching top-level register key still gets ONE artifact per distinct note.register
+  // value, so a register key that only ever appears inside `notes` (never as its own bundle.registers[key])
+  // is not silently dropped.
+  const noteOnlyKeys = [...new Set((registers.notes || []).map((n) => n && n.register).filter(Boolean))].filter((k) => !registerKeys.includes(k));
+  for (const regKey of noteOnlyKeys) {
+    const rows = registerLaneRows({ notes: (registers.notes || []).filter((n) => n && n.register === regKey) });
+    if (rows.length) {
+      artifacts.push(captureEvidenceArtifact({ lane: 'register', key: regKey, rows, fetchedAt, origin: 'external', derivedFrom: [] }));
+    }
+  }
+}
+
 function buildCaptureIndex(bundle, opts) {
   const o = opts || {};
   const now = typeof o.now === 'function' ? o.now : Date.now;
@@ -325,7 +470,15 @@ function buildCaptureIndex(bundle, opts) {
   if (fetchedAt === 'unknown') errors.push(new LaneError('capture', 'bad_clock', 'the injected clock returned a non-finite value; fetched_at recorded as "unknown" rather than crashing the capture'));
   const unreachable = unreachableSiteError(o.stageManifest);
   if (unreachable) errors.push(unreachable);
+  try {
+    captureEvidenceLanes(bundle, artifacts, fetchedAt);
+  } catch (e) {
+    if (e instanceof LaneError) errors.push(e); else throw e;
+  }
   return new ArtifactStore(artifacts, errors);
 }
 
-module.exports = { buildCaptureIndex, normaliseWhitespace, sha256Hex, evidenceIdFor, ArtifactStore };
+module.exports = {
+  buildCaptureIndex, normaliseWhitespace, sha256Hex, evidenceIdFor, ArtifactStore,
+  stableStringify, captureEvidenceArtifact, MAX_EVIDENCE_LANE_BYTES, contentShaFor, siteKeyOf,
+};
