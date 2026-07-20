@@ -14,12 +14,18 @@ function payload(domain) {
   return { meta: { domain, sector: 'law-firms', country: 'UK' }, frameworksBinding: 3, findings: [] };
 }
 
-test('deriveSlug kebabs the domain into a single URL-safe segment (no slash); deriveHash is 8 hex', () => {
+test('deriveSlug kebabs the domain into a single URL-safe segment (no slash); deriveHash is 16 hex (Kimi K3 R2 A19/#21: widened from 8 to defend against offline grinding)', () => {
   const p = payload('oakhurst-legal.example');
   assert.strictEqual(persist.deriveSlug(p), 'oakhurst-legal-example');
   const h = persist.deriveHash(p);
-  assert.match(h, /^[0-9a-f]{8}$/);
+  assert.match(h, /^[0-9a-f]{16}$/);
   assert.strictEqual(persist.kebab('Foo.Bar_Baz!!'), 'foo-bar-baz');
+});
+
+test('deriveHash is stable under key-order-only changes to the same content (Kimi K3 R2 #50: stableJson sorts keys deeply)', () => {
+  const a = { meta: { domain: 'x.example', sector: 'law-firms', country: 'UK' }, frameworksBinding: 3, findings: [] };
+  const b = { findings: [], frameworksBinding: 3, meta: { country: 'UK', sector: 'law-firms', domain: 'x.example' } };
+  assert.strictEqual(persist.deriveHash(a), persist.deriveHash(b));
 });
 
 test('deriveHash is deterministic for the same payload and changes when content changes (Rule 15: no cache)', () => {
@@ -61,7 +67,10 @@ test('buildInsertSql upserts ON CONFLICT (slug, hash) and binds params in the IN
 });
 
 test('buildRow writes the r2 MARKER blob the live trigger inspects: r2 + binding + engine_version + llm_verify', () => {
-  const row = persist.buildRow({ slug: 's', hash: 'h', generatedAt: '2026-07-19', payload: payload('a.example') });
+  // Kimi K3 R2 A18/#20: llm_verify now reads the explicit pipeline fact payload.meta.adjudicated===true,
+  // not shape (Array.isArray(payload.findings)), so a mint that genuinely ran the adjudicator must set it.
+  const adjudicated = { meta: { domain: 'a.example', sector: 'law-firms', country: 'UK', adjudicated: true }, frameworksBinding: 3, findings: [] };
+  const row = persist.buildRow({ slug: 's', hash: 'h', generatedAt: '2026-07-19', payload: adjudicated });
   // the row carries ONLY the ten real columns.
   assert.deepStrictEqual(Object.keys(row).sort(), [...persist.INSERT_COLUMNS].sort());
   // the marker is the compact {r2:true, ...} blob, NEVER the full payload.
@@ -69,8 +78,13 @@ test('buildRow writes the r2 MARKER blob the live trigger inspects: r2 + binding
   assert.ok('binding' in row.payload_json, 'binding KEY must be present (trigger guard 1 tests key existence)');
   assert.strictEqual(row.payload_json.binding, 3, 'binding is the frameworksBinding count threaded from connect()');
   assert.strictEqual(row.payload_json.engine_version, ENGINE_VERSION, 'engine_version is the exact ENGINE_VERSION string (trigger guard 2)');
-  assert.strictEqual(row.payload_json.llm_verify, true, 'llm_verify true when the payload carries the adjudicator findings surface');
+  assert.strictEqual(row.payload_json.llm_verify, true, 'llm_verify true when the payload carries meta.adjudicated===true (the real pipeline fact)');
   assert.strictEqual(Object.prototype.hasOwnProperty.call(row.payload_json, 'meta'), false, 'the marker is NOT the full payload');
+});
+
+test('#20/A18: llm_verify is false when the payload only carries a findings[] ARRAY shape but no meta.adjudicated fact (the shape-derived guess this fix closed)', () => {
+  const row = persist.buildRow({ slug: 's', hash: 'h', payload: payload('a.example') });
+  assert.strictEqual(row.payload_json.llm_verify, false, 'a bare findings:[] shape with no adjudicated fact must NOT be read as a verified mint');
 });
 
 test('the marker binding KEY is present even when frameworksBinding is absent (guard 1 tests existence, not truthiness)', () => {
@@ -128,7 +142,10 @@ test('persist writes R2 FIRST then the Neon row, via injected doors, and derives
   });
   assert.strictEqual(puts.length, 1);
   assert.strictEqual(puts[0].key, 'audits/oakhurst-legal-example/' + r.hash + '.json', 'R2 key mirrors the website read path exactly');
-  assert.strictEqual(puts[0].body, JSON.stringify(payload('oakhurst-legal.example')), 'the FULL payload goes to R2, never to Neon');
+  // Kimi K3 R2 #50: the R2 body is stableJson (deep-sorted keys), not raw JSON.stringify, so compare by
+  // parsed content (what actually matters: the FULL payload, byte-content-equivalent) rather than a
+  // literal string whose key order is now a stableJson implementation detail.
+  assert.deepStrictEqual(JSON.parse(puts[0].body), payload('oakhurst-legal.example'), 'the FULL payload goes to R2, never to Neon');
   assert.strictEqual(rows.length, 1);
   assert.strictEqual(r.liveUrl, 'https://tamazia.co.uk/audit/oakhurst-legal-example/' + r.hash);
   assert.strictEqual(r.row.payload_json.engine_version, ENGINE_VERSION, 'the persisted row carries the version inside the marker, not a column');
@@ -202,6 +219,22 @@ test('a failed sealed-artifact write is recorded per-artifact, never thrown into
   const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [{ url: 'https://x.example/', text: 'some real text' }] } });
   const result = await persist.persistArtifactStore(store, { putFn: async () => ({ ok: false, status: 500 }) });
   assert.strictEqual(result.results[0].ok, false);
+  // Kimi K3 R2 A17/#22: chainHead must be null (and ok:false) when ANY artifact write failed - a partial
+  // store must never carry a durability marker claiming the full chain is real.
+  assert.strictEqual(result.chainHead, null, 'a partially-written store must not carry a chainHead - false durability claim');
+  assert.strictEqual(result.ok, false);
+});
+
+test('#22/A17: chainHead is null when SOME artifacts write ok and others fail (partial write, not just total failure)', async () => {
+  const store = buildCaptureIndex({ domain: 'x', corpus: { pages: [
+    { url: 'https://x.example/a', text: 'page a real text' },
+    { url: 'https://x.example/b', text: 'page b real text' },
+  ] } });
+  let calls = 0;
+  const result = await persist.persistArtifactStore(store, { putFn: async () => { calls += 1; return { ok: calls === 1, status: calls === 1 ? 200 : 500 }; } });
+  assert.strictEqual(result.results.length, 2);
+  assert.ok(result.results.some((r) => r.ok === false), 'at least one artifact genuinely failed');
+  assert.strictEqual(result.chainHead, null, 'ANY failed write must null the chainHead, not just an all-fail store');
 });
 
 // THE MEDIUM-E5 PROOF: mint a finding, DROP the in-memory captureIndex entirely, re-verify every shipped

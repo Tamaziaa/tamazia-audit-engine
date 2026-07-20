@@ -19,9 +19,18 @@ const { resolveIndex, assertRefsResolvable } = require('./quote-verify-refs.js')
 // a fabricated "we searched everywhere and found nothing" with zero actual pages read. This is the same
 // "recompute, don't trust the label" defence CRITICAL-1 applies to quote.text: pages_fetched and fetched
 // must show genuine, non-zero search activity before an absence claim may mint.
+// MIN_DISTINCT_PAGES: the same absence floor the engine already enforces elsewhere (MIN_PAGES_FOR_ABSENCE);
+// a certificate whose OWN counts show fewer than this many distinct, real pages read cannot support "we
+// searched and found nothing" (Kimi K3 R2 A4/#6: the prior floor of 1 page, with no dedupe/type/consistency
+// check, let a single fetch of anything mint an absence claim on ~2% coverage).
+const MIN_DISTINCT_PAGES = 3;
 function certificateIsDegenerate(cert) {
-  if (!cert || !Array.isArray(cert.pages_fetched) || cert.pages_fetched.length === 0) return true;
-  return !(Number(cert.fetched) > 0);
+  if (!cert || !Array.isArray(cert.pages_fetched)) return true;
+  const distinctUrls = new Set(cert.pages_fetched.filter((u) => typeof u === 'string' && u !== ''));
+  if (distinctUrls.size < MIN_DISTINCT_PAGES) return true;
+  if (!Number.isInteger(cert.fetched) || cert.fetched < distinctUrls.size) return true;
+  if (Number(cert.planned) > cert.fetched) return true;
+  return false;
 }
 
 // assertQuoteBoundToPayload(vd, i, evidenceIds): when the payload declares its own evidence records, a
@@ -29,7 +38,7 @@ function certificateIsDegenerate(cert) {
 // payload alone (CodeRabbit PR #33). When the payload carries no evidence records (the WS0 seam / an
 // injected-store test), this is skipped and the store is the sole evidence source.
 function assertQuoteBoundToPayload(vd, i, evidenceIds) {
-  if (!evidenceIds || evidenceIds.size === 0) return;
+  if (evidenceIds === null) return;
   if (!evidenceIds.has(vd.quote.evidence_id)) {
     throw new Error('quote-verify-gate: verdicts[' + i + '] quote references evidence_id ' + JSON.stringify(vd.quote.evidence_id) + ' which is not among the payload\'s own evidence records - a persisted claim must be resolvable from the payload\'s evidence (P0-2)');
   }
@@ -57,10 +66,15 @@ function assertQuoteVerifiable(vd, i, store, evidenceIds) {
 }
 
 // payloadEvidenceIds(payload) -> a Set of the evidence ids the payload declares (empty Set when none).
+// payloadEvidenceIds(payload) -> a Set of the evidence ids the payload declares, or null when the payload
+// carries NO evidence field at all (the legitimate WS0 seam: no evidence records means the store is the sole
+// evidence source, so binding is skipped). An EMPTY array is a real, present declaration - not the same as
+// absent - so it returns an empty Set (binding then enforced, and nothing can satisfy it): Kimi K3 R2 A14/#18,
+// a hand-assembled payload declaring `evidence: []` must not dodge the quote-to-payload binding.
 function payloadEvidenceIds(payload) {
-  const evidence = Array.isArray(payload.evidence) ? payload.evidence : [];
+  if (!Array.isArray(payload.evidence)) return null;
   const ids = new Set();
-  for (const rec of evidence) { if (rec && typeof rec.id === 'string') ids.add(rec.id); }
+  for (const rec of payload.evidence) { if (rec && typeof rec.id === 'string') ids.add(rec.id); }
   return ids;
 }
 

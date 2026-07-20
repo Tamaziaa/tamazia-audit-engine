@@ -27,7 +27,12 @@ function manifest() {
   return { checks_planned: ['c1'], checks_run: ['c1'], checks_unrun: [], lanes: [{ lane: 'static', status: 'OK' }], evidence_ids: ['ev1'], catalogue_hash: CAT_HASH, taxonomy_version: '1.0.0', payload_version: '1.2' };
 }
 function v1_2PayloadWith(verdicts) {
-  return { payload_version: '1.2', taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [], verdicts, coverage: manifest() };
+  // evidence declares 'ev1' by default (the id every quote()/violationVerdict() in this file references),
+  // so P0-2's payload-evidence binding check (Kimi K3 R2 A14/#18: an empty array is a real declaration,
+  // not an absent one, and now enforces binding) passes for the common case. Tests that need to exercise
+  // the binding failure itself override p.evidence explicitly.
+  const evidenceRecord = { id: 'ev1', lane: 'static', status: { kind: 'OK' }, url_final: 'https://x/', fetched_at: 't', bytes_sha256: v1_2.sha256Hex(BYTES) };
+  return { payload_version: '1.2', taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [evidenceRecord], verdicts, coverage: manifest() };
 }
 function violationVerdict(text) {
   const start = BYTES.indexOf(text);
@@ -80,7 +85,11 @@ test('the mint REFUSES a v1.2 payload whose penalty is absent from the catalogue
 });
 
 test('the mint fails closed when a v1.2 breach carries a quote but no evidence store was supplied', () => {
-  assert.throws(() => assertMintablePayload(v1_2PayloadWith([violationVerdict(TARGET)]), { catalogue: CATALOGUE }), /no evidenceStore/);
+  const p = v1_2PayloadWith([violationVerdict(TARGET)]);
+  // declare the matching evidence record so the P0-2 binding check (evidence declared -> must resolve)
+  // passes first, isolating this test to the evidenceStore-missing failure it's named for.
+  p.evidence = [{ id: 'ev1', lane: 'static', status: { kind: 'OK' }, url_final: 'https://x/', fetched_at: 't', bytes_sha256: v1_2.sha256Hex(BYTES) }];
+  assert.throws(() => assertMintablePayload(p, { catalogue: CATALOGUE }), /no evidenceStore/);
 });
 
 test('the mint REFUSES a structurally invalid v1.2 payload (a coverage gap)', () => {
@@ -114,8 +123,9 @@ test('CRITICAL-2: the mint REFUSES an absence Breach whose certificate shows ZER
   );
 });
 
-test('CRITICAL-2: a genuine absence Breach certificate (real pages fetched, threshold met, 2 distinct methods) mints', () => {
-  const realCert = { pages_fetched: ['/privacy', '/terms'], discovery_methods: ['sitemap', 'footer_scan'], planned: 2, fetched: 2, failed: [], threshold_met: true };
+test('CRITICAL-2: a genuine absence Breach certificate (real pages fetched, threshold met, 3 distinct methods) mints', () => {
+  // Kimi K3 R2 A4/#6: the degenerate floor now requires >=3 distinct non-empty pages_fetched URLs.
+  const realCert = { pages_fetched: ['/privacy', '/terms', '/cookies'], discovery_methods: ['sitemap', 'footer_scan'], planned: 3, fetched: 3, failed: [], threshold_met: true };
   const good = v1_2PayloadWith([absenceVerdict(realCert)]);
   const res = assertMintablePayload(good, { catalogue: CATALOGUE });
   assert.equal(res.ok, true);
@@ -146,7 +156,8 @@ test('HIGH-4: a v1.2-shaped verdicts[] payload with NO declared payload_version 
 test('HIGH-4: a v1.2-shaped verdicts[] payload that DOES declare payload_version "1.2" and is otherwise complete mints and is fully checked', () => {
   const shaped = {
     payload_version: '1.2',
-    taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [],
+    taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH,
+    evidence: [{ id: 'ev1', lane: 'static', status: { kind: 'OK' }, url_final: 'https://x/', fetched_at: 't', bytes_sha256: v1_2.sha256Hex(BYTES) }],
     verdicts: [violationVerdict(TARGET)],
     coverage: manifest(),
   };
@@ -172,4 +183,32 @@ test('HIGH-4: a v1.2-shaped verdicts[] payload declaring a stale payload_version
 test('HIGH-4: a genuinely v1.1 payload (no lattice-shaped verdicts) still passes straight through', () => {
   const res = assertMintablePayload(buildMinimalValidPayload(), {});
   assert.deepEqual(res, { ok: true, version: '1.1', checkedQuotes: 0, checkedRefs: 0 });
+});
+
+// ── Kimi K3 R2 #9: a lattice verdict that carries a `quote` object but NO `kind` field must not slip past
+// the shape-sniff. Before this fix, looksLikeV1_2Verdicts matched only on `kind`, so a hand-assembled or
+// buggy-producer verdict shaped like { quote: {...} } with no `kind` fell through to the v1.1 pass-through
+// and its quote was never re-verified (checkedQuotes:0).
+test('#9: a v1.2-shaped verdicts[] payload with a `quote` object but no `kind` field is NOT silently passed through as v1.1', () => {
+  const shaped = {
+    // payload_version omitted; verdict carries `quote` but deliberately no `kind`
+    taxonomy_version: '1.0.0', catalogue_hash: CAT_HASH, evidence: [],
+    verdicts: [{ quote: { evidence_id: 'ev1', byte_start: 0, byte_end: 4, text: 'oops', span_sha256: sha256Hex(Buffer.from('oops', 'utf8')) } }],
+    coverage: manifest(),
+  };
+  assert.throws(
+    () => assertMintablePayload(shaped, { catalogue: CATALOGUE, evidenceStore: STORE }),
+    /structurally invalid.*payload_version must be/
+  );
+});
+
+// ── Kimi K3 R2 #32: the verdict-count budget must gate BEFORE the structural decoder walks the payload, so
+// an oversized payload is refused by the cheap length check rather than by an unbounded validator pass.
+test('#32: an oversized v1.2 verdicts[] array is refused by the budget cap even when otherwise structurally invalid', () => {
+  const tooMany = new Array(5001).fill(0).map(() => ({ kind: 'Breach' }));
+  const bad = v1_2PayloadWith(tooMany);
+  assert.throws(
+    () => assertMintablePayload(bad, { catalogue: CATALOGUE }),
+    /over the MAX_VERDICTS cap/
+  );
 });

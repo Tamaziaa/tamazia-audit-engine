@@ -26,14 +26,17 @@ const BREACH_CLASS_SET = new Set(v1_2.BREACH_CLASSES);
 const HEX64 = /^[0-9a-f]{64}$/;
 
 // looksLikeV1_2Verdicts(payload) -> true when payload.verdicts is an array containing at least one element
-// shaped like a lattice verdict (carries a `kind` field). A payload can decline to declare payload_version
+// shaped like a lattice verdict: carries a `kind` field, OR carries a `quote` object (Kimi K3 R2 #9 - a
+// verdict can be quote-bearing without a `kind` field, and `kind` alone was not a superset of every
+// lattice shape a hand-assembled payload might carry). A payload can decline to declare payload_version
 // '1.2' while still carrying this shape - HIGH-4: shape-sniff, don't trust the label, because a payload
 // declaring no version (or a stale '1.1') otherwise falls through to the v1.1 render-contract validator,
 // which does not know Breach/Clean/Unknown verdicts at all and passes it straight through unchecked
 // (checkedQuotes:0, checkedRefs:0 - the mint never re-verifies a single quote, law or penalty in it).
 function looksLikeV1_2Verdicts(payload) {
   if (!payload || !Array.isArray(payload.verdicts)) return false;
-  return payload.verdicts.some((vd) => vd && typeof vd === 'object' && typeof vd.kind === 'string');
+  return payload.verdicts.some((vd) => vd && typeof vd === 'object' &&
+    (typeof vd.kind === 'string' || (vd.quote && typeof vd.quote === 'object')));
 }
 // payloadVersionOf(payload) -> '1.2' when the payload explicitly carries payload_version '1.2' OR its
 // verdicts[] is lattice-shaped regardless of the declared version (HIGH-4); anything else (absent, '1.1',
