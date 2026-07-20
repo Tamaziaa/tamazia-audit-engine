@@ -32,6 +32,7 @@ test('fetchRegisters: a UK law-firm bundle populates companiesHouse + sra + glei
     'companies_house.search': { status: 200, json: { items: [{ title: 'KINGSLEY NAPLEY LLP', company_number: '00930093', company_status: 'active' }] } },
     'sra.organisations': { status: 200, json: [{ organisationName: 'KINGSLEY NAPLEY LLP', sraNumber: '500046' }] },
     'gleif.lei_records': { status: 200, json: { data: [] } },
+    'companies_house.canary': { status: 200, json: { company_number: '00445790', company_status: 'active' } },
   });
   const bundle = await fetchRegisters(
     { domain: 'kingsleynapley.co.uk', company: 'Kingsley Napley LLP', country: 'UK', sector: 'law-firms' },
@@ -90,4 +91,44 @@ test('runCalibration: the shipped p3-register-*.json fixtures each earn a findin
   const findings = await runCalibration();
   assert.ok(findings.length >= 2, 'expected at least one finding per shipped p3-register-*.json fixture');
   assert.ok(findings.every((f) => f.rule === 'register-nonmatch-rejected'));
+});
+
+// ── register-establishment lane: canary/DEGRADED gate ───────────────────────────────────────────
+test('fetchRegisters: a companies_house canary failure strips an otherwise-genuine companiesHouse row and marks the lane DEGRADED', async () => {
+  const fetchFn = fetchFnFromMap({
+    'companies_house.search': { status: 200, json: { items: [{ title: 'Kingsley Napley LLP', company_number: '00930093', company_status: 'active' }] } },
+    // deliberately NO 'companies_house.canary' response -> falls through to the map default
+    // {status:200, json:{}}, which fails the canary's known-good shape check.
+  });
+  const bundle = await fetchRegisters(
+    { domain: 'kingsleynapley.co.uk', company: 'Kingsley Napley LLP', country: 'UK', sector: 'law-firms' },
+    { fetchFn, deadlineMs: 500, keys: { companiesHouse: 'stale-key' }, log: () => {} }
+  );
+  assert.equal(bundle.companiesHouse, undefined, 'the real match is stripped; a register outage/expired key must never render as established');
+  assert.equal(bundle.laneStatus.companies_house, 'DEGRADED');
+  const canaryNote = bundle.notes.find((n) => n.register === 'companies_house' && n.reason === 'canary_failed');
+  assert.ok(canaryNote);
+});
+
+test('fetchRegisters: a passing canary lets a genuine companiesHouse row through, laneStatus OK', async () => {
+  const fetchFn = fetchFnFromMap({
+    'companies_house.search': { status: 200, json: { items: [{ title: 'Kingsley Napley LLP', company_number: '00930093', company_status: 'active' }] } },
+    'companies_house.canary': { status: 200, json: { company_number: '00445790', company_status: 'active' } },
+  });
+  const bundle = await fetchRegisters(
+    { domain: 'kingsleynapley.co.uk', company: 'Kingsley Napley LLP', country: 'UK', sector: 'law-firms' },
+    { fetchFn, deadlineMs: 500, keys: { companiesHouse: 'good-key' }, log: () => {} }
+  );
+  assert.ok(bundle.companiesHouse);
+  assert.equal(bundle.laneStatus.companies_house, 'OK');
+});
+
+test('fetchRegisters: no companiesHouse key configured -> laneStatus not_attempted, no spurious canary_failed note', async () => {
+  const fetchFn = fetchFnFromMap({ 'gleif.lei_records': { status: 200, json: { data: [] } } });
+  const bundle = await fetchRegisters(
+    { domain: 'kingsleynapley.co.uk', company: 'Kingsley Napley LLP', country: 'UK', sector: 'law-firms' },
+    { fetchFn, deadlineMs: 500, keys: {}, log: () => {} }
+  );
+  assert.equal(bundle.laneStatus.companies_house, 'not_attempted');
+  assert.ok(!bundle.notes.some((n) => n.reason === 'canary_failed'));
 });

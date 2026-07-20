@@ -54,8 +54,11 @@
 // before this fix.
 const { runLookup } = require('./lib/lookup-runner');
 const { makeNote } = require('./lib/notes');
+const { withDeadline, DEFAULT_DEADLINE_MS } = require('./lib/deadline');
+const { extractCqcProviderId } = require('./lib/establishment-id');
 
 const SEARCH_BASE = 'https://api.service.cqc.org.uk/public/v1/providers';
+const PROVIDER_DETAIL_BASE = 'https://api.service.cqc.org.uk/public/v1/providers/';
 
 const APPLICABLE_SECTORS = new Set([
   'healthcare', 'dental', 'aesthetics', 'pharmacy', 'telemedicine', 'care-homes', 'fertility',
@@ -123,7 +126,57 @@ function buildRow(candidate) {
   };
 }
 
-async function lookupCqc({ query, sector, fetchFn, deadlineMs, keys, log }) {
+// buildProviderRow(json) -> the cqc row shape from the PROVIDER-DETAIL endpoint (register-
+// establishment lane addition). registrationStatus:'Registered' + a non-empty name is treated as an
+// active, matched provider (Tier A establishment for UK healthcare); anything else is left for the
+// caller to treat as no_match rather than guessed.
+function buildProviderRow(json) {
+  return {
+    provider_name: json.name || json.providerName || null,
+    provider_id: json.providerId || json.providerID,
+    registered_office_address: addressLine(json),
+    registration_status: json.registrationStatus || null,
+  };
+}
+
+// lookupCqcByProviderId(providerId, {fetchFn, deadlineMs, keys, log}) -> {row, note}. THE
+// register-establishment lane's direct path: a CQC provider id shown on the audited site itself
+// (widget/badge embed, "CQC Provider ID: 1-123456789") is resolved against the provider-DETAIL
+// endpoint directly, sidestepping the confirmed-broken free-text `name=` search entirely (this
+// module's own header: every free-text query parameter 400s on the live host). A provider whose
+// registrationStatus is 'Registered' IS itself Tier-A establishment evidence for a UK healthcare
+// firm — a CQC-registered provider is, by definition, established in the UK for this purpose.
+async function lookupCqcByProviderId(providerId, { fetchFn, deadlineMs, keys, log }) {
+  const cqcKeys = keys && keys.cqc;
+  const apiKey = cqcKeys && cqcKeys.apiKey;
+  if (!apiKey) {
+    return { row: null, note: makeNote({ register: 'cqc', kind: 'degraded', reason: 'missing_key', detail: 'CQC_API_KEY is not configured; the provider id ' + providerId + ' scraped from the site could not be resolved', log }) };
+  }
+  const url = PROVIDER_DETAIL_BASE + encodeURIComponent(providerId);
+  const outcome = await withDeadline(() => fetchFn(url, { headers: authHeaders(cqcKeys), requestKey: 'cqc.provider_detail' }), deadlineMs || DEFAULT_DEADLINE_MS, 'cqc');
+  if (!outcome.ok) {
+    const reason = outcome.reason === 'timeout' ? 'timeout' : 'fetch_error';
+    return { row: null, note: makeNote({ register: 'cqc', kind: 'degraded', reason, detail: 'direct provider-detail lookup for scraped id ' + providerId + ' did not complete', log }) };
+  }
+  const res = outcome.value;
+  if (res && res.status === 404) {
+    return { row: null, note: makeNote({ register: 'cqc', kind: 'no_match', reason: 'not_found', detail: 'our lookup at ' + new Date().toISOString() + ' for CQC provider id ' + providerId + ' (scraped from the site) returned no match on the CQC register', log }) };
+  }
+  if (!res || res.status !== 200 || !res.json || !(res.json.providerId || res.json.providerID)) {
+    return { row: null, note: makeNote({ register: 'cqc', kind: 'degraded', reason: 'unexpected_response', detail: 'direct provider-detail lookup for ' + providerId + ' answered with status ' + (res && res.status), log }) };
+  }
+  if (String(res.json.registrationStatus || '').toLowerCase() !== 'registered') {
+    return { row: null, note: makeNote({ register: 'cqc', kind: 'no_match', reason: 'not_registered', detail: 'CQC provider ' + providerId + ' was found but registrationStatus is "' + res.json.registrationStatus + '", not Registered; not treated as establishment evidence', log }) };
+  }
+  const row = buildProviderRow(res.json);
+  row.source = 'cqc';
+  row.fetched_at = new Date().toISOString();
+  row.query = providerId;
+  row.match = { name_queried: providerId, name_matched: row.provider_id, score: 1, method: 'direct_id' };
+  return { row, note: null };
+}
+
+async function lookupCqc({ query, sector, fetchFn, deadlineMs, keys, log, corpusText }) {
   if (!applies(sector)) {
     const detail = 'sector "' + sector + '" is not a health family; CQC lookup skipped (Rule 8 budget cap)';
     return { row: null, note: makeNote({ register: 'cqc', kind: 'skipped', reason: 'sector_not_applicable', detail, log }) };
@@ -134,6 +187,14 @@ async function lookupCqc({ query, sector, fetchFn, deadlineMs, keys, log }) {
   // first-try-succeeds call, never a degradation, so it plays no part in hasKey.
   const hasKey = Boolean(cqcKeys && cqcKeys.apiKey);
   const hasPartnerCode = Boolean(cqcKeys && cqcKeys.partnerCode);
+  // Register-establishment lane: a site-displayed CQC provider id (badge/widget embed) wins over the
+  // (confirmed-broken) free-text search — tried first, direct Tier-A route.
+  const scrapedProviderId = extractCqcProviderId(corpusText);
+  if (scrapedProviderId) {
+    const direct = await lookupCqcByProviderId(scrapedProviderId, { fetchFn, deadlineMs, keys, log });
+    if (direct.row) return direct;
+    return direct; // a scraped-but-unresolved provider id is reported as-is; there is no reliable name-search fallback (see this module's header)
+  }
   return runLookup({
     register: 'cqc',
     query,
@@ -157,4 +218,4 @@ async function lookupCqc({ query, sector, fetchFn, deadlineMs, keys, log }) {
   });
 }
 
-module.exports = { lookupCqc, applies, extractCandidates, buildRow };
+module.exports = { lookupCqc, lookupCqcByProviderId, applies, extractCandidates, buildRow, buildProviderRow };
