@@ -280,7 +280,7 @@ function detectionStage(run, ctx) {
   for (const f of classified.findings) kinds[f.evidence_kind] = (kinds[f.evidence_kind] || 0) + 1;
   ctx.manifestStore.append(ctx.runId, 'candidate_findings', {
     findingCount: classified.findings.length,
-    findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, evidence_kind: f.evidence_kind, quote: f.quote })),
+    findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, jurisdiction: f.jurisdiction, evidence_kind: f.evidence_kind, quote: f.quote, coverage: f.coverage || null })),
     rejected: classified.rejected,
     nonQuoteCandidateCount: classified.nonQuote.length,
     kinds,
