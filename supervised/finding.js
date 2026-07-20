@@ -67,6 +67,23 @@ const FINDING_CLASS = Object.freeze({
 });
 const FINDING_CLASS_SET = new Set(Object.values(FINDING_CLASS));
 
+// EVIDENCE_KIND (Kimi K3 10Q Q1(a)): the closed set of evidence shapes a Finding's quote span may anchor
+// into. 'quote' is the original textual-span kind (unchanged behaviour); the other five are the non-quote
+// lane's kinds, each anchoring the SAME four-field span into its own captured evidence-log/coverage
+// artifact (capture-index.js/coverage-proof.js), never a fake span into an unrelated page.
+const EVIDENCE_KIND = Object.freeze({
+  QUOTE: 'quote',
+  DOM_NODE: 'dom_node',
+  NETWORK_EVENT: 'network_event',
+  REGISTER_ROW: 'register_row',
+  REGISTER_ABSENCE: 'register_absence',
+  COVERAGE_PROOF: 'coverage_proof',
+});
+const EVIDENCE_KIND_SET = new Set(Object.values(EVIDENCE_KIND));
+// ABSENCE_KINDS: the two evidence kinds whose claim is a NEGATIVE ("nothing was found") - these are the
+// only kinds a Finding may carry a `coverage` proof for (see assertCoverageInvariant).
+const ABSENCE_KINDS = new Set([EVIDENCE_KIND.REGISTER_ABSENCE, EVIDENCE_KIND.COVERAGE_PROOF]);
+
 function isNonEmptyString(v) {
   return typeof v === 'string' && v.trim().length > 0;
 }
@@ -185,8 +202,17 @@ function canonicalQuote(quote) {
 // reading the OLD law text - silently covered the never-reviewed rebuild. With catalogue_hash and
 // engine_version in the basis, either change mints a DIFFERENT finding_id with no recorded decision, which
 // mint-gate.js refuses as UNDECIDED_FINDING.
-function deriveFindingId(ruleId, quote, findingClass, jurisdiction, catalogueHash, engineVersion) {
-  const basis = ruleId + '|' + findingClass + '|' + jurisdiction + '|' + catalogueHash + '|' + engineVersion + '|' + quote.evidence_id + '|' + quote.byte_start + '-' + quote.byte_end + '|' + quote.span_sha256;
+// coverageFingerprint(coverage) -> a short deterministic fingerprint of a finding's coverage proof (or
+// '-' when none), folded into deriveFindingId's basis (Kimi K3 10Q Q1(b)): two absence findings over the
+// SAME record but DIFFERENT searched subjects/claimed_count must never collide on one finding_id.
+function coverageFingerprint(coverage) {
+  if (!coverage) return '-';
+  const subjectsKey = (coverage.subjects || []).map((s) => s.evidence_id + ':' + s.sha256).sort().join(',');
+  return crypto.createHash('sha256').update(coverage.pattern_sha256 + '|' + coverage.claimed_count + '|' + subjectsKey, 'utf8').digest('hex').slice(0, 16);
+}
+
+function deriveFindingId(ruleId, quote, findingClass, jurisdiction, catalogueHash, engineVersion, evidenceKind, coverage) {
+  const basis = ruleId + '|' + findingClass + '|' + jurisdiction + '|' + catalogueHash + '|' + engineVersion + '|' + quote.evidence_id + '|' + quote.byte_start + '-' + quote.byte_end + '|' + quote.span_sha256 + '|' + (evidenceKind || EVIDENCE_KIND.QUOTE) + '|' + coverageFingerprint(coverage);
   return crypto.createHash('sha256').update(basis, 'utf8').digest('hex').slice(0, 16);
 }
 
@@ -218,6 +244,63 @@ function assertMitigationLogShape(f) {
     throw new FindingConstructionError('mitigation_log', 'mitigation_log must be an array when supplied');
   }
 }
+// resolvedEvidenceKind(f) -> f.evidence_kind when supplied, else EVIDENCE_KIND.QUOTE (Kimi K3 10Q Q1(b):
+// "additive; existing quote findings keep working" - every pre-existing createFinding() call site in this
+// repo predates evidence_kind and must keep constructing a valid quote-kind Finding with no edits).
+function resolvedEvidenceKind(f) {
+  return f.evidence_kind === undefined ? EVIDENCE_KIND.QUOTE : f.evidence_kind;
+}
+// assertEvidenceKind(f) -> throws unless the RESOLVED evidence_kind is one of the closed EVIDENCE_KIND set
+// (an explicitly-supplied-but-invalid value still throws; only an OMITTED field defaults).
+function assertEvidenceKind(f) {
+  if (!EVIDENCE_KIND_SET.has(resolvedEvidenceKind(f))) {
+    throw new FindingConstructionError('evidence_kind', 'evidence_kind must be one of ' + Array.from(EVIDENCE_KIND_SET).join('|') + ', got ' + JSON.stringify(f.evidence_kind));
+  }
+}
+function isHex64(v) {
+  return typeof v === 'string' && SPAN_HASH_RE.test(v);
+}
+// assertCoverageShape(coverage) -> throws unless coverage is {subjects: non-empty [{evidence_id, sha256}],
+// pattern_sha256: 64-hex, claimed_count: non-negative int}.
+function assertCoverageShape(coverage) {
+  if (!isPlainObject(coverage)) {
+    throw new FindingConstructionError('coverage', 'coverage is required for an absence evidence_kind and must be an object {subjects, pattern_sha256, claimed_count}');
+  }
+  if (!Array.isArray(coverage.subjects) || coverage.subjects.length === 0) {
+    throw new FindingConstructionError('coverage.subjects', 'coverage.subjects must be a non-empty array of {evidence_id, sha256} - the searched set an absence claim was proven over');
+  }
+  for (const s of coverage.subjects) {
+    if (!isPlainObject(s) || !isNonEmptyString(s.evidence_id) || !isHex64(s.sha256)) {
+      throw new FindingConstructionError('coverage.subjects', 'every coverage.subjects entry must be {evidence_id: non-empty string, sha256: 64-char lowercase-hex}');
+    }
+  }
+  if (!isHex64(coverage.pattern_sha256)) {
+    throw new FindingConstructionError('coverage.pattern_sha256', 'coverage.pattern_sha256 must be a 64-char lowercase-hex commitment to the exact matcher that was run');
+  }
+  if (!isNonNegativeInt(coverage.claimed_count)) {
+    throw new FindingConstructionError('coverage.claimed_count', 'coverage.claimed_count must be a non-negative integer');
+  }
+}
+// assertCoverageInvariant(f) -> coverage is REQUIRED iff evidence_kind is an absence kind, and FORBIDDEN
+// otherwise (Kimi K3 10Q Q1(b)) - a presence-anchored finding (quote/dom_node/network_event/register_row)
+// can never smuggle an unrelated "absence" claim, and an absence finding can never skip proving its search.
+function assertCoverageInvariant(f) {
+  const isAbsence = ABSENCE_KINDS.has(resolvedEvidenceKind(f));
+  if (isAbsence) {
+    assertCoverageShape(f.coverage);
+  } else if (f.coverage !== undefined && f.coverage !== null) {
+    throw new FindingConstructionError('coverage', 'coverage must not be present when evidence_kind is ' + JSON.stringify(resolvedEvidenceKind(f)) + ' (only ' + Array.from(ABSENCE_KINDS).join('/') + ' findings carry a coverage proof)');
+  }
+}
+// canonicalCoverage(coverage) -> a deep-frozen canonical copy of a validated coverage object, or null.
+function canonicalCoverage(coverage) {
+  if (!coverage) return null;
+  return deepFreezeClone({
+    subjects: coverage.subjects.map((s) => ({ evidence_id: s.evidence_id, sha256: s.sha256 })),
+    pattern_sha256: coverage.pattern_sha256,
+    claimed_count: coverage.claimed_count,
+  });
+}
 // assertFindingFields(f) -> runs every top-level structural rule in order, throwing on the first defect.
 function assertFindingFields(f) {
   assertRuleId(f);
@@ -226,6 +309,8 @@ function assertFindingFields(f) {
   assertJurisdiction(f);
   assertFindingClass(f);
   assertMitigationLogShape(f);
+  assertEvidenceKind(f);
+  assertCoverageInvariant(f);
 }
 
 // resolvedEngineVersion(f) -> f.engine_version when supplied, else mint/version.js's own ENGINE_VERSION.
@@ -253,8 +338,10 @@ function frozenMitigationLog(f) {
 // never disagree (Rule 1: one door for the value).
 function buildFindingObject(f, quote) {
   const engineVersion = resolvedEngineVersion(f);
+  const evidenceKind = resolvedEvidenceKind(f);
+  const coverage = canonicalCoverage(f.coverage);
   return {
-    finding_id: deriveFindingId(f.rule_id, quote, f.class, f.jurisdiction, f.catalogue_hash, engineVersion),
+    finding_id: deriveFindingId(f.rule_id, quote, f.class, f.jurisdiction, f.catalogue_hash, engineVersion, evidenceKind, coverage),
     rule_id: f.rule_id,
     catalogue_hash: f.catalogue_hash,
     quote,
@@ -262,6 +349,8 @@ function buildFindingObject(f, quote) {
     class: f.class,
     engine_version: engineVersion,
     mitigation_log: frozenMitigationLog(f),
+    evidence_kind: evidenceKind,
+    coverage,
   };
 }
 
@@ -317,4 +406,4 @@ function withMitigation(finding, entry) {
   return next;
 }
 
-module.exports = { createFinding, withMitigation, FINDING_CLASS, deriveFindingId, isFinding };
+module.exports = { createFinding, withMitigation, FINDING_CLASS, deriveFindingId, isFinding, EVIDENCE_KIND, ABSENCE_KINDS };

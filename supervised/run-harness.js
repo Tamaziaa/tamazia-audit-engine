@@ -53,7 +53,7 @@ const { verifyAll } = require('../breach/verifiers/index.js');
 const { ARTIFACT_TYPES } = require('../breach/artifact-types.js');
 
 const { buildCaptureIndex } = require('./capture-index.js');
-const { resolveQuoteSpan } = require('./quote-resolver.js');
+const { resolveQuoteSpan, resolveEvidenceSpan } = require('./quote-resolver.js');
 const { verifyQuote } = require('./verify-quote.js');
 const { createFinding, FINDING_CLASS } = require('./finding.js');
 const { buildEntityCard } = require('./entity-card.js');
@@ -130,39 +130,73 @@ function resolveVerifiedSpan(candidate, artifact, captureIndex) {
   return { span, rejection: null };
 }
 
-// buildFindingOrRejection(candidate, span, ctx) -> {kind:'finding'|'rejected', value}. The ONLY place
-// createFinding()'s FindingConstructionError is caught (a shape defect here is unexpected given the
-// caller already verified the span, but still fail-closed to a rejection, never an uncaught throw).
-function buildFindingOrRejection(candidate, span, ctx) {
+// buildFindingOrRejection(candidate, span, ctx, findingClass, evidenceKind, coverage) -> {kind:'finding'
+// |'rejected', value}. The ONLY place createFinding()'s FindingConstructionError is caught (a shape defect
+// here is unexpected given the caller already verified the span, but still fail-closed to a rejection,
+// never an uncaught throw). `findingClass`/`evidenceKind`/`coverage` are threaded through so this ONE
+// function builds every finding kind (quote AND non-quote) - the non-quote lane never re-implements
+// construction (Kimi K3 10Q Q1(a): quote findings stay 'likely'; every non-quote finding constructs as
+// 'needs_human').
+function buildFindingOrRejection(candidate, span, ctx, findingClass, evidenceKind, coverage) {
   const jurisdiction = jurisdictionFor(recordFor(ctx.catalogue, candidate.record_id), ctx.facts);
   try {
-    const finding = createFinding({ rule_id: candidate.record_id, catalogue_hash: ctx.catalogueHash, quote: span, jurisdiction, class: FINDING_CLASS.LIKELY });
+    const finding = createFinding({
+      rule_id: candidate.record_id, catalogue_hash: ctx.catalogueHash, quote: span, jurisdiction,
+      class: findingClass, evidence_kind: evidenceKind, coverage,
+    });
     return { kind: 'finding', value: finding };
   } catch (e) {
     return { kind: 'rejected', value: { record_id: candidate.record_id, code: 'construction_failed', reason: e.message } };
   }
 }
 
+// classifyQuoteCandidate(candidate, artifact, ctx) -> the ORIGINAL quote path, unchanged behaviour: a
+// resolved+verified quote span always constructs LIKELY, evidence_kind 'quote', no coverage.
+function classifyQuoteCandidate(candidate, artifact, ctx) {
+  const resolved = resolveVerifiedSpan(candidate, artifact, ctx.captureIndex);
+  if (!resolved.span) return { kind: 'rejected', value: resolved.rejection };
+  return buildFindingOrRejection(candidate, resolved.span, ctx, FINDING_CLASS.LIKELY, 'quote', undefined);
+}
+
+// classifyNonQuoteCandidate(candidate, ctx) -> resolves a dom_node/network_event/coverage_proof/
+// register_absence candidate into its own captured evidence-log/coverage artifact via
+// quote-resolver.js's resolveEvidenceSpan, then constructs a NEEDS_HUMAN finding (Kimi K3 10Q Q1(a): every
+// non-quote finding lands at needs_human in v1 - a negative and a DOM/network interpretation both deserve
+// human eyes before they can be shipped).
+function classifyNonQuoteCandidate(candidate, ctx) {
+  const resolved = resolveEvidenceSpan(candidate, { captureIndex: ctx.captureIndex, bundle: ctx.bundle, fetchedAt: ctx.fetchedAt });
+  if (!resolved.span) return { kind: 'rejected', value: resolved.rejection };
+  return buildFindingOrRejection(candidate, resolved.span, ctx, FINDING_CLASS.NEEDS_HUMAN, resolved.evidenceKind, resolved.coverage);
+}
+
 // classifyOneCandidate(entry, ctx) -> a tagged outcome for ONE verified candidate:
-// {kind:'nonQuote'|'rejected'|'finding', value}. `ctx` is {catalogue, captureIndex, facts, catalogueHash}
-// (bundled once by classifyCandidates() so this function reads one context, not four loose parameters).
+// {kind:'nonQuote'|'rejected'|'finding', value}. `ctx` is {catalogue, captureIndex, facts, catalogueHash,
+// bundle, fetchedAt} (bundled once by classifyCandidates() so this function reads one context, not several
+// loose parameters). `nonQuote` is now reached ONLY when the candidate's artifact carries no recognised
+// type at all (resolveEvidenceSpan's own 'artifact_missing'/'evidence_kind_unsupported' cases) - every
+// artifact type this repo's proposers actually emit (quote/dom_node/network_event/coverage_proof/
+// register_absence) resolves to a real finding or a typed rejection, never silently parked.
 function classifyOneCandidate(entry, ctx) {
   const candidate = entry.candidate;
   const artifact = quoteArtifactOf(candidate);
-  if (!artifact) {
-    return { kind: 'nonQuote', value: { record_id: candidate && candidate.record_id, artifact_type: candidate && candidate.artifact && candidate.artifact.type } };
+  if (artifact) return classifyQuoteCandidate(candidate, artifact, ctx);
+  const type = candidate && candidate.artifact && candidate.artifact.type;
+  if (!type) {
+    return { kind: 'nonQuote', value: { record_id: candidate && candidate.record_id, artifact_type: type } };
   }
-  const resolved = resolveVerifiedSpan(candidate, artifact, ctx.captureIndex);
-  if (!resolved.span) return { kind: 'rejected', value: resolved.rejection };
-  return buildFindingOrRejection(candidate, resolved.span, ctx);
+  const outcome = classifyNonQuoteCandidate(candidate, ctx);
+  if (outcome.kind === 'rejected' && outcome.value.code === 'evidence_kind_unsupported') {
+    return { kind: 'nonQuote', value: { record_id: candidate.record_id, artifact_type: type } };
+  }
+  return outcome;
 }
 
 // classifyCandidates(verified, catalogue, captureIndex, facts) -> { findings, rejected, nonQuote }.
 // Walks every verified candidate exactly once; quote-type candidates whose span resolves AND
 // re-verifies become typed Findings, everything else is accounted for honestly (never dropped without a
 // reason).
-function classifyCandidates(verified, catalogue, captureIndex, facts) {
-  const ctx = { catalogue, captureIndex, facts, catalogueHash: catalogue.content_hash };
+function classifyCandidates(verified, catalogue, captureIndex, facts, bundle, fetchedAt) {
+  const ctx = { catalogue, captureIndex, facts, catalogueHash: catalogue.content_hash, bundle, fetchedAt };
   const findings = [];
   const rejected = [];
   const nonQuote = [];
@@ -239,12 +273,17 @@ function detectionStage(run, ctx) {
   const verifyResult = verifyAll(candidates, run.bundle);
   ctx.manifestStore.append(ctx.runId, 'verify', { verifiedCount: verifyResult.verified.length, rejectedCount: verifyResult.rejected.length });
 
-  const classified = classifyCandidates(verifyResult.verified, ctx.catalogue, run.captureIndex, run.facts);
+  const t = ctx.now();
+  const fetchedAt = Number.isFinite(t) ? new Date(t).toISOString() : 'unknown';
+  const classified = classifyCandidates(verifyResult.verified, ctx.catalogue, run.captureIndex, run.facts, run.bundle, fetchedAt);
+  const kinds = {};
+  for (const f of classified.findings) kinds[f.evidence_kind] = (kinds[f.evidence_kind] || 0) + 1;
   ctx.manifestStore.append(ctx.runId, 'candidate_findings', {
     findingCount: classified.findings.length,
-    findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, quote: f.quote })),
+    findings: classified.findings.map((f) => ({ finding_id: f.finding_id, rule_id: f.rule_id, class: f.class, evidence_kind: f.evidence_kind, quote: f.quote })),
     rejected: classified.rejected,
     nonQuoteCandidateCount: classified.nonQuote.length,
+    kinds,
   });
   return classified;
 }
@@ -290,4 +329,4 @@ async function runSupervised(site, opts) {
   };
 }
 
-module.exports = { runSupervised, classifyCandidates, buildCoverageManifest };
+module.exports = { runSupervised, classifyCandidates, classifyOneCandidate, buildCoverageManifest };
