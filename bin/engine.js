@@ -32,6 +32,9 @@ const path = require('path');
 const { runSupervised } = require('../supervised/run-harness.js');
 const { buildPacketHtml } = require('../supervised/packet.js');
 const { recordSignature } = require('../supervised/signature-store.js');
+const { signFinding, rejectFinding, deriveStatus, latestCandidateFindings, SignoffError } = require('../supervised/signoff.js');
+const { readEvidence } = require('../supervised/excerpts.js');
+const { exportRun } = require('../supervised/export.js');
 const { replayRun } = require('../supervised/replay.js');
 const { mintGate } = require('../supervised/mint-gate.js');
 const { ManifestStore } = require('../supervised/manifest-store.js');
@@ -268,6 +271,113 @@ async function attemptMint(manifestStore, args, result, catalogue) {
   }
 }
 
+// runIdOf(args, cmdName) -> args['run-id'] || args.run (this session's `engine review/sign/reject/export`
+// CLI shape uses --run; the rest of this file's commands use --run-id; both are honoured so a caller
+// following either the Kimi K3 render-debug brief's literal flag names or this repo's existing convention
+// works). Throws with the command's own name in the message when neither was given.
+function runIdOf(args, cmdName) {
+  const id = args['run-id'] || args.run;
+  if (!id) throw new Error(cmdName + ': --run <id> (or --run-id) is required');
+  return id;
+}
+
+// captureIndexFor(args, manifestStore, catalogue, suffix) -> a live ArtifactStore when --site was given
+// (a scratch rerun over the same site, same discipline as cmdPacket/cmdReplay/cmdMint), else null. Every
+// command below that needs to RE-VERIFY a quote (review's excerpts, sign's evidence-anchor check, export's
+// evidence_quote assembly) needs live bytes - capture-index.js's manifest projection is hash-only (see its
+// own doc) so a manifest read alone can never re-slice text.
+async function captureIndexFor(args, manifestStore, catalogue, suffix) {
+  if (!args.site) return null;
+  const rerun = await rerunScratch(args.site, args, { manifestStore, catalogue }, suffix);
+  return rerun.captureIndex;
+}
+
+// reviewRowFor(finding, store, runId, captureIndex, catalogue) -> the founder's review-surface row for one
+// candidate finding (Kimi §1b step 1: "Lists each needs_human finding with its RESOLVED excerpt, source
+// URL, and catalogue rule").
+function reviewRowFor(finding, store, runId, captureIndex, catalogue) {
+  const resolved = readEvidence(captureIndex, finding, {}); // persisted-first; live only for legacy manifests.
+  const records = (catalogue && (catalogue.records || catalogue)) || [];
+  const rule = (Array.isArray(records) ? records : []).find((r) => r && r.id === finding.rule_id) || null;
+  return {
+    finding_id: finding.finding_id,
+    rule_id: finding.rule_id,
+    status: deriveStatus(store, runId, finding.finding_id),
+    jurisdiction: finding.jurisdiction || null,
+    evidence_kind: finding.evidence_kind,
+    evidence_quote: resolved.quote,
+    evidence_truncated: resolved.truncated || undefined,
+    checked_urls: resolved.checkedUrls,
+    source_url: resolved.checkedUrls[0] || null,
+    catalogue_rule: rule ? { id: rule.id, title: rule.title || rule.name || null, citation: rule.citation || null, penalty: rule.penalty || rule.penalties || null } : null,
+  };
+}
+
+async function cmdReview(args) {
+  const runId = runIdOf(args, 'engine review');
+  const manifestStore = storeFrom(args);
+  const catalogue = loadCatalogueFrom(args);
+  const captureIndex = await captureIndexFor(args, manifestStore, catalogue, '-review-scratch');
+  const findings = latestCandidateFindings(manifestStore, runId);
+  const rows = findings.map((f) => reviewRowFor(f, manifestStore, runId, captureIndex, catalogue));
+  const needsHuman = rows.filter((r) => r.status === 'needs_human');
+  process.stdout.write(JSON.stringify({ runId, total: rows.length, needsHumanCount: needsHuman.length, findings: rows }, null, 2) + '\n');
+  return 0;
+}
+
+// cmdSignFinding(args) - `engine sign --run <id> --finding <id> --by <signer> --note "<text>"`. Distinct
+// from the existing whole-run `engine sign --run-id <id> --decisions <path>` (signature-store.js) - routed
+// here in main() only when --finding is present, so neither flow shadows the other.
+async function cmdSignFinding(args) {
+  const runId = runIdOf(args, 'engine sign');
+  if (!args.finding) throw new Error('engine sign: --finding <id> is required');
+  if (!args.by) throw new Error('engine sign: --by <signer> is required');
+  const manifestStore = storeFrom(args);
+  const catalogue = loadCatalogueFrom(args);
+  const captureIndex = await captureIndexFor(args, manifestStore, catalogue, '-sign-scratch');
+  try {
+    const entry = signFinding(manifestStore, runId, { findingId: args.finding, signer: args.by, note: args.note, captureIndex });
+    process.stdout.write(JSON.stringify(Object.assign({ status: 'confirmed' }, entry), null, 2) + '\n');
+    return 0;
+  } catch (e) {
+    if (e instanceof SignoffError) {
+      process.stderr.write('engine sign: refused (' + e.code + '): ' + e.message + '\n');
+      return 1;
+    }
+    throw e;
+  }
+}
+
+async function cmdReject(args) {
+  const runId = runIdOf(args, 'engine reject');
+  if (!args.finding) throw new Error('engine reject: --finding <id> is required');
+  if (!args.reason) throw new Error('engine reject: --reason "<text>" is required (mandatory)');
+  const manifestStore = storeFrom(args);
+  try {
+    const entry = rejectFinding(manifestStore, runId, { findingId: args.finding, signer: args.by, reason: args.reason });
+    process.stdout.write(JSON.stringify(Object.assign({ status: 'rejected' }, entry), null, 2) + '\n');
+    return 0;
+  } catch (e) {
+    if (e instanceof SignoffError) {
+      process.stderr.write('engine reject: refused (' + e.code + '): ' + e.message + '\n');
+      return 1;
+    }
+    throw e;
+  }
+}
+
+async function cmdExport(args) {
+  const runId = runIdOf(args, 'engine export');
+  const manifestStore = storeFrom(args);
+  const catalogue = loadCatalogueFrom(args);
+  const captureIndex = await captureIndexFor(args, manifestStore, catalogue, '-export-scratch');
+  const payload = exportRun(manifestStore, runId, { captureIndex, catalogue });
+  const outPath = args.out || path.join(manifestStore.baseDir, runId + '.payload.json');
+  fs.writeFileSync(outPath, JSON.stringify(payload, null, 2), 'utf8');
+  process.stdout.write(JSON.stringify(Object.assign({ payloadPath: outPath }, payload), null, 2) + '\n');
+  return 0;
+}
+
 async function cmdMint(args) {
   assertMintArgs(args);
   const manifestStore = storeFrom(args);
@@ -283,10 +393,16 @@ async function main(argv) {
   const args = parseArgs(rest);
   if (cmd === 'run') return cmdRun(args);
   if (cmd === 'packet') return cmdPacket(args);
-  if (cmd === 'sign') return cmdSign(args);
+  if (cmd === 'review') return cmdReview(args);
+  // `engine sign` is overloaded: --finding present routes to the per-finding signoff path
+  // (supervised/signoff.js, this session's build); its absence keeps the existing whole-run
+  // SIGN/HOLD --decisions flow (signature-store.js) byte-for-byte unchanged.
+  if (cmd === 'sign') return args.finding ? cmdSignFinding(args) : cmdSign(args);
+  if (cmd === 'reject') return cmdReject(args);
+  if (cmd === 'export') return cmdExport(args);
   if (cmd === 'replay') return cmdReplay(args);
   if (cmd === 'mint') return cmdMint(args);
-  process.stderr.write('bin/engine.js: unknown command ' + JSON.stringify(cmd) + '. Commands: run | packet | sign | replay | mint\n');
+  process.stderr.write('bin/engine.js: unknown command ' + JSON.stringify(cmd) + '. Commands: run | packet | review | sign | reject | export | replay | mint\n');
   return 2;
 }
 
@@ -297,4 +413,7 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, parseArgs, cmdRun, cmdPacket, cmdSign, cmdReplay, cmdMint };
+module.exports = {
+  main, parseArgs, cmdRun, cmdPacket, cmdSign, cmdReplay, cmdMint,
+  cmdReview, cmdSignFinding, cmdReject, cmdExport,
+};

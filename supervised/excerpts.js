@@ -59,4 +59,166 @@ function buildExcerpts(store, findings) {
   return out;
 }
 
-module.exports = { buildExcerpts, excerptFor, EXCERPT_PAD_BYTES };
+// ── resolveSpanText - Kimi K3 render-debug §2's evidence resolver ────────────────────────────────────
+// Resolves the EXACT bytes a Finding's quote span anchors, SHA-256 re-verified (via verify-quote.js's own
+// choke point - never a second, independent hash check that could drift from it) against span_sha256, and
+// returns null (never a fabricated/paraphrased string) on ANY mismatch. This is the ONE place a rendered
+// evidence_quote is assembled from a Finding; the exporter (supervised/export.js) is the only caller.
+//
+// maxLen defaults to 400 (a render-sized excerpt, not a re-dump of the whole artifact); truncation is
+// always flagged explicitly, never silent.
+
+const { verifyQuoteDetailed } = require('./verify-quote.js');
+
+const RESOLVE_MAX_LEN_DEFAULT = 400;
+
+function truncateForRender(text, maxLen) {
+  if (typeof text !== 'string') return { text: null, truncated: false };
+  if (text.length <= maxLen) return { text, truncated: false };
+  return { text: text.slice(0, maxLen), truncated: true };
+}
+
+// urlForEvidenceId(store, evidenceId) -> the real captured URL an evidence_id resolves to, or null. Used
+// to turn a coverage proof's `subjects` (evidence_id + sha256 only, per coverage-proof.js) back into the
+// real page/register URLs that were actually searched - never a blanket "[site]" placeholder.
+function urlForEvidenceId(store, evidenceId) {
+  const artifact = store && typeof store.get === 'function' ? store.get(evidenceId) : null;
+  return artifact && typeof artifact.url === 'string' ? artifact.url : null;
+}
+
+// checkedUrlsForCoverage(store, coverage) -> the full list of real, resolvable subject URLs a coverage/
+// absence finding was actually checked against (Kimi §2: "the FULL searched-page list, NOT [site]").
+function checkedUrlsForCoverage(store, coverage) {
+  const subjects = Array.isArray(coverage && coverage.subjects) ? coverage.subjects : [];
+  const urls = [];
+  for (const s of subjects) {
+    const url = s && urlForEvidenceId(store, s.evidence_id);
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
+// parseEvidenceRow(text) -> the JSON-parsed evidence-log row a resolved span's bytes decode to, or null
+// on any parse failure (dom_node/network_event rows are one stableStringify'd JSON object per line, per
+// capture-index.js's captureEvidenceArtifact). Never throws.
+function parseEvidenceRow(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+// resolveSpanText(store, finding, opts) -> { quote, sha256, truncated, checkedUrls }.
+//   store    an ArtifactStore (or object with .get/.list) capable of re-reading the SAME bytes captured
+//            at run time.
+//   finding  a real supervised/finding.js Finding (quote + evidence_kind [+ coverage]).
+//   opts     { maxLen = 400 }.
+//
+// Per evidence kind (Kimi §2's table):
+//   text/dom_text ('quote')        -> the resolved, sha-verified span text.
+//   network_event                  -> the request URL, verbatim (never the raw JSON row).
+//   dom_node                       -> the node's own text if text-anchored, else none.
+//   absence/coverage_proof         -> NEVER a quote; checkedUrls = the full searched-page list.
+// On ANY verification failure (missing store, unresolved artifact, hash mismatch, drifted span) this
+// returns quote:null - it never emits unverified or paraphrased text (the one invariant this function
+// exists to enforce).
+function resolveSpanText(store, finding, opts) {
+  const o = opts || {};
+  const maxLen = Number.isInteger(o.maxLen) && o.maxLen > 0 ? o.maxLen : RESOLVE_MAX_LEN_DEFAULT;
+  const result = { quote: null, sha256: null, truncated: false, checkedUrls: [] };
+  const quote = finding && finding.quote;
+  const kind = finding && finding.evidence_kind;
+
+  if (kind === 'coverage_proof' || kind === 'register_absence') {
+    // Absence claims never carry a "quote" - there is no text to show for a thing that was not found.
+    result.checkedUrls = checkedUrlsForCoverage(store, finding && finding.coverage);
+    return result;
+  }
+  if (!quote) return result;
+
+  const verified = verifyQuoteDetailed(store, quote); // THE re-verification: hash -> slice -> real text, or null.
+  if (!verified.ok) return result; // fail closed on hash_mismatch/range_out_of_bounds/etc - never fabricate.
+
+  // pageObservedOn(row) -> the real page/site URL an evidence-log row was observed on: the row's own url/
+  // host when present (a per-observation location), else the captured evidence-log artifact's OWN url (the
+  // dom/network lane is site-wide, keyed by siteKeyOf, so the artifact url IS the site the row was seen on).
+  // Never a fabricated "[site]" placeholder - always a real captured value.
+  const pageObservedOn = (row) => {
+    if (row && typeof row.url === 'string' && row.url) return row.url;
+    if (row && row.networkEvent && typeof row.networkEvent.url === 'string' && row.networkEvent.url) return row.networkEvent.url;
+    if (row && typeof row.host === 'string' && row.host) return row.host;
+    return urlForEvidenceId(store, quote.evidence_id);
+  };
+
+  if (kind === 'network_event') {
+    // Kimi §2: the request URL, verbatim. The network lane may capture a request (with a url) OR a cookie
+    // (no request url); emit the verbatim url ONLY when the row actually carries one - never paraphrase the
+    // raw row into a sentence. Either way, checked_urls names the real host/site the event was observed on.
+    const row = parseEvidenceRow(verified.text);
+    const url = row && (typeof row.url === 'string' && row.url ? row.url
+      : (row.networkEvent && typeof row.networkEvent.url === 'string' ? row.networkEvent.url : null));
+    if (url) {
+      const t = truncateForRender(url, maxLen);
+      result.quote = t.text; result.truncated = t.truncated; result.sha256 = quote.span_sha256;
+    }
+    const observed = pageObservedOn(row);
+    if (observed) result.checkedUrls = [observed];
+    return result;
+  }
+  if (kind === 'dom_node') {
+    // Kimi §2: the node's OWN text if text-anchored, else none. The dom lane captures the node's own markup
+    // as `snippet` (dom-assert's captured shape) - that IS the node's own captured text, verbatim, never a
+    // fabricated description. Some rows carry `text` instead; accept either, never invent one.
+    const row = parseEvidenceRow(verified.text);
+    const nodeText = row && ((typeof row.snippet === 'string' && row.snippet.trim() && row.snippet)
+      || (typeof row.text === 'string' && row.text.trim() && row.text)) || null;
+    if (nodeText) {
+      const t = truncateForRender(nodeText, maxLen);
+      result.quote = t.text; result.truncated = t.truncated; result.sha256 = quote.span_sha256;
+    } // else: not text-anchored -> none, per Kimi §2's table (never fabricate a description of the node).
+    const observed = pageObservedOn(row);
+    if (observed) result.checkedUrls = [observed];
+    return result;
+  }
+  // 'quote' / 'register_row' / default: the resolved span text itself, sha-verified. checked_urls is the
+  // page the quote was found on (Kimi §2's table: "page(s) found on" for a presence/text finding) - the
+  // real captured URL the quote's own evidence_id resolves to, never a blanket [site].
+  const t = truncateForRender(verified.text, maxLen);
+  result.quote = t.text; result.truncated = t.truncated; result.sha256 = quote.span_sha256;
+  const foundOn = urlForEvidenceId(store, quote.evidence_id);
+  if (foundOn) result.checkedUrls = [foundOn];
+  return result;
+}
+
+// evidenceFieldsFor(store, finding) -> { evidence_quote, evidence_sha256, evidence_truncated?, checked_urls }
+// - the persist-at-run-time projection (Kimi §2 invariant #1: resolve the evidence TEXT when the detector
+// still holds the live artifact store in memory, and PERSIST it into the manifest, so a later separate
+// process - `engine review`/`sign`/`export` - reads real evidence WITHOUT needing to re-crawl the site).
+// resolveSpanText stays the pure resolver; this is the thin shaper the run-harness persists and the
+// consumers read back.
+function evidenceFieldsFor(store, finding) {
+  const r = resolveSpanText(store, finding, {});
+  const out = { evidence_quote: r.quote, evidence_sha256: r.sha256, checked_urls: r.checkedUrls };
+  if (r.truncated) out.evidence_truncated = true;
+  return out;
+}
+
+// readEvidence(store, finding, opts) -> { quote, sha256, truncated, checkedUrls }. The ONE reader every
+// consumer (review/export/sign) uses: prefers the evidence PERSISTED on the finding record at run time
+// (present as soon as the candidate_findings manifest entry carries an `evidence_quote` key, even when its
+// value is null - an absence finding legitimately has a null quote but real checked_urls), and falls back
+// to a live resolveSpanText only for a legacy manifest that predates run-time persistence (no key at all).
+function readEvidence(store, finding, opts) {
+  if (finding && Object.prototype.hasOwnProperty.call(finding, 'evidence_quote')) {
+    return {
+      quote: finding.evidence_quote == null ? null : finding.evidence_quote,
+      sha256: finding.evidence_sha256 == null ? null : finding.evidence_sha256,
+      truncated: !!finding.evidence_truncated,
+      checkedUrls: Array.isArray(finding.checked_urls) ? finding.checked_urls : [],
+    };
+  }
+  return resolveSpanText(store, finding, opts);
+}
+
+module.exports = { buildExcerpts, excerptFor, EXCERPT_PAD_BYTES, resolveSpanText, evidenceFieldsFor, readEvidence };
