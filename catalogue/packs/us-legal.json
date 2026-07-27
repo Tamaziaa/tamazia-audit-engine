@@ -17,6 +17,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney",
     "solo-practice"
@@ -104,6 +105,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -192,6 +194,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -274,6 +277,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -347,6 +351,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -426,6 +431,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney",
     "multi-state"
@@ -501,6 +507,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -577,6 +584,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney",
     "personal-injury"
@@ -652,6 +660,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -737,6 +746,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -830,6 +840,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -882,18 +893,19 @@
    },
    "enforcement": [],
    "intel": {
-    "why_matters": "New York's 'Attorney Advertising' label on the home page is a bright-line, easy-to-miss duty. A New York firm site with no label is a clean, defensible finding.",
+    "why_matters": "New York's 'Attorney Advertising' label on the home page is a bright-line, easy-to-miss duty. A New York firm site with no label is a clean, defensible finding. The controlling First Amendment frame is Alexander v. Cahill, 598 F.3d 79 (2d Cir. 2010): the content-based bans (client testimonials in pending matters, judge portrayals, attention-getting techniques) were struck under Central Hudson, while the 30-day personal-injury solicitation moratorium was upheld - enforcement today runs inside that boundary.",
     "regulator_asks_first": "Grievance committees look first for the missing label and for guarantee-style claims.",
     "relevance_hook": "Tamazia confirms the 'Attorney Advertising' label is present on the home page, in ad emails and on mailers, and flags guarantee copy."
    },
    "provenance": {
     "sources": [
      "https://www.nycourts.gov/LegacyPDFS/rules/jointappellate/NY-Rules-Prof-Conduct-1200.pdf",
-     "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.1"
+     "https://www.law.cornell.edu/regulations/new-york/22-NYCRR-1200.7.1",
+     "https://caselaw.findlaw.com/summary/opinion/us-2nd-circuit/2010/03/12/168716.html"
     ],
     "seed_status": "gap_filled",
     "verified_date": "2026-07-16",
-    "last_synced": "2026-07-17"
+    "last_synced": "2026-07-27"
    },
    "status": "candidate",
    "client_useful": true
@@ -912,6 +924,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -1005,6 +1018,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -1085,6 +1099,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -1158,6 +1173,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -1247,6 +1263,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -1324,6 +1341,7 @@
     "legal"
    ],
    "sub_sector": [
+    "law-firms",
     "law-firm",
     "attorney"
    ],
@@ -1385,6 +1403,147 @@
     "seed_status": "gap_filled",
     "verified_date": "2026-07-16",
     "last_synced": "2026-07-17"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_IOLTA_TRUST_1_15",
+   "name": "Client Trust Accounts and IOLTA representations (ABA Model Rule 1.15 - Safekeeping Property)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct (advisory model; adopted with variation by each state); state IOLTA programs",
+    "section": "Rule 1.15(a): a lawyer shall hold property of clients or third persons separate from the lawyer's own property; funds kept in a separate account maintained in the state where the lawyer's office is situated; complete records preserved. Client funds that are nominal or short-term are held in the state's IOLTA program where mandated",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_1_15_safekeeping_property/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firms",
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "payments"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "Law practice that receives or holds client funds (retainers, settlements, escrow) and describes fee or retainer handling on its website"
+   ],
+   "excluded_when": [
+    "Practice that never holds client funds and makes no representation about retainers, escrow or settlement handling"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Represent client-fund handling accurately and consistently with the state's trust-accounting and IOLTA rules",
+     "elements": [
+      "statements about retainers, escrow or settlement funds consistent with segregated client trust accounts",
+      "no representation that client money is held in the firm's own operating account or used before it is earned",
+      "IOLTA participation described accurately where the website mentions it"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "Trust-accounting violations are among the most heavily sanctioned areas of bar discipline: suspension and disbarment are routine outcomes in commingling and misappropriation cases; amounts vary by state",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "State bars / state supreme court disciplinary bodies; state IOLTA programs",
+    "register_url": "https://www.americanbar.org/groups/professional_responsibility/resources/lawyer_ethics_regulation/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Fee and retainer pages routinely describe how client money is handled; a description inconsistent with segregated trust accounting is a discipline-grade admission sitting in public view.",
+    "regulator_asks_first": "Where do client retainers sit before they are earned, and does your website say anything inconsistent with that?",
+    "relevance_hook": "One paragraph on the fees page aligns the firm's public description of retainers with the trust-accounting rules every state bar enforces hardest."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/rule_1_15_safekeeping_property/"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-27",
+    "last_synced": "2026-07-27"
+   },
+   "status": "candidate",
+   "client_useful": true
+  },
+  {
+   "id": "US_STATE_BAR_BASELINE",
+   "name": "State Bar Advertising Baseline - verify your own state bar (ABA Model Rules as floor)",
+   "citation": {
+    "act": "ABA Model Rules of Professional Conduct 7.1-7.5 (advisory model); each state's Rules of Professional Conduct as adopted",
+    "section": "The ABA Model Rules are the floor this catalogue screens nationwide; state variations are material (filing and review regimes, disclaimer wording, solicitation moratoria). CA, NY, TX, FL and IL are modelled as their own records - lawyers in the other 45 states and DC must verify their own state's adopted rules",
+    "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/"
+   },
+   "jurisdiction": "US",
+   "sub_jurisdiction": null,
+   "sector": [
+    "legal"
+   ],
+   "sub_sector": [
+    "law-firms",
+    "law-firm",
+    "attorney"
+   ],
+   "activity_tags": [
+    "b2c",
+    "runs_ads"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "Law practice established in a US state whose bar advertising rules are not individually modelled in this catalogue (any state other than CA, NY, TX, FL, IL)"
+   ],
+   "excluded_when": [
+    "Practice established in CA, NY, TX, FL or IL (those state rules are modelled as their own records)"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Verify the firm's advertising against its own state bar's adopted rules, not only the ABA model floor",
+     "elements": [
+      "the state's adopted versions of Rules 7.1-7.5 identified for every state where the firm is licensed",
+      "state-specific filing, disclaimer and solicitation requirements reviewed against the website"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "USD",
+    "basis": "State-bar disciplinary action (private or public reprimand, probation, suspension, disbarment) under the state's own rules; amounts and sanctions vary by state",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "State bars / state supreme court disciplinary bodies",
+    "register_url": "https://www.americanbar.org/groups/legal_services/flh-home/flh-bar-directories-and-lawyer-finders/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Only five state bars are modelled in depth; the other 45 all still regulate lawyer advertising, several more strictly than the ABA model - silence would imply the model rules are the whole story.",
+    "regulator_asks_first": "Which state bars license your lawyers, and has anyone checked the website against those states' adopted advertising rules?",
+    "relevance_hook": "An honest baseline: your own state bar's adopted rules bind you even where this catalogue has not modelled them line-by-line."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-27",
+    "last_synced": "2026-07-27"
    },
    "status": "candidate",
    "client_useful": true

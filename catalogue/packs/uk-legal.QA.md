@@ -1,5 +1,14 @@
-<!-- qa-approval pack_sha256=45aa7976da6d1901fac7689d8ee856b64bd7fd20720e5afdef4d10fc1fffc56c verdict=approved reviewed=2026-07-19 -->
+<!-- qa-approval pack_sha256=13db1929132c9b5c5c63dd204fe111b51afc8fcb209c5c3a876e03059bd7179d verdict=approved reviewed=2026-07-27 -->
 Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17; sector-tag binding correction applied and re-attested by build agent, 2026-07-19). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that the ONE change since the 2026-07-17 review (see "Orchestrator decision: P6 connection-integrity" below) is a binding-correctness fix, not a legal-substance change: the pack_sha256 in the header above matches the CURRENT pack bytes (post-correction). It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
+
+## Catalogue-depth wave (2026-07-27; authored + source-verified inline by build agent)
+Changes since the 2026-07-19 review, each verified against the official source on 2026-07-27:
+- **NEW RECORD `UK_SRA_PII_INDEMNITY`** - SRA Indemnity Insurance Rules rr.2/3/9 + Annex 1 cl 2.1 (GBP 2m/3m any-one-claim minima) verified verbatim at sra.org.uk; the website-checkable duty is the PSR 2009 reg 8(1)(n) PII-information duty (insurer details + territorial coverage), evidence_type presence; the maintain-qualifying-insurance duty is behavioural (adjudicator). Penalty mirrors the pack's SRA fixed-penalty/GBP 25k-cap convention.
+- **Tag repair, `UK_CLC_TRANSPARENCY`** - sub_sector trimmed to ['licensed-conveyancers']: the practice-area tags (conveyancing/probate) became REACHABLE leaves in this wave (facts/vocabulary.js practice-area promotion), and would have bound SRA solicitors firms classified to those leaves to a CLC-profession rule. Profession-precision fix, no legal substance changed.
+- **Tag repair, `UK_CILEX_TRANSPARENCY`** - same trim to ['legal-executives','cilex']; 'cilex' is now a reachable synonym of the legal-executives leaf.
+- **`UK_PROVISION_OF_SERVICES_2009` + `UK_COMPANIES_ACT_S82_LEGAL` activity_tags [] (was ['b2c','b2b_only'])** - closes QA finding #2 correctly: gate-5 excludes only when EVERY tag is affirmatively false, so the pair encoded "never exclude" by accident; the reviewer's suggested drop of b2b_only alone would have wrongly excluded B2B-only firms. Empty = applies to every in-sector firm, which is the true scope of both duties.
+- **`UK_LEGAL_OMBUDSMAN_SIGNPOST` element reworded** - closes QA finding #4 (the garbled "six-month deadline for the deadline to bite" string): now "that the six-month time limit runs from that final response". Meaning unchanged.
+Practice-area promotion note: uk-legal SRA-family records already carry the 'law-firms' parent label, so the new practice leaves change TARGETING (a specialist immigration firm now classifies to its own leaf) without changing which records bind. Founder (Aman) phase sign-off at PR merge remains required.
 
 # uk-legal law pack QA
 
