@@ -210,33 +210,25 @@ function validateSubSectorField(record) {
   return v;
 }
 
+// enumTagViolations(field, tags) -> one violation line per non-ACTIVITY_TAGS member; flat, shared by
+// the two activity-tag-shaped fields below (one enum door, facts/vocabulary.js).
+function enumTagViolations(field, tags) {
+  const bad = tags.filter((t) => !vocabulary.isActivityTag(t));
+  return bad.map((t) => field + ': ' + JSON.stringify(t) + ' is not a facts/vocabulary.js ACTIVITY_TAGS member');
+}
+
 // activity_tags[] - enum-checked via facts/vocabulary.js ACTIVITY_TAGS
 function validateActivityTagsField(record) {
-  const v = [];
-  if (!isArray(record.activity_tags)) {
-    v.push('activity_tags: required array (may be empty)');
-  } else {
-    for (const t of record.activity_tags) {
-      if (!vocabulary.isActivityTag(t)) {
-        v.push('activity_tags: ' + JSON.stringify(t) + ' is not a facts/vocabulary.js ACTIVITY_TAGS member');
-      }
-    }
-  }
+  if (!isArray(record.activity_tags)) return ['activity_tags: required array (may be empty)'];
+  return enumTagViolations('activity_tags', record.activity_tags);
+}
 
 // requires_activity[] - OPTIONAL scope-defining capabilities (gate 5b). Same enum door as
 // activity_tags; when present every listed tag must be AFFIRMATIVELY observed for the record to bind.
-  if (record.requires_activity !== undefined) {
-    if (!isArray(record.requires_activity)) {
-      v.push('requires_activity: when present must be an array');
-    } else {
-      for (const t of record.requires_activity) {
-        if (!vocabulary.isActivityTag(t)) {
-          v.push('requires_activity: ' + JSON.stringify(t) + ' is not a facts/vocabulary.js ACTIVITY_TAGS member');
-        }
-      }
-    }
-  }
-  return v;
+function validateRequiresActivityField(record) {
+  if (record.requires_activity === undefined) return [];
+  if (!isArray(record.requires_activity)) return ['requires_activity: when present must be an array'];
+  return enumTagViolations('requires_activity', record.requires_activity);
 }
 
 // The record's vocabulary-controlled classification tags (facts/vocabulary.js is their one door).
@@ -246,6 +238,7 @@ function validateTags(record) {
     ...validateSectorField(record),
     ...validateSubSectorField(record),
     ...validateActivityTagsField(record),
+    ...validateRequiresActivityField(record),
   ];
 }
 
