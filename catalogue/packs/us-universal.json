@@ -547,7 +547,10 @@
     "seed_status": "confirmed",
     "verified_date": "2026-07-16",
     "last_synced": "2026-07-17"
-   }
+   },
+   "requires_activity": [
+    "child_directed"
+   ]
   },
   {
    "jurisdiction": "US",
@@ -1429,7 +1432,10 @@
     "seed_status": "gap_filled",
     "verified_date": "2026-07-16",
     "last_synced": "2026-07-17"
-   }
+   },
+   "requires_activity": [
+    "biometrics"
+   ]
   },
   {
    "jurisdiction": "US",

@@ -222,6 +222,20 @@ function validateActivityTagsField(record) {
       }
     }
   }
+
+// requires_activity[] - OPTIONAL scope-defining capabilities (gate 5b). Same enum door as
+// activity_tags; when present every listed tag must be AFFIRMATIVELY observed for the record to bind.
+  if (record.requires_activity !== undefined) {
+    if (!isArray(record.requires_activity)) {
+      v.push('requires_activity: when present must be an array');
+    } else {
+      for (const t of record.requires_activity) {
+        if (!vocabulary.isActivityTag(t)) {
+          v.push('requires_activity: ' + JSON.stringify(t) + ' is not a facts/vocabulary.js ACTIVITY_TAGS member');
+        }
+      }
+    }
+  }
   return v;
 }
 

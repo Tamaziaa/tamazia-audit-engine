@@ -989,7 +989,10 @@
     "seed_status": "corrected",
     "verified_date": "2026-07-16",
     "last_synced": "2026-07-17"
-   }
+   },
+   "requires_activity": [
+    "ugc"
+   ]
   },
   {
    "jurisdiction": "UK",
