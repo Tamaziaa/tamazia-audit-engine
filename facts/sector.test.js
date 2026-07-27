@@ -747,7 +747,13 @@ test('DEFECT-7 positive: a US personal-injury attorney site resolves law-firms/s
     'Our attorneys and personal injury lawyers have recovered over one billion dollars for injury '
     + 'victims. Contact our law office for litigation and trial representation. Samuel Miklos, Esq.'));
   assert.equal(r.value && r.value.sector, 'law-firms', 'a US PI attorney site must resolve legal, not healthcare/hospitality');
-  assert.equal(r.value && r.value.sub_sector, 'solicitors', 'the leaf that binds us-legal records tagged attorney/law-firm via SUB_SECTOR_SYNONYMS');
+  // catalogue-depth P0-1: the practice-area leaves are now reachable, so a dedicated PI practice
+  // resolves to the SPECIFIC leaf (targeting precision), no longer the generic solicitors fallback.
+  assert.equal(r.value && r.value.sub_sector, 'personal-injury', 'a dedicated PI practice resolves the personal-injury leaf');
+  // The binding DEFECT-7 protected is preserved: us-legal records carry the law-firms parent tag,
+  // which binds every leaf of the family - the PI leaf included - via subSectorBinds.
+  assert.equal(REAL_VOCAB.subSectorBinds(['law-firm', 'attorney', 'law-firms'], 'personal-injury', ['law-firms']), true,
+    'us-legal records (parent-tagged law-firms) must still bind a personal-injury-leaf firm');
 });
 
 test('DEFECT-7 positive: a Florida PI firm using American practice terms resolves law-firms (seriousaccidents.com class)', (t) => {

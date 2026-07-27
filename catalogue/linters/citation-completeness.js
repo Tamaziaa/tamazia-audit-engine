@@ -45,6 +45,7 @@ const OFFICIAL_HOSTS = Object.freeze([
   'gmc-uk.org',
   'cqc.org.uk',
   'gdc-uk.org',
+  'nmc.org.uk',
   'pharmacyregulation.org',
   'asa.org.uk',
   'cap.org.uk',

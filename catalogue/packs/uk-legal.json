@@ -258,7 +258,7 @@
       "Legal Ombudsman named as the escalation route with postal address, phone and website",
       "the client may refer within six months of the firm's final written response",
       "the overall LeO time limit stated (referral within one year of the act/omission, or one year from when the client should reasonably have known)",
-      "statement that the firm's final response must explain the LeO route and the six-month deadline for the deadline to bite"
+      "statement that the firm's final response must explain the LeO route and that the six-month time limit runs from that final response"
      ],
      "evidence_type": "presence"
     }
@@ -526,9 +526,7 @@
    "status": "candidate",
    "client_useful": true,
    "sub_sector": [
-    "conveyancing",
-    "licensed-conveyancers",
-    "probate"
+    "licensed-conveyancers"
    ],
    "activity_tags": [
     "b2c",
@@ -693,10 +691,7 @@
     "conveyancing",
     "professional-services"
    ],
-   "activity_tags": [
-    "b2c",
-    "b2b_only"
-   ],
+   "activity_tags": [],
    "id": "UK_PROVISION_OF_SERVICES_2009",
    "name": "Provision of Services Regulations 2009 - professional service-provider information duties",
    "citation": {
@@ -779,10 +774,7 @@
     "conveyancing",
     "professional-services"
    ],
-   "activity_tags": [
-    "b2c",
-    "b2b_only"
-   ],
+   "activity_tags": [],
    "id": "UK_COMPANIES_ACT_S82_LEGAL",
    "name": "Companies Act 2006 s.82 and Company, LLP and Business (Names and Trading Disclosures) Regulations - website trading disclosures",
    "citation": {
@@ -926,9 +918,7 @@
    "client_useful": true,
    "sub_sector": [
     "legal-executives",
-    "cilex",
-    "conveyancing",
-    "probate"
+    "cilex"
    ],
    "activity_tags": [
     "b2c",
@@ -991,6 +981,81 @@
     "seed_status": "not_in_seed",
     "verified_date": "2026-07-16",
     "last_synced": "2026-07-17"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "law-firms",
+    "solicitors"
+   ],
+   "activity_tags": [],
+   "id": "UK_SRA_PII_INDEMNITY",
+   "name": "SRA professional indemnity insurance - qualifying cover and insurer information (SRA Indemnity Insurance Rules; PSR 2009 reg 8(1)(n))",
+   "citation": {
+    "act": "SRA Indemnity Insurance Rules (SRA Standards and Regulations); Provision of Services Regulations 2009",
+    "section": "Rule 2 (an authorised body must take out and maintain qualifying insurance); Rule 3 (adequate and appropriate cover for current and past practice); Rule 9 (on a claim, provide the participating insurer's name, policy number and contact details); Annex 1 cl 2.1 (minimum GBP 3m any-one-claim for relevant recognised/licensed bodies, GBP 2m for other authorised bodies); PSR 2009 reg 8(1)(n) (make professional indemnity insurance details and territorial coverage available to service recipients)",
+    "url": "https://www.sra.org.uk/solicitors/standards-regulations/indemnity-insurance-rules/"
+   },
+   "sector": [
+    "legal"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "firm is authorised and regulated by the SRA"
+   ],
+   "excluded_when": [
+    "not an SRA-regulated firm"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Make professional indemnity insurance information available to clients as the Provision of Services Regulations require",
+     "elements": [
+      "professional indemnity insurance details (insurer contact details and territorial coverage) made available on the website or in client-care information",
+      "no statement understating or misdescribing the compulsory cover the firm carries"
+     ],
+     "evidence_type": "presence"
+    },
+    {
+     "duty": "Maintain qualifying insurance at or above the SRA minimum terms while practising",
+     "elements": [
+      "qualifying insurance in place with a participating insurer (minimum GBP 2m/3m any-one-claim by body type)",
+      "insurer name, policy number and contact details provided when a claimant asserts a claim (Rule 9)"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": 750,
+    "typical_high": 25000,
+    "statutory_max": 25000,
+    "currency": "GBP",
+    "basis": "Practising without qualifying insurance is a serious regulatory breach (intervention-grade); information failures sit in the SRA's fixed-penalty and conduct framework, subject to the GBP 25,000 cap for traditional firms/individuals",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Solicitors Regulation Authority (SRA)",
+    "register_url": "https://www.sra.org.uk/consumers/register/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "PII is the client-protection backbone of SRA regulation: the PSR 2009 information duty is website-checkable, and practising without qualifying cover is an intervention-grade breach clients never see coming.",
+    "regulator_asks_first": "Where do you tell clients about your professional indemnity insurance and its territorial coverage?",
+    "relevance_hook": "One line in the client-care or terms page closes a statutory information duty most firms have never mapped to their website."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.sra.org.uk/solicitors/standards-regulations/indemnity-insurance-rules/",
+     "https://www.legislation.gov.uk/uksi/2009/2999/contents/made"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-27",
+    "last_synced": "2026-07-27"
    }
   }
  ]

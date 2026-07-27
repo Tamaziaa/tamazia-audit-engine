@@ -432,7 +432,10 @@ test('isReachableSubSector: leaves, sector-node parent labels and synonyms are r
   for (const t of ['injectables', 'care-home', 'veterinary', 'aesthetics', 'dental', 'law-firms', 'gp-clinic', 'attorney']) {
     assert.equal(vocab.isReachableSubSector(t), true, t + ' should be reachable');
   }
-  for (const t of ['not-a-real-thing', 'solo-practice', 'wellness', 'conveyancing']) {
+  // catalogue-depth P0-1: 'conveyancing' (with the other practice-area tags) is now a REACHABLE
+  // detection leaf under law-firms, so it belongs in the reachable set by design.
+  assert.equal(vocab.isReachableSubSector('conveyancing'), true, 'conveyancing is a promoted practice-area leaf');
+  for (const t of ['not-a-real-thing', 'solo-practice', 'wellness']) {
     assert.equal(vocab.isReachableSubSector(t), false, t + ' should be unreachable');
   }
 });
@@ -441,7 +444,10 @@ test('recordSubSectorBindable: empty binds all; one reachable tag suffices; all-
   assert.equal(vocab.recordSubSectorBindable([]), true, 'empty = no restriction');
   assert.equal(vocab.recordSubSectorBindable(['wellness', 'supplements']), true, 'one reachable tag (supplements) suffices');
   assert.equal(vocab.recordSubSectorBindable(['wellness']), false, 'a sole unreachable tag is a dead record');
-  assert.equal(vocab.recordSubSectorBindable(['conveyancing', 'probate']), false, 'all-unreachable is dead');
+  // catalogue-depth P0-1: conveyancing/probate became reachable leaves, so the all-unreachable
+  // fixture now uses tags that remain genuinely unreachable (lifestyle + firm-structure labels).
+  assert.equal(vocab.recordSubSectorBindable(['wellness', 'solo-practice']), false, 'all-unreachable is dead');
+  assert.equal(vocab.recordSubSectorBindable(['conveyancing', 'probate']), true, 'promoted practice-area leaves bind');
 });
 
 test('the sub-sector binding taxonomy exports are deep-frozen (a consumer cannot mutate the one door)', () => {

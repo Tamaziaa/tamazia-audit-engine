@@ -1465,6 +1465,155 @@
     "verified_date": "2026-07-20",
     "last_synced": "2026-07-20"
    }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [
+    "aesthetics",
+    "injectables",
+    "laser-skin",
+    "general-practice",
+    "mental-health",
+    "care-home"
+   ],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_NMC_CODE_ADVERTISING",
+   "name": "NMC Code - advertising accuracy and use of registered status (nurse-led clinics and aesthetic nurses)",
+   "citation": {
+    "act": "The Code: Professional standards of practice and behaviour for nurses, midwives and nursing associates (NMC)",
+    "section": "Para 21.4 (any advertisement or published material for professional services must be accurate, responsible, ethical, must not mislead or exploit vulnerabilities, and must accurately reflect skills, experience and qualifications); para 21.5 (never use registered professional status to promote causes unrelated to health); para 20 (uphold the reputation of the profession at all times)",
+    "url": "https://www.nmc.org.uk/standards/code/"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "required_nexus": [
+    "established_in"
+   ],
+   "applies_when": [
+    "clinic or service is nurse-led or advertises treatment delivered by NMC-registered nurses, midwives or nursing associates (including aesthetic nurse prescribers)"
+   ],
+   "excluded_when": [
+    "no NMC registrant is named or implied in the service offering"
+   ],
+   "website_obligations": [
+    {
+     "duty": "Advertise nursing services accurately and verifiably",
+     "elements": [
+      "claimed NMC registration corroborated by the public register for the named practitioner",
+      "qualifications, experience and titles stated accurately (no implied specialisms the registrant does not hold)"
+     ],
+     "evidence_type": "register"
+    },
+    {
+     "duty": "Keep published material within the Code's advertising standards",
+     "elements": [
+      "no misleading claims and no exploitation of vulnerabilities (para 21.4)",
+      "registered status not used to promote non-health causes or products (para 21.5)"
+     ],
+     "evidence_type": "behavioural"
+    }
+   ],
+   "penalty": {
+    "typical_low": null,
+    "typical_high": null,
+    "statutory_max": null,
+    "currency": "GBP",
+    "basis": "NMC fitness-to-practise proceedings (caution order, conditions of practice, suspension, striking-off); the NMC does not fine, but FtP outcomes are public and end careers - and misleading ads also engage the ASA/CAP record separately",
+    "max_is_rare": false
+   },
+   "regulator": {
+    "name": "Nursing & Midwifery Council (NMC)",
+    "register_url": "https://www.nmc.org.uk/registration/search-the-register/"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Aesthetics is increasingly nurse-led; the NMC Code's advertising paragraphs are the professional-standards hook for injectables and laser clinics that the GMC/GDC records do not cover.",
+    "regulator_asks_first": "Is every named nurse on the register, and do the qualifications on your site match the register entry?",
+    "relevance_hook": "A register cross-check on the team page closes the professional-standards gap for nurse-led clinics."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.nmc.org.uk/standards/code/",
+     "https://www.nmc.org.uk/registration/search-the-register/"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-27",
+    "last_synced": "2026-07-27"
+   }
+  },
+  {
+   "jurisdiction": "UK",
+   "sub_jurisdiction": null,
+   "status": "candidate",
+   "client_useful": true,
+   "sub_sector": [],
+   "activity_tags": [
+    "b2c"
+   ],
+   "id": "UK_GDPR_ART9_HEALTH_TRANSPARENCY",
+   "name": "UK GDPR special-category health data - transparency about the Article 9 condition (privacy notice)",
+   "citation": {
+    "act": "UK GDPR; Data Protection Act 2018",
+    "section": "UK GDPR Art 9(1)-(2) (processing of data concerning health prohibited unless a condition applies, e.g. Art 9(2)(h) health or social care with DPA 2018 s.10 and Sch 1 Part 1 para 2); UK GDPR Arts 13-14 (privacy information); DPA 2018 Sch 1 Part 4 (an appropriate policy document is required only where the relied-on condition demands one - the health and social care condition in Part 1 para 2 does not)",
+    "url": "https://www.legislation.gov.uk/ukpga/2018/12/schedule/1"
+   },
+   "sector": [
+    "healthcare"
+   ],
+   "required_nexus": [
+    "established_in",
+    "serves_customers_in"
+   ],
+   "applies_when": [
+    "provider processes patients' health data (bookings, consultations, records) through or alongside its website"
+   ],
+   "excluded_when": [
+    "site collects no health information and takes no bookings for clinical services"
+   ],
+   "website_obligations": [
+    {
+     "duty": "State the special-category basis for health data in the privacy notice",
+     "elements": [
+      "privacy notice acknowledges that health (special category) data is processed",
+      "the Article 9 condition relied on is identified (for care providers, typically Art 9(2)(h) health or social care with DPA 2018 Sch 1 para 2)"
+     ],
+     "evidence_type": "presence"
+    }
+   ],
+   "penalty": {
+    "typical_low": 1230000,
+    "typical_high": 14000000,
+    "statutory_max": 17500000,
+    "penalty_model": "turnover_pct",
+    "currency": "GBP",
+    "basis": "Higher maximum of GBP 17.5m or 4% of total worldwide annual turnover (UK GDPR Art 83(5) - Article 9 and transparency infringements sit in the higher tier); typical band from 2025 ICO monetary penalties",
+    "max_is_rare": true
+   },
+   "regulator": {
+    "name": "Information Commissioner's Office (ICO)",
+    "register_url": "https://ico.org.uk/ESDWebPages/Search"
+   },
+   "enforcement": [],
+   "intel": {
+    "why_matters": "Health data is the highest-tier category the ICO polices; a clinic privacy notice that never names its Article 9 condition fails the first question any ICO audit asks - and it is checkable on one page. Framed as transparency, not as a missing appropriate-policy-document accusation (the health-care condition does not require one).",
+    "regulator_asks_first": "Which Article 9 condition do you rely on for patient data, and where does your privacy notice say so?",
+    "relevance_hook": "One paragraph in the privacy notice moves the practice from silent to compliant on the highest-tier data it holds."
+   },
+   "provenance": {
+    "sources": [
+     "https://www.legislation.gov.uk/ukpga/2018/12/schedule/1",
+     "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/"
+    ],
+    "seed_status": "confirmed",
+    "verified_date": "2026-07-27",
+    "last_synced": "2026-07-27"
+   }
   }
  ]
 }

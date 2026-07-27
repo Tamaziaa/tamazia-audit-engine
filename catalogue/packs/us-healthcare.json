@@ -721,7 +721,7 @@
     },
     {
       "id": "US_MEDBOARD_ADV_CA",
-      "name": "State Medical Board Advertising Rules - California",
+      "name": "Healing-Arts Advertising Rules - California (medical, dental, nursing, pharmacy and other licensed providers)",
       "citation": {
         "act": "California Business and Professions Code; Medical Board of California",
         "section": "Cal. Bus. & Prof. Code 651 (false, misleading or deceptive advertising by healing-arts licensees; a violation of s.651 is a misdemeanor); 2271 (advertising in violation of the false-advertising law is unprofessional conduct and grounds for licence discipline)",
@@ -743,7 +743,7 @@
         "serves_customers_in"
       ],
       "applies_when": [
-        "Physician or medical practice licensed in California, or advertising professional medical services to California residents",
+        "Healing-arts provider licensed in California under Division 2 of the Business and Professions Code (physician, dentist, nurse, pharmacist, optometrist or other licensee), or advertising professional healthcare services to California residents",
         "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
       ],
       "excluded_when": [
@@ -771,12 +771,12 @@
         "max_is_rare": true
       },
       "regulator": {
-        "name": "Medical Board of California (and the Attorney General for injunctive relief)",
+        "name": "California healing-arts boards (Medical Board, Dental Board, Board of Registered Nursing, Board of Pharmacy; Attorney General for injunctive relief)",
         "register_url": "https://www.mbc.ca.gov/"
       },
       "enforcement": [],
       "intel": {
-        "why_matters": "State boards, alongside the FTC, act on misleading treatment claims and inaccurate board-certification statements; the risky language sits on the homepage.",
+        "why_matters": "B&P s.651 reaches every healing-arts licensee, not only physicians - state boards and the FTC act on misleading treatment claims and inaccurate certification statements; the risky language sits on the homepage.",
         "regulator_asks_first": "Are the board-certification statements accurate and are outcome or superiority claims substantiated?",
         "relevance_hook": "For a California-licensed practice, superlatives and unqualified 'board-certified' or 'guaranteed' claims are a licence-level exposure, not just a marketing quibble."
       },
@@ -787,18 +787,18 @@
         ],
         "seed_status": "corrected",
         "verified_date": "2026-07-17",
-        "last_synced": "2026-07-17"
+        "last_synced": "2026-07-27"
       },
       "status": "candidate",
       "client_useful": true
     },
     {
       "id": "US_MEDBOARD_ADV_NY",
-      "name": "State Medical Board Advertising Rules - New York",
+      "name": "Professional Advertising Rules - New York (Regents professions incl. dental, nursing, pharmacy; physicians via Educ. Law 6530)",
       "citation": {
         "act": "New York Education Law; Rules of the Board of Regents",
         "section": "N.Y. Educ. Law 6530(27); 8 NYCRR 29.1(b)(12) (advertising or soliciting not in the public interest, including false, deceptive or misleading advertising)",
-        "url": "https://www.op.nysed.gov/professions/physicians/laws-rules-regulations/article-131a"
+        "url": "https://www.op.nysed.gov/title8/rules-board-regents/part-29"
       },
       "jurisdiction": "US",
       "sub_jurisdiction": "NY",
@@ -816,7 +816,7 @@
         "serves_customers_in"
       ],
       "applies_when": [
-        "Physician or medical practice licensed in New York, or advertising professional medical services to New York residents",
+        "Healthcare professional or practice licensed in New York - physicians under Educ. Law 6530(27), and dentists, nurses, pharmacists and other Regents-regulated professions under 8 NYCRR 29.1(b)(12) - or advertising professional healthcare services to New York residents",
         "Website makes claims about qualifications, specialties, board certification, treatment outcomes, or patient testimonials"
       ],
       "excluded_when": [
@@ -857,11 +857,12 @@
         "sources": [
           "https://www.op.nysed.gov/professions/physicians/laws-rules-regulations/article-131a",
           "https://www.health.ny.gov/professionals/doctors/conduct/",
-          "https://www.nysenate.gov/legislation/laws/PBH/230-A"
+          "https://www.nysenate.gov/legislation/laws/PBH/230-A",
+          "https://www.op.nysed.gov/title8/rules-board-regents/part-29"
         ],
         "seed_status": "gap_filled",
         "verified_date": "2026-07-17",
-        "last_synced": "2026-07-17"
+        "last_synced": "2026-07-27"
       },
       "status": "candidate",
       "client_useful": true
@@ -1305,6 +1306,150 @@
         "seed_status": "gap_filled",
         "verified_date": "2026-07-16",
         "last_synced": "2026-07-17"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_SEC1557_NOTICES",
+      "name": "ACA Section 1557 - Notice of Nondiscrimination and Notice of Availability of Language Assistance (45 CFR Part 92)",
+      "citation": {
+        "act": "Patient Protection and Affordable Care Act s.1557; HHS 2024 final rule, 45 CFR Part 92",
+        "section": "45 CFR 92.10 (notice of nondiscrimination: provided annually and posted in a conspicuous location on the website, with OCR complaint information and, where required, the Section 1557 Coordinator's contact details); 45 CFR 92.11 (notice of availability of free language assistance services and auxiliary aids, in English and at least the 15 most common non-English languages of the State, posted conspicuously including on the website)",
+        "url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-A/part-92/subpart-A/section-92.10"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c"
+      ],
+      "required_nexus": [
+        "established_in",
+        "serves_customers_in"
+      ],
+      "applies_when": [
+        "Health program or activity receiving federal financial assistance from HHS (including providers participating in Medicare or Medicaid)",
+        "The practice operates a public website through which patients access its services or information"
+      ],
+      "excluded_when": [
+        "Provider receives no federal financial assistance at all (no Medicare, Medicaid or other HHS funding)"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Post the Section 1557 notice of nondiscrimination conspicuously on the website",
+          "elements": [
+            "statement that the entity does not discriminate on the basis of race, color, national origin, sex, age or disability",
+            "how to file a discrimination complaint with the HHS Office for Civil Rights",
+            "contact details for the entity's Section 1557 Coordinator where the entity has 15 or more employees"
+          ],
+          "evidence_type": "presence"
+        },
+        {
+          "duty": "Post the notice of availability of free language assistance services and auxiliary aids",
+          "elements": [
+            "statement that language assistance services and appropriate auxiliary aids are available free of charge",
+            "the notice provided in English and at least the 15 languages most commonly spoken by individuals with limited English proficiency in the relevant State"
+          ],
+          "evidence_type": "presence"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "Enforced by the HHS Office for Civil Rights through the civil-rights framework: corrective-action plans, resolution agreements and, ultimately, suspension or termination of federal financial assistance; private civil-rights liability can follow",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "HHS Office for Civil Rights (OCR)",
+        "register_url": "https://www.hhs.gov/civil-rights/index.html"
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "The 2024 final rule re-established the notice duties as concrete, website-checkable items - a missing nondiscrimination notice or missing 15-language taglines is visible on the homepage footer in seconds, and it is distinct from the s.504 accessibility duty already screened.",
+        "regulator_asks_first": "Where on your website is your notice of nondiscrimination, and does your language-assistance notice cover the top-15 languages for your State?",
+        "relevance_hook": "Two footer notices close a federal civil-rights exposure most practices have never heard of."
+      },
+      "provenance": {
+        "sources": [
+          "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-A/part-92/subpart-A/section-92.10",
+          "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-A/part-92/subpart-A/section-92.11",
+          "https://www.hhs.gov/sites/default/files/1557-sample-nondiscrimination-policy.pdf"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-27",
+        "last_synced": "2026-07-27"
+      },
+      "status": "candidate",
+      "client_useful": true
+    },
+    {
+      "id": "US_STATE_BOARD_BASELINE",
+      "name": "State Licensing-Board Advertising Baseline - verify your own state board (all provider professions)",
+      "citation": {
+        "act": "State healing-arts licensing statutes and board rules (advisory baseline; every state board regulates licensee advertising)",
+        "section": "State-specific unprofessional-conduct and advertising provisions for medical, dental, nursing, pharmacy and allied boards - licensure and professional conduct are state-controlled (see HHS licensure guidance); this catalogue models CA, NY, TX, FL and IL in depth, and licensees in other states must verify their own board's advertising rules",
+        "url": "https://telehealth.hhs.gov/licensure/licensing-across-state-lines"
+      },
+      "jurisdiction": "US",
+      "sub_jurisdiction": null,
+      "sector": [
+        "healthcare"
+      ],
+      "sub_sector": [],
+      "activity_tags": [
+        "b2c",
+        "runs_ads"
+      ],
+      "required_nexus": [
+        "established_in"
+      ],
+      "applies_when": [
+        "Licensed healthcare provider or practice established in a US state whose board rules are not individually modelled in this catalogue (any state other than CA, NY, TX, FL, IL)"
+      ],
+      "excluded_when": [
+        "Practice established in CA, NY, TX, FL or IL (those state rules are modelled as their own records)"
+      ],
+      "website_obligations": [
+        {
+          "duty": "Verify the practice's advertising against its own state licensing board's rules",
+          "elements": [
+            "state board advertising and unprofessional-conduct rules identified for the licence held",
+            "claims about qualifications, specialties, outcomes and testimonials reviewed against those rules"
+          ],
+          "evidence_type": "behavioural"
+        }
+      ],
+      "penalty": {
+        "typical_low": null,
+        "typical_high": null,
+        "statutory_max": null,
+        "currency": "USD",
+        "basis": "Board disciplinary action (citation, fine, probation, licence suspension or revocation) under the licensee's own state statute; amounts vary by state and board",
+        "max_is_rare": true
+      },
+      "regulator": {
+        "name": "State healing-arts licensing boards (medical, dental, nursing, pharmacy and allied boards)",
+        "register_url": null
+      },
+      "enforcement": [],
+      "intel": {
+        "why_matters": "Only five states are modelled in depth; the other 45 all still regulate licensee advertising - a practice outside the modelled states is NOT free of board rules, and saying nothing would imply it is.",
+        "regulator_asks_first": "Which state board licenses you, and do your website's claims comply with that board's advertising rules?",
+        "relevance_hook": "An honest baseline: your own state board's advertising rules bind you even where this catalogue has not modelled them line-by-line."
+      },
+      "provenance": {
+        "sources": [
+          "https://telehealth.hhs.gov/licensure/licensing-across-state-lines"
+        ],
+        "seed_status": "confirmed",
+        "verified_date": "2026-07-27",
+        "last_synced": "2026-07-27"
       },
       "status": "candidate",
       "client_useful": true

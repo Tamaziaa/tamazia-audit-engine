@@ -121,6 +121,54 @@ const SECTORS = {
         detect: /\bchartered legal executives?\b|\blegal executives?\b|\bcilex\b|\bchartered institute of legal executives\b/i,
         sample: 'our chartered legal executives are CILEX members of the Chartered Institute of Legal Executives',
       },
+      // PRACTICE-AREA LEAVES (catalogue-depth P0-1): the canonical practice-area tags (conveyancing,
+      // immigration, personal-injury, ...) existed only as decorative record tags no classifiable firm
+      // could ever carry - so no legal rule could target a practice area and every practice-specific
+      // duty bound all solicitors. These leaves make them REACHABLE. Placement: after the profession
+      // leaves (licensed-conveyancers / legal-executives - a distinct REGULATOR, must resolve first),
+      // before the generic solicitors fallback (resolveSubSector is first-match in declaration order).
+      // A specialist firm resolves to its practice leaf; a full-service firm resolves to whichever
+      // practice its corpus surfaces first, which is why every family-wide record carries the
+      // 'law-firms' parent label (uk) / parent tag (us) - coverage never depends on WHICH leaf wins,
+      // only targeting precision does. Each detect requires the practice term adjacent to a legal
+      // self-ID word, every branch \b-anchored (C-059), and sub-resolution only runs once the parent
+      // is already law-firms, so none of these can misfire cross-sector.
+      immigration: {
+        detect: /\bimmigration (?:solicitors?|lawyers?|attorneys?|law firm|law|advice)\b|\bindefinite leave to remain\b|\basylum appeals?\b/i,
+        sample: 'our immigration solicitors give immigration advice on indefinite leave to remain and asylum appeals',
+      },
+      'personal-injury': {
+        detect: /\bpersonal injury (?:lawyers?|solicitors?|attorneys?|claims?|law)\b|\bno win,? no fee\b|\bmedical negligence\b|\bclinical negligence\b/i,
+        sample: 'personal injury solicitors: no win no fee claims for medical negligence and clinical negligence',
+      },
+      'criminal-defence': {
+        detect: /\bcriminal (?:defence|defense) (?:solicitors?|lawyers?|attorneys?)\b|\bcriminal (?:law|solicitors?|lawyers?)\b|\bmotoring offences?\b|\bpolice station representation\b/i,
+        sample: 'criminal defence solicitors offering police station representation for criminal law and motoring offences',
+      },
+      'family-law': {
+        detect: /\bfamily (?:law|solicitors?|lawyers?)\b|\bdivorce (?:solicitors?|lawyers?|attorneys?)\b/i,
+        sample: 'our family law solicitors are experienced divorce lawyers',
+      },
+      employment: {
+        detect: /\bemployment (?:law|solicitors?|lawyers?|tribunals?)\b/i,
+        sample: 'employment law solicitors representing clients at employment tribunals',
+      },
+      conveyancing: {
+        detect: /\bconveyancing (?:solicitors?|lawyers?|specialists?|services|quotes?|fees|team)\b|\bresidential conveyancing\b/i,
+        sample: 'our residential conveyancing team of conveyancing solicitors provides conveyancing quotes',
+      },
+      probate: {
+        detect: /\bprobate (?:solicitors?|lawyers?|specialists?|services|team)\b|\bgrant of probate\b|\bestate administration\b/i,
+        sample: 'our probate solicitors handle the grant of probate and estate administration',
+      },
+      'corporate-law': {
+        detect: /\bcorporate (?:solicitors?|lawyers?)\b|\bshareholders?'? agreements?\b/i,
+        sample: "our corporate lawyers draft shareholders' agreements",
+      },
+      'intellectual-property': {
+        detect: /\bintellectual property (?:law|solicitors?|lawyers?|attorneys?)\b|\btrade ?mark (?:registration|attorneys?|applications?)\b|\bpatent (?:attorneys?|applications?|litigation)\b/i,
+        sample: 'intellectual property solicitors: trademark registration, patent applications and patent litigation',
+      },
       // DEFECT-7 (empirical legal-US Finding 1): the detect vocabulary was British-only
       // (solicitor/conveyancing/probate), so a US law firm using American practice terms scored ZERO
       // legal cues and misclassified (ask4sam.net read as healthcare off its medical-malpractice blog;
@@ -825,12 +873,12 @@ const CANONICAL_SUB_SECTORS = [
   'barristers', 'boiler-installers', 'broadcast-catchup', 'builders', 'building-control',
   'building-materials', 'car-dealers', 'care-home', 'chambers', 'cilex', 'cloud-services',
   'communities', 'construction-products', 'consumer-products', 'content-studios', 'conveyancing',
-  'cosmetic-dentistry', 'cosmetic-surgery', 'criminal-defence', 'demolition', 'dental',
+  'corporate-law', 'cosmetic-dentistry', 'cosmetic-surgery', 'criminal-defence', 'demolition', 'dental',
   'digital-agencies', 'electronics', 'electronics-retail', 'email-marketing', 'employment',
-  'energy-brokers', 'energy-suppliers', 'fertility', 'fertility-ivf', 'fintech', 'fire-consultants',
+  'energy-brokers', 'energy-suppliers', 'family-law', 'fertility', 'fertility-ivf', 'fintech', 'fire-consultants',
   'fitness-apps', 'forums', 'general', 'general-dental', 'general-practice', 'gp-clinic', 'gyms',
   'heating-engineers', 'higher-education', 'hospital', 'hospital-care', 'hotel', 'house-clearance',
-  'hvac', 'ifa', 'immigration', 'influencer-marketing', 'injectables', 'insurance', 'it-services',
+  'hvac', 'ifa', 'immigration', 'influencer-marketing', 'injectables', 'insurance', 'intellectual-property', 'it-services',
   'laser-skin', 'law-firm', 'law-firms', 'lead-generation', 'legal-executives', 'leisure-clubs',
   'lettings', 'licensed-conveyancers', 'lighting', 'local-news', 'machinery', 'magazines',
   'martial-arts', 'medical-devices', 'mental-health', 'motorbike-dealers', 'multi-state',
@@ -892,6 +940,7 @@ const SUB_SECTOR_SYNONYMS = {
   chambers: 'general',       // the barristers detection leaf key
   'law-firm': 'solicitors',  // US singular form
   attorney: 'solicitors',    // US term for a solicitor-equivalent
+  cilex: 'legal-executives', // CILEX-regulated = the chartered-legal-executives leaf (catalogue-depth: makes the 'cilex' record tag reachable by name, same discipline as attorney/gp-clinic)
   // P6 connection-integrity (uk-tech-media-industrial wave): the catalogue names UK_ATOL_LICENSING /
   // UK_PACKAGE_TRAVEL_2018's target population with these three tags, all of which denote the SAME
   // firm the hospitality.travel detection leaf already catches (its own detect already fires on

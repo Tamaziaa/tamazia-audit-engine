@@ -29,9 +29,11 @@ test('a record with an UNKNOWN sub_sector tag is flagged (typo / dead reference)
 });
 
 test('a record whose ONLY sub_sector is canonical-but-unreachable is a DEAD record (the D4 class)', () => {
-  // 'solo-practice' / 'wellness' / 'conveyancing' are real CANONICAL_SUB_SECTORS members but no
+  // 'solo-practice' / 'wellness' / 'notaries' are real CANONICAL_SUB_SECTORS members but no
   // classifier leaf resolves to them and they are neither a sector label nor a synonym of a leaf.
-  for (const tag of ['solo-practice', 'wellness', 'conveyancing']) {
+  // ('conveyancing' left this class in the catalogue-depth practice-area promotion - it is a real
+  // detection leaf under law-firms now, covered by the reachable-tag test below.)
+  for (const tag of ['solo-practice', 'wellness', 'notaries']) {
     assert.equal(vocabulary.isCanonicalSubSector(tag), true, tag + ' should be a canonical sub-sector');
     const f = findings({ id: 'R', sub_sector: [tag] });
     assert.ok(f.some((x) => x.rule === 'sub-sector-binding/dead-record'),
