@@ -293,20 +293,58 @@ function buildNexusLeaf(factsPayload) {
 // frameworkCard(rec, findings) -> one framework card built from the applicable catalogue record (Rule 2:
 // name/regulator/citation/penalty read off the record, never authored). state: the record's worst
 // finding, or `screened` when assessed with no breach (C-115: the card earns its place via real duties).
+// firstEnforcementOf(rec) -> the record's leading verified enforcement action, catalogue-verbatim
+// ({case,date,amount,url,summary}) or null. One entry keeps the card lean; the render composes the
+// display line and the URL is the citation the reader can follow.
+function firstEnforcementOf(rec) {
+  const e = arr(rec && rec.enforcement)[0];
+  if (!e) return null;
+  return {
+    case: str(e.case) || null, date: str(e.date) || null, amount: str(e.amount) || null,
+    url: str(e.url) || null, summary: str(e.summary) || null,
+  };
+}
+// obligationsOf(rec) -> the record's website duties, verbatim duty strings (the "what the regulator
+// assesses" list the render shows; every line is catalogue fact, never generated).
+function obligationsOf(rec) {
+  return arr(rec && rec.website_obligations).map((o) => str(o && o.duty)).filter(Boolean);
+}
+// One nested read per helper, so the identity block stays a flat field list.
+function regulatorNameOf(rec) { return (rec && rec.regulator && str(rec.regulator.name)) || null; }
+function regulatorRegisterOf(rec) { return (rec && rec.regulator && str(rec.regulator.register_url)) || null; }
+function citationUrlOf(rec) { return (rec && rec.citation && str(rec.citation.url)) || null; }
+// cardLegalIdentity(rec) -> the framework's legal identity block, catalogue-verbatim.
+function cardLegalIdentity(rec) {
+  return {
+    code: recordIdOf(rec),
+    name: str(rec && rec.name),
+    regulator: regulatorNameOf(rec),
+    register_url: regulatorRegisterOf(rec),
+    jurisdiction: str(rec && rec.jurisdiction) || null,
+    citation: citationFor(rec) || null,
+    citation_url: citationUrlOf(rec),
+    penalty: (rec && rec.penalty) || null,
+  };
+}
+// cardIntel(rec) -> the catalogue intel block (contract-additive): what the regulator assesses,
+// why the framework matters, and its leading cited enforcement. Every value verbatim.
+function cardIntel(rec) {
+  const intel = (rec && rec.intel) || {};
+  return {
+    obligations: obligationsOf(rec),
+    why: str(intel.why_matters) || null,
+    focus: str(intel.regulator_asks_first) || null,
+    enforcement: firstEnforcementOf(rec),
+  };
+}
 function frameworkCard(rec, findings) {
   const id = recordIdOf(rec);
   const worst = worstStateFor(id, findings);
-  return {
-    code: id,
-    name: str(rec && rec.name),
-    regulator: (rec && rec.regulator && str(rec.regulator.name)) || null,
-    jurisdiction: str(rec && rec.jurisdiction) || null,
-    citation: citationFor(rec) || null,
-    penalty: (rec && rec.penalty) || null,
+  return Object.assign(cardLegalIdentity(rec), cardIntel(rec), {
     binding: true,
     state: worst === 'not_evaluated' ? 'screened' : worst,
     findings: findings.filter((f) => f.record_id === id),
-  };
+  });
 }
 // buildFrameworks(applicable, findings) -> the framework cards (NONEMPTY). When a firm has zero binding
 // frameworks, a single honest "none identified" marker keeps the contract valid without inventing a
