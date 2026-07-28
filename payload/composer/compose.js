@@ -309,16 +309,20 @@ function firstEnforcementOf(rec) {
 function obligationsOf(rec) {
   return arr(rec && rec.website_obligations).map((o) => str(o && o.duty)).filter(Boolean);
 }
+// One nested read per helper, so the identity block stays a flat field list.
+function regulatorNameOf(rec) { return (rec && rec.regulator && str(rec.regulator.name)) || null; }
+function regulatorRegisterOf(rec) { return (rec && rec.regulator && str(rec.regulator.register_url)) || null; }
+function citationUrlOf(rec) { return (rec && rec.citation && str(rec.citation.url)) || null; }
 // cardLegalIdentity(rec) -> the framework's legal identity block, catalogue-verbatim.
 function cardLegalIdentity(rec) {
   return {
     code: recordIdOf(rec),
     name: str(rec && rec.name),
-    regulator: (rec && rec.regulator && str(rec.regulator.name)) || null,
-    register_url: (rec && rec.regulator && str(rec.regulator.register_url)) || null,
+    regulator: regulatorNameOf(rec),
+    register_url: regulatorRegisterOf(rec),
     jurisdiction: str(rec && rec.jurisdiction) || null,
     citation: citationFor(rec) || null,
-    citation_url: (rec && rec.citation && str(rec.citation.url)) || null,
+    citation_url: citationUrlOf(rec),
     penalty: (rec && rec.penalty) || null,
   };
 }
