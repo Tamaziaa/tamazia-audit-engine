@@ -173,10 +173,16 @@ const SIGNALS = Object.freeze({
     { id: 'voice', re: /\bvoice (recognition|biometrics)\b/i, positive: 'voice biometrics' },
   ],
   child_directed: [
-    { id: 'for_children', re: /\bfor (kids|children)\b/i, positive: 'activities for children' },
-    { id: 'age_band', re: /\b(children|kids) (aged|under) \d{1,2}\b/i, positive: 'children under 13' },
+    // DIRECTION signals only, never topic MENTIONS (gate-5b regression, 2026-07-28): the retired
+    // for_children (/\bfor (kids|children)\b/) and age_band (/children under \d/) detectors fired on
+    // an immigration law firm's own articles ("citizenship for kids", "protections for children",
+    // "children under 21" visa rules) and marked the firm child_directed - which bound US_COPPA and
+    // asserted a children's-privacy violation off an analytics cookie. COPPA's legal test is whether
+    // the SERVICE is directed to children; a site that merely discusses children is out of scope.
+    // Each surviving signal names a children's SERVICE OFFERING in the firm's own voice.
     { id: 'early_years', re: /\b(nursery|preschool|kindergarten)\b/i, positive: 'our nursery in Leeds' },
     { id: 'kids_offering', re: /\b(kids|children)['’]?s? (club|classes|zone|area)\b/i, positive: 'kids club every Saturday' },
+    { id: 'kids_service', re: /\b(children['’]s|kids['’]?) (games?|app|videos?|entertainment|channel)\b/i, positive: "children's games and videos" },
   ],
   health_claims: [
     { id: 'clinically', re: /\bclinically (proven|shown|tested)\b/i, positive: 'clinically proven' },

@@ -287,6 +287,28 @@ function gateActivity(record, ctx) {
   return null;
 }
 
+// GATE 5b: REQUIRED activity (scope-defining capabilities). Where a law's entire scope IS a
+// capability - COPPA applies only to child-directed services, BIPA only to biometric identifiers,
+// ATOL/PTR only to sellers of travel packages - "not disproven" is NOT good enough. Gate 5 is a
+// deliberately fail-OPEN scope filter (unknown never excludes), which is right for incidental
+// context tags (b2c/cookies_present/runs_ads) but catastrophic here: it let COPPA attach to every
+// site with an analytics cookie and assert a children's-privacy breach against an immigration law
+// firm off a `_ga` cookie. A record naming requires_activity binds ONLY when every named capability
+// is AFFIRMATIVELY present in the firm's own corpus - fail-CLOSED, because accusing a firm under a
+// statute whose scope was never evidenced is a false accusation, and silence is free (Rule 6).
+function gateRequiredActivity(record, ctx) {
+  const required = Array.isArray(record.requires_activity) ? record.requires_activity : [];
+  if (required.length === 0) return null;
+  const missing = required.filter((tag) => {
+    const predicate = ctx.predicates && ctx.predicates[tag];
+    return !(predicate && predicate.present === true);
+  });
+  if (missing.length === 0) return null;
+  return 'gate-5b required-activity: the record\'s scope is defined by [' + required.join(', ')
+    + '] and [' + missing.join(', ') + '] is not affirmatively present in the firm corpus; '
+    + 'the statute\'s own precondition is unevidenced, so it does not bind (fail-closed)';
+}
+
 // hasEstablishmentEvidence(boundEntry) -> true when the bound entry carries a Tier A establishment
 // evidence kind (the gate-6 established_in test). Tier B/C is explicitly rejected (defence in depth:
 // the establishment KINDS are Tier-A-exclusive in the producer, and a stated B/C tier can never pass).
@@ -324,6 +346,7 @@ function evaluateRemainingGates(record, ctx) {
     || gateDisplacement(record, ctx)
     || gateSector(record, ctx)
     || gateActivity(record, ctx)
+    || gateRequiredActivity(record, ctx)
     || gateNexus(record, ctx);
 }
 

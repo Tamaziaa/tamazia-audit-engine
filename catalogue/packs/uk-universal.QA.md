@@ -1,5 +1,8 @@
-<!-- qa-approval pack_sha256=bf11ceaa9f52b14252acb0a3a866c9c9fcda1da565c988d353dfe5ca7c1a54c8 verdict=approved reviewed=2026-07-20 -->
+<!-- qa-approval pack_sha256=d7850607d2457f1e309442d2a82dc41b8321b2618e1d15fd19820cd81295edfb verdict=approved reviewed=2026-07-28 -->
 Integrity attestation and review record (legal-QA reviewer Rob, 2026-07-17; re-stamped 2026-07-19 for the DUAA carve-out correction, again for the W2 records-authoring wave - see the W2 section directly below - and again for the W6 un-quarantine of UK_DATA_SECURITY_TRANSPORT once its false-accusation path was structurally closed in the engine, see the "Engine fix landed (W6)" note below). This attests that the pack was legally reviewed, including the PR #3 gate-loop corrections (official-source verifications and conservative removals), and that the pack_sha256 in the header above matches the current pack bytes. It is NOT a release approval. Release requires CI-green plus founder (Aman) phase sign-off at PR merge.
+
+## Scope-gate wave (2026-07-28): `requires_activity` added to UK_OSA_2023
+New applicability **gate 5b** (fail-closed scope predicate, see `applicability/connect.js#gateRequiredActivity`). `UK_OSA_2023` -> `requires_activity: ["ugc"]`, matching its own applies_when ("operates a user-to-user service (users can post or share content others see)"). The Online Safety Act governs user-to-user services; a brochure site with no UGC must never be accused under it. No law fact, citation, penalty or obligation changed.
 
 ## Records-authoring verification 2026-07-19 (W2: two new UK GDPR records added)
 

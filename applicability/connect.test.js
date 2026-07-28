@@ -479,6 +479,7 @@ test('integration: reference firms - no jurisdiction leak, russell-cooke usefuln
 // when the compiled catalogue is absent, matching the pattern above.
 
 const realSector = require('../facts/sector.js');
+const realCapabilities = require('../facts/capabilities.js');
 
 function realBundleFor(domain, text) {
   return { domain, corpus: { pages: [{ url: 'https://' + domain + '/', title: 'x', text, jsonLd: [] }] }, registers: {} };
@@ -486,12 +487,15 @@ function realBundleFor(domain, text) {
 
 // ukEstablishedFacts(text) -> the { jurisdiction, sector, capabilities } envelope connect() reads, built
 // from a Tier A UK-established jurisdiction (satisfies every required_nexus alternative these records
-// use) and the REAL sector door's resolution of a synthetic firm's page text.
+// use) and the REAL sector + capabilities doors run on the same synthetic firm's page text. The real
+// capabilities door matters since gate 5b: a requires_activity record (ATOL/PTR/OSA) binds only on
+// affirmative evidence, and these genuine samples DO evidence their scope in their own copy.
 function ukEstablishedFacts(domain, text) {
+  const bundle = realBundleFor(domain, text);
   return {
     jurisdiction: boundUK({ tierA: true }),
-    sector: realSector.resolveSector(realBundleFor(domain, text)),
-    capabilities: null,
+    sector: realSector.resolveSector(bundle),
+    capabilities: realCapabilities.deriveCapabilities(bundle),
   };
 }
 
@@ -560,4 +564,41 @@ test('P6 wave: genuine samples bind the exact records they target, through the r
     + 'residents\' gym, and a two-bedroom home to let for tenants seeking a long-term tenancy.');
   assert.deepEqual(realEstateIds.filter((id) => tmiIds.has(id)), [],
     'a real-estate listing with a studio apartment and a residents-gym amenity must never bind a fitness record');
+});
+
+// ── GATE 5b: required activity (scope-defining capabilities) ─────────────────────────────────────────
+// Regression for the COPPA false-accusation class: a live dry-run mint of a US immigration law firm
+// produced 5 CONFIRMED US_COPPA "violations" off pre-consent Google Analytics cookies alone.
+// child_directed has positive-only detection so gate 5 (fail-open) could never exclude COPPA. Gate 5b
+// is fail-CLOSED: a record naming requires_activity binds only on affirmative evidence of scope.
+
+test('gate 5b: a requires_activity record is EXCLUDED when the scope capability is merely unknown', () => {
+  const catalogue = [rec({ id: 'COPPA_LIKE', activity_tags: ['child_directed', 'b2c', 'cookies_present'], requires_activity: ['child_directed'] })];
+  // b2c + cookies observed; child_directed never observed (the real law-firm shape).
+  const firm = factsFor({ jurisdiction: boundUK(), capabilities: caps({ b2c: true, cookies_present: true }) });
+  const out = connect(firm, catalogue);
+  assert.deepEqual(out.applicable.map((r) => r.id), []);
+  const row = out.excluded.find((r) => r.record_id === 'COPPA_LIKE');
+  assert.ok(row, 'must be excluded');
+  assert.match(row.reason, /gate-5b required-activity/);
+});
+
+test('gate 5b: the same record BINDS once the scope capability is affirmatively present', () => {
+  const catalogue = [rec({ id: 'COPPA_LIKE', activity_tags: ['child_directed', 'b2c'], requires_activity: ['child_directed'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), capabilities: caps({ child_directed: true, b2c: true }) });
+  assert.deepEqual(connect(firm, catalogue).applicable.map((r) => r.id), ['COPPA_LIKE']);
+});
+
+test('gate 5b: null capabilities excludes a requires_activity record (fail-closed, no crash)', () => {
+  const catalogue = [rec({ id: 'COPPA_LIKE', requires_activity: ['child_directed'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), capabilities: null });
+  const out = connect(firm, catalogue);
+  assert.deepEqual(out.applicable.map((r) => r.id), []);
+  assert.match(out.excluded.find((r) => r.record_id === 'COPPA_LIKE').reason, /gate-5b/);
+});
+
+test('gate 5b: a record with NO requires_activity keeps gate-5 fail-open semantics untouched', () => {
+  const catalogue = [rec({ id: 'PLAIN', activity_tags: ['ecommerce'] })];
+  const firm = factsFor({ jurisdiction: boundUK(), capabilities: caps({}) });
+  assert.deepEqual(connect(firm, catalogue).applicable.map((r) => r.id), ['PLAIN']);
 });
