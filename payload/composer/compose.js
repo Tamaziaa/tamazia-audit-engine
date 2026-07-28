@@ -293,16 +293,41 @@ function buildNexusLeaf(factsPayload) {
 // frameworkCard(rec, findings) -> one framework card built from the applicable catalogue record (Rule 2:
 // name/regulator/citation/penalty read off the record, never authored). state: the record's worst
 // finding, or `screened` when assessed with no breach (C-115: the card earns its place via real duties).
+// firstEnforcementOf(rec) -> the record's leading verified enforcement action, catalogue-verbatim
+// ({case,date,amount,url,summary}) or null. One entry keeps the card lean; the render composes the
+// display line and the URL is the citation the reader can follow.
+function firstEnforcementOf(rec) {
+  const e = arr(rec && rec.enforcement)[0];
+  if (!e) return null;
+  return {
+    case: str(e.case) || null, date: str(e.date) || null, amount: str(e.amount) || null,
+    url: str(e.url) || null, summary: str(e.summary) || null,
+  };
+}
+// obligationsOf(rec) -> the record's website duties, verbatim duty strings (the "what the regulator
+// assesses" list the render shows; every line is catalogue fact, never generated).
+function obligationsOf(rec) {
+  return arr(rec && rec.website_obligations).map((o) => str(o && o.duty)).filter(Boolean);
+}
 function frameworkCard(rec, findings) {
   const id = recordIdOf(rec);
   const worst = worstStateFor(id, findings);
+  const intel = (rec && rec.intel) || {};
   return {
     code: id,
     name: str(rec && rec.name),
     regulator: (rec && rec.regulator && str(rec.regulator.name)) || null,
+    register_url: (rec && rec.regulator && str(rec.regulator.register_url)) || null,
     jurisdiction: str(rec && rec.jurisdiction) || null,
     citation: citationFor(rec) || null,
+    citation_url: (rec && rec.citation && str(rec.citation.url)) || null,
     penalty: (rec && rec.penalty) || null,
+    // catalogue intel, verbatim (contract-additive): the rich render's per-framework exhibit -
+    // what the regulator assesses, why the framework matters, and its leading cited enforcement.
+    obligations: obligationsOf(rec),
+    why: str(intel.why_matters) || null,
+    focus: str(intel.regulator_asks_first) || null,
+    enforcement: firstEnforcementOf(rec),
     binding: true,
     state: worst === 'not_evaluated' ? 'screened' : worst,
     findings: findings.filter((f) => f.record_id === id),
