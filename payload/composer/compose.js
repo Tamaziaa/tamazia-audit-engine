@@ -309,12 +309,10 @@ function firstEnforcementOf(rec) {
 function obligationsOf(rec) {
   return arr(rec && rec.website_obligations).map((o) => str(o && o.duty)).filter(Boolean);
 }
-function frameworkCard(rec, findings) {
-  const id = recordIdOf(rec);
-  const worst = worstStateFor(id, findings);
-  const intel = (rec && rec.intel) || {};
+// cardLegalIdentity(rec) -> the framework's legal identity block, catalogue-verbatim.
+function cardLegalIdentity(rec) {
   return {
-    code: id,
+    code: recordIdOf(rec),
     name: str(rec && rec.name),
     regulator: (rec && rec.regulator && str(rec.regulator.name)) || null,
     register_url: (rec && rec.regulator && str(rec.regulator.register_url)) || null,
@@ -322,16 +320,27 @@ function frameworkCard(rec, findings) {
     citation: citationFor(rec) || null,
     citation_url: (rec && rec.citation && str(rec.citation.url)) || null,
     penalty: (rec && rec.penalty) || null,
-    // catalogue intel, verbatim (contract-additive): the rich render's per-framework exhibit -
-    // what the regulator assesses, why the framework matters, and its leading cited enforcement.
+  };
+}
+// cardIntel(rec) -> the catalogue intel block (contract-additive): what the regulator assesses,
+// why the framework matters, and its leading cited enforcement. Every value verbatim.
+function cardIntel(rec) {
+  const intel = (rec && rec.intel) || {};
+  return {
     obligations: obligationsOf(rec),
     why: str(intel.why_matters) || null,
     focus: str(intel.regulator_asks_first) || null,
     enforcement: firstEnforcementOf(rec),
+  };
+}
+function frameworkCard(rec, findings) {
+  const id = recordIdOf(rec);
+  const worst = worstStateFor(id, findings);
+  return Object.assign(cardLegalIdentity(rec), cardIntel(rec), {
     binding: true,
     state: worst === 'not_evaluated' ? 'screened' : worst,
     findings: findings.filter((f) => f.record_id === id),
-  };
+  });
 }
 // buildFrameworks(applicable, findings) -> the framework cards (NONEMPTY). When a firm has zero binding
 // frameworks, a single honest "none identified" marker keeps the contract valid without inventing a
